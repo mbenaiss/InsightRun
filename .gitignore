@@ -1,0 +1,65 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.fleet/
+xcuserdata/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+.dev.vars
+*.pem
+*.key
+*.crt
+secrets/
+
+# Build artifacts
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Backend specific
+backend/.wrangler/
+backend/worker-configuration.d.ts
+
+# Frontend specific
+frontend/.next/
+frontend/.open-next/
+frontend/.wrangler/
+frontend/out/
+frontend/next-env.d.ts
+
+# HealthApp (iOS/Xcode)
+HealthApp/*.xcodeproj/xcuserdata/
+HealthApp/*.xcworkspace/xcuserdata/
+HealthApp/DerivedData/
+HealthApp/build/
+HealthApp/.build/
+HealthApp/Pods/
+HealthApp/Carthage/
+HealthApp/*.ipa
+HealthApp/*.dSYM.zip
+HealthApp/*.dSYM
+HealthApp/*.resolved
+HealthApp/*.playground
+
+

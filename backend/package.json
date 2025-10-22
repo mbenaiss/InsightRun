@@ -1,0 +1,33 @@
+{
+  "name": "healthapp-backend",
+  "version": "1.0.0",
+  "description": "Secure backend for HealthApp iOS - OpenRouter API proxy",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "check": "biome check .",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "ci": "biome ci ."
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "hono",
+    "openrouter",
+    "healthapp"
+  ],
+  "author": "HealthApp",
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^4.6.15",
+    "posthog-node": "^5.10.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.6",
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "wrangler": "^4.44.0"
+  }
+}

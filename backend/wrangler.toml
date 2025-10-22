@@ -1,0 +1,39 @@
+name = "healthapp-backend"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Account ID (à remplacer après avoir créé ton compte Cloudflare)
+# account_id = "YOUR_ACCOUNT_ID"
+
+# Workers AI binding (optionnel pour le futur)
+# [ai]
+# binding = "AI"
+
+# KV namespace pour rate limiting (gratuit jusqu'à 100k opérations/jour)
+[[kv_namespaces]]
+binding = "RATE_LIMITER"
+id = "68e04932b0fb470990644cc6ce45aaff"
+preview_id = "0a94bdf7fe8d4184947affb84f2e5a9b"
+
+# Secrets (à configurer avec: wrangler secret put <SECRET_NAME>)
+# OPENROUTER_API_KEY - votre clé OpenRouter
+# APP_SECRET - secret pour authentifier l'app iOS
+# POSTHOG_API_KEY - clé API PostHog pour LLM analytics (format: phc_xxx)
+# POSTHOG_HOST - URL de votre instance PostHog (ex: https://eu.i.posthog.com ou https://us.i.posthog.com)
+
+# Observability - Logs configuration
+# enabled = true pour avoir les logs dans le dashboard Cloudflare
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[env.production]
+name = "healthapp-backend"
+route = "api.yourapp.com/*"  # À remplacer par ton domaine
+
+[env.development]
+name = "healthapp-backend-dev"

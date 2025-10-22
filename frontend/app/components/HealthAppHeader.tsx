@@ -17,6 +17,8 @@ export default function InsightRunHeader() {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  role="img"
+                  aria-label="InsightRun logo"
                 >
                   <path
                     strokeLinecap="round"

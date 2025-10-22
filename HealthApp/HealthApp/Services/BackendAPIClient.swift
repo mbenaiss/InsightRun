@@ -18,7 +18,7 @@ class BackendAPIClient {
     // Note: This is safe to hardcode as it's just an app identifier (like a User-Agent).
     // Real security is server-side with rate limiting, IP tracking, and secret rotation.
     // iOS apps can always be decompiled, so no true secrets should ever be in client code.
-    private let appKey = "c6456f133bab77a55fdcc2c5d1234b798c7a7eb8a32ecad98e99e8de969519fc"
+    private let appKey = "insightrun-LEtZ5vhVA5RBpw8u-F0Rxvk1mHagGeINJEI9GOPUFs4"
 
     private init() {}
 

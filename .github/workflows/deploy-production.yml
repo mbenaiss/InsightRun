@@ -1,12 +1,11 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     types:
       - closed
+    branches:
+      - main
 
 concurrency:
   group: production-deploy
@@ -16,8 +15,8 @@ jobs:
   # Detect which parts of the codebase changed
   changes:
     name: Detect Changes
-    # Only run on main branch push or when PR is merged to main
-    if: github.ref == 'refs/heads/main' || (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+    # Only run when PR is merged to main (not on direct push)
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -65,8 +64,8 @@ jobs:
         run: bun run pages:build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
-          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
           NEXT_PUBLIC_ENV: production
 
       - name: Deploy to Cloudflare Pages

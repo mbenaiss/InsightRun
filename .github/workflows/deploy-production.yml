@@ -64,8 +64,8 @@ jobs:
         run: bun run pages:build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
-          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
           NEXT_PUBLIC_ENV: production
 
       - name: Deploy to Cloudflare Workers

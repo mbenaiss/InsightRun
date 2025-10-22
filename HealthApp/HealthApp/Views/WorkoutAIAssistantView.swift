@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ChatMessage: Identifiable, Equatable, Codable {
     let id: UUID
@@ -37,12 +38,18 @@ struct WorkoutAIAssistantView: View {
     @Binding var isPresented: Bool
     @StateObject private var aiService = WorkoutAIService()
     @State private var question = ""
-    @State private var selectedModel: AIModel = .claudeSonnet
+    @State private var selectedModel: AIModel = .foundationModels
     @State private var messages: [ChatMessage] = []
     @State private var isTyping = false
+    @State private var streamingMessageId: UUID?
     @State private var showingModelSelector = false
     @FocusState private var isTextFieldFocused: Bool
     @Namespace private var bottomID
+
+    // Haptic feedback generators
+    private let impactLight = UIImpactFeedbackGenerator(style: .light)
+    private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
+    private let notificationFeedback = UINotificationFeedbackGenerator()
 
     var body: some View {
         NavigationView {
@@ -76,42 +83,40 @@ struct WorkoutAIAssistantView: View {
                                     ForEach(messages) { message in
                                         MessageBubble(message: message)
                                             .transition(.asymmetric(
-                                                insertion: .scale.combined(with: .opacity),
+                                                insertion: .move(edge: .bottom).combined(with: .opacity),
                                                 removal: .opacity
                                             ))
                                     }
                                 }
 
-                                // Typing Indicator
-                                if isTyping || aiService.isStreaming {
+                                // Typing Indicator (only before streaming starts)
+                                if isTyping && !aiService.isStreaming {
                                     HStack {
                                         TypingIndicator()
                                         Spacer()
                                     }
                                     .padding(.horizontal)
-                                    .transition(.opacity)
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
                                 }
 
-                                // Streaming Response
-                                if !aiService.streamedResponse.isEmpty {
-                                    MessageBubble(message: ChatMessage(
-                                        role: .assistant,
-                                        content: aiService.streamedResponse,
-                                        timestamp: Date()
-                                    ))
+                                // Always have a bottom anchor
+                                Color.clear
+                                    .frame(height: 1)
                                     .id(bottomID)
-                                }
                             }
                             .padding(.vertical, 16)
                         }
-                        .onChange(of: aiService.streamedResponse) {
-                            withAnimation {
-                                scrollProxy.scrollTo(bottomID, anchor: .bottom)
-                            }
-                        }
-                        .onChange(of: messages.count) {
-                            withAnimation {
-                                scrollProxy.scrollTo(bottomID, anchor: .bottom)
+                        .scrollDismissesKeyboard(.interactively)
+                        .onChange(of: aiService.streamedResponse) { _, newValue in
+                            // Update streaming message in place
+                            if let streamingId = streamingMessageId,
+                               let index = messages.firstIndex(where: { $0.id == streamingId }) {
+                                messages[index] = ChatMessage(
+                                    id: streamingId,
+                                    role: .assistant,
+                                    content: newValue,
+                                    timestamp: messages[index].timestamp
+                                )
                             }
                         }
                     }
@@ -149,6 +154,11 @@ struct WorkoutAIAssistantView: View {
         .onAppear {
             loadMessages()
             isTextFieldFocused = true
+
+            // Prepare haptic generators for better responsiveness
+            impactLight.prepare()
+            impactMedium.prepare()
+            notificationFeedback.prepare()
         }
     }
 
@@ -268,6 +278,7 @@ struct WorkoutAIAssistantView: View {
                 VStack(spacing: 8) {
                     ForEach(sampleQuestions, id: \.self) { sample in
                         Button(action: {
+                            impactLight.impactOccurred()
                             question = sample
                         }) {
                             HStack {
@@ -368,6 +379,7 @@ struct WorkoutAIAssistantView: View {
                 HStack(spacing: 8) {
                     ForEach(aiService.suggestedQuestions, id: \.self) { suggestion in
                         Button(action: {
+                            impactLight.impactOccurred()
                             question = suggestion
                             askQuestion()
                         }) {
@@ -473,32 +485,33 @@ struct WorkoutAIAssistantView: View {
             return
         }
 
-        // Save any previous streaming response
-        if !aiService.streamedResponse.isEmpty {
-            messages.append(ChatMessage(
-                role: .assistant,
-                content: aiService.streamedResponse,
-                timestamp: Date()
-            ))
-            saveMessages()
-        }
-
         let userQuestion = question
         question = ""
 
+        // Haptic feedback for sending message
+        impactMedium.impactOccurred()
+
         // Add user message
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            messages.append(ChatMessage(
-                role: .user,
-                content: userQuestion,
-                timestamp: Date()
-            ))
-            isTyping = true
-        }
+        messages.append(ChatMessage(
+            role: .user,
+            content: userQuestion,
+            timestamp: Date()
+        ))
+        isTyping = true
         saveMessages()
 
         // Hide keyboard
         isTextFieldFocused = false
+
+        // Create temporary streaming message that will be updated in place
+        let streamingId = UUID()
+        streamingMessageId = streamingId
+        messages.append(ChatMessage(
+            id: streamingId,
+            role: .assistant,
+            content: "",
+            timestamp: Date()
+        ))
 
         // Generate context based on mode
         let context: String
@@ -520,17 +533,25 @@ struct WorkoutAIAssistantView: View {
 
             await MainActor.run {
                 isTyping = false
-                if !aiService.streamedResponse.isEmpty {
-                    withAnimation {
-                        messages.append(ChatMessage(
-                            role: .assistant,
-                            content: aiService.streamedResponse,
-                            timestamp: Date()
-                        ))
-                        aiService.streamedResponse = ""
+
+                // Haptic feedback for response completion
+                if aiService.error == nil && !aiService.streamedResponse.isEmpty {
+                    notificationFeedback.notificationOccurred(.success)
+                } else if aiService.error != nil {
+                    notificationFeedback.notificationOccurred(.error)
+
+                    // Remove empty streaming message if there was an error
+                    if let streamingId = streamingMessageId,
+                       let index = messages.firstIndex(where: { $0.id == streamingId }) {
+                        messages.remove(at: index)
                     }
-                    saveMessages()
                 }
+
+                // Clear streaming state (message is already updated in messages array)
+                streamingMessageId = nil
+                aiService.streamedResponse = ""
+
+                saveMessages()
             }
         }
     }
@@ -540,6 +561,7 @@ struct WorkoutAIAssistantView: View {
             messages.removeAll()
             aiService.streamedResponse = ""
             aiService.error = nil
+            streamingMessageId = nil
         }
         saveMessages()
     }
@@ -564,6 +586,7 @@ struct WorkoutAIAssistantView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
+    @State private var appeared = false
 
     var body: some View {
         HStack {
@@ -600,13 +623,21 @@ struct MessageBubble: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 4)
+                    .opacity(appeared ? 1 : 0)
             }
+            .scaleEffect(appeared ? 1 : 0.95)
+            .opacity(appeared ? 1 : 0)
 
             if message.role == .assistant {
                 Spacer(minLength: 60)
             }
         }
         .padding(.horizontal)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                appeared = true
+            }
+        }
     }
 
     private func formatTime(_ date: Date) -> String {
@@ -620,6 +651,7 @@ struct MessageBubble: View {
 
 struct MarkdownText: View {
     let content: String
+    @State private var parsedElements: [MarkdownElement] = []
 
     init(_ content: String) {
         self.content = content
@@ -627,12 +659,20 @@ struct MarkdownText: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(parseMarkdown(content), id: \.id) { element in
+            ForEach(parsedElements) { element in
                 element.view
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .textSelection(.enabled)
+        .onAppear {
+            if parsedElements.isEmpty {
+                parsedElements = parseMarkdown(content)
+            }
+        }
+        .onChange(of: content) { _, newContent in
+            parsedElements = parseMarkdown(newContent)
+        }
     }
 
     private func parseMarkdown(_ text: String) -> [MarkdownElement] {
@@ -757,6 +797,13 @@ struct MarkdownElement: Identifiable {
 
         return result
     }
+}
+
+// MARK: - Regex Cache for Better Performance
+private enum MarkdownRegexCache {
+    static let boldRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "\\*\\*([^*]+)\\*\\*")
+    }()
 }
 
 // MARK: - Typing Indicator

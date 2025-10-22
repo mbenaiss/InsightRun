@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import FoundationModels
+import NaturalLanguage
 
 enum AIModel: String, CaseIterable, Sendable {
     case foundationModels = "local/apple-foundation-model"
@@ -59,6 +60,56 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     override init() {
         super.init()
+    }
+
+    // MARK: - Language Detection
+
+    /// Detect the language of the question and return appropriate Locale
+    private func detectLocale(from text: String) -> Locale {
+        let recognizer = NLLanguageRecognizer()
+
+        // Add language hints to improve detection for short phrases
+        recognizer.languageHints = [
+            .french: 0.3,
+            .english: 0.3,
+            .spanish: 0.1,
+            .german: 0.1,
+            .italian: 0.1,
+            .portuguese: 0.1
+        ]
+
+        recognizer.processString(text)
+
+        // Debug: Show all language hypotheses
+        let hypotheses = recognizer.languageHypotheses(withMaximum: 3)
+        print("🔍 WorkoutAIService: Language hypotheses for '\(text)': \(hypotheses)")
+
+        guard let dominantLanguage = recognizer.dominantLanguage else {
+            print("⚠️ WorkoutAIService: Language detection failed, defaulting to English")
+            return Locale(identifier: "en_US") // fallback to English
+        }
+
+        // Map NLLanguage to Locale identifier
+        let localeIdentifier: String
+        switch dominantLanguage {
+        case .french:
+            localeIdentifier = "fr_FR"
+        case .english:
+            localeIdentifier = "en_US"
+        case .spanish:
+            localeIdentifier = "es_ES"
+        case .german:
+            localeIdentifier = "de_DE"
+        case .italian:
+            localeIdentifier = "it_IT"
+        case .portuguese:
+            localeIdentifier = "pt_PT"
+        default:
+            localeIdentifier = "en_US"
+        }
+
+        print("✅ WorkoutAIService: Detected language: \(dominantLanguage.rawValue) -> Locale: \(localeIdentifier)")
+        return Locale(identifier: localeIdentifier)
     }
 
     func askQuestion(about workoutContext: String, question: String, model: AIModel) async {
@@ -159,7 +210,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         # Response Structure
 
-        For general questions, organize as:
+        For general questions, organize as and translate to the user's language:
         ```
         ## 📊 Key Insights
         [2-3 bullet points of most important findings]
@@ -190,9 +241,12 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         Now analyze the data and respond to the user's question with expertise and precision.
         """
 
+        // Detect locale from question for multilingual support
+        let questionLocale = detectLocale(from: question)
+
         // Route to appropriate service based on model type
         if model.isLocal {
-            await handleLocalModelInference(systemPrompt: systemPrompt, question: question)
+            await handleLocalModelInference(systemPrompt: systemPrompt, question: question, locale: questionLocale)
         } else {
             await handleRemoteModelInference(systemPrompt: systemPrompt, question: question, model: model)
         }
@@ -200,7 +254,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     // MARK: - Local Model Inference
 
-    private func handleLocalModelInference(systemPrompt: String, question: String) async {
+    private func handleLocalModelInference(systemPrompt: String, question: String, locale: Locale) async {
         // Check iOS version
         guard #available(iOS 26.0, *) else {
             await MainActor.run {
@@ -251,15 +305,17 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 self.streamedResponse = "🧠 Génération de la réponse..."
             }
 
-            let stream = try await service.generate(prompt: question, systemPrompt: systemPrompt)
+            let stream = try await service.generate(prompt: question, systemPrompt: systemPrompt, locale: locale)
 
-            // Clear the "thinking" message when first chunk arrives
-            await MainActor.run {
-                self.streamedResponse = ""  // Clear "thinking" message before streaming
-            }
-
+            // Stream chunks as they arrive
             for await chunk in stream {
                 await MainActor.run {
+                    // Clear "thinking" message on first chunk
+                    if self.streamedResponse == "🧠 Génération de la réponse..." {
+                        self.streamedResponse = ""
+                    }
+
+                    // Append chunk to streamed response
                     self.streamedResponse += chunk
                 }
             }
@@ -301,16 +357,15 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 model: model.modelId
             )
 
-            // Clear connecting message when first chunk arrives
-            var isFirstChunk = true
-
             // Stream content as it arrives
             for await chunk in stream {
                 await MainActor.run {
-                    if isFirstChunk {
-                        self.streamedResponse = "" // Clear "connecting" message
-                        isFirstChunk = false
+                    // Clear "connecting" message on first chunk
+                    if self.streamedResponse == "🌐 Connexion au serveur..." {
+                        self.streamedResponse = ""
                     }
+
+                    // Append chunk to streamed response
                     self.streamedResponse += chunk
                 }
             }
@@ -614,7 +669,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             if let age = profile.age {
                 context += "- Age: \(age) years\n"
             }
-            if let sex = profile.biologicalSex {
+            if profile.biologicalSex != nil {
                 context += "- Sex: \(profile.biologicalSexString)\n"
             }
             if let mass = profile.bodyMass {

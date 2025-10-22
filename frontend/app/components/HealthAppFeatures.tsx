@@ -2,7 +2,14 @@ export default function InsightRunFeatures() {
   const features = [
     {
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          role="img"
+          aria-label="Lightning bolt icon"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -19,7 +26,14 @@ export default function InsightRunFeatures() {
     },
     {
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          role="img"
+          aria-label="Light bulb icon"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -36,7 +50,14 @@ export default function InsightRunFeatures() {
     },
     {
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          role="img"
+          aria-label="Heart icon"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -53,7 +74,14 @@ export default function InsightRunFeatures() {
     },
     {
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          role="img"
+          aria-label="Bar chart icon"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -70,7 +98,14 @@ export default function InsightRunFeatures() {
     },
     {
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          role="img"
+          aria-label="Lock icon"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -87,7 +122,14 @@ export default function InsightRunFeatures() {
     },
     {
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          role="img"
+          aria-label="Phone icon"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"

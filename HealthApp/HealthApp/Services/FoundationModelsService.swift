@@ -78,20 +78,82 @@ class FoundationModelsService: ObservableObject {
         return false
     }
 
+    // MARK: - Locale Instructions (Apple's recommended approach)
+
+    /// Get human-readable language name from locale
+    private func getLanguageName(for locale: Locale) -> String {
+        switch locale.identifier {
+        case "fr_FR", "fr":
+            return "French"
+        case "es_ES", "es":
+            return "Spanish"
+        case "de_DE", "de":
+            return "German"
+        case "it_IT", "it":
+            return "Italian"
+        case "pt_PT", "pt":
+            return "Portuguese"
+        default:
+            return locale.localizedString(forLanguageCode: locale.language.languageCode?.identifier ?? "en") ?? "English"
+        }
+    }
+
+    /// Generate locale-specific instructions following Apple's documentation
+    /// Reference: https://developer.apple.com/documentation/foundationmodels/support-languages-and-locales-with-foundation-models/
+    private func localeInstructions(for locale: Locale = Locale.current) -> String {
+        if Locale.Language(identifier: "en_US").isEquivalent(to: locale.language) {
+            // Skip the locale phrase for U.S. English
+            return ""
+        } else {
+            // Use the EXACT phrase from Apple's training
+            let localePhrase = "The person's locale is \(locale.identifier)."
+
+            // Map locale to language name
+            let languageName: String
+            switch locale.identifier {
+            case "fr_FR", "fr":
+                languageName = "French"
+            case "es_ES", "es":
+                languageName = "Spanish"
+            case "de_DE", "de":
+                languageName = "German"
+            case "it_IT", "it":
+                languageName = "Italian"
+            case "pt_PT", "pt":
+                languageName = "Portuguese"
+            default:
+                languageName = locale.localizedString(forLanguageCode: locale.language.languageCode?.identifier ?? "en") ?? "English"
+            }
+
+            let languageInstruction = "You MUST respond in \(languageName) and be mindful of \(languageName) spelling, vocabulary, entities, and other cultural contexts."
+
+            print("🌐 FoundationModels: Locale instructions - \(locale.identifier) -> \(languageName)")
+
+            return """
+            \(localePhrase)
+            \(languageInstruction)
+
+            """
+        }
+    }
+
     // MARK: - Session Management
 
-    private func createSession(systemPrompt: String) {
+    private func createSession(systemPrompt: String, locale: Locale) {
+        // Prepend locale instructions to system prompt
+        let localePrefix = localeInstructions(for: locale)
+
         let instructions = systemPrompt.isEmpty
             ? "You are a helpful AI assistant for a health and fitness app."
-            : systemPrompt
+            : "\(localePrefix)\(systemPrompt)"
 
         currentSession = LanguageModelSession(instructions: instructions)
-        print("📝 FoundationModels: Created new session with instructions")
+        print("📝 FoundationModels: Created new session with locale: \(locale.identifier)")
     }
 
     // MARK: - Inference
 
-    func generate(prompt: String, systemPrompt: String) async throws -> AsyncStream<String> {
+    func generate(prompt: String, systemPrompt: String, locale: Locale = Locale.current) async throws -> AsyncStream<String> {
         // Validate prompt
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty else {
@@ -102,6 +164,23 @@ class FoundationModelsService: ObservableObject {
         guard trimmedPrompt.count >= 3 else {
             print("❌ FoundationModels: Prompt too short (\(trimmedPrompt.count) chars)")
             throw FoundationModelsError.inferenceError("Le prompt doit contenir au moins 3 caractères")
+        }
+
+        // Wrap user's prompt with strong language instruction if not English
+        let finalPrompt: String
+        if !Locale.Language(identifier: "en_US").isEquivalent(to: locale.language) {
+            let languageName = getLanguageName(for: locale)
+            finalPrompt = """
+            CRITICAL INSTRUCTION: You MUST respond ENTIRELY in \(languageName). Every single word, header, bullet point, and emoji label must be in \(languageName).
+
+            User's question:
+            \(trimmedPrompt)
+
+            REMINDER: Your complete response must be in \(languageName). Do not use any English words.
+            """
+            print("🌐 FoundationModels: Wrapped prompt with \(languageName) language instruction")
+        } else {
+            finalPrompt = trimmedPrompt
         }
 
         // Check availability first
@@ -117,8 +196,8 @@ class FoundationModelsService: ObservableObject {
             throw FoundationModelsError.inferenceError("La langue \(currentLocale.identifier) n'est pas encore supportée")
         }
 
-        // Create new session for each request
-        createSession(systemPrompt: systemPrompt)
+        // Create new session for each request with locale
+        createSession(systemPrompt: systemPrompt, locale: locale)
 
         guard let session = currentSession else {
             print("❌ FoundationModels: Session not created")
@@ -131,43 +210,24 @@ class FoundationModelsService: ObservableObject {
         error = nil
 
         print("🚀 FoundationModels: Starting inference...")
-        print("📝 FoundationModels: Prompt length: \(trimmedPrompt.count) chars")
+        print("📝 FoundationModels: Prompt length: \(finalPrompt.count) chars")
 
         return AsyncStream { continuation in
             currentTask = Task {
                 do {
-                    // Get response from the model
-                    print("⚙️ FoundationModels: Calling respond(to:)...")
-                    let response = try await session.respond(to: trimmedPrompt)
-                    let responseText = response.content
+                    // Use streaming response from the model
+                    print("⚙️ FoundationModels: Calling streamResponse(to:)...")
 
                     await MainActor.run {
                         self.isLoading = false
                     }
 
-                    print("✅ FoundationModels: Got response (\(responseText.count) chars)")
+                    let stream = try await session.streamResponse(to: finalPrompt)
 
-                    if responseText.isEmpty {
-                        print("⚠️ FoundationModels: WARNING - Empty response!")
-                        error = "The model returned an empty response"
-                        isStreaming = false
-                        currentTask = nil
-                        continuation.finish()
-                        return
-                    }
-
-                    print("📝 FoundationModels: Response preview: \(responseText.prefix(200))...")
-
-                    // Check if cancelled before streaming
-                    guard !Task.isCancelled else {
-                        isStreaming = false
-                        currentTask = nil
-                        continuation.finish()
-                        return
-                    }
-
-                    // Stream character by character for progressive response
-                    for char in responseText {
+                    // Stream snapshots as they arrive
+                    // Note: snapshot.content contains ALL text generated so far, not just the delta
+                    var previousContent = ""
+                    for try await snapshot in stream {
                         guard !Task.isCancelled else {
                             isStreaming = false
                             currentTask = nil
@@ -175,12 +235,26 @@ class FoundationModelsService: ObservableObject {
                             return
                         }
 
-                        let charString = String(char)
-                        continuation.yield(charString)
-                        streamedResponse += charString
+                        let currentContent = snapshot.content
 
-                        // Small delay to simulate streaming
-                        try? await Task.sleep(nanoseconds: 10_000_000)
+                        // Calculate the delta (new text only)
+                        // Use String.Index to handle emojis and multi-byte characters correctly
+                        if currentContent.hasPrefix(previousContent) {
+                            let startIndex = currentContent.index(currentContent.startIndex, offsetBy: previousContent.count)
+                            let delta = String(currentContent[startIndex...])
+                            if !delta.isEmpty {
+                                print("📤 FoundationModels: Delta (\(delta.count) chars): \(delta.prefix(50))...")
+                                continuation.yield(delta)
+                                streamedResponse += delta
+                            }
+                        } else {
+                            // If not a continuation, reset and yield full content
+                            print("🔄 FoundationModels: Full content reset (\(currentContent.count) chars)")
+                            continuation.yield(currentContent)
+                            streamedResponse = currentContent
+                        }
+
+                        previousContent = currentContent
                     }
 
                     isStreaming = false
@@ -251,9 +325,8 @@ class FoundationModelsService: ObservableObject {
             print("🛡️ FoundationModels: Guardrail violation - Content blocked by safety guardrails")
             return "🛡️ Votre demande contient du contenu qui ne peut pas être traité pour des raisons de sécurité. Veuillez reformuler votre question."
 
-        case .refusal(let refusal, _):
+        case .refusal(_, _):
             print("🚫 FoundationModels: Refusal - Model refused the request")
-            // The refusal object may contain more details
             return "🚫 Le modèle ne peut pas répondre à cette demande. Veuillez essayer une autre question."
 
         case .exceededContextWindowSize:

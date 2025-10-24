@@ -51,7 +51,7 @@ export async function captureLLMEvent(
       $ai_output_tokens: properties.outputTokens,
       $ai_latency: properties.latency,
       $ai_total_cost_usd: properties.cost,
-      trace_id: traceId,
+      $ai_trace_id: traceId,
       app: 'healthapp',
       environment: 'production',
       prompt_length: properties.input.length,

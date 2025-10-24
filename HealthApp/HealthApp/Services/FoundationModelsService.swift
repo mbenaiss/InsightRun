@@ -222,7 +222,7 @@ class FoundationModelsService: ObservableObject {
                         self.isLoading = false
                     }
 
-                    let stream = try await session.streamResponse(to: finalPrompt)
+                    let stream = session.streamResponse(to: finalPrompt)
 
                     // Stream snapshots as they arrive
                     // Note: snapshot.content contains ALL text generated so far, not just the delta

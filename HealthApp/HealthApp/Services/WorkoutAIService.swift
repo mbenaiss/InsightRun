@@ -12,6 +12,7 @@ import NaturalLanguage
 
 enum AIModel: String, CaseIterable, Sendable {
     case foundationModels = "local/apple-foundation-model"
+    case claudeHaiku = "anthropic/claude-haiku-4.5"
     case claudeSonnet = "anthropic/claude-sonnet-4.5"
     case gpt5 = "openai/gpt-5"
     case grok4 = "x-ai/grok-4-fast"
@@ -20,6 +21,8 @@ enum AIModel: String, CaseIterable, Sendable {
         switch self {
         case .foundationModels:
             return "Apple Intelligence (Local)"
+        case .claudeHaiku:
+            return "Claude Haiku 4.5"
         case .claudeSonnet:
             return "Claude Sonnet 4.5"
         case .gpt5:
@@ -112,7 +115,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return Locale(identifier: localeIdentifier)
     }
 
-    func askQuestion(about workoutContext: String, question: String, model: AIModel) async {
+    func askQuestion(about workoutContext: String, question: String, mode: AIAssistantMode, model: AIModel? = nil) async {
         await MainActor.run {
             self.isStreaming = true
             self.streamedResponse = ""
@@ -120,6 +123,16 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             self.currentContext = workoutContext
             self.suggestedQuestions = []
         }
+
+        // If model not provided, use intelligent routing
+        let selectedModel: AIModel
+        if let model = model {
+            selectedModel = model
+        } else {
+            selectedModel = await ModelRouter.shared.selectOptimalModel(for: question, mode: mode)
+        }
+
+        print("🎯 WorkoutAIService: Using model: \(selectedModel.displayName)")
 
         let systemPrompt = """
         You are an expert AI running coach specializing in data-driven performance optimization, injury prevention, and personalized training.
@@ -192,7 +205,77 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         - **Cadence**: Optimal is 170-180 spm for most runners
         - **VO2 Max Trends**: Track cardiovascular fitness improvements
 
-        ## 5. Recovery Optimization
+        ## 5. Advanced Running Biomechanics (Apple Watch Series 7+)
+        When available, analyze these critical metrics:
+
+        **Ground Contact Time (GCT):**
+        - Optimal: 200-250 ms for most runners
+        - Elite runners: <200 ms
+        - >300 ms = needs work on running economy
+        - Lower GCT = more efficient running (less time on ground = faster turnover)
+
+        **Vertical Oscillation:**
+        - Optimal: 6-10 cm for most runners
+        - Elite runners: <7 cm
+        - >12 cm = excessive bounce, wasted energy
+        - Lower is better = more forward momentum, less vertical movement
+
+        ## 6. Mobility & Biomechanics (Apple Watch Series 4+)
+        Analyze daily mobility trends that impact running performance:
+
+        **Walking Steadiness:**
+        - Optimal: >85% (OK range)
+        - 70-85%: Low steadiness - increased fall risk
+        - <70%: Very low - mobility concerns
+        - Impact on running: Low steadiness indicates balance issues that can affect running form
+
+        **Walking Asymmetry:**
+        - Optimal: <3% (symmetrical gait)
+        - 3-7%: Mild asymmetry - watch for compensation
+        - >7%: Significant asymmetry - injury risk, suggests imbalance
+        - Impact: High asymmetry can lead to overuse injuries on one side
+
+        **Double Support Percentage:**
+        - Optimal: 20-30% of gait cycle
+        - >35%: Excessive - suggests slower, less efficient gait
+        - <15%: Very low - may indicate instability
+        - Impact: Directly affects walking/running efficiency
+
+        **Walking Speed:**
+        - Optimal: >4.5 km/h (healthy adult)
+        - 3-4.5 km/h: Below average - room for improvement
+        - <3 km/h: Low mobility - health concerns
+        - Impact: Walking speed correlates with overall fitness and recovery capacity
+
+        **Stair Speed (Ascent/Descent):**
+        - Assess functional leg strength and balance
+        - Slow stair speed = potential strength deficit
+        - Impact: Leg strength crucial for running power and injury prevention
+
+        ## 7. Recovery Optimization
+        Provide personalized recovery advice based on workout intensity:
+
+        **Recovery Time Guidelines:**
+        - Easy run (<70% max HR): 24h rest before next hard workout
+        - Moderate run (70-80% max HR): 36-48h rest
+        - Hard workout/Long run (>80% max HR or >90min): 48-72h rest
+        - Race effort: 72h-1 week depending on distance
+
+        **Recovery Recommendations Should Include:**
+        - Specific rest duration before next intense session
+        - Sleep target (7-9h, adjust based on effort)
+        - Hydration reminder (especially for long/hot runs)
+        - Active recovery suggestions (light jog, cycling, yoga)
+        - Nutrition timing (protein within 30min post-run)
+        - Stretching/foam rolling for specific muscle groups
+
+        **Red Flags Requiring Extended Recovery:**
+        - Elevated morning resting HR (+5-10 bpm)
+        - Low HRV (<30ms)
+        - Poor sleep (<6h)
+        - Persistent muscle soreness >48h
+        - Multiple hard workouts in 72h window
+
         Evaluate:
         - Sleep quantity and quality (efficiency %)
         - Time between hard workouts
@@ -245,10 +328,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         let questionLocale = detectLocale(from: question)
 
         // Route to appropriate service based on model type
-        if model.isLocal {
+        if selectedModel.isLocal {
             await handleLocalModelInference(systemPrompt: systemPrompt, question: question, locale: questionLocale)
         } else {
-            await handleRemoteModelInference(systemPrompt: systemPrompt, question: question, model: model)
+            await handleRemoteModelInference(systemPrompt: systemPrompt, question: question, model: selectedModel)
         }
     }
 
@@ -521,6 +604,46 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
             if let ascent = metrics.totalElevationAscent {
                 context += "- Elevation Gain: \(Int(ascent)) m\n"
+            }
+
+            // Advanced Running Metrics (Apple Watch Series 7+)
+            if let gct = metrics.groundContactTime {
+                context += "- Ground Contact Time: \(Int(gct)) ms\n"
+            }
+
+            if let vo = metrics.verticalOscillation {
+                context += "- Vertical Oscillation: \(String(format: "%.1f cm", vo))\n"
+            }
+
+            // Mobility & Biomechanics Metrics (Apple Watch Series 4+)
+            if metrics.walkingSteadiness != nil || metrics.walkingAsymmetry != nil ||
+               metrics.doubleSupportPercentage != nil || metrics.walkingSpeed != nil ||
+               metrics.stairAscentSpeed != nil || metrics.stairDescentSpeed != nil {
+                context += "\nMobility & Biomechanics:\n"
+
+                if let steadiness = metrics.walkingSteadiness {
+                    context += "- Walking Steadiness: \(String(format: "%.1f%%", steadiness))\n"
+                }
+
+                if let asymmetry = metrics.walkingAsymmetry {
+                    context += "- Walking Asymmetry: \(String(format: "%.1f%%", asymmetry))\n"
+                }
+
+                if let doubleSupport = metrics.doubleSupportPercentage {
+                    context += "- Double Support: \(String(format: "%.1f%%", doubleSupport))\n"
+                }
+
+                if let walkSpeed = metrics.walkingSpeed {
+                    context += "- Walking Speed: \(String(format: "%.1f km/h", walkSpeed))\n"
+                }
+
+                if let ascentSpeed = metrics.stairAscentSpeed {
+                    context += "- Stair Ascent Speed: \(String(format: "%.1f km/h", ascentSpeed))\n"
+                }
+
+                if let descentSpeed = metrics.stairDescentSpeed {
+                    context += "- Stair Descent Speed: \(String(format: "%.1f km/h", descentSpeed))\n"
+                }
             }
 
             if let splits = metrics.splits, !splits.isEmpty {

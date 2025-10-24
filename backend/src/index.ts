@@ -107,14 +107,17 @@ app.use(
   cors({
     origin: '*',
     allowMethods: ['POST', 'GET', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-App-Key'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-App-Key', 'X-User-ID'],
     maxAge: 86400,
   })
 )
 
 app.use('/api/*', async (c, next) => {
+  // Use X-User-ID header if available (from iOS app), fallback to IP for backward compatibility
+  const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-  const rateLimitKey = `ratelimit:${ip}`
+  const identifier = userId || ip
+  const rateLimitKey = `ratelimit:${identifier}`
 
   c.set('rateLimitKey', rateLimitKey)
 
@@ -188,8 +191,9 @@ app.post('/api/chat', async (c) => {
       )
     }
 
-    // Get user ID from IP for tracking
-    const userId = c.req.header('CF-Connecting-IP') || 'unknown'
+    // Get user ID from X-User-ID header (from iOS app) or fallback to IP
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
     const openRouterResponse = await callOpenRouter(
@@ -269,6 +273,7 @@ app.post('/api/chat', async (c) => {
                           outputTokens,
                           latency,
                           cost: totalTokens ? totalTokens * 0.000001 : undefined, // Rough estimation
+                          ip,
                         })
                         await posthog.shutdown()
                       } catch (error) {
@@ -340,8 +345,9 @@ app.post('/api/chat/stream', async (c) => {
 
     const { prompt, systemPrompt, model } = body
 
-    // Get user ID from IP for tracking
-    const userId = c.req.header('CF-Connecting-IP') || 'unknown'
+    // Get user ID from X-User-ID header (from iOS app) or fallback to IP
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
     const openRouterResponse = await callOpenRouter(
@@ -393,6 +399,7 @@ app.post('/api/chat/stream', async (c) => {
                         outputTokens,
                         latency,
                         cost: totalTokens ? totalTokens * 0.000001 : undefined,
+                        ip,
                       })
                       await posthog.shutdown()
                     } catch (error) {
@@ -460,14 +467,18 @@ app.post('/api/chat/stream', async (c) => {
 })
 
 app.get('/api/stats', async (c) => {
+  // Use X-User-ID header if available, fallback to IP
+  const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-  const rateLimitKey = `ratelimit:${ip}`
+  const identifier = userId || ip
+  const rateLimitKey = `ratelimit:${identifier}`
   const count = await c.env.RATE_LIMITER.get(rateLimitKey)
 
   return c.json({
     requestsRemaining: RATE_LIMIT - (count ? Number.parseInt(count, 10) : 0),
     limit: RATE_LIMIT,
     resetIn: RATE_LIMIT_WINDOW,
+    identifier,
     ip,
   })
 })

@@ -34,6 +34,7 @@ export async function captureLLMEvent(
     latency?: number
     cost?: number
     error?: string
+    ip?: string
   }
 ): Promise<void> {
   await posthog.captureImmediate({
@@ -55,6 +56,7 @@ export async function captureLLMEvent(
       environment: 'production',
       prompt_length: properties.input.length,
       error: properties.error,
+      $ip: properties.ip,
     },
   })
 }

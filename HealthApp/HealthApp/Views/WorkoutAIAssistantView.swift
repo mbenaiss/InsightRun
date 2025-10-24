@@ -38,11 +38,9 @@ struct WorkoutAIAssistantView: View {
     @Binding var isPresented: Bool
     @StateObject private var aiService = WorkoutAIService()
     @State private var question = ""
-    @State private var selectedModel: AIModel = .foundationModels
     @State private var messages: [ChatMessage] = []
     @State private var isTyping = false
     @State private var streamingMessageId: UUID?
-    @State private var showingModelSelector = false
     @FocusState private var isTextFieldFocused: Bool
     @Namespace private var bottomID
 
@@ -146,11 +144,6 @@ struct WorkoutAIAssistantView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingModelSelector) {
-            ModelSelectorSheet(selectedModel: $selectedModel, isPresented: $showingModelSelector)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
         .onAppear {
             loadMessages()
             isTextFieldFocused = true
@@ -186,30 +179,6 @@ struct WorkoutAIAssistantView: View {
             }
 
             Spacer()
-
-            // Model Selector Button
-            Button(action: {
-                showingModelSelector = true
-            }) {
-                HStack(spacing: 6) {
-                    Text(selectedModel.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    if selectedModel == .claudeSonnet {
-                        Image(systemName: "star.fill")
-                            .font(.caption2)
-                            .foregroundColor(.yellow)
-                    }
-                    Image(systemName: "chevron.down")
-                        .font(.caption)
-                }
-                .foregroundColor(.blue)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-            }
 
             if !messages.isEmpty {
                 Button(action: clearChat) {
@@ -528,7 +497,7 @@ struct WorkoutAIAssistantView: View {
             await aiService.askQuestion(
                 about: context,
                 question: userQuestion,
-                model: selectedModel
+                mode: mode
             )
 
             await MainActor.run {
@@ -835,198 +804,3 @@ struct TypingIndicator: View {
     }
 }
 
-// MARK: - Model Selector Sheet
-
-struct ModelSelectorSheet: View {
-    @Binding var selectedModel: AIModel
-    @Binding var isPresented: Bool
-
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Choisir le Modèle IA")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text("Sélectionnez le meilleur modèle pour vos besoins")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.top, 20)
-                .padding(.bottom, 24)
-
-                // Model Cards
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(AIModel.allCases, id: \.self) { model in
-                            ModelCard(
-                                model: model,
-                                isSelected: selectedModel == model,
-                                onSelect: {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        selectedModel = model
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                        isPresented = false
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("OK") {
-                        isPresented = false
-                    }
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-struct ModelCard: View {
-    let model: AIModel
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Image(systemName: modelIcon)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: modelGradientColors,
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .font(.title3)
-
-                            Text(model.displayName)
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                        }
-
-                        if let badge = modelBadge {
-                            HStack(spacing: 4) {
-                                Image(systemName: badge.icon)
-                                    .font(.caption2)
-                                Text(badge.text)
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(badge.color)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(badge.color.opacity(0.15))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                        }
-                    }
-
-                    Spacer()
-
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .cyan],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .font(.title2)
-                    }
-                }
-
-                Text(modelDescription)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
-            }
-            .padding(16)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: isSelected ? Color.blue.opacity(0.3) : Color.black.opacity(0.05), radius: isSelected ? 12 : 8, y: 4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(
-                        isSelected ?
-                        LinearGradient(
-                            colors: [.blue, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ) :
-                        LinearGradient(
-                            colors: [.clear],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 2
-                    )
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-
-    private var modelIcon: String {
-        switch model {
-        case .foundationModels:
-            return "apple.logo"
-        case .claudeSonnet:
-            return "brain.head.profile"
-        case .gpt5:
-            return "cpu"
-        case .grok4:
-            return "bolt.fill"
-        }
-    }
-
-    private var modelGradientColors: [Color] {
-        switch model {
-        case .foundationModels:
-            return [.purple, .pink]
-        case .claudeSonnet:
-            return [.blue, .cyan]
-        case .gpt5:
-            return [.green, .mint]
-        case .grok4:
-            return [.orange, .red]
-        }
-    }
-
-    private var modelBadge: (text: String, icon: String, color: Color)? {
-        switch model {
-        case .foundationModels:
-            return ("Apple Intelligence", "apple.logo", .purple)
-        case .claudeSonnet:
-            return ("Recommandé", "star.fill", .yellow)
-        case .gpt5:
-            return ("Meilleure Qualité", "rosette", .green)
-        case .grok4:
-            return ("Plus Rapide", "hare.fill", .orange)
-        }
-    }
-
-    private var modelDescription: String {
-        switch model {
-        case .foundationModels:
-            return "Modèle Apple on-device. Privé, rapide et fonctionne sans internet. Nécessite Apple Intelligence."
-        case .claudeSonnet:
-            return "Meilleur équilibre entre vitesse et qualité pour l'analyse sportive."
-        case .gpt5:
-            return "Réponses de la plus haute qualité avec raisonnement approfondi."
-        case .grok4:
-            return "Réponses ultra-rapides pour les questions simples."
-        }
-    }
-}

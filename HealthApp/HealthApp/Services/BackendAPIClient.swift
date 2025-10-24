@@ -29,6 +29,7 @@ class BackendAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30
 
@@ -77,6 +78,7 @@ class BackendAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
 
@@ -135,6 +137,7 @@ class BackendAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 

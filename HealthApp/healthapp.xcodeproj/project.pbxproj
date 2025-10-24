@@ -259,7 +259,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de course pour afficher votre historique d'entraînement.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Cette app ne modifie pas vos données de santé.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -294,7 +294,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de course pour afficher votre historique d'entraînement.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Cette app ne modifie pas vos données de santé.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

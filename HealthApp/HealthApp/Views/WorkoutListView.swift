@@ -212,17 +212,11 @@ struct WorkoutListView: View {
     private var workoutList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                // Summary stats card
+                // Combined stats card
                 if !viewModel.workouts.isEmpty {
-                    summaryCard
+                    combinedStatsCard
                         .padding(.horizontal)
                         .padding(.top, 8)
-                }
-
-                // Extended stats card
-                if !viewModel.workouts.isEmpty {
-                    extendedStatsCard
-                        .padding(.horizontal)
                 }
 
                 // Grouped workout list by month
@@ -256,87 +250,64 @@ struct WorkoutListView: View {
         }
     }
 
-    // MARK: - Summary Card
+    // MARK: - Combined Stats Card
 
-    private var summaryCard: some View {
+    private var combinedStatsCard: some View {
         VStack(spacing: 16) {
+            // Main title
             Text("Statistiques Globales")
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                StatItem(
-                    icon: "number",
-                    value: "\(viewModel.workoutCount)",
-                    label: "Courses"
-                )
-
-                StatItem(
-                    icon: "ruler",
-                    value: viewModel.formatTotalDistance(),
-                    label: "Distance"
-                )
-
-                StatItem(
-                    icon: "clock",
-                    value: viewModel.formatTotalDuration(),
-                    label: "Temps total"
-                )
-
-                StatItem(
-                    icon: "flame.fill",
-                    value: String(format: "%.0f", viewModel.totalCalories),
-                    label: "kcal"
-                )
-            }
-        }
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
-    }
-
-    // MARK: - Extended Stats Card
-
-    private var extendedStatsCard: some View {
-        VStack(spacing: 16) {
-            Text("Moyennes & Records")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
+            // Global stats section
             VStack(spacing: 12) {
-                StatsRow(icon: "gauge", label: "Allure moyenne", value: viewModel.formatAveragePace() + " /km")
+                StatsRow(icon: "number", label: "Courses", value: "\(viewModel.workoutCount)")
+                StatsRow(icon: "ruler", label: "Distance totale", value: viewModel.formatTotalDistance())
+                StatsRow(icon: "clock", label: "Temps total", value: viewModel.formatTotalDuration())
+                StatsRow(icon: "gauge", label: "Allure moyenne", value: viewModel.formatAveragePace())
                 StatsRow(icon: "figure.run", label: "Distance moyenne", value: viewModel.formatAverageDistance())
-                StatsRow(icon: "timer", label: "Durée moyenne", value: viewModel.formatAverageDuration())
+            }
 
-                if let longest = viewModel.longestRun {
-                    Divider()
-                    HStack {
-                        Image(systemName: "trophy.fill")
-                            .foregroundStyle(.yellow.gradient)
-                            .frame(width: 24)
-                        Text("Course la plus longue")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(String(format: "%.1f km", (longest.distance ?? 0) / 1000.0))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+            // Records section
+            if viewModel.longestRun != nil || viewModel.fastestRun != nil {
+                Divider()
+
+                Text("Records")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(spacing: 12) {
+                    if let longest = viewModel.longestRun {
+                        HStack {
+                            Image(systemName: "trophy.fill")
+                                .foregroundStyle(.yellow.gradient)
+                                .frame(width: 24)
+                            Text("Course la plus longue")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(String(format: "%.1f km", (longest.distance ?? 0) / 1000.0))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
                     }
-                }
 
-                if let fastest = viewModel.fastestRun, let pace = fastest.averagePace {
-                    HStack {
-                        Image(systemName: "bolt.fill")
-                            .foregroundStyle(.orange.gradient)
-                            .frame(width: 24)
-                        Text("Course la plus rapide")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(viewModel.formatPace(pace) + " /km")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                    if let fastest = viewModel.fastestRun,
+                       let pace = fastest.averagePace,
+                       let distance = fastest.distance,
+                       distance >= 5000 {
+                        HStack {
+                            Image(systemName: "bolt.fill")
+                                .foregroundStyle(.orange.gradient)
+                                .frame(width: 24)
+                            Text("Course la plus rapide")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(viewModel.formatPace(pace) + " /km - " + String(format: "%.1f km", distance / 1000.0))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
                     }
                 }
             }

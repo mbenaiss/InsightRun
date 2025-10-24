@@ -45,6 +45,14 @@ struct WorkoutMetrics {
     var verticalOscillation: Double? // centimeters
     var runningEfficiency: Double? // percentage
 
+    // Mobility Metrics (Apple Watch Series 4+)
+    var walkingSteadiness: Double? // percentage (0-100)
+    var walkingAsymmetry: Double? // percentage
+    var doubleSupportPercentage: Double? // percentage
+    var walkingSpeed: Double? // km/h
+    var stairAscentSpeed: Double? // km/h (vertical speed)
+    var stairDescentSpeed: Double? // km/h (vertical speed)
+
     // VO2 Max (if available)
     var vo2Max: Double? // ml/kg/min
 
@@ -74,6 +82,7 @@ struct Split: Identifiable {
     let time: TimeInterval // seconds for this split
     let pace: Double // min/km
     let averageHeartRate: Double?
+    let averagePower: Double? // watts
     let elevationGain: Double? // meters
     let elevationLoss: Double? // meters
 

@@ -96,9 +96,8 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         print("🔵 WorkoutAnalysisViewModel: isLoading set to true")
 
-        // Build context for AI
-        let context = aiService.generateSingleWorkoutContext(workout: workout, metrics: metrics)
-        print("🔵 WorkoutAnalysisViewModel: Context built (\(context.count) chars)")
+        // Backend will build context from workout data
+        print("🔵 WorkoutAnalysisViewModel: Sending workout data to backend for context generation")
 
         // Ask AI to analyze this specific workout with a concise, structured response
         let question = """
@@ -136,8 +135,8 @@ class WorkoutAnalysisViewModel: ObservableObject {
         """
 
         // Use Grok-4-fast for automatic analysis (always use Grok to keep costs low)
+        // Backend builds context from structured workout data
         await aiService.askQuestion(
-            about: context,
             question: question,
             mode: .singleWorkout(workout, metrics),
             model: .grok4

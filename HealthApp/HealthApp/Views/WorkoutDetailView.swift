@@ -57,7 +57,7 @@ struct WorkoutDetailView: View {
 
                     // Interactive Charts (HR, Pace, Power)
                     if let splits = metrics.splits, !splits.isEmpty {
-                        SwipeableChartsView(splits: splits, averagePower: metrics.runningPower)
+                        SwipeableChartsView(metrics: metrics)
                     }
 
                     // Performance section (no accordion)
@@ -658,43 +658,63 @@ struct SplitRow: View {
     let split: Split
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Kilometer number
-            Text("km \(split.kilometer)")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-                .frame(width: 50, alignment: .leading)
+        HStack(spacing: 8) {
+            // Kilometer number and distance
+            VStack(alignment: .leading, spacing: 2) {
+                Text("km \(split.kilometer)")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
 
-            // Pace
+                // Show actual distance if different from 1000m
+                let distanceKm = split.distance / 1000.0
+                if abs(distanceKm - 1.0) > 0.01 {
+                    Text(String(format: "%.2f km", distanceKm))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .frame(width: 60, alignment: .leading)
+
+            // Pace - 1/3
             Text(split.paceFormatted)
                 .font(.headline)
                 .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer()
+            // Heart Rate - 1/3
+            if let hr = split.averageHeartRate {
+                HStack(spacing: 3) {
+                    Image(systemName: "heart.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                    Text(String(format: "%.0f bpm", hr))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Spacer()
+                    .frame(maxWidth: .infinity)
+            }
 
-            // Time
-            Text(split.timeFormatted)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            // Elevation indicators
+            // Elevation indicators - 1/3
             HStack(spacing: 4) {
                 if let gain = split.elevationGain, gain > 0 {
-                    Label(String(format: "↗ %.0fm", gain), systemImage: "")
+                    Label(String(format: "↗%.0fm", gain), systemImage: "")
                         .font(.caption2)
                         .foregroundStyle(.green)
                         .labelStyle(.titleOnly)
                 }
 
                 if let loss = split.elevationLoss, loss > 0 {
-                    Label(String(format: "↘ %.0fm", loss), systemImage: "")
+                    Label(String(format: "↘%.0fm", loss), systemImage: "")
                         .font(.caption2)
                         .foregroundStyle(.blue)
                         .labelStyle(.titleOnly)
                 }
             }
-            .frame(width: 60, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
     }
@@ -804,24 +824,23 @@ struct CompactMetricCard: View {
 // MARK: - Swipeable Charts View
 
 struct SwipeableChartsView: View {
-    let splits: [Split]
-    let averagePower: Double?
+    let metrics: WorkoutMetrics
     @State private var selectedPage = 0
 
     var body: some View {
         VStack(spacing: 8) {
             TabView(selection: $selectedPage) {
                 // Heart Rate Chart
-                InteractiveHeartRateChart(splits: splits)
+                InteractiveHeartRateChart(metrics: metrics)
                     .tag(0)
 
                 // Pace Chart
-                InteractivePaceChart(splits: splits)
+                InteractivePaceChart(metrics: metrics)
                     .tag(1)
 
                 // Power Chart (if available)
-                if averagePower != nil {
-                    InteractivePowerChart(splits: splits, averagePower: averagePower!)
+                if metrics.runningPower != nil {
+                    InteractivePowerChart(metrics: metrics)
                         .tag(2)
                 }
             }
@@ -830,7 +849,7 @@ struct SwipeableChartsView: View {
 
             // Custom page indicator dots
             HStack(spacing: 8) {
-                ForEach(0..<(averagePower != nil ? 3 : 2), id: \.self) { index in
+                ForEach(0..<(metrics.runningPower != nil ? 3 : 2), id: \.self) { index in
                     Circle()
                         .fill(selectedPage == index ? Color.primary : Color.secondary.opacity(0.3))
                         .frame(width: 8, height: 8)
@@ -844,19 +863,33 @@ struct SwipeableChartsView: View {
 // MARK: - Interactive Heart Rate Chart
 
 struct InteractiveHeartRateChart: View {
-    let splits: [Split]
-    @State private var selectedKm: Int?
+    let metrics: WorkoutMetrics
+    @State private var selectedKm: Double?
 
-    var heartRateData: [(km: Int, value: Double)] {
-        splits.compactMap { split in
+    var heartRateData: [(km: Double, value: Double)] {
+        guard let splits = metrics.splits else { return [] }
+
+        // Calculate cumulative distance for each split
+        var cumulativeDistance = 0.0
+        let splitData = splits.compactMap { split -> (km: Double, value: Double)? in
             guard let hr = split.averageHeartRate else { return nil }
-            return (km: split.kilometer, value: hr)
+            cumulativeDistance += split.distance / 1000.0
+            return (km: cumulativeDistance, value: hr)
         }
+
+        guard !splitData.isEmpty else { return [] }
+
+        // First point: use real first HR sample from workout start
+        let firstPointHR = metrics.firstHeartRate ?? splitData.first?.value ?? 0
+        let firstPoint = (km: 0.0, value: firstPointHR)
+
+        return [firstPoint] + splitData
     }
 
-    var selectedData: (km: Int, value: Double)? {
+    var selectedData: (km: Double, value: Double)? {
         guard let km = selectedKm else { return nil }
-        return heartRateData.first { $0.km == km }
+        // Find the closest point to the selected km
+        return heartRateData.min(by: { abs($0.km - km) < abs($1.km - km) })
     }
 
     var minHeartRate: Double? {
@@ -869,7 +902,7 @@ struct InteractiveHeartRateChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: "km \(selected.km)")
+            return (value: selected.value, label: String(format: "km %.1f", selected.km))
         }
         return nil
     }
@@ -960,7 +993,7 @@ struct InteractiveHeartRateChart: View {
                         .foregroundStyle(.red.gradient.opacity(0.2))
                         .interpolationMethod(.catmullRom)
 
-                        if selectedKm == data.km {
+                        if let selectedData = selectedData, selectedData.km == data.km {
                             PointMark(
                                 x: .value("Km", data.km),
                                 y: .value("BPM", data.value)
@@ -971,13 +1004,14 @@ struct InteractiveHeartRateChart: View {
                     }
                 }
                 .chartXSelection(value: $selectedKm)
+                .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
                 .chartYScale(domain: .automatic)
                 .chartXAxis {
                     AxisMarks { value in
                         AxisGridLine()
                         AxisValueLabel {
-                            if let km = value.as(Int.self) {
-                                Text("\(km)")
+                            if let km = value.as(Double.self) {
+                                Text(String(format: "%.0f", km))
                                     .font(.caption2)
                             }
                         }
@@ -1001,18 +1035,46 @@ struct InteractiveHeartRateChart: View {
 // MARK: - Interactive Pace Chart
 
 struct InteractivePaceChart: View {
-    let splits: [Split]
-    @State private var selectedKm: Int?
+    let metrics: WorkoutMetrics
+    @State private var selectedKm: Double?
 
-    var paceData: [(km: Int, value: Double)] {
-        splits.map { split in
-            (km: split.kilometer, value: split.pace)
+    var paceData: [(km: Double, value: Double)] {
+        guard let splits = metrics.splits else { return [] }
+
+        // Calculate cumulative distance for each split
+        var cumulativeDistance = 0.0
+        let splitData = splits.map { split in
+            cumulativeDistance += split.distance / 1000.0
+            return (km: cumulativeDistance, value: split.pace)
         }
+
+        guard !splitData.isEmpty else { return [] }
+
+        // Calculate real first point from route data
+        let firstPointPace: Double
+        if let routePoints = metrics.routePoints, routePoints.count > 10 {
+            // Use average speed of first 10 GPS points for stability
+            let firstPoints = Array(routePoints.prefix(10))
+            let speeds = firstPoints.compactMap { $0.speed }
+            if !speeds.isEmpty {
+                let avgSpeed = speeds.reduce(0, +) / Double(speeds.count)
+                // Convert m/s to min/km
+                firstPointPace = avgSpeed > 0 ? (1000.0 / avgSpeed) / 60.0 : splitData.first?.value ?? 0
+            } else {
+                firstPointPace = splitData.first?.value ?? 0
+            }
+        } else {
+            firstPointPace = splitData.first?.value ?? 0
+        }
+        let firstPoint = (km: 0.0, value: firstPointPace)
+
+        return [firstPoint] + splitData
     }
 
-    var selectedData: (km: Int, value: Double)? {
+    var selectedData: (km: Double, value: Double)? {
         guard let km = selectedKm else { return nil }
-        return paceData.first { $0.km == km }
+        // Find the closest point to the selected km
+        return paceData.min(by: { abs($0.km - km) < abs($1.km - km) })
     }
 
     var minPace: Double? {
@@ -1025,7 +1087,7 @@ struct InteractivePaceChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: "km \(selected.km)")
+            return (value: selected.value, label: String(format: "km %.1f", selected.km))
         }
         return nil
     }
@@ -1104,7 +1166,7 @@ struct InteractivePaceChart: View {
                     .foregroundStyle(.green.gradient.opacity(0.2))
                     .interpolationMethod(.catmullRom)
 
-                    if selectedKm == data.km {
+                    if let selectedData = selectedData, selectedData.km == data.km {
                         PointMark(
                             x: .value("Km", data.km),
                             y: .value("Pace", data.value)
@@ -1115,13 +1177,14 @@ struct InteractivePaceChart: View {
                 }
             }
             .chartXSelection(value: $selectedKm)
+            .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
             .chartYScale(domain: .automatic)
             .chartXAxis {
                 AxisMarks { value in
                     AxisGridLine()
                     AxisValueLabel {
-                        if let km = value.as(Int.self) {
-                            Text("\(km)")
+                        if let km = value.as(Double.self) {
+                            Text(String(format: "%.0f", km))
                                 .font(.caption2)
                         }
                     }
@@ -1144,28 +1207,40 @@ struct InteractivePaceChart: View {
 // MARK: - Interactive Power Chart
 
 struct InteractivePowerChart: View {
-    let splits: [Split]
-    let averagePower: Double
-    @State private var selectedKm: Int?
+    let metrics: WorkoutMetrics
+    @State private var selectedKm: Double?
 
-    var powerData: [(km: Int, value: Double)] {
-        // Use real power data from splits if available
-        splits.compactMap { split in
+    var powerData: [(km: Double, value: Double)] {
+        guard let splits = metrics.splits, let avgPower = metrics.runningPower else { return [] }
+
+        // Calculate cumulative distance for each split
+        var cumulativeDistance = 0.0
+        let splitData = splits.map { split -> (km: Double, value: Double) in
+            cumulativeDistance += split.distance / 1000.0
             if let power = split.averagePower {
-                return (km: split.kilometer, value: power)
+                return (km: cumulativeDistance, value: power)
             }
             // Fallback to average if no split data
-            return (km: split.kilometer, value: averagePower)
+            return (km: cumulativeDistance, value: avgPower)
         }
+
+        guard !splitData.isEmpty else { return [] }
+
+        // First point: use real first power sample from workout start
+        let firstPointPower = metrics.firstPower ?? splitData.first?.value ?? avgPower
+        let firstPoint = (km: 0.0, value: firstPointPower)
+
+        return [firstPoint] + splitData
     }
 
     var hasRealPowerData: Bool {
-        splits.contains { $0.averagePower != nil }
+        metrics.splits?.contains { $0.averagePower != nil } ?? false
     }
 
-    var selectedData: (km: Int, value: Double)? {
+    var selectedData: (km: Double, value: Double)? {
         guard let km = selectedKm else { return nil }
-        return powerData.first { $0.km == km }
+        // Find the closest point to the selected km
+        return powerData.min(by: { abs($0.km - km) < abs($1.km - km) })
     }
 
     var minPower: Double? {
@@ -1178,7 +1253,7 @@ struct InteractivePowerChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: "km \(selected.km)")
+            return (value: selected.value, label: String(format: "km %.1f", selected.km))
         }
         return nil
     }
@@ -1265,7 +1340,7 @@ struct InteractivePowerChart: View {
                         .foregroundStyle(.orange.gradient.opacity(0.2))
                         .interpolationMethod(hasRealPowerData ? .catmullRom : .linear)
 
-                        if selectedKm == data.km {
+                        if let selectedData = selectedData, selectedData.km == data.km {
                             PointMark(
                                 x: .value("Km", data.km),
                                 y: .value("Power", data.value)
@@ -1276,13 +1351,14 @@ struct InteractivePowerChart: View {
                     }
                 }
                 .chartXSelection(value: $selectedKm)
+                .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
                 .chartYScale(domain: .automatic)
                 .chartXAxis {
                     AxisMarks { value in
                         AxisGridLine()
                         AxisValueLabel {
-                            if let km = value.as(Int.self) {
-                                Text("\(km)")
+                            if let km = value.as(Double.self) {
+                                Text(String(format: "%.0f", km))
                                     .font(.caption2)
                             }
                         }

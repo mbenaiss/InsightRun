@@ -14,6 +14,22 @@ struct RouteMapView: View {
     @State private var position: MapCameraPosition = .automatic
 
     var body: some View {
+        Group {
+            if routePoints.isEmpty {
+                // Placeholder for empty route
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        Text("Aucune donnée GPS")
+                            .foregroundStyle(.secondary)
+                    }
+            } else {
+                mapView
+            }
+        }
+    }
+
+    private var mapView: some View {
         Map(position: $position) {
             // Draw the route as a polyline
             MapPolyline(coordinates: routePoints.map { $0.coordinate })
@@ -54,6 +70,7 @@ struct RouteMapView: View {
             MapCompass()
             MapScaleView()
         }
+        .frame(minWidth: 100, minHeight: 100)
         .onAppear {
             // Calculate the region that encompasses all route points
             let coordinates = routePoints.map { $0.coordinate }

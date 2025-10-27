@@ -51,7 +51,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     private let backendClient = BackendAPIClient.shared
 
     private var lastResponse = ""
-    private var currentContext = ""
+
+    // Language detection cache (question -> language code)
+    private var languageCache: [String: String] = [:]
+    private let languageCacheMaxSize = 10
 
     @MainActor
     private var foundationModelsService: FoundationModelsService? {
@@ -67,8 +70,16 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     // MARK: - Language Detection
 
-    /// Detect the language of the question and return appropriate Locale
-    private func detectLocale(from text: String) -> Locale {
+    /// Detect the language of the question and return language code (fr, en, es, etc.)
+    /// Uses cache to avoid repeated detections for similar questions
+    private func detectLanguage(from text: String) -> String {
+        // Check cache first (use first 50 chars as key to allow variations)
+        let cacheKey = String(text.prefix(50))
+        if let cached = languageCache[cacheKey] {
+            print("✅ WorkoutAIService: Using cached language: \(cached)")
+            return cached
+        }
+
         let recognizer = NLLanguageRecognizer()
 
         // Add language hints to improve detection for short phrases
@@ -83,44 +94,72 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         recognizer.processString(text)
 
-        // Debug: Show all language hypotheses
-        let hypotheses = recognizer.languageHypotheses(withMaximum: 3)
-        print("🔍 WorkoutAIService: Language hypotheses for '\(text)': \(hypotheses)")
-
         guard let dominantLanguage = recognizer.dominantLanguage else {
-            print("⚠️ WorkoutAIService: Language detection failed, defaulting to English")
-            return Locale(identifier: "en_US") // fallback to English
+            print("⚠️ WorkoutAIService: Language detection failed, using device language")
+            let fallback = getUserLanguage()
+            cacheLanguage(cacheKey, language: fallback)
+            return fallback
         }
 
-        // Map NLLanguage to Locale identifier
-        let localeIdentifier: String
+        // Map NLLanguage to language code
+        let languageCode: String
         switch dominantLanguage {
         case .french:
-            localeIdentifier = "fr_FR"
+            languageCode = "fr"
         case .english:
-            localeIdentifier = "en_US"
+            languageCode = "en"
         case .spanish:
-            localeIdentifier = "es_ES"
+            languageCode = "es"
         case .german:
-            localeIdentifier = "de_DE"
+            languageCode = "de"
         case .italian:
-            localeIdentifier = "it_IT"
+            languageCode = "it"
         case .portuguese:
-            localeIdentifier = "pt_PT"
+            languageCode = "pt"
+        case .dutch:
+            languageCode = "nl"
+        case .japanese:
+            languageCode = "ja"
+        case .simplifiedChinese, .traditionalChinese:
+            languageCode = "zh"
+        case .korean:
+            languageCode = "ko"
+        case .arabic:
+            languageCode = "ar"
         default:
-            localeIdentifier = "en_US"
+            print("⚠️ WorkoutAIService: Unsupported language '\(dominantLanguage.rawValue)', using device language")
+            let fallback = getUserLanguage()
+            cacheLanguage(cacheKey, language: fallback)
+            return fallback
         }
 
-        print("✅ WorkoutAIService: Detected language: \(dominantLanguage.rawValue) -> Locale: \(localeIdentifier)")
-        return Locale(identifier: localeIdentifier)
+        print("✅ WorkoutAIService: Detected language: \(dominantLanguage.rawValue) -> \(languageCode)")
+        cacheLanguage(cacheKey, language: languageCode)
+        return languageCode
     }
 
-    func askQuestion(about workoutContext: String, question: String, mode: AIAssistantMode, model: AIModel? = nil) async {
+    /// Cache the detected language with LRU eviction
+    private func cacheLanguage(_ key: String, language: String) {
+        languageCache[key] = language
+
+        // Simple LRU: if cache is too large, remove oldest entries
+        if languageCache.count > languageCacheMaxSize {
+            let keysToRemove = languageCache.keys.prefix(languageCache.count - languageCacheMaxSize)
+            keysToRemove.forEach { languageCache.removeValue(forKey: $0) }
+        }
+    }
+
+    /// Detect the language of the question and return appropriate Locale (for local models)
+    private func detectLocale(from text: String) -> Locale {
+        let languageCode = detectLanguage(from: text)
+        return Locale(identifier: languageCode)
+    }
+
+    func askQuestion(question: String, mode: AIAssistantMode, model: AIModel? = nil) async {
         await MainActor.run {
             self.isStreaming = true
             self.streamedResponse = ""
             self.error = nil
-            self.currentContext = workoutContext
             self.suggestedQuestions = []
         }
 
@@ -134,204 +173,24 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         print("🎯 WorkoutAIService: Using model: \(selectedModel.displayName)")
 
-        let systemPrompt = """
-        You are an expert AI running coach specializing in data-driven performance optimization, injury prevention, and personalized training.
-
-        # Your Core Mission
-        Analyze comprehensive health and workout data to provide actionable insights that help runners:
-        1. **Optimize Performance**: Identify training patterns and suggest improvements
-        2. **Prevent Injuries**: Detect early warning signs of overtraining or biomechanical issues
-        3. **Maximize Recovery**: Balance training load with adequate recovery
-        4. **Track Progress**: Highlight improvements and areas for development
-
-        # Available Data Context
-        \(workoutContext)
-
-        # Analysis Framework
-
-        ## 1. Readiness Score (0-100)
-        When asked about readiness or daily recommendations, calculate a score based on:
-        - **Sleep Quality** (7-9h = optimal, <6h = red flag)
-        - **Resting Heart Rate** (lower = better recovery, +5-10 bpm above baseline = warning)
-        - **HRV (Heart Rate Variability)** (higher = better, <30ms = fatigue)
-        - **Training Load** (days since last hard workout, cumulative weekly volume)
-        - **Soreness/Pain** (if mentioned by user)
-
-        **Score Interpretation:**
-        - 85-100 ✅ "Perfect for intense training" - Long run, intervals, tempo
-        - 70-84 🟡 "Good for moderate training" - Easy run, steady pace
-        - 50-69 ⚠️ "Recovery recommended" - Light jog or cross-training
-        - <50 🛑 "Rest required" - Complete rest or active recovery only
-
-        ## 2. Injury Prevention Signals
-        Actively monitor and alert on:
-        - **Volume Increase**: >10% weekly mileage increase = injury risk
-        - **Pace Drop**: Consistent slowdown without explanation
-        - **HR Elevation**: Elevated heart rate at same pace
-        - **Cadence Drop**: Significant decrease may indicate fatigue
-        - **Asymmetry**: Ground contact time imbalance (if available)
-        - **Repeated Pain**: User mentions same area multiple times
-
-        **Alert Format:**
-        ```
-        ⚠️ INJURY RISK DETECTED
-        Pattern: [describe the concerning trend]
-        Risk Level: [Low/Medium/High]
-
-        Recommended Actions:
-        1. [immediate action]
-        2. [preventive measure]
-        3. [when to see a professional]
-        ```
-
-        ## 3. Training Recommendations
-        Base your advice on:
-        - **Current Fitness Level**: Analyze pace, HR zones, VO2 max
-        - **Training History**: Recent workouts, frequency, intensity
-        - **Recovery Status**: Sleep, RHR, HRV trends
-        - **Goals**: Infer or ask about race targets
-
-        Suggest:
-        - Optimal training pace zones
-        - Weekly structure (hard/easy days)
-        - Cross-training opportunities
-        - Rest day timing
-
-        ## 4. Performance Metrics Analysis
-        Focus on key indicators:
-        - **Pace Progression**: Are they getting faster over time?
-        - **Heart Rate Efficiency**: Lower HR at same pace = improved fitness
-        - **Splits Consistency**: Even pacing = good energy management
-        - **Cadence**: Optimal is 170-180 spm for most runners
-        - **VO2 Max Trends**: Track cardiovascular fitness improvements
-
-        ## 5. Advanced Running Biomechanics (Apple Watch Series 7+)
-        When available, analyze these critical metrics:
-
-        **Ground Contact Time (GCT):**
-        - Optimal: 200-250 ms for most runners
-        - Elite runners: <200 ms
-        - >300 ms = needs work on running economy
-        - Lower GCT = more efficient running (less time on ground = faster turnover)
-
-        **Vertical Oscillation:**
-        - Optimal: 6-10 cm for most runners
-        - Elite runners: <7 cm
-        - >12 cm = excessive bounce, wasted energy
-        - Lower is better = more forward momentum, less vertical movement
-
-        ## 6. Mobility & Biomechanics (Apple Watch Series 4+)
-        Analyze daily mobility trends that impact running performance:
-
-        **Walking Steadiness:**
-        - Optimal: >85% (OK range)
-        - 70-85%: Low steadiness - increased fall risk
-        - <70%: Very low - mobility concerns
-        - Impact on running: Low steadiness indicates balance issues that can affect running form
-
-        **Walking Asymmetry:**
-        - Optimal: <3% (symmetrical gait)
-        - 3-7%: Mild asymmetry - watch for compensation
-        - >7%: Significant asymmetry - injury risk, suggests imbalance
-        - Impact: High asymmetry can lead to overuse injuries on one side
-
-        **Double Support Percentage:**
-        - Optimal: 20-30% of gait cycle
-        - >35%: Excessive - suggests slower, less efficient gait
-        - <15%: Very low - may indicate instability
-        - Impact: Directly affects walking/running efficiency
-
-        **Walking Speed:**
-        - Optimal: >4.5 km/h (healthy adult)
-        - 3-4.5 km/h: Below average - room for improvement
-        - <3 km/h: Low mobility - health concerns
-        - Impact: Walking speed correlates with overall fitness and recovery capacity
-
-        **Stair Speed (Ascent/Descent):**
-        - Assess functional leg strength and balance
-        - Slow stair speed = potential strength deficit
-        - Impact: Leg strength crucial for running power and injury prevention
-
-        ## 7. Recovery Optimization
-        Provide personalized recovery advice based on workout intensity:
-
-        **Recovery Time Guidelines:**
-        - Easy run (<70% max HR): 24h rest before next hard workout
-        - Moderate run (70-80% max HR): 36-48h rest
-        - Hard workout/Long run (>80% max HR or >90min): 48-72h rest
-        - Race effort: 72h-1 week depending on distance
-
-        **Recovery Recommendations Should Include:**
-        - Specific rest duration before next intense session
-        - Sleep target (7-9h, adjust based on effort)
-        - Hydration reminder (especially for long/hot runs)
-        - Active recovery suggestions (light jog, cycling, yoga)
-        - Nutrition timing (protein within 30min post-run)
-        - Stretching/foam rolling for specific muscle groups
-
-        **Red Flags Requiring Extended Recovery:**
-        - Elevated morning resting HR (+5-10 bpm)
-        - Low HRV (<30ms)
-        - Poor sleep (<6h)
-        - Persistent muscle soreness >48h
-        - Multiple hard workouts in 72h window
-
-        Evaluate:
-        - Sleep quantity and quality (efficiency %)
-        - Time between hard workouts
-        - Active recovery activities
-        - Nutrition cues (if mentioned)
-
-        # Response Guidelines
-
-        1. **Be Data-Driven**: Always cite specific metrics
-        2. **Be Concise**: Bullet points > long paragraphs
-        3. **Be Actionable**: Every insight = specific next step
-        4. **Be Honest**: Don't sugarcoat risks or overtraining signs
-        5. **Use Markdown**: Make it scannable (bold, lists, emojis)
-        6. **Proactive Alerts**: Flag concerns even if not asked
-
-        # Response Structure
-
-        For general questions, organize as and translate to the user's language:
-        ```
-        ## 📊 Key Insights
-        [2-3 bullet points of most important findings]
-
-        ## 💡 Recommendations
-        [Specific, actionable advice]
-
-        ## ⚠️ Watch Out For
-        [Any concerns or patterns to monitor]
-
-        ## 🎯 Next Steps
-        [What to do next]
-        ```
-
-        # Special Cases
-
-        **If insufficient data**: Ask specific questions to fill gaps
-        **If overtraining detected**: Be firm about rest requirements
-        **If improvement shown**: Celebrate and explain the why
-        **If inconsistent training**: Suggest sustainable routine
-
-        # Tone
-        - Professional but friendly
-        - Motivating without being pushy
-        - Evidence-based, not generic advice
-        - Transparent about limitations
-
-        Now analyze the data and respond to the user's question with expertise and precision.
-        """
-
-        // Detect locale from question for multilingual support
-        let questionLocale = detectLocale(from: question)
-
         // Route to appropriate service based on model type
         if selectedModel.isLocal {
-            await handleLocalModelInference(systemPrompt: systemPrompt, question: question, locale: questionLocale)
+            // For local models, use simplified prompt
+            // Note: Local models don't have access to structured data context like remote models
+            let localSystemPrompt = """
+            You are an expert AI running coach specializing in data-driven performance optimization, injury prevention, and personalized training.
+
+            Analyze the user's question and provide actionable insights.
+            Be data-driven, concise, actionable, and use markdown formatting.
+            Respond in the user's language.
+            """
+
+            // Detect locale once and cache it
+            let questionLocale = detectLocale(from: question)
+            await handleLocalModelInference(systemPrompt: localSystemPrompt, question: question, locale: questionLocale)
         } else {
-            await handleRemoteModelInference(systemPrompt: systemPrompt, question: question, model: selectedModel)
+            // For remote models, backend builds the full prompt from structured data
+            await handleRemoteModelInference(question: question, model: selectedModel, mode: mode)
         }
     }
 
@@ -426,19 +285,18 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     // MARK: - Remote Model Inference
 
-    private func handleRemoteModelInference(systemPrompt: String, question: String, model: AIModel) async {
+    private func handleRemoteModelInference(question: String, model: AIModel, mode: AIAssistantMode) async {
         do {
             // Show a message while waiting for response
             await MainActor.run {
                 self.streamedResponse = "🌐 Connexion au serveur..."
             }
 
-            // Use real streaming from backend
-            let stream = try await backendClient.chatStream(
-                prompt: question,
-                systemPrompt: systemPrompt,
-                model: model.modelId
-            )
+            // Build payload from mode data
+            let payload = buildChatPayload(question: question, model: model, mode: mode)
+
+            // Use new API v2 with streaming
+            let stream = try await backendClient.chatStreamV2(payload: payload)
 
             // Stream content as it arrives
             for await chunk in stream {
@@ -493,6 +351,140 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 self.streamedResponse = ""
             }
         }
+    }
+
+    // MARK: - Payload Builder
+
+    private func getUserLanguage() -> String {
+        // Get user's preferred language
+        let preferredLanguage = Locale.current.language.languageCode?.identifier ?? "en"
+
+        // Map to supported language codes
+        let supportedLanguages = ["fr", "en", "es", "de", "it", "pt", "nl", "ja", "zh", "ko", "ar"]
+        return supportedLanguages.contains(preferredLanguage) ? preferredLanguage : "en"
+    }
+
+    private func buildChatPayload(question: String, model: AIModel, mode: AIAssistantMode) -> ChatRequestV2 {
+        var chatData = ChatDataPayload(
+            workout: nil,
+            recovery: nil,
+            profile: nil,
+            recentWorkouts: nil
+        )
+
+        // Extract data from mode
+        switch mode {
+        case .singleWorkout(let workout, let metrics):
+            chatData = ChatDataPayload(
+                workout: convertToWorkoutData(workout: workout, metrics: metrics),
+                recovery: nil,
+                profile: nil,
+                recentWorkouts: nil
+            )
+        case .recentWorkouts(let workouts):
+            let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
+            let totalDuration = workouts.map { $0.duration }.reduce(0, +)
+            let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
+            let avgPace = calculateAveragePace(workouts: workouts) ?? 0
+
+            chatData = ChatDataPayload(
+                workout: nil,
+                recovery: nil,
+                profile: nil,
+                recentWorkouts: RecentWorkoutsData(
+                    workouts: workouts.map { convertToWorkoutData(workout: $0, metrics: nil) },
+                    totalDistance: totalDistance,
+                    totalDuration: totalDuration,
+                    totalCalories: totalCalories,
+                    avgPace: avgPace,
+                    weeklyVolumeChange: nil,
+                    daysSinceLastWorkout: nil
+                )
+            )
+        case .recoveryCoaching(let recoveryMetrics):
+            chatData = ChatDataPayload(
+                workout: nil,
+                recovery: convertToRecoveryData(metrics: recoveryMetrics),
+                profile: nil,
+                recentWorkouts: nil
+            )
+        }
+
+        // Detect language from the question (priority), fallback to device language
+        let detectedLanguage = detectLanguage(from: question)
+
+        return ChatRequestV2(
+            promptType: "workout_coach",
+            model: model.modelId,
+            userQuestion: question,
+            language: detectedLanguage,
+            data: chatData
+        )
+    }
+
+    private func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+
+        return WorkoutData(
+            date: formatter.string(from: workout.startDate),
+            duration: workout.duration,
+            distance: workout.distance ?? 0,
+            calories: workout.totalEnergyBurned,
+            pace: workout.averagePace,
+            speed: workout.averageSpeed,
+            heartRate: metrics?.averageHeartRate != nil ? HeartRateData(
+                avg: metrics?.averageHeartRate.map { Int($0) },
+                min: metrics?.minHeartRate.map { Int($0) },
+                max: metrics?.maxHeartRate.map { Int($0) }
+            ) : nil,
+            minPace: metrics?.minPace,
+            cadence: metrics?.averageCadence.map { Int($0) },
+            strideLength: metrics?.strideLength,
+            runningPower: metrics?.runningPower.map { Int($0) },
+            vo2Max: metrics?.vo2Max,
+            elevationGain: metrics?.totalElevationAscent,
+            groundContactTime: metrics?.groundContactTime.map { Int($0) },
+            verticalOscillation: metrics?.verticalOscillation,
+            mobility: metrics != nil && (
+                metrics?.walkingSteadiness != nil ||
+                metrics?.walkingAsymmetry != nil ||
+                metrics?.doubleSupportPercentage != nil ||
+                metrics?.walkingSpeed != nil ||
+                metrics?.stairAscentSpeed != nil ||
+                metrics?.stairDescentSpeed != nil
+            ) ? MobilityData(
+                walkingSteadiness: metrics?.walkingSteadiness,
+                walkingAsymmetry: metrics?.walkingAsymmetry,
+                doubleSupportPercentage: metrics?.doubleSupportPercentage,
+                walkingSpeed: metrics?.walkingSpeed,
+                stairAscentSpeed: metrics?.stairAscentSpeed,
+                stairDescentSpeed: metrics?.stairDescentSpeed
+            ) : nil,
+            splits: metrics?.splits?.prefix(10).map { split in
+                SplitData(
+                    kilometer: split.kilometer,
+                    pace: split.paceFormatted,
+                    time: split.timeFormatted
+                )
+            }
+        )
+    }
+
+    private func convertToRecoveryData(metrics: RecoveryMetrics) -> RecoveryData {
+        return RecoveryData(
+            restingHeartRate: metrics.restingHeartRate.map { Int($0) },
+            hrv: metrics.hrv.map { Int($0) },
+            walkingHeartRate: metrics.walkingHeartRate.map { Int($0) },
+            respiratoryRate: metrics.respiratoryRate.map { Int($0) },
+            sleepData: metrics.sleepData != nil ? SleepDataPayload(
+                totalDuration: metrics.sleepData!.totalSleepDuration,
+                efficiency: Int(metrics.sleepData!.sleepEfficiency),
+                deepDuration: metrics.sleepData?.deepSleepDuration,
+                remDuration: metrics.sleepData?.remSleepDuration
+            ) : nil
+        )
     }
 
     // MARK: - Contextual Suggestions
@@ -551,311 +543,12 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         suggestedQuestions = Array(suggestions.prefix(3))
     }
 
-    // MARK: - Context Generation
+    // MARK: - Helper Functions
 
-    func generateSingleWorkoutContext(workout: WorkoutModel, metrics: WorkoutMetrics?) -> String {
-        var context = "Single Workout Analysis:\n"
-        context += "Date: \(formatDate(workout.startDate))\n"
-        context += "Duration: \(workout.durationFormatted)\n"
-        context += "Distance: \(workout.distanceFormatted)\n"
-
-        if let calories = workout.totalEnergyBurned {
-            context += "Calories: \(Int(calories)) kcal\n"
-        }
-
-        if let pace = workout.averagePace {
-            context += "Average Pace: \(formatPace(pace))\n"
-        }
-
-        if let speed = workout.averageSpeed {
-            context += "Average Speed: \(String(format: "%.1f km/h", speed))\n"
-        }
-
-        if let metrics = metrics {
-            context += "\nDetailed Metrics:\n"
-
-            if let avgHR = metrics.averageHeartRate {
-                context += "- Heart Rate: Avg \(Int(avgHR)) bpm"
-                if let minHR = metrics.minHeartRate, let maxHR = metrics.maxHeartRate {
-                    context += " (Range: \(Int(minHR))-\(Int(maxHR)) bpm)"
-                }
-                context += "\n"
-            }
-
-            if let minPace = metrics.minPace {
-                context += "- Best Pace: \(formatPace(minPace))\n"
-            }
-
-            if let cadence = metrics.averageCadence {
-                context += "- Cadence: \(Int(cadence)) spm\n"
-            }
-
-            if let stride = metrics.strideLength {
-                context += "- Stride Length: \(String(format: "%.2f m", stride))\n"
-            }
-
-            if let power = metrics.runningPower {
-                context += "- Running Power: \(Int(power)) W\n"
-            }
-
-            if let vo2Max = metrics.vo2Max {
-                context += "- VO2 Max: \(String(format: "%.1f ml/kg/min", vo2Max))\n"
-            }
-
-            if let ascent = metrics.totalElevationAscent {
-                context += "- Elevation Gain: \(Int(ascent)) m\n"
-            }
-
-            // Advanced Running Metrics (Apple Watch Series 7+)
-            if let gct = metrics.groundContactTime {
-                context += "- Ground Contact Time: \(Int(gct)) ms\n"
-            }
-
-            if let vo = metrics.verticalOscillation {
-                context += "- Vertical Oscillation: \(String(format: "%.1f cm", vo))\n"
-            }
-
-            // Mobility & Biomechanics Metrics (Apple Watch Series 4+)
-            if metrics.walkingSteadiness != nil || metrics.walkingAsymmetry != nil ||
-               metrics.doubleSupportPercentage != nil || metrics.walkingSpeed != nil ||
-               metrics.stairAscentSpeed != nil || metrics.stairDescentSpeed != nil {
-                context += "\nMobility & Biomechanics:\n"
-
-                if let steadiness = metrics.walkingSteadiness {
-                    context += "- Walking Steadiness: \(String(format: "%.1f%%", steadiness))\n"
-                }
-
-                if let asymmetry = metrics.walkingAsymmetry {
-                    context += "- Walking Asymmetry: \(String(format: "%.1f%%", asymmetry))\n"
-                }
-
-                if let doubleSupport = metrics.doubleSupportPercentage {
-                    context += "- Double Support: \(String(format: "%.1f%%", doubleSupport))\n"
-                }
-
-                if let walkSpeed = metrics.walkingSpeed {
-                    context += "- Walking Speed: \(String(format: "%.1f km/h", walkSpeed))\n"
-                }
-
-                if let ascentSpeed = metrics.stairAscentSpeed {
-                    context += "- Stair Ascent Speed: \(String(format: "%.1f km/h", ascentSpeed))\n"
-                }
-
-                if let descentSpeed = metrics.stairDescentSpeed {
-                    context += "- Stair Descent Speed: \(String(format: "%.1f km/h", descentSpeed))\n"
-                }
-            }
-
-            if let splits = metrics.splits, !splits.isEmpty {
-                context += "\nSplits (per km):\n"
-                for split in splits.prefix(10) {
-                    context += "  km \(split.kilometer): \(split.paceFormatted) (\(split.timeFormatted))\n"
-                }
-            }
-        }
-
-        return context
-    }
-
-    func generateRecentWorkoutsContext(workouts: [WorkoutModel]) -> String {
-        var context = "Recent Workouts Summary (Last \(workouts.count) runs):\n\n"
-
-        let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
-        let totalDuration = workouts.map { $0.duration }.reduce(0, +)
-        let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
-        let avgPace = workouts.compactMap { $0.averagePace }.reduce(0, +) / Double(workouts.filter { $0.averagePace != nil }.count)
-
-        context += "Overall Statistics:\n"
-        context += "- Total Distance: \(String(format: "%.2f km", totalDistance / 1000.0))\n"
-        context += "- Total Time: \(formatDuration(totalDuration))\n"
-        context += "- Total Calories: \(Int(totalCalories)) kcal\n"
-        context += "- Average Pace: \(formatPace(avgPace))\n"
-        context += "- Workouts: \(workouts.count)\n\n"
-
-        context += "Individual Workouts:\n"
-        for (index, workout) in workouts.prefix(10).enumerated() {
-            context += "\n\(index + 1). \(formatDate(workout.startDate))\n"
-            context += "   Distance: \(workout.distanceFormatted), "
-            context += "Duration: \(workout.durationFormatted), "
-            if let pace = workout.averagePace {
-                context += "Pace: \(formatPace(pace))"
-            }
-            context += "\n"
-        }
-
-        return context
-    }
-
-    func generateRecoveryCoachingContext(metrics: RecoveryMetrics) -> String {
-        let recoveryService = RecoveryCoachingService.shared
-        return recoveryService.generateRecoveryContext(metrics: metrics)
-    }
-
-    /// Generate comprehensive context including recovery metrics and training history
-    func generateEnhancedContext(
-        recentWorkouts: [WorkoutModel],
-        recoveryMetrics: RecoveryMetrics?,
-        healthProfile: HealthProfile?
-    ) -> String {
-        var context = ""
-
-        // 1. Recovery Status (Most Important)
-        if let recovery = recoveryMetrics {
-            let insight = RecoveryCoachingService.shared.analyzeRecovery(metrics: recovery)
-            context += """
-
-            # 🏃 Readiness Status
-            **Score: \(insight.readinessScore)/100** \(insight.status.emoji)
-
-            """
-
-            if let rhr = recovery.restingHeartRate {
-                context += "- Resting HR: \(Int(rhr)) bpm\n"
-            }
-            if let hrv = recovery.hrv {
-                context += "- HRV: \(Int(hrv)) ms (SDNN)\n"
-            }
-            if let sleep = recovery.sleepData {
-                let hours = sleep.totalSleepDuration / 3600
-                context += "- Sleep: \(String(format: "%.1fh", hours)) (efficiency: \(Int(sleep.sleepEfficiency))%)\n"
-                if let deep = sleep.deepSleepDuration, let rem = sleep.remSleepDuration {
-                    let deepHours = deep / 3600
-                    let remHours = rem / 3600
-                    context += "  - Deep: \(String(format: "%.1fh", deepHours)), REM: \(String(format: "%.1fh", remHours))\n"
-                }
-            }
-            context += "\n**Status**: \(insight.message)\n\n"
-        }
-
-        // 2. Recent Training History
-        if !recentWorkouts.isEmpty {
-            context += "# 📅 Recent Training History (Last \(min(recentWorkouts.count, 7)) runs)\n\n"
-
-            let totalDistance = recentWorkouts.prefix(7).compactMap { $0.distance }.reduce(0, +)
-            let totalDuration = recentWorkouts.prefix(7).map { $0.duration }.reduce(0, +)
-            let avgWorkoutsPerWeek = Double(recentWorkouts.prefix(7).count)
-
-            context += "**Weekly Summary:**\n"
-            context += "- Total Volume: \(String(format: "%.1f km", totalDistance / 1000))\n"
-            context += "- Total Time: \(formatDuration(totalDuration))\n"
-            context += "- Frequency: \(Int(avgWorkoutsPerWeek)) runs/week\n"
-
-            if let avgPace = calculateAveragePace(workouts: Array(recentWorkouts.prefix(7))) {
-                context += "- Average Pace: \(formatPace(avgPace))\n"
-            }
-
-            // Calculate training load trend
-            if recentWorkouts.count >= 14 {
-                let lastWeekDistance = recentWorkouts.prefix(7).compactMap { $0.distance }.reduce(0, +)
-                let previousWeekDistance = recentWorkouts.dropFirst(7).prefix(7).compactMap { $0.distance }.reduce(0, +)
-
-                if previousWeekDistance > 0 {
-                    let changePercent = ((lastWeekDistance - previousWeekDistance) / previousWeekDistance) * 100
-                    if changePercent > 10 {
-                        context += "\n⚠️ **Training Load Alert**: Volume increased by \(String(format: "%.1f%%", changePercent)) - high injury risk!\n"
-                    } else if changePercent > 0 {
-                        context += "\n✅ Volume increased by \(String(format: "%.1f%%", changePercent)) (safe progression)\n"
-                    }
-                }
-            }
-
-            // Days since last workout
-            if let lastWorkout = recentWorkouts.first {
-                let daysSince = Calendar.current.dateComponents([.day], from: lastWorkout.startDate, to: Date()).day ?? 0
-                context += "\n**Time Since Last Run**: \(daysSince) day(s) ago"
-                if daysSince > 3 {
-                    context += " ⚠️ (extended break)\n"
-                } else {
-                    context += "\n"
-                }
-            }
-
-            context += "\n**Recent Workouts Detail:**\n"
-            for (index, workout) in recentWorkouts.prefix(5).enumerated() {
-                let daysAgo = Calendar.current.dateComponents([.day], from: workout.startDate, to: Date()).day ?? 0
-                context += "\n\(index + 1). \(daysAgo) day(s) ago: "
-                context += "\(workout.distanceFormatted) in \(workout.durationFormatted)"
-                if let pace = workout.averagePace {
-                    context += " @ \(formatPace(pace))"
-                }
-                if let hr = workout.totalEnergyBurned {
-                    context += ", \(Int(hr)) kcal"
-                }
-            }
-            context += "\n\n"
-        }
-
-        // 3. Health Profile
-        if let profile = healthProfile {
-            context += "# 👤 Health Profile\n\n"
-
-            if let age = profile.age {
-                context += "- Age: \(age) years\n"
-            }
-            if profile.biologicalSex != nil {
-                context += "- Sex: \(profile.biologicalSexString)\n"
-            }
-            if let mass = profile.bodyMass {
-                context += "- Weight: \(String(format: "%.1f kg", mass))\n"
-            }
-            if let bodyFat = profile.bodyFatPercentage {
-                context += "- Body Fat: \(String(format: "%.1f%%", bodyFat))\n"
-            }
-
-            // Activity metrics
-            if let exercise = profile.exerciseTime {
-                context += "- Today's Exercise: \(Int(exercise)) min\n"
-            }
-
-            // Cross-training
-            var hasCrossTraining = false
-            if let cycling = profile.cyclingDistance, cycling > 0 {
-                context += "- Cycling (7d): \(String(format: "%.1f km", cycling / 1000))\n"
-                hasCrossTraining = true
-            }
-            if let swimming = profile.swimmingDistance, swimming > 0 {
-                context += "- Swimming (7d): \(String(format: "%.1f km", swimming / 1000))\n"
-                hasCrossTraining = true
-            }
-
-            if !hasCrossTraining {
-                context += "\n💡 No cross-training detected - consider adding cycling/swimming for balanced fitness\n"
-            }
-            context += "\n"
-        }
-
-        return context
-    }
-
-    // Helper to calculate average pace across multiple workouts
+    /// Calculate average pace across multiple workouts
     private func calculateAveragePace(workouts: [WorkoutModel]) -> Double? {
         let paces = workouts.compactMap { $0.averagePace }
         guard !paces.isEmpty else { return nil }
         return paces.reduce(0, +) / Double(paces.count)
-    }
-
-    // MARK: - Formatting Helpers
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-
-    private func formatPace(_ pace: Double) -> String {
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d'%02d\"/km", minutes, seconds)
-    }
-
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let hours = Int(duration) / 3600
-        let minutes = Int(duration) / 60 % 60
-        if hours > 0 {
-            return String(format: "%dh %02dm", hours, minutes)
-        } else {
-            return String(format: "%dm", minutes)
-        }
     }
 }

@@ -16,6 +16,8 @@ struct WorkoutMetrics {
     var averageHeartRate: Double?
     var minHeartRate: Double?
     var maxHeartRate: Double?
+    var firstHeartRate: Double? // First HR sample at workout start
+    var lastHeartRate: Double? // Last HR sample at workout end
     var heartRateZones: HeartRateZones?
 
     // Performance metrics
@@ -28,6 +30,8 @@ struct WorkoutMetrics {
     var averageCadence: Double? // steps per minute (calculated from totalSteps)
     var strideLength: Double? // meters
     var runningPower: Double? // watts (Apple Watch Series 6+)
+    var firstPower: Double? // First power sample at workout start
+    var lastPower: Double? // Last power sample at workout end
 
     // Elevation
     var totalElevationAscent: Double? // meters

@@ -105,10 +105,16 @@ struct WorkoutAIAssistantView: View {
                             .padding(.vertical, 16)
                         }
                         .scrollDismissesKeyboard(.interactively)
-                        .onChange(of: aiService.streamedResponse) { _, newValue in
-                            // Update streaming message in place
-                            if let streamingId = streamingMessageId,
-                               let index = messages.firstIndex(where: { $0.id == streamingId }) {
+                        .onChange(of: aiService.streamedResponse) { oldValue, newValue in
+                            // Update streaming message in place only if value actually changed
+                            guard oldValue != newValue else { return }
+                            guard let streamingId = streamingMessageId,
+                                  let index = messages.firstIndex(where: { $0.id == streamingId }) else {
+                                return
+                            }
+
+                            // Avoid updating if already the same content
+                            if messages[index].content != newValue {
                                 messages[index] = ChatMessage(
                                     id: streamingId,
                                     role: .assistant,
@@ -482,20 +488,9 @@ struct WorkoutAIAssistantView: View {
             timestamp: Date()
         ))
 
-        // Generate context based on mode
-        let context: String
-        switch mode {
-        case .singleWorkout(let workout, let metrics):
-            context = aiService.generateSingleWorkoutContext(workout: workout, metrics: metrics)
-        case .recentWorkouts(let workouts):
-            context = aiService.generateRecentWorkoutsContext(workouts: workouts)
-        case .recoveryCoaching(let recoveryMetrics):
-            context = aiService.generateRecoveryCoachingContext(metrics: recoveryMetrics)
-        }
-
+        // Backend will build the context from mode data
         Task {
             await aiService.askQuestion(
-                about: context,
                 question: userQuestion,
                 mode: mode
             )
@@ -639,7 +634,9 @@ struct MarkdownText: View {
                 parsedElements = parseMarkdown(content)
             }
         }
-        .onChange(of: content) { _, newContent in
+        .onChange(of: content) { oldContent, newContent in
+            // Only re-parse if content actually changed
+            guard oldContent != newContent else { return }
             parsedElements = parseMarkdown(newContent)
         }
     }

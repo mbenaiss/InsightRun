@@ -4,6 +4,8 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { captureLLMEvent, createPostHogClient } from './posthog'
+import { buildPrompt } from './prompts'
+import type { ChatRequestV2 } from './types'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -68,6 +70,11 @@ function validateAppAuth(c: AppContext): boolean {
 function validateChatRequest(body: unknown): body is ChatRequest {
   const req = body as ChatRequest
   return !!(req.prompt && req.systemPrompt && req.model)
+}
+
+function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
+  const req = body as ChatRequestV2
+  return !!(req.promptType && req.model && req.userQuestion && req.language && req.data)
 }
 
 async function callOpenRouter(
@@ -463,6 +470,190 @@ app.post('/api/chat/stream', async (c) => {
   } catch (error) {
     console.error('Streaming error:', error)
     return c.json({ error: 'Streaming failed' }, 500)
+  }
+})
+
+app.post('/api/chat/v2', async (c) => {
+  const startTime = Date.now()
+
+  try {
+    if (!validateAppAuth(c)) {
+      return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+    }
+
+    const body = await c.req.json()
+
+    if (!validateChatRequestV2(body)) {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: 'Missing required fields: promptType, model, userQuestion, language, data',
+        },
+        400
+      )
+    }
+
+    const { promptType, model, userQuestion, language, data } = body
+
+    if (userQuestion.length > MAX_PROMPT_LENGTH) {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: `Question too long (max ${MAX_PROMPT_LENGTH} characters)`,
+        },
+        400
+      )
+    }
+
+    // Build system prompt from data using templates
+    let systemPrompt: string
+    try {
+      systemPrompt = buildPrompt(promptType, data, language || 'en')
+    } catch (error) {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: error instanceof Error ? error.message : 'Invalid prompt type',
+        },
+        400
+      )
+    }
+
+    // Get user ID from X-User-ID header (from iOS app) or fallback to IP
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const traceId = crypto.randomUUID()
+
+    const openRouterResponse = await callOpenRouter(
+      c.env.OPENROUTER_API_KEY,
+      model,
+      systemPrompt,
+      userQuestion
+    )
+
+    if (!openRouterResponse.ok) {
+      const errorText = await openRouterResponse.text()
+      console.error('OpenRouter error:', errorText)
+
+      return c.json(
+        {
+          error: 'AI Service Error',
+          message: 'Failed to get response from AI service',
+          details: errorText,
+        },
+        500
+      )
+    }
+
+    // Variables to capture during streaming
+    let fullOutput = ''
+    let inputTokens: number | undefined
+    let outputTokens: number | undefined
+    let totalTokens: number | undefined
+
+    return streamSSE(c, async (stream) => {
+      const reader = openRouterResponse.body?.getReader()
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim()
+
+              if (dataStr === '[DONE]') {
+                await stream.writeSSE({
+                  data: '[DONE]',
+                })
+
+                // Capture LLM event with all collected data
+                const latency = (Date.now() - startTime) / 1000
+
+                if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+                  const posthog = createPostHogClient({
+                    apiKey: c.env.POSTHOG_API_KEY,
+                    host: c.env.POSTHOG_HOST,
+                  })
+
+                  c.executionCtx.waitUntil(
+                    (async () => {
+                      try {
+                        await captureLLMEvent(posthog, userId, traceId, {
+                          model,
+                          input: userQuestion,
+                          systemPrompt,
+                          output: fullOutput,
+                          inputTokens,
+                          outputTokens,
+                          latency,
+                          cost: totalTokens ? totalTokens * 0.000001 : undefined,
+                          ip,
+                        })
+                        await posthog.shutdown()
+                      } catch (error) {
+                        console.error('PostHog capture error:', error)
+                      }
+                    })()
+                  )
+                }
+
+                return
+              }
+
+              if (dataStr) {
+                try {
+                  const json: StreamChunk = JSON.parse(dataStr)
+                  const content = json.choices?.[0]?.delta?.content
+
+                  if (content) {
+                    fullOutput += content
+                    await stream.writeSSE({
+                      data: JSON.stringify({ content }),
+                    })
+                  }
+
+                  // Capture usage data if present
+                  if (json.usage) {
+                    inputTokens = json.usage.prompt_tokens
+                    outputTokens = json.usage.completion_tokens
+                    totalTokens = json.usage.total_tokens
+                  }
+                } catch (parseError) {
+                  console.warn('JSON parse error:', parseError, 'Data:', dataStr)
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Streaming error:', error)
+        throw error
+      }
+    })
+  } catch (error) {
+    console.error('Chat v2 endpoint error:', error)
+
+    return c.json(
+      {
+        error: 'Internal Server Error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
   }
 })
 

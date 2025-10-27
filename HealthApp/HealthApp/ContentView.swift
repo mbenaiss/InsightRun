@@ -31,13 +31,6 @@ struct ContentView: View {
                     Label("Santé", systemImage: "person.fill")
                 }
                 .tag(2)
-
-            // Settings Tab
-            SettingsView()
-                .tabItem {
-                    Label("Paramètres", systemImage: "gear")
-                }
-                .tag(3)
         }
     }
 }

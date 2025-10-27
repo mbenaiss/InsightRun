@@ -153,10 +153,12 @@ class HealthKitManager: ObservableObject {
 
         // Fetch all metrics in parallel
         async let heartRateData = fetchHeartRateData(for: workout)
+        async let firstLastHR = fetchFirstLastHeartRate(for: workout)
         async let paceData = fetchPaceData(for: workout)
         async let stepCountData = fetchStepCount(for: workout)
         async let strideLengthData = fetchStrideLength(for: workout)
         async let powerData = fetchRunningPower(for: workout)
+        async let firstLastPower = fetchFirstLastPower(for: workout)
         async let elevationData = fetchElevation(for: workout)
         async let routeData = fetchRoute(for: workout)
         async let vo2MaxData = fetchVO2Max(around: workoutModel.startDate)
@@ -167,6 +169,8 @@ class HealthKitManager: ObservableObject {
         let steps = await stepCountData
         let weather = await weatherData
         let mobility = await mobilityMetrics
+        let hrFirstLast = await firstLastHR
+        let powerFirstLast = await firstLastPower
         let (hr, pace, stride, power, elevation, route, vo2Max, advanced) = try await (
             heartRateData, paceData, strideLengthData, powerData,
             elevationData, routeData, vo2MaxData, advancedMetrics
@@ -191,6 +195,8 @@ class HealthKitManager: ObservableObject {
             averageHeartRate: hr.average,
             minHeartRate: hr.min,
             maxHeartRate: hr.max,
+            firstHeartRate: hrFirstLast.first,
+            lastHeartRate: hrFirstLast.last,
             heartRateZones: hr.zones,
             averagePace: pace.average,
             minPace: pace.min,
@@ -201,6 +207,8 @@ class HealthKitManager: ObservableObject {
             averageCadence: cadence,
             strideLength: stride,
             runningPower: power,
+            firstPower: powerFirstLast.first,
+            lastPower: powerFirstLast.last,
             totalElevationAscent: finalElevation.ascent,
             totalElevationDescent: finalElevation.descent,
             splits: splits,
@@ -850,6 +858,51 @@ class HealthKitManager: ObservableObject {
             }
         }
 
+        // Add final partial split if there's remaining distance
+        if kmStartIndex < routePoints.count - 1 {
+            let lastSplitPoints = Array(routePoints[kmStartIndex..<routePoints.count])
+
+            // Calculate actual distance for this partial split
+            var partialDistance = 0.0
+            for i in 1..<lastSplitPoints.count {
+                let loc1 = CLLocation(latitude: lastSplitPoints[i-1].coordinate.latitude,
+                                     longitude: lastSplitPoints[i-1].coordinate.longitude)
+                let loc2 = CLLocation(latitude: lastSplitPoints[i].coordinate.latitude,
+                                     longitude: lastSplitPoints[i].coordinate.longitude)
+                partialDistance += loc2.distance(from: loc1)
+            }
+
+            // Only create split if we have meaningful distance (> 10 meters)
+            if partialDistance > 10 {
+                let splitDuration = lastSplitPoints.last!.timestamp.timeIntervalSince(lastSplitPoints.first!.timestamp)
+                let pace = splitDuration > 0 ? (splitDuration / 60.0) / (partialDistance / 1000.0) : 0
+
+                // Calculate elevation
+                let elevationGain = calculateElevationGain(for: lastSplitPoints)
+                let elevationLoss = calculateElevationLoss(for: lastSplitPoints)
+
+                // Get HR and Power for this split time range
+                let startDate = lastSplitPoints.first!.timestamp
+                let endDate = lastSplitPoints.last!.timestamp
+
+                let heartRate = await fetchAverageHeartRate(for: workout, startDate: startDate, endDate: endDate)
+                let power = await fetchAveragePower(for: workout, startDate: startDate, endDate: endDate)
+
+                let split = Split(
+                    kilometer: currentKm,
+                    distance: partialDistance,
+                    time: splitDuration,
+                    pace: pace,
+                    averageHeartRate: heartRate,
+                    averagePower: power,
+                    elevationGain: elevationGain,
+                    elevationLoss: elevationLoss
+                )
+
+                splits.append(split)
+            }
+        }
+
         return splits
     }
 
@@ -949,6 +1002,85 @@ class HealthKitManager: ObservableObject {
 
                 let avgPower = statistics?.averageQuantity()?.doubleValue(for: .watt())
                 continuation.resume(returning: avgPower)
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    // MARK: - First and Last Sample Values
+
+    private func fetchFirstLastHeartRate(for workout: HKWorkout) async -> (first: Double?, last: Double?) {
+        guard let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate) else {
+            return (nil, nil)
+        }
+
+        let predicate = HKQuery.predicateForSamples(
+            withStart: workout.startDate,
+            end: workout.endDate,
+            options: .strictStartDate
+        )
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: heartRateType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, error in
+                if error != nil || samples == nil {
+                    continuation.resume(returning: (nil, nil))
+                    return
+                }
+
+                guard let hrSamples = samples as? [HKQuantitySample], !hrSamples.isEmpty else {
+                    continuation.resume(returning: (nil, nil))
+                    return
+                }
+
+                let unit = HKUnit.count().unitDivided(by: .minute())
+                let firstHR = hrSamples.first?.quantity.doubleValue(for: unit)
+                let lastHR = hrSamples.last?.quantity.doubleValue(for: unit)
+
+                continuation.resume(returning: (firstHR, lastHR))
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    private func fetchFirstLastPower(for workout: HKWorkout) async -> (first: Double?, last: Double?) {
+        guard let powerType = HKQuantityType.quantityType(forIdentifier: .runningPower) else {
+            return (nil, nil)
+        }
+
+        let predicate = HKQuery.predicateForSamples(
+            withStart: workout.startDate,
+            end: workout.endDate,
+            options: .strictStartDate
+        )
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: powerType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, error in
+                if error != nil || samples == nil {
+                    continuation.resume(returning: (nil, nil))
+                    return
+                }
+
+                guard let powerSamples = samples as? [HKQuantitySample], !powerSamples.isEmpty else {
+                    continuation.resume(returning: (nil, nil))
+                    return
+                }
+
+                let firstPower = powerSamples.first?.quantity.doubleValue(for: .watt())
+                let lastPower = powerSamples.last?.quantity.doubleValue(for: .watt())
+
+                continuation.resume(returning: (firstPower, lastPower))
             }
 
             healthStore.execute(query)

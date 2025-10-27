@@ -130,6 +130,74 @@ class BackendAPIClient {
         }
     }
 
+    // MARK: - Chat V2 (Streaming with JSON data)
+
+    func chatStreamV2(payload: ChatRequestV2) async throws -> AsyncStream<String> {
+        let url = URL(string: "\(baseURL)/api/chat/v2")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+
+        let encoder = JSONEncoder()
+        // Keep camelCase for backend compatibility
+        request.httpBody = try encoder.encode(payload)
+
+        return AsyncStream { continuation in
+            Task {
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        continuation.finish()
+                        return
+                    }
+
+                    // Check for errors
+                    switch httpResponse.statusCode {
+                    case 200...299:
+                        break
+                    case 401:
+                        throw BackendError.unauthorized
+                    case 429:
+                        throw BackendError.rateLimitExceeded
+                    case 500...599:
+                        throw BackendError.serverError
+                    default:
+                        throw BackendError.unknownError(httpResponse.statusCode)
+                    }
+
+                    for try await line in bytes.lines {
+                        // Parse SSE format: data: {...}
+                        if line.hasPrefix("data: ") {
+                            let jsonString = String(line.dropFirst(6))
+
+                            if jsonString == "[DONE]" {
+                                continuation.finish()
+                                return
+                            }
+
+                            // Parse simplified format: {"content": "..."}
+                            if let jsonData = jsonString.data(using: .utf8),
+                               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                               let content = json["content"] as? String {
+                                continuation.yield(content)
+                            }
+                        }
+                    }
+
+                    continuation.finish()
+
+                } catch {
+                    print("❌ BackendAPIClient V2 streaming error: \(error)")
+                    continuation.finish()
+                }
+            }
+        }
+    }
+
     // MARK: - Stats
 
     func getStats() async throws -> RateLimitStats {

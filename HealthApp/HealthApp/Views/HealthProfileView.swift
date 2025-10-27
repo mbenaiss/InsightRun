@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HealthProfileView: View {
     @StateObject private var viewModel = HealthProfileViewModel()
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -25,6 +26,18 @@ struct HealthProfileView: View {
             }
             .navigationTitle("Profil de Santé")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
             .refreshable {
                 await viewModel.refresh()
             }

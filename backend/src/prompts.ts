@@ -1,9 +1,9 @@
 import type {
   ChatDataPayload,
-  WorkoutData,
-  RecoveryData,
   HealthProfileData,
   RecentWorkoutsData,
+  RecoveryData,
+  WorkoutData,
 } from './types'
 
 // Build workout context from data

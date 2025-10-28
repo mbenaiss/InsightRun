@@ -153,7 +153,7 @@ app.use('/api/*', async (c, next) => {
 app.get('/', (c) => {
   return c.json({
     status: 'ok',
-    service: 'HealthApp Backend API',
+    service: 'InsightRun Backend API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
   })

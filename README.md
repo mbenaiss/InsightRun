@@ -1,4 +1,4 @@
-# HealthApp - iOS 26 Running Workouts
+# InsightRun - iOS 26 Running Workouts
 
 Application iOS 26 pour afficher et analyser vos workouts de course depuis HealthKit.
 
@@ -16,7 +16,7 @@ Application iOS 26 pour afficher et analyser vos workouts de course depuis Healt
 2. File → New → Project
 3. Choisir **"iOS App"**
 4. Configurer :
-   - **Product Name**: `HealthApp`
+   - **Product Name**: `InsightRun`
    - **Team**: Votre équipe de développement
    - **Organization Identifier**: `com.yourcompany` (ou autre)
    - **Interface**: **SwiftUI**
@@ -27,7 +27,7 @@ Application iOS 26 pour afficher et analyser vos workouts de course depuis Healt
 ### 2. Ajouter la capability HealthKit
 
 1. Sélectionner le projet dans la sidebar
-2. Target → HealthApp
+2. Target → InsightRun
 3. Onglet **"Signing & Capabilities"**
 4. Cliquer **"+ Capability"**
 5. Ajouter **"HealthKit"**
@@ -49,7 +49,7 @@ Supprimer `ContentView.swift` généré par Xcode, et garder uniquement les fich
 
 Assurer que tous les fichiers sont ajoutés au target dans Xcode :
 - Sélectionner tous les fichiers .swift
-- File Inspector → Target Membership → Cocher "HealthApp"
+- File Inspector → Target Membership → Cocher "InsightRun"
 
 ### 5. Build & Run
 
@@ -62,8 +62,8 @@ Assurer que tous les fichiers sont ajoutés au target dans Xcode :
 ## Structure du projet
 
 ```
-HealthApp/
-├── HealthAppApp.swift          # Entry point
+InsightRun/
+├── InsightRunApp.swift          # Entry point
 ├── Models/
 │   ├── WorkoutModel.swift      # Workout data structure
 │   └── WorkoutMetrics.swift    # Detailed metrics & stats

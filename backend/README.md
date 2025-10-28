@@ -1,6 +1,6 @@
-# HealthApp Backend API
+# InsightRun Backend API
 
-Backend sécurisé pour l'application iOS HealthApp. Proxifie les requêtes vers OpenRouter API avec rate limiting et authentification.
+Backend sécurisé pour l'application iOS InsightRun. Proxifie les requêtes vers OpenRouter API avec rate limiting et authentification.
 
 ## 🚀 Stack Technique
 
@@ -43,7 +43,7 @@ bunx wrangler secret put OPENROUTER_API_KEY
 # Entrer: sk-or-v1-VOTRE_CLE_OPENROUTER
 
 bunx wrangler secret put APP_SECRET
-# Entrer: healthapp-ios-v1-SECRET_UNIQUE
+# Entrer: insightrun-ios-v1-SECRET_UNIQUE
 ```
 
 ## 🧪 Développement Local
@@ -75,7 +75,7 @@ Health check basique.
 ```json
 {
   "status": "ok",
-  "service": "HealthApp Backend API",
+  "service": "InsightRun Backend API",
   "version": "1.0.0",
   "timestamp": "2025-10-21T12:00:00.000Z"
 }
@@ -86,7 +86,7 @@ Envoyer une question à l'IA.
 
 **Headers:**
 ```
-X-App-Key: healthapp-ios-v1-SECRET_UNIQUE
+X-App-Key: insightrun-ios-v1-SECRET_UNIQUE
 Content-Type: application/json
 ```
 

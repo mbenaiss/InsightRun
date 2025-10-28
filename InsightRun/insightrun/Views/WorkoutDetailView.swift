@@ -63,7 +63,7 @@ struct WorkoutDetailView: View {
                     // Performance section (no accordion)
                     if hasPerformanceMetrics(metrics) {
                         MetricsCard(
-                            title: "Performance",
+                            title: String(localized: "Performance", comment: "Performance metrics section title"),
                             icon: "bolt.fill",
                             iconColor: .yellow
                         ) {
@@ -74,7 +74,7 @@ struct WorkoutDetailView: View {
                     // Advanced metrics section (no accordion)
                     if hasAdvancedMetrics(metrics) {
                         MetricsCard(
-                            title: "Métriques Avancées",
+                            title: String(localized: "Advanced Metrics", comment: "Advanced metrics section title"),
                             icon: "waveform.path.ecg",
                             iconColor: .indigo
                         ) {
@@ -85,7 +85,7 @@ struct WorkoutDetailView: View {
                     // Splits section (with accordion)
                     if let splits = metrics.splits, !splits.isEmpty {
                         AccordionSection(
-                            title: "Splits",
+                            title: String(localized: "Splits", comment: "Splits section title"),
                             icon: "list.number",
                             iconColor: .blue,
                             isExpanded: false
@@ -99,7 +99,7 @@ struct WorkoutDetailView: View {
             }
             .padding()
         }
-        .navigationTitle("Détails")
+        .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.loadMetrics()
@@ -143,13 +143,13 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(.green.gradient)
                     .font(.headline)
 
-                Text("Parcours")
+                Text(String(localized: "Route", comment: "Route map section title"))
                     .font(.headline)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
-                Text("\(routePoints.count) points GPS")
+                Text(String(format: String(localized: "%lld GPS points", comment: "GPS points count"), routePoints.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -170,14 +170,14 @@ struct WorkoutDetailView: View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             CompactMetricCard(
                 icon: "ruler",
-                label: "Distance",
+                label: String(localized: "Distance", comment: "Distance metric"),
                 value: workout.distanceFormatted,
                 color: .blue
             )
 
             CompactMetricCard(
                 icon: "clock",
-                label: "Durée",
+                label: String(localized: "Duration", comment: "Duration metric"),
                 value: workout.durationFormatted,
                 color: .indigo
             )
@@ -185,7 +185,7 @@ struct WorkoutDetailView: View {
             if let pace = metrics.averagePace {
                 CompactMetricCard(
                     icon: "speedometer",
-                    label: "Allure moy.",
+                    label: String(localized: "Avg Pace", comment: "Average pace metric"),
                     value: viewModel.formatPace(pace),
                     color: .green
                 )
@@ -194,7 +194,7 @@ struct WorkoutDetailView: View {
             if let calories = workout.totalEnergyBurned {
                 CompactMetricCard(
                     icon: "flame.fill",
-                    label: "Calories",
+                    label: String(localized: "Calories", comment: "Calories burned metric"),
                     value: String(format: "%.0f", calories),
                     color: .orange
                 )
@@ -223,7 +223,7 @@ struct WorkoutDetailView: View {
     private var loadingSection: some View {
         VStack(spacing: 16) {
             ProgressView()
-            Text("Chargement des données...")
+            Text(String(localized: "Loading data...", comment: "Loading indicator"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -255,7 +255,7 @@ struct WorkoutDetailView: View {
             if let minPace = metrics.minPace {
                 MetricRow(
                     icon: "hare.fill",
-                    label: "Meilleure allure",
+                    label: String(localized: "Best Pace", comment: "Best pace performance metric"),
                     value: viewModel.formatPace(minPace),
                     color: .green
                 )
@@ -264,7 +264,7 @@ struct WorkoutDetailView: View {
             if let maxSpeed = metrics.maxSpeed {
                 MetricRow(
                     icon: "bolt.fill",
-                    label: "Vitesse max",
+                    label: String(localized: "Max Speed", comment: "Maximum speed performance metric"),
                     value: viewModel.formatSpeed(maxSpeed),
                     color: .yellow
                 )
@@ -273,7 +273,7 @@ struct WorkoutDetailView: View {
             if let cadence = metrics.averageCadence {
                 MetricRow(
                     icon: "metronome.fill",
-                    label: "Cadence moyenne",
+                    label: String(localized: "Avg Cadence", comment: "Average cadence performance metric"),
                     value: viewModel.formatCadence(cadence),
                     color: .indigo
                 )
@@ -282,7 +282,7 @@ struct WorkoutDetailView: View {
             if let strideLength = metrics.strideLength {
                 MetricRow(
                     icon: "figure.walk",
-                    label: "Longueur de foulée",
+                    label: String(localized: "Stride Length", comment: "Stride length performance metric"),
                     value: viewModel.formatStrideLength(strideLength),
                     color: .cyan
                 )
@@ -291,7 +291,7 @@ struct WorkoutDetailView: View {
             if let power = metrics.runningPower {
                 MetricRow(
                     icon: "bolt.circle.fill",
-                    label: "Puissance",
+                    label: String(localized: "Power", comment: "Running power performance metric"),
                     value: viewModel.formatPower(power),
                     color: .orange
                 )
@@ -300,7 +300,7 @@ struct WorkoutDetailView: View {
             if let vo2Max = metrics.vo2Max {
                 MetricRow(
                     icon: "lungs.fill",
-                    label: "VO2 Max",
+                    label: String(localized: "VO2 Max", comment: "VO2 Maximum performance metric"),
                     value: String(format: "%.1f ml/kg/min", vo2Max),
                     color: .red
                 )
@@ -315,7 +315,7 @@ struct WorkoutDetailView: View {
                let worst = splits.max(by: { $0.pace < $1.pace }) {
                 HStack(spacing: 20) {
                     VStack(spacing: 4) {
-                        Text("Meilleur")
+                        Text(String(localized: "Best", comment: "Best split label"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(best.paceFormatted)
@@ -331,7 +331,7 @@ struct WorkoutDetailView: View {
                         .frame(height: 50)
 
                     VStack(spacing: 4) {
-                        Text("Plus lent")
+                        Text(String(localized: "Slowest", comment: "Slowest split label"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(worst.paceFormatted)
@@ -361,7 +361,7 @@ struct WorkoutDetailView: View {
             if let gct = metrics.groundContactTime {
                 MetricRow(
                     icon: "timer",
-                    label: "Temps de contact au sol",
+                    label: String(localized: "Ground Contact Time", comment: "Ground contact time advanced metric"),
                     value: String(format: "%.0f ms", gct),
                     color: .indigo
                 )
@@ -370,7 +370,7 @@ struct WorkoutDetailView: View {
             if let vo = metrics.verticalOscillation {
                 MetricRow(
                     icon: "arrow.up.and.down",
-                    label: "Oscillation verticale",
+                    label: String(localized: "Vertical Oscillation", comment: "Vertical oscillation advanced metric"),
                     value: String(format: "%.1f cm", vo),
                     color: .cyan
                 )
@@ -379,7 +379,7 @@ struct WorkoutDetailView: View {
             if let balance = metrics.groundContactTimeBalance {
                 MetricRow(
                     icon: "scale.3d",
-                    label: "Équilibre de contact",
+                    label: String(localized: "Contact Balance", comment: "Ground contact time balance advanced metric"),
                     value: viewModel.formatPercentage(balance),
                     color: .orange
                 )
@@ -388,7 +388,7 @@ struct WorkoutDetailView: View {
             if let efficiency = metrics.runningEfficiency {
                 MetricRow(
                     icon: "chart.line.uptrend.xyaxis",
-                    label: "Efficacité de course",
+                    label: String(localized: "Running Efficiency", comment: "Running efficiency advanced metric"),
                     value: viewModel.formatPercentage(efficiency),
                     color: .green
                 )
@@ -398,7 +398,7 @@ struct WorkoutDetailView: View {
             if let steadiness = metrics.walkingSteadiness {
                 MetricRow(
                     icon: "figure.walk",
-                    label: "Stabilité de marche",
+                    label: String(localized: "Walking Steadiness", comment: "Walking steadiness advanced metric"),
                     value: viewModel.formatPercentage(steadiness),
                     color: .green
                 )
@@ -407,7 +407,7 @@ struct WorkoutDetailView: View {
             if let asymmetry = metrics.walkingAsymmetry {
                 MetricRow(
                     icon: "figure.walk.arrival",
-                    label: "Asymétrie de marche",
+                    label: String(localized: "Walking Asymmetry", comment: "Walking asymmetry advanced metric"),
                     value: viewModel.formatPercentage(asymmetry),
                     color: .orange
                 )
@@ -416,7 +416,7 @@ struct WorkoutDetailView: View {
             if let doubleSupport = metrics.doubleSupportPercentage {
                 MetricRow(
                     icon: "figure.2.arms.open",
-                    label: "Double appui",
+                    label: String(localized: "Double Support", comment: "Double support percentage advanced metric"),
                     value: viewModel.formatPercentage(doubleSupport),
                     color: .blue
                 )
@@ -425,7 +425,7 @@ struct WorkoutDetailView: View {
             if let speed = metrics.walkingSpeed {
                 MetricRow(
                     icon: "figure.walk.circle",
-                    label: "Vitesse de marche",
+                    label: String(localized: "Walking Speed", comment: "Walking speed advanced metric"),
                     value: viewModel.formatSpeed(speed),
                     color: .cyan
                 )
@@ -434,7 +434,7 @@ struct WorkoutDetailView: View {
             if let ascentSpeed = metrics.stairAscentSpeed {
                 MetricRow(
                     icon: "figure.stairs",
-                    label: "Vitesse montée d'escaliers",
+                    label: String(localized: "Stair Ascent Speed", comment: "Stair ascent speed advanced metric"),
                     value: viewModel.formatSpeed(ascentSpeed),
                     color: .purple
                 )
@@ -443,7 +443,7 @@ struct WorkoutDetailView: View {
             if let descentSpeed = metrics.stairDescentSpeed {
                 MetricRow(
                     icon: "figure.stairs",
-                    label: "Vitesse descente d'escaliers",
+                    label: String(localized: "Stair Descent Speed", comment: "Stair descent speed advanced metric"),
                     value: viewModel.formatSpeed(descentSpeed),
                     color: .indigo
                 )
@@ -460,7 +460,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(.purple.gradient)
                     .font(.title3)
 
-                Text("Analyse IA")
+                Text(String(localized: "AI Analysis", comment: "AI analysis section title"))
                     .font(.headline)
                     .foregroundStyle(.primary)
             }
@@ -470,7 +470,7 @@ struct WorkoutDetailView: View {
                 HStack {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Analyse en cours...")
+                    Text(String(localized: "Analyzing...", comment: "AI analysis loading indicator"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -494,7 +494,7 @@ struct WorkoutDetailView: View {
                             await analysisViewModel.generateAnalysis()
                         }
                     } label: {
-                        Label("Réessayer", systemImage: "arrow.clockwise")
+                        Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
                             .font(.subheadline)
                     }
                     .buttonStyle(.bordered)
@@ -534,7 +534,7 @@ struct WorkoutDetailView: View {
             } else {
                 // No analysis yet - show button to generate
                 VStack(spacing: 12) {
-                    Text("Obtenez une analyse détaillée de votre performance")
+                    Text(String(localized: "Get detailed analysis of your performance", comment: "AI analysis prompt"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -544,7 +544,7 @@ struct WorkoutDetailView: View {
                             await analysisViewModel.loadAnalysis()
                         }
                     } label: {
-                        Label("Analyser avec IA", systemImage: "sparkles")
+                        Label(String(localized: "Analyze with AI", comment: "Analyze button"), systemImage: "sparkles")
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -915,7 +915,7 @@ struct InteractiveHeartRateChart: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Fréquence Cardiaque")
+                    Text(String(localized: "Heart Rate", comment: "Heart rate chart title"))
                         .font(.headline)
                         .foregroundStyle(.primary)
 
@@ -934,7 +934,7 @@ struct InteractiveHeartRateChart: View {
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.red)
-                                Text("min")
+                                Text(String(localized: "min", comment: "Minimum label"))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -943,13 +943,13 @@ struct InteractiveHeartRateChart: View {
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.red)
-                                Text("max")
+                                Text(String(localized: "max", comment: "Maximum label"))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
                         }
                     } else {
-                        Text("Aucune donnée disponible")
+                        Text(String(localized: "No data available", comment: "Empty state message"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -968,7 +968,7 @@ struct InteractiveHeartRateChart: View {
                     Image(systemName: "heart.slash")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
-                    Text("Aucune donnée de fréquence cardiaque disponible")
+                    Text(String(localized: "No heart rate data available", comment: "Empty HR chart message"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

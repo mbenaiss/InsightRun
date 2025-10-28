@@ -32,7 +32,7 @@ struct WorkoutListView: View {
                         }
                     }
                 }
-                .navigationTitle("Courses")
+                .navigationTitle(String(localized: "Workouts", comment: "Main list screen title"))
                 .navigationBarTitleDisplayMode(.large)
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
@@ -93,11 +93,11 @@ struct WorkoutListView: View {
             }
 
             VStack(spacing: 12) {
-                Text("Accès aux Données")
+                Text(String(localized: "Health Data Access", comment: "HealthKit permission request title"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Cette app a besoin d'accéder à vos workouts de course depuis HealthKit pour afficher votre historique.")
+                Text(String(localized: "This app needs access to your running workouts from HealthKit to display your history.", comment: "HealthKit permission request description"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -109,7 +109,7 @@ struct WorkoutListView: View {
                     await viewModel.requestAuthorization()
                 }
             } label: {
-                Text("Autoriser l'accès")
+                Text(String(localized: "Grant Access", comment: "HealthKit permission button"))
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -137,11 +137,11 @@ struct WorkoutListView: View {
                 .foregroundStyle(.orange.gradient)
 
             VStack(spacing: 12) {
-                Text("Accès Refusé")
+                Text(String(localized: "Access Denied", comment: "HealthKit access denied title"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Veuillez activer l'accès dans Réglages → Confidentialité → Santé → InsightRun")
+                Text(String(localized: "Please enable access in Settings → Privacy → Health → InsightRun", comment: "HealthKit access denied instructions"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -153,7 +153,7 @@ struct WorkoutListView: View {
                     UIApplication.shared.open(url)
                 }
             } label: {
-                Text("Ouvrir Réglages")
+                Text(String(localized: "Open Settings", comment: "Settings button"))
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -175,7 +175,7 @@ struct WorkoutListView: View {
             ProgressView()
                 .scaleEffect(1.5)
 
-            Text("Chargement...")
+            Text(String(localized: "Loading...", comment: "Loading indicator"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -192,11 +192,11 @@ struct WorkoutListView: View {
                 .foregroundStyle(.blue.gradient)
 
             VStack(spacing: 12) {
-                Text("Aucune Course")
+                Text(String(localized: "No Workouts", comment: "Empty state title"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Aucun workout de course trouvé.\nCommencez à courir pour voir vos statistiques ici!")
+                Text(String(localized: "No running workouts found.\nStart running to see your stats here!", comment: "Empty state description"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -255,24 +255,24 @@ struct WorkoutListView: View {
     private var combinedStatsCard: some View {
         VStack(spacing: 16) {
             // Main title
-            Text("Statistiques Globales")
+            Text(String(localized: "Overall Stats", comment: "Combined stats card title"))
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             // Global stats section
             VStack(spacing: 12) {
-                StatsRow(icon: "number", label: "Courses", value: "\(viewModel.workoutCount)")
-                StatsRow(icon: "ruler", label: "Distance totale", value: viewModel.formatTotalDistance())
-                StatsRow(icon: "clock", label: "Temps total", value: viewModel.formatTotalDuration())
-                StatsRow(icon: "gauge", label: "Allure moyenne", value: viewModel.formatAveragePace())
-                StatsRow(icon: "figure.run", label: "Distance moyenne", value: viewModel.formatAverageDistance())
+                StatsRow(icon: "number", label: String(localized: "Workouts", comment: "Number of workouts stat"), value: "\(viewModel.workoutCount)")
+                StatsRow(icon: "ruler", label: String(localized: "Total Distance", comment: "Total distance stat"), value: viewModel.formatTotalDistance())
+                StatsRow(icon: "clock", label: String(localized: "Total Time", comment: "Total duration stat"), value: viewModel.formatTotalDuration())
+                StatsRow(icon: "gauge", label: String(localized: "Avg Pace", comment: "Average pace stat"), value: viewModel.formatAveragePace())
+                StatsRow(icon: "figure.run", label: String(localized: "Avg Distance", comment: "Average distance stat"), value: viewModel.formatAverageDistance())
             }
 
             // Records section
             if viewModel.longestRun != nil || viewModel.fastestRun != nil {
                 Divider()
 
-                Text("Records")
+                Text(String(localized: "Records", comment: "Records section title"))
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -282,7 +282,7 @@ struct WorkoutListView: View {
                             Image(systemName: "trophy.fill")
                                 .foregroundStyle(.yellow.gradient)
                                 .frame(width: 24)
-                            Text("Course la plus longue")
+                            Text(String(localized: "Longest Run", comment: "Longest run record label"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Spacer()
@@ -300,7 +300,7 @@ struct WorkoutListView: View {
                             Image(systemName: "bolt.fill")
                                 .foregroundStyle(.orange.gradient)
                                 .frame(width: 24)
-                            Text("Course la plus rapide")
+                            Text(String(localized: "Fastest Run", comment: "Fastest run record label"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Spacer()
@@ -329,7 +329,7 @@ struct WorkoutListView: View {
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
-                Text("\(stats.count) courses")
+                Text(String(format: String(localized: "%lld workouts", comment: "Month header workout count"), stats.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -341,7 +341,7 @@ struct WorkoutListView: View {
                         Text(viewModel.formatDistance(stats.totalDistance))
                             .font(.headline)
                             .foregroundStyle(.blue)
-                        Text("Distance")
+                        Text(String(localized: "Distance", comment: "Distance stat label"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -353,7 +353,7 @@ struct WorkoutListView: View {
                         Text(viewModel.formatDuration(stats.totalDuration))
                             .font(.headline)
                             .foregroundStyle(.green)
-                        Text("Temps")
+                        Text(String(localized: "Time", comment: "Time stat label"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -365,7 +365,7 @@ struct WorkoutListView: View {
                         Text(viewModel.formatPace(stats.averagePace))
                             .font(.headline)
                             .foregroundStyle(.orange)
-                        Text("Allure moy.")
+                        Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

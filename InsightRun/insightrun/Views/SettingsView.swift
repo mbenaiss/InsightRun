@@ -14,23 +14,23 @@ struct SettingsView: View {
                 // App Information Section
                 Section {
                     HStack {
-                        Text("Version")
+                        Text(String(localized: "Version", comment: "Label for app version"))
                         Spacer()
                         Text("1.0.0")
                             .foregroundStyle(.secondary)
                     }
 
                     HStack {
-                        Text("Build")
+                        Text(String(localized: "Build", comment: "Label for app build number"))
                         Spacer()
                         Text("1")
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("À propos")
+                    Text(String(localized: "About", comment: "Section header for app information"))
                 }
             }
-            .navigationTitle("Paramètres")
+            .navigationTitle(String(localized: "Settings", comment: "Navigation title for settings view"))
         }
     }
 }

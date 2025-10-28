@@ -50,7 +50,7 @@ struct HealthProfile: Identifiable {
 
     var formattedAge: String {
         guard let age = age else { return "N/A" }
-        return "\(age) ans"
+        return String(localized: "\(age) years", comment: "User age in years")
     }
 
     var formattedBodyMass: String {
@@ -109,15 +109,15 @@ struct HealthProfile: Identifiable {
         guard let sex = biologicalSex else { return "N/A" }
         switch sex {
         case .female:
-            return "Femme"
+            return String(localized: "Female", comment: "Biological sex - female")
         case .male:
-            return "Homme"
+            return String(localized: "Male", comment: "Biological sex - male")
         case .other:
-            return "Autre"
+            return String(localized: "Other", comment: "Biological sex - other")
         case .notSet:
-            return "Non défini"
+            return String(localized: "Not set", comment: "Biological sex - not set")
         @unknown default:
-            return "Inconnu"
+            return String(localized: "Unknown", comment: "Biological sex - unknown")
         }
     }
 

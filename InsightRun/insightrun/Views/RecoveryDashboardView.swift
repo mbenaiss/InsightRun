@@ -25,7 +25,7 @@ struct RecoveryDashboardView: View {
                         emptyView
                     }
                 }
-                .navigationTitle("Récupération")
+                .navigationTitle(String(localized: "Recovery", comment: "Navigation title for recovery dashboard"))
                 .navigationBarTitleDisplayMode(.large)
                 .refreshable {
                     await viewModel.refresh()
@@ -75,7 +75,7 @@ struct RecoveryDashboardView: View {
         VStack(spacing: 20) {
             ProgressView()
                 .scaleEffect(1.5)
-            Text("Chargement...")
+            Text(String(localized: "Loading...", comment: "Loading indicator text"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -92,7 +92,7 @@ struct RecoveryDashboardView: View {
                 .foregroundStyle(.orange.gradient)
 
             VStack(spacing: 12) {
-                Text("Erreur")
+                Text(String(localized: "Error", comment: "Error state title"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
@@ -103,7 +103,7 @@ struct RecoveryDashboardView: View {
                     .padding(.horizontal, 32)
             }
 
-            Button("Réessayer") {
+            Button(String(localized: "Retry", comment: "Button to retry loading data")) {
                 Task {
                     await viewModel.refresh()
                 }
@@ -123,17 +123,17 @@ struct RecoveryDashboardView: View {
                 .foregroundStyle(.red.gradient)
 
             VStack(spacing: 12) {
-                Text("Aucune Donnée")
+                Text(String(localized: "No Data", comment: "Empty state title when no recovery data available"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Les données de récupération ne sont pas disponibles.")
+                Text(String(localized: "Recovery data is not available.", comment: "Empty state message for recovery data"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
-                Text("Tip: Activez les permissions dans Réglages → Confidentialité → Santé → InsightRun")
+                Text(String(localized: "Tip: Enable permissions in Settings → Privacy → Health → InsightRun", comment: "Tip about enabling HealthKit permissions"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -191,7 +191,7 @@ struct RecoveryDashboardView: View {
                     .font(.system(size: 40))
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Score de Récupération")
+                    Text(String(localized: "Recovery Score", comment: "Label for recovery score metric"))
                         .font(.headline)
                         .foregroundStyle(.secondary)
 
@@ -231,7 +231,7 @@ struct RecoveryDashboardView: View {
 
     private func recommendationCard(_ recovery: RecoveryMetrics) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Recommandation", systemImage: "lightbulb.fill")
+            Label(String(localized: "Recommendation", comment: "Section header for recovery recommendation"), systemImage: "lightbulb.fill")
                 .font(.headline)
                 .foregroundStyle(.orange.gradient)
 
@@ -250,7 +250,7 @@ struct RecoveryDashboardView: View {
 
     private func heartRateSection(_ recovery: RecoveryMetrics) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Fréquence Cardiaque")
+            Text(String(localized: "Heart Rate", comment: "Section header for heart rate metrics"))
                 .font(.headline)
 
             VStack(spacing: 12) {
@@ -258,7 +258,7 @@ struct RecoveryDashboardView: View {
                     HealthMetricRow(
                         icon: "heart.fill",
                         iconColor: .red,
-                        title: "FC au repos",
+                        title: String(localized: "Resting HR", comment: "Label for resting heart rate"),
                         value: String(format: "%.0f bpm", rhr)
                     )
                 }
@@ -267,7 +267,7 @@ struct RecoveryDashboardView: View {
                     HealthMetricRow(
                         icon: "waveform.path.ecg",
                         iconColor: .blue,
-                        title: "Variabilité (HRV)",
+                        title: String(localized: "Variability (HRV)", comment: "Label for heart rate variability"),
                         value: String(format: "%.0f ms", hrv)
                     )
                 }
@@ -276,7 +276,7 @@ struct RecoveryDashboardView: View {
                     HealthMetricRow(
                         icon: "figure.walk",
                         iconColor: .green,
-                        title: "FC en marche",
+                        title: String(localized: "Walking HR", comment: "Label for walking heart rate"),
                         value: String(format: "%.0f bpm", whr)
                     )
                 }
@@ -292,21 +292,21 @@ struct RecoveryDashboardView: View {
 
     private func sleepSection(_ sleep: SleepData) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Sommeil")
+            Text(String(localized: "Sleep", comment: "Section header for sleep metrics"))
                 .font(.headline)
 
             VStack(spacing: 12) {
                 HealthMetricRow(
                     icon: "moon.fill",
                     iconColor: .indigo,
-                    title: "Session de sommeil",
+                    title: String(localized: "Sleep session", comment: "Label for time of sleep session"),
                     value: sleep.formattedSleepTime
                 )
 
                 HealthMetricRow(
                     icon: "bed.double.fill",
                     iconColor: .blue,
-                    title: "Durée de sommeil",
+                    title: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
                     value: sleep.formattedTotalSleep
                 )
 
@@ -314,7 +314,7 @@ struct RecoveryDashboardView: View {
                     HealthMetricRow(
                         icon: "powersleep",
                         iconColor: .orange,
-                        title: "Siestes",
+                        title: String(localized: "Naps", comment: "Label for nap duration"),
                         value: napDuration
                     )
                 }
@@ -322,21 +322,21 @@ struct RecoveryDashboardView: View {
                 HealthMetricRow(
                     icon: "clock.fill",
                     iconColor: .cyan,
-                    title: "Temps au lit",
+                    title: String(localized: "Time in bed", comment: "Label for total time in bed"),
                     value: sleep.formattedTimeInBed
                 )
 
                 HealthMetricRow(
                     icon: "chart.bar.fill",
                     iconColor: .teal,
-                    title: "Efficacité",
+                    title: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
                     value: String(format: "%.0f%%", sleep.sleepEfficiency)
                 )
 
                 HealthMetricRow(
                     icon: "star.fill",
                     iconColor: .yellow,
-                    title: "Qualité",
+                    title: String(localized: "Quality", comment: "Label for sleep quality description"),
                     value: sleep.qualityDescription
                 )
             }
@@ -348,14 +348,14 @@ struct RecoveryDashboardView: View {
                 Divider()
                     .padding(.vertical, 4)
 
-                Text("Phases de sommeil")
+                Text(String(localized: "Sleep stages", comment: "Section header for sleep stages breakdown"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
                 VStack(spacing: 8) {
-                    SleepStageRow(stage: "Profond", duration: deep, color: .blue)
-                    SleepStageRow(stage: "Léger", duration: core, color: .cyan)
-                    SleepStageRow(stage: "Paradoxal", duration: rem, color: .indigo)
+                    SleepStageRow(stage: String(localized: "Deep", comment: "Deep sleep stage label"), duration: deep, color: .blue)
+                    SleepStageRow(stage: String(localized: "Light", comment: "Light sleep stage label"), duration: core, color: .cyan)
+                    SleepStageRow(stage: String(localized: "REM", comment: "REM sleep stage label"), duration: rem, color: .indigo)
                 }
             }
         }
@@ -369,13 +369,13 @@ struct RecoveryDashboardView: View {
 
     private func respiratorySection(_ rate: Double) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Respiration")
+            Text(String(localized: "Breathing", comment: "Section header for respiratory metrics"))
                 .font(.headline)
 
             HealthMetricRow(
                 icon: "wind",
                 iconColor: .teal,
-                title: "Fréquence respiratoire",
+                title: String(localized: "Respiratory rate", comment: "Label for respiratory rate"),
                 value: String(format: "%.0f /min", rate)
             )
         }
@@ -416,7 +416,7 @@ struct RecoveryDashboardView: View {
                             await viewModel.goToToday()
                         }
                     }) {
-                        Text("Aujourd'hui")
+                        Text(String(localized: "Today", comment: "Button to go back to today's date"))
                             .font(.caption)
                             .foregroundColor(.blue)
                     }

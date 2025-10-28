@@ -1,6 +1,6 @@
 //
-//  HealthAppApp.swift
-//  HealthApp
+//  InsightRunApp.swift
+//  InsightRun
 //
 //  iOS 26 Running Workouts Tracker
 //
@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct HealthAppApp: App {
+struct InsightRunApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

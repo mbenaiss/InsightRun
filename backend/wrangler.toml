@@ -1,4 +1,4 @@
-name = "healthapp-backend"
+name = "insightrun-backend"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
@@ -32,8 +32,8 @@ invocation_logs = true
 persist = true
 
 [env.production]
-name = "healthapp-backend"
+name = "insightrun-backend"
 route = "api.yourapp.com/*"  # À remplacer par ton domaine
 
 [env.development]
-name = "healthapp-backend-dev"
+name = "insightrun-backend-dev"

@@ -74,6 +74,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+          workingDirectory: frontend
 
   # Deploy backend to Cloudflare Workers
   deploy_backend:

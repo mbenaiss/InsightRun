@@ -1,9 +1,9 @@
 'use client'
 
-import InsightRunFeatures from './components/HealthAppFeatures'
-import InsightRunFooter from './components/HealthAppFooter'
-import InsightRunHeader from './components/HealthAppHeader'
-import InsightRunHero from './components/HealthAppHero'
+import InsightRunFeatures from './components/InsightRunFeatures'
+import InsightRunFooter from './components/InsightRunFooter'
+import InsightRunHeader from './components/InsightRunHeader'
+import InsightRunHero from './components/InsightRunHero'
 
 export default function Home() {
   return (

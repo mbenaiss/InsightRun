@@ -1,6 +1,6 @@
 //
 //  FoundationModelsService.swift
-//  HealthApp
+//  InsightRun
 //
 //  Service for running on-device LLM inference using Apple's FoundationModels framework
 //

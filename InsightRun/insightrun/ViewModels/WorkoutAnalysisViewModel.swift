@@ -1,6 +1,6 @@
 //
 //  WorkoutAnalysisViewModel.swift
-//  HealthApp
+//  InsightRun
 //
 //  ViewModel for managing AI workout analysis with local SwiftData persistence
 //

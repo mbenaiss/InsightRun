@@ -1,6 +1,6 @@
 //
 //  BackendAPIClient.swift
-//  HealthApp
+//  InsightRun
 //
 //  Secure API client for backend communication
 //  Replaces direct OpenRouter API calls
@@ -12,13 +12,13 @@ class BackendAPIClient {
     static let shared = BackendAPIClient()
 
     // Backend API endpoint
-    private let baseURL = "https://healthapp-backend.mbenaissa.workers.dev"
+    private let baseURL = "https://insightrun-backend.mbenaissa.workers.dev"
 
     // App identifier key
     // Note: This is safe to hardcode as it's just an app identifier (like a User-Agent).
     // Real security is server-side with rate limiting, IP tracking, and secret rotation.
     // iOS apps can always be decompiled, so no true secrets should ever be in client code.
-    private let appKey = "insightrun-LEtZ5vhVA5RBpw8u-F0Rxvk1mHagGeINJEI9GOPUFs4"
+    private let appKey = "healthapp-LEtZ5vhVA5RBpw8u-F0Rxvk1mHagGeINJEI9GOPUFs4"
 
     private init() {}
 
@@ -232,7 +232,7 @@ class BackendAPIClient {
 
     func setBaseURL(_ url: String) {
         // Pour changer l'URL après déploiement
-        // BackendAPIClient.shared.setBaseURL("https://healthapp-backend.YOUR_SUBDOMAIN.workers.dev")
+        // BackendAPIClient.shared.setBaseURL("https://insightrun-backend.YOUR_SUBDOMAIN.workers.dev")
     }
 }
 

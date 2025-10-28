@@ -1,6 +1,6 @@
 //
 //  WorkoutAnalysis.swift
-//  HealthApp
+//  InsightRun
 //
 //  SwiftData model for storing AI workout analyses locally
 //

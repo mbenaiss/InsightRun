@@ -1,6 +1,6 @@
 //
 //  RecoveryDashboardView.swift
-//  HealthApp
+//  InsightRun
 //
 //  Dashboard for recovery and readiness metrics
 //
@@ -133,7 +133,7 @@ struct RecoveryDashboardView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
-                Text("Tip: Activez les permissions dans Réglages → Confidentialité → Santé → healthapp")
+                Text("Tip: Activez les permissions dans Réglages → Confidentialité → Santé → InsightRun")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)

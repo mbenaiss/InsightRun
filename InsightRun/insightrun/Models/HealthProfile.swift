@@ -1,6 +1,6 @@
 //
 //  HealthProfile.swift
-//  HealthApp
+//  InsightRun
 //
 //  Model for user's health profile and body metrics
 //

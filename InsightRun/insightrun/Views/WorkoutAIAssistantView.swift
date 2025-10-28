@@ -1,6 +1,6 @@
 //
 //  WorkoutAIAssistantView.swift
-//  HealthApp
+//  InsightRun
 //
 //  AI Assistant for analyzing workouts with iOS 26 Liquid Glass design
 //

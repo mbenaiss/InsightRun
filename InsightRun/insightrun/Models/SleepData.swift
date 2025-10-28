@@ -1,6 +1,6 @@
 //
 //  SleepData.swift
-//  HealthApp
+//  InsightRun
 //
 //  Model for sleep analysis data
 //

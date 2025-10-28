@@ -1,6 +1,6 @@
 //
 //  RecoveryMetrics.swift
-//  HealthApp
+//  InsightRun
 //
 //  Model for recovery and readiness metrics
 //

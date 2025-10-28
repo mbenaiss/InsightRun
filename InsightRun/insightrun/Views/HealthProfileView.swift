@@ -1,6 +1,6 @@
 //
 //  HealthProfileView.swift
-//  HealthApp
+//  InsightRun
 //
 //  View for displaying health profile and body metrics
 //
@@ -111,7 +111,7 @@ struct HealthProfileView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
-                Text("Tip: Activez les permissions dans Réglages → Confidentialité → Santé → healthapp")
+                Text("Tip: Activez les permissions dans Réglages → Confidentialité → Santé → InsightRun")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)

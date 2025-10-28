@@ -1,6 +1,6 @@
 //
 //  BackendModels.swift
-//  HealthApp
+//  InsightRun
 //
 //  Models for Backend API v2 communication
 //

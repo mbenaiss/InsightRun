@@ -1,6 +1,6 @@
 //
 //  HealthProfileViewModel.swift
-//  HealthApp
+//  InsightRun
 //
 //  ViewModel for health profile and body metrics
 //

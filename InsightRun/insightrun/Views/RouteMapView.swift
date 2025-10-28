@@ -1,6 +1,6 @@
 //
 //  RouteMapView.swift
-//  HealthApp
+//  InsightRun
 //
 //  MapKit view for displaying workout route
 //

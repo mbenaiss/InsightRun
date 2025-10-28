@@ -1,6 +1,6 @@
 //
 //  WorkoutAIService.swift
-//  HealthApp
+//  InsightRun
 //
 //  AI Service for workout analysis using OpenRouter API
 //

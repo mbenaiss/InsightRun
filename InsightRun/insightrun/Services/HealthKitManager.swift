@@ -1,6 +1,6 @@
 //
 //  HealthKitManager.swift
-//  HealthApp
+//  InsightRun
 //
 //  Service layer for interacting with HealthKit
 //

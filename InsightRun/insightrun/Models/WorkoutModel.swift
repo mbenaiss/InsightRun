@@ -1,6 +1,6 @@
 //
 //  WorkoutModel.swift
-//  HealthApp
+//  InsightRun
 //
 //  Model representing a running workout from HealthKit
 //

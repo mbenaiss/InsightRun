@@ -1,6 +1,6 @@
 //
 //  ModelRouter.swift
-//  HealthApp
+//  InsightRun
 //
 //  Intelligent model selection based on prompt complexity
 //  Uses LLM classification (Foundation Models or Grok) to route to optimal model

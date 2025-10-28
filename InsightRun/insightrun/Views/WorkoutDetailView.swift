@@ -1,6 +1,6 @@
 //
 //  WorkoutDetailView.swift
-//  HealthApp
+//  InsightRun
 //
 //  Detail screen showing all workout metrics
 //  Featuring iOS 26 Liquid Glass design with comprehensive data display

@@ -1,6 +1,6 @@
 //
 //  WorkoutMetrics.swift
-//  HealthApp
+//  InsightRun
 //
 //  Detailed metrics and statistics for a workout
 //

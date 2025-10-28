@@ -1,6 +1,6 @@
 //
 //  WorkoutRowView.swift
-//  HealthApp
+//  InsightRun
 //
 //  Cell view for each workout in the list
 //  Featuring iOS 26 Liquid Glass design

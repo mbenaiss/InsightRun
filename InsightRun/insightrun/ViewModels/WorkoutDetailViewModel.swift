@@ -1,6 +1,6 @@
 //
 //  WorkoutDetailViewModel.swift
-//  HealthApp
+//  InsightRun
 //
 //  ViewModel for the workout detail screen
 //

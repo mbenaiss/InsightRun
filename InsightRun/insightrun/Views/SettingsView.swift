@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  HealthApp
+//  InsightRun
 //
 //  Settings view
 //

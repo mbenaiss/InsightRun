@@ -1,6 +1,6 @@
 //
 //  WorkoutListView.swift
-//  HealthApp
+//  InsightRun
 //
 //  Main screen displaying list of running workouts
 //  Featuring iOS 26 Liquid Glass design
@@ -141,7 +141,7 @@ struct WorkoutListView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Veuillez activer l'accès dans Réglages → Confidentialité → Santé → HealthApp")
+                Text("Veuillez activer l'accès dans Réglages → Confidentialité → Santé → InsightRun")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

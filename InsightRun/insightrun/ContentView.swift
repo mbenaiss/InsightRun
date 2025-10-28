@@ -1,5 +1,5 @@
 //  ContentView.swift
-//  healthapp
+//  InsightRun
 //
 //  Main navigation with tabs
 //

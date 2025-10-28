@@ -1,6 +1,6 @@
 //
 //  UserIdentityService.swift
-//  HealthApp
+//  InsightRun
 //
 //  Service for managing user identity with a unique, persistent ID
 //  Used for backend tracking, rate limiting, and analytics

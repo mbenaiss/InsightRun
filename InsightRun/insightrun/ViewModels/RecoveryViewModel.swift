@@ -1,6 +1,6 @@
 //
 //  RecoveryViewModel.swift
-//  HealthApp
+//  InsightRun
 //
 //  ViewModel for recovery and readiness metrics
 //

@@ -1,6 +1,6 @@
 //
 //  RecoveryCoachingService.swift
-//  HealthApp
+//  InsightRun
 //
 //  Service for analyzing recovery data and providing coaching insights
 //

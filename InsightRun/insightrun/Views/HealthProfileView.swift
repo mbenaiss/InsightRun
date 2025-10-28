@@ -10,6 +10,7 @@ import SwiftUI
 struct HealthProfileView: View {
     @StateObject private var viewModel = HealthProfileViewModel()
     @State private var showSettings = false
+    @Environment(ThemeManager.self) private var themeManager
 
     var body: some View {
         NavigationStack {
@@ -37,6 +38,7 @@ struct HealthProfileView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
+                    .environment(themeManager)
             }
             .refreshable {
                 await viewModel.refresh()

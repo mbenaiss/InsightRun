@@ -49,6 +49,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Paramètres")
         }
+        .preferredColorScheme(themeManager.selectedTheme.colorScheme)
     }
 }
 

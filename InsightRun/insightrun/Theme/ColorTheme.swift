@@ -13,15 +13,15 @@ extension Color {
 
     /// Background color for cards - adapts to light/dark mode
     /// Light: White | Dark: Dark gray
-    static let cardBackground = Color("CardBackground", bundle: nil)
+    static let irCardBackground = Color("CardBackground", bundle: nil)
 
     /// Surface color for elevated elements
     /// Light: Light gray | Dark: Very dark gray
-    static let surface = Color("Surface", bundle: nil)
+    static let irSurface = Color("Surface", bundle: nil)
 
     /// Primary accent color with adaptive brightness
     /// Light: Vibrant blue | Dark: Lighter blue for better visibility
-    static let primaryAccent = Color("PrimaryAccent", bundle: nil)
+    static let irPrimaryAccent = Color("PrimaryAccent", bundle: nil)
 }
 
 // MARK: - Theme Guidelines
@@ -46,9 +46,9 @@ extension Color {
 
  ### Custom Adaptive Colors
  Use the colors defined in Assets.xcassets/Colors/:
- - `Color.cardBackground` - For card backgrounds
- - `Color.surface` - For elevated surfaces
- - `Color.primaryAccent` - For primary accent elements
+ - `Color.irCardBackground` - For card backgrounds
+ - `Color.irSurface` - For elevated surfaces
+ - `Color.irPrimaryAccent` - For primary accent elements
 
  ### Best Practices
  1. **Never use** `Color.white` or `Color.black` directly
@@ -77,6 +77,6 @@ extension Color {
  .background(.ultraThinMaterial) // ✅ Adapts automatically
 
  Circle()
-     .fill(Color.cardBackground) // ✅ Uses adaptive color from Assets
+     .fill(Color.irCardBackground) // ✅ Uses adaptive color from Assets
  ```
  */

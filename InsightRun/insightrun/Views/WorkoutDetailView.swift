@@ -108,6 +108,10 @@ struct WorkoutDetailView: View {
             // Also load cached analysis automatically
             await analysisViewModel.loadAnalysis()
         }
+        .onAppear {
+            // Track workout detail viewed
+            AnalyticsService.shared.trackWorkoutDetailViewed()
+        }
     }
 
     // MARK: - Header Section

@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import Combine
 
 struct RecoveryDashboardView: View {
     @StateObject private var viewModel = RecoveryViewModel()
+    @ObservedObject private var revenueCatManager = RevenueCatManager.shared
     @State private var showingAIAssistant = false
 
     var body: some View {
@@ -33,10 +35,21 @@ struct RecoveryDashboardView: View {
                 .task {
                     await viewModel.loadRecoveryMetrics()
                 }
+                .onAppear {
+                    // Track recovery dashboard viewed
+                    if let recovery = viewModel.recoveryMetrics {
+                        let recoveryScore = recovery.recoveryScore
+                        let hasRecentWorkouts = viewModel.recentWorkoutsCount > 0
+                        AnalyticsService.shared.trackRecoveryDashboardViewed(
+                            recoveryScore: recoveryScore,
+                            hasRecentWorkouts: hasRecentWorkouts
+                        )
+                    }
+                }
             }
 
-            // Floating AI Button
-            if viewModel.recoveryMetrics != nil {
+            // Floating AI Button (only for subscribed users)
+            if viewModel.recoveryMetrics != nil && revenueCatManager.isSubscriptionActive {
                 Button(action: { showingAIAssistant = true }) {
                     ZStack {
                         Circle()

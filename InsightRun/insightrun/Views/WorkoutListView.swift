@@ -11,7 +11,9 @@ import SwiftUI
 struct WorkoutListView: View {
     @StateObject private var viewModel = WorkoutListViewModel()
     @State private var showingAIAssistant = false
+    @State private var showInitialPaywall = false
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -27,6 +29,9 @@ struct WorkoutListView: View {
                             loadingView
                         } else if viewModel.workouts.isEmpty {
                             emptyView
+                        } else if !revenueCatManager.isSubscriptionActive {
+                            // Show preview with stats and CTA for non-subscribers
+                            lockedWorkoutsPreview
                         } else {
                             workoutList
                         }
@@ -40,10 +45,40 @@ struct WorkoutListView: View {
                         viewModel.refreshAuthorizationStatus()
                     }
                 }
+                .onChange(of: viewModel.authorizationStatus) { oldValue, newValue in
+                    // Show paywall when HealthKit is authorized for the first time
+                    if oldValue == .notDetermined && newValue == .authorized &&
+                       !revenueCatManager.isSubscriptionActive &&
+                       !revenueCatManager.hasSeenInitialPaywall {
+                        showInitialPaywall = true
+                    }
+                }
+                .onChange(of: revenueCatManager.isSubscriptionActive) { _, isActive in
+                    // Refresh view when subscription status changes
+                    if viewModel.authorizationStatus == .authorized {
+                        Task {
+                            await viewModel.refresh()
+                        }
+                    }
+                }
+                .task {
+                    // Load workouts on first appear if authorized (regardless of subscription)
+                    if viewModel.authorizationStatus == .authorized && viewModel.workouts.isEmpty {
+                        await viewModel.loadWorkouts()
+                    }
+                }
+                .onAppear {
+                    // Track workout list viewed when authorized
+                    if viewModel.authorizationStatus == .authorized {
+                        AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: viewModel.workouts.count)
+                    }
+                }
             }
 
-            // Floating AI Button
-            if viewModel.authorizationStatus == .authorized && !viewModel.workouts.isEmpty {
+            // Floating AI Button - Only for subscribers
+            if viewModel.authorizationStatus == .authorized &&
+               !viewModel.workouts.isEmpty &&
+               revenueCatManager.isSubscriptionActive {
                 Button(action: { showingAIAssistant = true }) {
                     ZStack {
                         Circle()
@@ -71,6 +106,10 @@ struct WorkoutListView: View {
                 mode: .recentWorkouts(Array(viewModel.workouts.prefix(10))),
                 isPresented: $showingAIAssistant
             )
+        }
+        .fullScreenCover(isPresented: $showInitialPaywall) {
+            SubscriptionPaywallView(isInitialFlow: true)
+                .environmentObject(revenueCatManager)
         }
     }
 
@@ -124,6 +163,84 @@ struct WorkoutListView: View {
             Spacer()
         }
         .padding()
+    }
+
+    // MARK: - Locked Workouts Preview (Non-Subscribers)
+
+    private var lockedWorkoutsPreview: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Global stats card
+                combinedStatsCard
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                // Premium unlock CTA
+                VStack(spacing: 16) {
+                    // Premium icon
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 50))
+                        .foregroundStyle(.yellow.gradient)
+
+                    VStack(spacing: 8) {
+                        Text(String(localized: "Unlock Your Full Training History", comment: "Locked workouts preview title"))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .multilineTextAlignment(.center)
+
+                        Text(String(localized: "Subscribe to access all your workouts, AI coaching, and advanced analytics", comment: "Locked workouts preview description"))
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
+                    }
+
+                    // CTA Button
+                    Button {
+                        showInitialPaywall = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "crown.fill")
+                            Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
+                        }
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.blue.gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .blue.opacity(0.3), radius: 10, y: 5)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.top, 8)
+
+                    // Restore purchases link
+                    Button {
+                        Task {
+                            do {
+                                try await revenueCatManager.restorePurchases()
+                            } catch {
+                                print("Error restoring purchases: \(error.localizedDescription)")
+                            }
+                        }
+                    } label: {
+                        Text(String(localized: "Restore Purchases", comment: "Restore purchases button"))
+                            .font(.subheadline)
+                            .foregroundStyle(.blue)
+                    }
+                }
+                .padding()
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+                .padding(.horizontal)
+                .padding(.top, 16)
+            }
+            .padding(.bottom, 20)
+        }
+        .refreshable {
+            await viewModel.refresh()
+        }
     }
 
     // MARK: - Denied View
@@ -242,11 +359,6 @@ struct WorkoutListView: View {
         }
         .refreshable {
             await viewModel.refresh()
-        }
-        .task {
-            if viewModel.workouts.isEmpty {
-                await viewModel.loadWorkouts()
-            }
         }
     }
 

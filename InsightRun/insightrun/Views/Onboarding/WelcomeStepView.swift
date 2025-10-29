@@ -1,0 +1,118 @@
+//
+//  WelcomeStepView.swift
+//  InsightRun
+//
+//  Onboarding Step 1: Welcome and value proposition
+//
+
+import SwiftUI
+
+struct WelcomeStepView: View {
+    let onContinue: () -> Void
+
+    var body: some View {
+        VStack(spacing: 32) {
+            Spacer()
+
+            // App Icon & Title
+            VStack(spacing: 16) {
+                Image(systemName: "figure.run.circle.fill")
+                    .font(.system(size: 80))
+                    .foregroundStyle(.blue.gradient)
+
+                Text(String(localized: "Welcome to InsightRun", comment: "Onboarding welcome title"))
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+
+                Text(String(localized: "Your intelligent running coach", comment: "Onboarding welcome subtitle"))
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal)
+
+            // Features List
+            VStack(spacing: 24) {
+                FeatureRow(
+                    icon: "chart.line.uptrend.xyaxis",
+                    color: .blue,
+                    title: String(localized: "Advanced tracking", comment: "Onboarding feature: tracking"),
+                    description: String(localized: "Detailed metrics for all your runs", comment: "Onboarding feature: tracking description")
+                )
+
+                FeatureRow(
+                    icon: "brain.head.profile",
+                    color: .purple,
+                    title: String(localized: "AI Coach", comment: "Onboarding feature: AI"),
+                    description: String(localized: "Personalized advice and analysis", comment: "Onboarding feature: AI description")
+                )
+
+                FeatureRow(
+                    icon: "heart.fill",
+                    color: .red,
+                    title: String(localized: "Recovery analysis", comment: "Onboarding feature: recovery"),
+                    description: String(localized: "Track your fitness and readiness", comment: "Onboarding feature: recovery description")
+                )
+
+                FeatureRow(
+                    icon: "chart.bar.fill",
+                    color: .green,
+                    title: String(localized: "Progress tracking", comment: "Onboarding feature: progress"),
+                    description: String(localized: "Visualize your evolution over time", comment: "Onboarding feature: progress description")
+                )
+            }
+            .padding(.horizontal, 24)
+
+            Spacer()
+
+            // Continue Button
+            Button(action: onContinue) {
+                Text(String(localized: "Get started", comment: "Onboarding continue button"))
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.blue.gradient)
+                    .cornerRadius(16)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 32)
+        }
+        .onAppear {
+            AnalyticsService.shared.trackOnboardingStepViewed(step: 1, stepName: "welcome")
+        }
+    }
+}
+
+struct FeatureRow: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let description: String
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 28))
+                .foregroundStyle(color.gradient)
+                .frame(width: 48, height: 48)
+                .background(color.opacity(0.1))
+                .cornerRadius(12)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+    }
+}
+
+#Preview {
+    WelcomeStepView(onContinue: {})
+}

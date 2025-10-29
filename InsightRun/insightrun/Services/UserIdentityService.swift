@@ -32,6 +32,13 @@ class UserIdentityService {
 
     // MARK: - Public Methods
 
+    /// Update user ID to a specific value (used when restoring purchases)
+    func updateUserID(_ newID: String) {
+        UserDefaults.standard.set(newID, forKey: userDefaultsKey)
+        self.userID = newID
+        print("🔄 UserIdentityService: Updated user ID to: \(newID)")
+    }
+
     /// Reset user ID (for debugging or testing purposes)
     func resetUserID() {
         let newID = UUID().uuidString

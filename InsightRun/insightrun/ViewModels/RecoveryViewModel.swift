@@ -14,6 +14,7 @@ class RecoveryViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var selectedDate = Date()
+    @Published var recentWorkoutsCount: Int = 0
 
     private let healthKitManager = HealthKitManager.shared
 
@@ -23,11 +24,26 @@ class RecoveryViewModel: ObservableObject {
 
         do {
             recoveryMetrics = try await healthKitManager.fetchRecoveryMetrics(for: selectedDate)
+            await loadRecentWorkoutsCount()
         } catch {
             errorMessage = "Impossible de charger les métriques de récupération: \(error.localizedDescription)"
         }
 
         isLoading = false
+    }
+
+    /// Load count of recent workouts (last 7 days)
+    private func loadRecentWorkoutsCount() async {
+        do {
+            let allWorkouts = try await healthKitManager.fetchRunningWorkouts()
+
+            // Count workouts from the last 7 days
+            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            recentWorkoutsCount = allWorkouts.filter { $0.startDate >= sevenDaysAgo }.count
+        } catch {
+            // If we can't fetch workouts, set count to 0
+            recentWorkoutsCount = 0
+        }
     }
 
     func refresh() async {

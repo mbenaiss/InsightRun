@@ -15,21 +15,21 @@ struct ContentView: View {
             // Workouts Tab - Always visible
             WorkoutListView()
                 .tabItem {
-                    Label("Courses", systemImage: "figure.run")
+                    Label(String(localized: "tab.workouts"), systemImage: "figure.run")
                 }
                 .tag(0)
 
             // Recovery Tab
             RecoveryDashboardView()
                 .tabItem {
-                    Label("Récupération", systemImage: "heart.fill")
+                    Label(String(localized: "tab.recovery"), systemImage: "heart.fill")
                 }
                 .tag(1)
 
             // Health Profile Tab
             HealthProfileView()
                 .tabItem {
-                    Label("Santé", systemImage: "person.fill")
+                    Label(String(localized: "tab.health"), systemImage: "person.fill")
                 }
                 .tag(2)
         }

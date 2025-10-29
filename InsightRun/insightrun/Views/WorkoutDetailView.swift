@@ -573,7 +573,7 @@ struct WorkoutDetailView: View {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.secondary)
 
-                Text("Source: \(workout.sourceName)")
+                Text(String(localized: "workout.detail.source") + " \(workout.sourceName)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -1110,7 +1110,7 @@ struct InteractivePaceChart: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Allure")
+                    Text(String(localized: "workout.detail.pace"))
                         .font(.headline)
                         .foregroundStyle(.primary)
 
@@ -1270,7 +1270,7 @@ struct InteractivePowerChart: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Puissance")
+                    Text(String(localized: "workout.detail.power"))
                         .font(.headline)
                         .foregroundStyle(.primary)
 
@@ -1319,7 +1319,7 @@ struct InteractivePowerChart: View {
                     Image(systemName: "bolt.slash")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
-                    Text("Aucune donnée de puissance disponible")
+                    Text(String(localized: "workout.detail.no_power_data"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

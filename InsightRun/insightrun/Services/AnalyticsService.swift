@@ -32,44 +32,60 @@ final class AnalyticsService {
 
     /// Configure PostHog SDK
     /// Call this once at app launch before tracking any events
+    /// Non-blocking: errors are logged but don't crash the app
     func configure() {
-        let POSTHOG_API_KEY = "phc_khr0U4g0Tk1ev5s1a61J4wI8ibkPTnLiqgL3H4xf3ML"
-        let POSTHOG_HOST = "https://eu.i.posthog.com"
+        Task.detached {
+            do {
+                let POSTHOG_API_KEY = "phc_khr0U4g0Tk1ev5s1a61J4wI8ibkPTnLiqgL3H4xf3ML"
+                let POSTHOG_HOST = "https://eu.i.posthog.com"
 
-        let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
+                let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
 
-        #if DEBUG
-        config.debug = true
-        #endif
+                #if DEBUG
+                config.debug = true
+                #endif
 
-        PostHogSDK.shared.setup(config)
+                PostHogSDK.shared.setup(config)
 
-        // Identify user with UUID from UserIdentityService
-        let userID = UserIdentityService.shared.userID
-        PostHogSDK.shared.identify(userID)
+                // Identify user with UUID from UserIdentityService
+                let userID = UserIdentityService.shared.userID
+                PostHogSDK.shared.identify(userID)
 
-        print("✅ PostHog: Configured with user ID \(userID)")
+                print("✅ PostHog: Configured with user ID \(userID)")
+            } catch {
+                print("⚠️ PostHog configuration failed (non-blocking): \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Core Tracking Method
 
     /// Track an analytics event with optional properties
+    /// Non-blocking: runs in background and doesn't crash the app if PostHog fails
     func track(_ event: AnalyticsEvent, properties: [String: Any] = [:]) {
-        var enrichedProperties = properties
+        Task.detached { @MainActor in
+            do {
+                var enrichedProperties = properties
 
-        // Add global properties to every event
-        enrichedProperties["session_id"] = sessionID
-        enrichedProperties["app_version"] = appVersion
-        enrichedProperties["ios_version"] = UIDevice.current.systemVersion
-        enrichedProperties["device_model"] = deviceModel
-        enrichedProperties["locale"] = Locale.current.identifier
-        enrichedProperties["subscription_status"] = subscriptionStatus
+                // Add global properties to every event
+                enrichedProperties["session_id"] = self.sessionID
+                enrichedProperties["app_version"] = self.appVersion
+                enrichedProperties["ios_version"] = UIDevice.current.systemVersion
+                enrichedProperties["device_model"] = self.deviceModel
+                enrichedProperties["locale"] = Locale.current.identifier
+                enrichedProperties["subscription_status"] = self.subscriptionStatus
 
-        #if DEBUG
-        print("📊 Analytics: \(event.rawValue) - \(enrichedProperties)")
-        #endif
+                #if DEBUG
+                print("📊 Analytics: \(event.rawValue) - \(enrichedProperties)")
+                #endif
 
-        PostHogSDK.shared.capture(event.rawValue, properties: enrichedProperties)
+                PostHogSDK.shared.capture(event.rawValue, properties: enrichedProperties)
+            } catch {
+                #if DEBUG
+                print("⚠️ PostHog tracking failed (non-blocking): \(error.localizedDescription)")
+                #endif
+            }
+        }
     }
 
     // MARK: - Computed Global Properties

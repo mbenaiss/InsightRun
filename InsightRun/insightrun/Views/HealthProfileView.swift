@@ -10,6 +10,7 @@ import SwiftUI
 struct HealthProfileView: View {
     @StateObject private var viewModel = HealthProfileViewModel()
     @State private var showSettings = false
+    @Environment(ThemeManager.self) private var themeManager
 
     var body: some View {
         NavigationStack {
@@ -24,7 +25,7 @@ struct HealthProfileView: View {
                     emptyView
                 }
             }
-            .navigationTitle("Profil de Santé")
+            .navigationTitle(String(localized: "Health Profile", comment: "Navigation title for health profile view"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -37,6 +38,7 @@ struct HealthProfileView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
+                    .environment(themeManager)
             }
             .refreshable {
                 await viewModel.refresh()
@@ -53,7 +55,7 @@ struct HealthProfileView: View {
         VStack(spacing: 20) {
             ProgressView()
                 .scaleEffect(1.5)
-            Text("Chargement...")
+            Text(String(localized: "Loading...", comment: "Loading indicator text"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -70,7 +72,7 @@ struct HealthProfileView: View {
                 .foregroundStyle(.orange.gradient)
 
             VStack(spacing: 12) {
-                Text("Erreur")
+                Text(String(localized: "Error", comment: "Error state title"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
@@ -81,7 +83,7 @@ struct HealthProfileView: View {
                     .padding(.horizontal, 32)
             }
 
-            Button("Réessayer") {
+            Button(String(localized: "Retry", comment: "Button to retry loading data")) {
                 Task {
                     await viewModel.refresh()
                 }
@@ -101,17 +103,17 @@ struct HealthProfileView: View {
                 .foregroundStyle(.blue.gradient)
 
             VStack(spacing: 12) {
-                Text("Aucune Donnée")
+                Text(String(localized: "No Data", comment: "Empty state title when no health data available"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Les données de santé ne sont pas disponibles.")
+                Text(String(localized: "Health data is not available.", comment: "Empty state message for health data"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
-                Text("Tip: Activez les permissions dans Réglages → Confidentialité → Santé → InsightRun")
+                Text(String(localized: "Tip: Enable permissions in Settings → Privacy → Health → InsightRun", comment: "Tip about enabling HealthKit permissions"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -156,12 +158,12 @@ struct HealthProfileView: View {
 
     private func userInfoSection(_ profile: HealthProfile) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Informations", systemImage: "person.fill")
+            Label(String(localized: "Information", comment: "Section header for user information"), systemImage: "person.fill")
                 .font(.headline)
 
             VStack(spacing: 12) {
-                InfoRow(label: "Âge", value: profile.formattedAge)
-                InfoRow(label: "Sexe", value: profile.biologicalSexString)
+                InfoRow(label: String(localized: "Age", comment: "Label for age"), value: profile.formattedAge)
+                InfoRow(label: String(localized: "Sex", comment: "Label for biological sex"), value: profile.biologicalSexString)
             }
         }
         .padding(20)
@@ -181,7 +183,7 @@ struct HealthProfileView: View {
         // Only show section if at least one metric is available
         if hasBodyMass || hasBodyFat || hasLeanMass {
             VStack(alignment: .leading, spacing: 16) {
-                Label("Métriques Corporelles", systemImage: "figure.stand")
+                Label(String(localized: "Body Metrics", comment: "Section header for body composition metrics"), systemImage: "figure.stand")
                     .font(.headline)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
@@ -189,7 +191,7 @@ struct HealthProfileView: View {
                         MetricCard(
                             icon: "scalemass.fill",
                             iconColor: .blue,
-                            title: "Poids",
+                            title: String(localized: "Weight", comment: "Label for body weight"),
                             value: profile.formattedBodyMass,
                             dateString: profile.formattedDate(profile.bodyMassDate)
                         )
@@ -199,7 +201,7 @@ struct HealthProfileView: View {
                         MetricCard(
                             icon: "percent",
                             iconColor: .orange,
-                            title: "Masse grasse",
+                            title: String(localized: "Body fat", comment: "Label for body fat percentage"),
                             value: profile.formattedBodyFat,
                             dateString: profile.formattedDate(profile.bodyFatDate)
                         )
@@ -209,7 +211,7 @@ struct HealthProfileView: View {
                         MetricCard(
                             icon: "figure.arms.open",
                             iconColor: .green,
-                            title: "Masse maigre",
+                            title: String(localized: "Lean mass", comment: "Label for lean body mass"),
                             value: profile.formattedLeanMass,
                             dateString: profile.formattedDate(profile.leanBodyMassDate)
                         )
@@ -234,7 +236,7 @@ struct HealthProfileView: View {
         // Only show section if at least one metric is available
         if hasSpO2 || hasTemp || hasRespRate {
             VStack(alignment: .leading, spacing: 16) {
-                Label("Signes Vitaux", systemImage: "heart.text.square.fill")
+                Label(String(localized: "Vital Signs", comment: "Section header for vital signs"), systemImage: "heart.text.square.fill")
                     .font(.headline)
 
                 VStack(spacing: 12) {
@@ -242,7 +244,7 @@ struct HealthProfileView: View {
                         HealthMetricRowWithDate(
                             icon: "drop.fill",
                             iconColor: .red,
-                            title: "Saturation O2",
+                            title: String(localized: "Oxygen saturation", comment: "Label for blood oxygen saturation"),
                             value: profile.formattedSpO2,
                             dateString: profile.formattedDate(profile.oxygenSaturationDate)
                         )
@@ -252,7 +254,7 @@ struct HealthProfileView: View {
                         HealthMetricRowWithDate(
                             icon: "thermometer",
                             iconColor: .orange,
-                            title: "Température",
+                            title: String(localized: "Temperature", comment: "Label for body temperature"),
                             value: profile.formattedTemperature,
                             dateString: profile.formattedDate(profile.bodyTemperatureDate)
                         )
@@ -262,7 +264,7 @@ struct HealthProfileView: View {
                         HealthMetricRowWithDate(
                             icon: "wind",
                             iconColor: .cyan,
-                            title: "Fréquence respiratoire",
+                            title: String(localized: "Respiratory rate", comment: "Label for respiratory rate"),
                             value: profile.formattedRespiratoryRate,
                             dateString: profile.formattedDate(profile.respiratoryRateDate)
                         )
@@ -280,21 +282,21 @@ struct HealthProfileView: View {
 
     private func dailyActivitySection(_ profile: HealthProfile) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Activité Quotidienne", systemImage: "figure.run")
+            Label(String(localized: "Daily Activity", comment: "Section header for daily activity metrics"), systemImage: "figure.run")
                 .font(.headline)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 MetricCard(
                     icon: "flame.fill",
                     iconColor: .red,
-                    title: "Exercice",
+                    title: String(localized: "Exercise", comment: "Label for exercise time"),
                     value: profile.formattedExerciseTime
                 )
 
                 MetricCard(
                     icon: "figure.stand",
                     iconColor: .blue,
-                    title: "Debout",
+                    title: String(localized: "Stand", comment: "Label for stand time"),
                     value: profile.formattedStandTime
                 )
 
@@ -302,7 +304,7 @@ struct HealthProfileView: View {
                     MetricCard(
                         icon: "figure.stairs",
                         iconColor: .purple,
-                        title: "Étages",
+                        title: String(localized: "Floors", comment: "Label for flights of stairs climbed"),
                         value: "\(flights)"
                     )
                 }
@@ -318,21 +320,21 @@ struct HealthProfileView: View {
 
     private func crossTrainingSection(_ profile: HealthProfile) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Entraînement Croisé (7 jours)", systemImage: "figure.mixed.cardio")
+            Label(String(localized: "Cross-training (7 days)", comment: "Section header for cross-training activities over 7 days"), systemImage: "figure.mixed.cardio")
                 .font(.headline)
 
             VStack(spacing: 12) {
                 HealthMetricRow(
                     icon: "bicycle",
                     iconColor: .orange,
-                    title: "Vélo",
+                    title: String(localized: "Cycling", comment: "Label for cycling distance"),
                     value: profile.formattedCyclingDistance
                 )
 
                 HealthMetricRow(
                     icon: "figure.pool.swim",
                     iconColor: .blue,
-                    title: "Natation",
+                    title: String(localized: "Swimming", comment: "Label for swimming distance"),
                     value: profile.formattedSwimmingDistance
                 )
             }

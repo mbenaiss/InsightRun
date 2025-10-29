@@ -104,23 +104,27 @@ enum RecoveryStatus {
 
     var description: String {
         switch self {
-        case .excellent: return "Excellente"
-        case .good: return "Bonne"
-        case .fair: return "Moyenne"
-        case .poor: return "Faible"
+        case .excellent:
+            return String(localized: "Excellent", comment: "Recovery status description - excellent")
+        case .good:
+            return String(localized: "Good", comment: "Recovery status description - good")
+        case .fair:
+            return String(localized: "Fair", comment: "Recovery status description - fair")
+        case .poor:
+            return String(localized: "Poor", comment: "Recovery status description - poor")
         }
     }
 
     var recommendation: String {
         switch self {
         case .excellent:
-            return "Vous êtes au top ! C'est le bon moment pour un entraînement intensif."
+            return String(localized: "You're at your peak! This is the perfect time for an intensive workout.", comment: "Recovery recommendation - excellent status")
         case .good:
-            return "Bonne récupération. Vous pouvez faire un entraînement modéré à intense."
+            return String(localized: "Good recovery. You can do a moderate to intense workout.", comment: "Recovery recommendation - good status")
         case .fair:
-            return "Récupération moyenne. Privilégiez un entraînement léger à modéré."
+            return String(localized: "Average recovery. Prefer a light to moderate workout.", comment: "Recovery recommendation - fair status")
         case .poor:
-            return "Récupération insuffisante. Repos ou récupération active recommandés."
+            return String(localized: "Insufficient recovery. Rest or active recovery recommended.", comment: "Recovery recommendation - poor status")
         }
     }
 }

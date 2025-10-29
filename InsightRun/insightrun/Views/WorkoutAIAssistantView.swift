@@ -144,7 +144,7 @@ struct WorkoutAIAssistantView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Fermer") {
+                    Button(String(localized: "Close", comment: "Close AI assistant button")) {
                         isPresented = false
                     }
                 }
@@ -176,7 +176,7 @@ struct WorkoutAIAssistantView: View {
                 .font(.title3)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Assistant IA")
+                Text(String(localized: "AI Assistant", comment: "AI assistant header title"))
                     .font(.headline)
 
                 Text(modeDescription)
@@ -201,11 +201,11 @@ struct WorkoutAIAssistantView: View {
     private var modeDescription: String {
         switch mode {
         case .singleWorkout:
-            return "Analyse d'un workout"
+            return String(localized: "Workout analysis", comment: "Mode description for single workout analysis")
         case .recentWorkouts(let workouts):
-            return "\(workouts.count) derniers workouts"
+            return String(format: String(localized: "%lld recent workouts", comment: "Mode description for multiple recent workouts (plural form)"), workouts.count)
         case .recoveryCoaching:
-            return "Coaching de récupération"
+            return String(localized: "Recovery coaching", comment: "Mode description for recovery coaching")
         }
     }
 
@@ -232,11 +232,11 @@ struct WorkoutAIAssistantView: View {
             }
 
             VStack(spacing: 8) {
-                Text("Coach IA Running")
+                Text(String(localized: "Running AI Coach", comment: "Empty state title for AI assistant"))
                     .font(.title2)
                     .fontWeight(.bold)
 
-                Text("Posez vos questions sur vos performances")
+                Text(String(localized: "Ask questions about your performance", comment: "Empty state subtitle for AI assistant"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -244,7 +244,7 @@ struct WorkoutAIAssistantView: View {
 
             // Sample Questions
             VStack(alignment: .leading, spacing: 12) {
-                Text("Questions rapides")
+                Text(String(localized: "Quick questions", comment: "Section header for sample questions"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
@@ -287,27 +287,27 @@ struct WorkoutAIAssistantView: View {
         switch mode {
         case .singleWorkout:
             return [
-                "Comment était ma performance ?",
-                "Quelle était ma meilleure allure ?",
-                "Analyse ma fréquence cardiaque",
-                "Donne-moi des conseils d'amélioration",
-                "Comment était mon dénivelé ?"
+                String(localized: "How was my performance?", comment: "Sample question for single workout analysis"),
+                String(localized: "What was my best pace?", comment: "Sample question about best pace"),
+                String(localized: "Analyze my heart rate", comment: "Sample question about heart rate analysis"),
+                String(localized: "Give me improvement tips", comment: "Sample question asking for improvement advice"),
+                String(localized: "How was my elevation?", comment: "Sample question about elevation gain")
             ]
         case .recentWorkouts:
             return [
-                "Comment ont évolué mes performances ?",
-                "Quelle est ma progression ?",
-                "Quel est mon meilleur workout ?",
-                "Suis-je en surcharge d'entraînement ?",
-                "Analyse ma régularité"
+                String(localized: "How have my performances evolved?", comment: "Sample question about performance evolution"),
+                String(localized: "What is my progression?", comment: "Sample question about training progression"),
+                String(localized: "What is my best workout?", comment: "Sample question asking for best workout"),
+                String(localized: "Am I overtraining?", comment: "Sample question about overtraining risk"),
+                String(localized: "Analyze my consistency", comment: "Sample question about training consistency")
             ]
         case .recoveryCoaching:
             return [
-                "Puis-je m'entraîner aujourd'hui ?",
-                "Comment améliorer ma récupération ?",
-                "Pourquoi mon HRV est-elle faible ?",
-                "Quel type d'entraînement est adapté ?",
-                "Comment optimiser mon sommeil ?"
+                String(localized: "Can I train today?", comment: "Sample question asking if ready to train"),
+                String(localized: "How to improve my recovery?", comment: "Sample question about recovery improvement"),
+                String(localized: "Why is my HRV low?", comment: "Sample question about low HRV"),
+                String(localized: "What type of training is suitable?", comment: "Sample question about suitable training type"),
+                String(localized: "How to optimize my sleep?", comment: "Sample question about sleep optimization")
             ]
         }
     }
@@ -322,7 +322,7 @@ struct WorkoutAIAssistantView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             Spacer()
-            Button("Ignorer") {
+            Button(String(localized: "Dismiss", comment: "Button to dismiss error message")) {
                 aiService.error = nil
             }
             .font(.caption)
@@ -342,7 +342,7 @@ struct WorkoutAIAssistantView: View {
                 Image(systemName: "lightbulb.fill")
                     .foregroundColor(.yellow)
                     .font(.caption)
-                Text("Questions suggérées")
+                Text(String(localized: "Suggested questions", comment: "Section header for AI-suggested questions"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
@@ -387,7 +387,7 @@ struct WorkoutAIAssistantView: View {
     private var inputArea: some View {
         HStack(spacing: 12) {
             HStack {
-                TextField("Posez une question...", text: $question, axis: .vertical)
+                TextField(String(localized: "Ask a question...", comment: "Placeholder text for question input field"), text: $question, axis: .vertical)
                     .focused($isTextFieldFocused)
                     .disabled(aiService.isStreaming)
                     .lineLimit(1...4)

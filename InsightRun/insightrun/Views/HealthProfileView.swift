@@ -11,6 +11,7 @@ struct HealthProfileView: View {
     @StateObject private var viewModel = HealthProfileViewModel()
     @State private var showSettings = false
     @Environment(ThemeManager.self) private var themeManager
+    @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
     var body: some View {
         NavigationStack {
@@ -39,6 +40,7 @@ struct HealthProfileView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
                     .environment(themeManager)
+                    .environmentObject(revenueCatManager)
             }
             .refreshable {
                 await viewModel.refresh()

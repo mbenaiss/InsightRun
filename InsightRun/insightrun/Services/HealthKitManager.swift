@@ -32,6 +32,9 @@ class HealthKitManager: ObservableObject {
             throw HealthKitError.notAvailable
         }
 
+        // Track permission request
+        AnalyticsService.shared.trackHealthKitPermissionRequested()
+
         var typesToRead: Set<HKObjectType> = [
             // Workouts
             HKObjectType.workoutType(),
@@ -96,7 +99,16 @@ class HealthKitManager: ObservableObject {
 
         typesToRead.formUnion(characteristicTypes)
 
-        try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+        do {
+            try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+
+            // Track permission granted (user allowed access)
+            AnalyticsService.shared.trackHealthKitPermissionGranted()
+        } catch {
+            // Track permission denied
+            AnalyticsService.shared.trackHealthKitPermissionDenied()
+            throw error
+        }
     }
 
     /// Check if we can access HealthKit data by attempting a simple query

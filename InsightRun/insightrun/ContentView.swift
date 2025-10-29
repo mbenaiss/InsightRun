@@ -7,11 +7,12 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var onboardingManager = OnboardingManager.shared
     @State private var selectedTab = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Workouts Tab
+            // Workouts Tab - Always visible
             WorkoutListView()
                 .tabItem {
                     Label("Courses", systemImage: "figure.run")
@@ -31,6 +32,9 @@ struct ContentView: View {
                     Label("Santé", systemImage: "person.fill")
                 }
                 .tag(2)
+        }
+        .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
+            OnboardingView()
         }
     }
 }

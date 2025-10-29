@@ -41,6 +41,7 @@ struct WorkoutAIAssistantView: View {
     @State private var messages: [ChatMessage] = []
     @State private var isTyping = false
     @State private var streamingMessageId: UUID?
+    @State private var messageStartTime: Date?
     @FocusState private var isTextFieldFocused: Bool
     @Namespace private var bottomID
 
@@ -158,6 +159,9 @@ struct WorkoutAIAssistantView: View {
             impactLight.prepare()
             impactMedium.prepare()
             notificationFeedback.prepare()
+
+            // Track AI chat opened
+            AnalyticsService.shared.trackAIChatOpened()
         }
     }
 
@@ -475,6 +479,21 @@ struct WorkoutAIAssistantView: View {
         isTyping = true
         saveMessages()
 
+        // Track AI message sent
+        let contextType: AIContextType
+        switch mode {
+        case .singleWorkout:
+            contextType = .workout
+        case .recentWorkouts:
+            contextType = .workout
+        case .recoveryCoaching:
+            contextType = .recovery
+        }
+        AnalyticsService.shared.trackAIMessageSent(
+            messageLength: userQuestion.count,
+            contextType: contextType
+        )
+
         // Hide keyboard
         isTextFieldFocused = false
 
@@ -488,6 +507,9 @@ struct WorkoutAIAssistantView: View {
             timestamp: Date()
         ))
 
+        // Start tracking response time
+        messageStartTime = Date()
+
         // Backend will build the context from mode data
         Task {
             await aiService.askQuestion(
@@ -498,11 +520,26 @@ struct WorkoutAIAssistantView: View {
             await MainActor.run {
                 isTyping = false
 
+                // Calculate response time
+                let responseTime = messageStartTime.map { Int(Date().timeIntervalSince($0) * 1000) } ?? 0
+
                 // Haptic feedback for response completion
                 if aiService.error == nil && !aiService.streamedResponse.isEmpty {
                     notificationFeedback.notificationOccurred(.success)
+
+                    // Track AI response received
+                    AnalyticsService.shared.trackAIResponseReceived(
+                        responseTimeMs: responseTime,
+                        responseLength: aiService.streamedResponse.count
+                    )
                 } else if aiService.error != nil {
                     notificationFeedback.notificationOccurred(.error)
+
+                    // Track AI response error
+                    AnalyticsService.shared.trackAIResponseError(
+                        errorType: "ai_service_error",
+                        errorMessage: aiService.error ?? "Unknown error"
+                    )
 
                     // Remove empty streaming message if there was an error
                     if let streamingId = streamingMessageId,
@@ -514,6 +551,7 @@ struct WorkoutAIAssistantView: View {
                 // Clear streaming state (message is already updated in messages array)
                 streamingMessageId = nil
                 aiService.streamedResponse = ""
+                messageStartTime = nil
 
                 saveMessages()
             }

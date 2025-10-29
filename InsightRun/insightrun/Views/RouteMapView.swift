@@ -20,7 +20,7 @@ struct RouteMapView: View {
                 Rectangle()
                     .fill(.ultraThinMaterial)
                     .overlay {
-                        Text("Aucune donnée GPS")
+                        Text(String(localized: "workout.detail.no_gps_data"))
                             .foregroundStyle(.secondary)
                     }
             } else {
@@ -37,7 +37,7 @@ struct RouteMapView: View {
 
             // Start marker
             if let start = routePoints.first {
-                Annotation("Départ", coordinate: start.coordinate) {
+                Annotation(String(localized: "workout.detail.start"), coordinate: start.coordinate) {
                     ZStack {
                         Circle()
                             .fill(.green)
@@ -52,7 +52,7 @@ struct RouteMapView: View {
 
             // End marker
             if let end = routePoints.last {
-                Annotation("Arrivée", coordinate: end.coordinate) {
+                Annotation(String(localized: "workout.detail.finish"), coordinate: end.coordinate) {
                     ZStack {
                         Circle()
                             .fill(.red)

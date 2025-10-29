@@ -14,17 +14,15 @@ struct InsightRunApp: App {
     @StateObject private var revenueCatManager = RevenueCatManager.shared
 
     init() {
-        // Configure analytics (PostHog)
-        Task { @MainActor in
-            AnalyticsService.shared.configure()
-        }
+        // Configure analytics (PostHog) - non-blocking, won't crash if PostHog is unavailable
+        AnalyticsService.shared.configure()
 
         // Configure RevenueCat on app launch
         Task { @MainActor in
             RevenueCatManager.shared.configure()
         }
 
-        // Track app opened event
+        // Track app opened event - non-blocking
         Task { @MainActor in
             AnalyticsService.shared.trackAppOpened()
         }

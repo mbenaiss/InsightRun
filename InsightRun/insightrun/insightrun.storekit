@@ -24,10 +24,10 @@
     "_developerTeamID" : "PCTXJ3892R",
     "_disableDialogs" : false,
     "_failTransactionsEnabled" : false,
-    "_lastSynchronizedDate" : 783436967.17490399,
-    "_locale" : "en_US",
+    "_lastSynchronizedDate" : 783449588.020329,
+    "_locale" : "fr_FR",
     "_renewalBillingIssuesEnabled" : false,
-    "_storefront" : "USA",
+    "_storefront" : "FRA",
     "_storeKitErrors" : [
 
     ],
@@ -48,21 +48,26 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "59.99",
+          "displayPrice" : "69.99",
           "familyShareable" : false,
           "groupNumber" : 2,
           "internalID" : "6754634993",
           "introductoryOffer" : {
-            "internalID" : "866B356F",
+            "internalID" : "2DD3C9D4",
             "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P3D"
           },
           "localizations" : [
             {
-              "description" : "Annual",
+              "description" : "Annual subscription with 3-day free trial",
               "displayName" : "Annual",
               "locale" : "en_US"
+            },
+            {
+              "description" : "Abonnement annuel avec 3 jours d'essai gratuit",
+              "displayName" : "Annuel",
+              "locale" : "fr_FR"
             }
           ],
           "productID" : "com.altcode.insightrun.Annual",
@@ -81,16 +86,21 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "5.99",
+          "displayPrice" : "9.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "6754634744",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Monthly",
+              "description" : "Monthly subscription",
               "displayName" : "Monthly",
               "locale" : "en_US"
+            },
+            {
+              "description" : "Abonnement mensuel",
+              "displayName" : "Mensuel",
+              "locale" : "fr_FR"
             }
           ],
           "productID" : "com.altcode.insightrun.Monthly",

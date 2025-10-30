@@ -48,7 +48,7 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "69.99",
+          "displayPrice" : "59.99",
           "familyShareable" : false,
           "groupNumber" : 2,
           "internalID" : "6754634993",
@@ -86,19 +86,24 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "9.99",
+          "displayPrice" : "5.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "6754634744",
-          "introductoryOffer" : null,
+          "introductoryOffer" : {
+            "internalID" : "3EE4D8E5",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
           "localizations" : [
             {
-              "description" : "Monthly subscription",
+              "description" : "Monthly subscription with 3-day free trial",
               "displayName" : "Monthly",
               "locale" : "en_US"
             },
             {
-              "description" : "Abonnement mensuel",
+              "description" : "Abonnement mensuel avec 3 jours d'essai gratuit",
               "displayName" : "Mensuel",
               "locale" : "fr_FR"
             }

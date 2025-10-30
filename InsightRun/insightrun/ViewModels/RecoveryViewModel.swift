@@ -71,12 +71,12 @@ class RecoveryViewModel: ObservableObject {
 
     var formattedSelectedDate: String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale.current
 
         if Calendar.current.isDateInToday(selectedDate) {
-            return "Aujourd'hui"
+            return String(localized: "Today", comment: "Label for today's date")
         } else if Calendar.current.isDateInYesterday(selectedDate) {
-            return "Hier"
+            return String(localized: "Yesterday", comment: "Label for yesterday's date")
         } else {
             formatter.dateFormat = "EEEE d MMMM yyyy"
             return formatter.string(from: selectedDate).capitalized

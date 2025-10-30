@@ -244,7 +244,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         do {
             // Show a message while the model is thinking (before first token)
             await MainActor.run {
-                self.streamedResponse = "🧠 Génération de la réponse..."
+                self.streamedResponse = String(localized: "🧠 Generating response...", comment: "Message while local model is generating response")
             }
 
             let stream = try await service.generate(prompt: question, systemPrompt: systemPrompt, locale: locale)
@@ -253,7 +253,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             for await chunk in stream {
                 await MainActor.run {
                     // Clear "thinking" message on first chunk
-                    if self.streamedResponse == "🧠 Génération de la réponse..." {
+                    if self.streamedResponse == String(localized: "🧠 Generating response...", comment: "Message while local model is generating response") {
                         self.streamedResponse = ""
                     }
 
@@ -289,7 +289,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         do {
             // Show a message while waiting for response
             await MainActor.run {
-                self.streamedResponse = "🌐 Connexion au serveur..."
+                self.streamedResponse = String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server")
             }
 
             // Build payload from mode data
@@ -302,7 +302,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             for await chunk in stream {
                 await MainActor.run {
                     // Clear "connecting" message on first chunk
-                    if self.streamedResponse == "🌐 Connexion au serveur..." {
+                    if self.streamedResponse == String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server") {
                         self.streamedResponse = ""
                     }
 
@@ -495,47 +495,58 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         let responseLower = lastResponse.lowercased()
 
         // Detect topics in the response and suggest related questions
-        if responseLower.contains("fréquence cardiaque") || responseLower.contains("fc") || responseLower.contains("bpm") {
-            suggestions.append("Comment améliorer ma fréquence cardiaque au repos ?")
-            suggestions.append("Ma fréquence cardiaque est-elle dans la bonne zone ?")
+        // Heart rate topics
+        if responseLower.contains("fréquence cardiaque") || responseLower.contains("fc") || responseLower.contains("bpm") ||
+           responseLower.contains("heart rate") || responseLower.contains("hr") {
+            suggestions.append(String(localized: "How to improve my resting heart rate?", comment: "AI suggested question about improving resting heart rate"))
+            suggestions.append(String(localized: "Is my heart rate in the right zone?", comment: "AI suggested question about heart rate zones"))
         }
 
-        if responseLower.contains("allure") || responseLower.contains("pace") || responseLower.contains("vitesse") {
-            suggestions.append("Comment améliorer mon allure ?")
-            suggestions.append("Quelle allure dois-je viser pour mon prochain workout ?")
+        // Pace/speed topics
+        if responseLower.contains("allure") || responseLower.contains("pace") || responseLower.contains("vitesse") || responseLower.contains("speed") {
+            suggestions.append(String(localized: "How to improve my pace?", comment: "AI suggested question about improving pace"))
+            suggestions.append(String(localized: "What pace should I target for my next workout?", comment: "AI suggested question about target pace"))
         }
 
-        if responseLower.contains("récupération") || responseLower.contains("repos") || responseLower.contains("fatigue") {
-            suggestions.append("Combien de jours de repos ai-je besoin ?")
-            suggestions.append("Quels sont les signes de surmenage ?")
+        // Recovery topics
+        if responseLower.contains("récupération") || responseLower.contains("repos") || responseLower.contains("fatigue") ||
+           responseLower.contains("recovery") || responseLower.contains("rest") {
+            suggestions.append(String(localized: "How many rest days do I need?", comment: "AI suggested question about rest days"))
+            suggestions.append(String(localized: "What are the signs of overtraining?", comment: "AI suggested question about overtraining signs"))
         }
 
-        if responseLower.contains("progression") || responseLower.contains("amélioration") || responseLower.contains("progrès") {
-            suggestions.append("Comment continuer à progresser ?")
-            suggestions.append("Quel est mon prochain objectif réaliste ?")
+        // Progression topics
+        if responseLower.contains("progression") || responseLower.contains("amélioration") || responseLower.contains("progrès") ||
+           responseLower.contains("improvement") || responseLower.contains("progress") {
+            suggestions.append(String(localized: "How to keep improving?", comment: "AI suggested question about continuing improvement"))
+            suggestions.append(String(localized: "What's my next realistic goal?", comment: "AI suggested question about next goal"))
         }
 
-        if responseLower.contains("cadence") || responseLower.contains("foulée") {
-            suggestions.append("Quelle est la cadence idéale ?")
-            suggestions.append("Comment améliorer ma technique de course ?")
+        // Cadence topics
+        if responseLower.contains("cadence") || responseLower.contains("foulée") || responseLower.contains("stride") {
+            suggestions.append(String(localized: "What's the ideal cadence?", comment: "AI suggested question about ideal cadence"))
+            suggestions.append(String(localized: "How to improve my running form?", comment: "AI suggested question about running form"))
         }
 
-        if responseLower.contains("dénivelé") || responseLower.contains("élévation") || responseLower.contains("côte") {
-            suggestions.append("Comment m'entraîner en côte efficacement ?")
-            suggestions.append("Le dénivelé améliore-t-il mes performances ?")
+        // Elevation topics
+        if responseLower.contains("dénivelé") || responseLower.contains("élévation") || responseLower.contains("côte") ||
+           responseLower.contains("elevation") || responseLower.contains("hill") {
+            suggestions.append(String(localized: "How to train on hills effectively?", comment: "AI suggested question about hill training"))
+            suggestions.append(String(localized: "Does elevation improve performance?", comment: "AI suggested question about elevation benefits"))
         }
 
-        if responseLower.contains("vo2") || responseLower.contains("capacité aérobie") {
-            suggestions.append("Comment améliorer mon VO2 Max ?")
-            suggestions.append("Quel entraînement booste le VO2 Max ?")
+        // VO2 Max topics
+        if responseLower.contains("vo2") || responseLower.contains("capacité aérobie") || responseLower.contains("aerobic capacity") {
+            suggestions.append(String(localized: "How to improve my VO2 Max?", comment: "AI suggested question about improving VO2 Max"))
+            suggestions.append(String(localized: "What training boosts VO2 Max?", comment: "AI suggested question about VO2 Max training"))
         }
 
         // General follow-ups if no specific topics
         if suggestions.isEmpty {
             suggestions = [
-                "Donne-moi un plan d'entraînement personnalisé",
-                "Analyse ma progression sur le mois",
-                "Comment éviter les blessures ?"
+                String(localized: "Give me a personalized training plan", comment: "AI suggested question about personalized plan"),
+                String(localized: "Analyze my progress this month", comment: "AI suggested question about monthly progress"),
+                String(localized: "How to avoid injuries?", comment: "AI suggested question about injury prevention")
             ]
         }
 

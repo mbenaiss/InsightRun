@@ -18,6 +18,7 @@ struct WorkoutDetailView: View {
     @State private var showingAIAssistant = false
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
+    @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
     init(workout: WorkoutModel) {
         self.workout = workout
@@ -34,83 +35,122 @@ struct WorkoutDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if viewModel.isLoading {
-                    loadingSection
-                } else if let error = viewModel.errorMessage {
-                    errorSection(error)
-                } else if let metrics = viewModel.metrics {
-                    // Header with date and location
-                    headerSection(metrics: metrics)
+        ZStack(alignment: .bottomTrailing) {
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if viewModel.isLoading {
+                            loadingSection
+                        } else if let error = viewModel.errorMessage {
+                            errorSection(error)
+                        } else if let metrics = viewModel.metrics {
+                            // Header with date and location
+                            headerSection(metrics: metrics)
 
-                    // Main metrics grid (2x2)
-                    mainMetricsGrid(metrics: metrics)
+                            // Main metrics grid (2x2)
+                            mainMetricsGrid(metrics: metrics)
 
-                    // AI Analysis Section
-                    aiAnalysisSection
+                            // AI Analysis Section
+                            aiAnalysisSection
 
-                    // Route map after AI analysis
-                    if let routePoints = metrics.routePoints, !routePoints.isEmpty {
-                        routeMapSection(routePoints: routePoints)
-                    }
+                            // Route map after AI analysis
+                            if let routePoints = metrics.routePoints, !routePoints.isEmpty {
+                                routeMapSection(routePoints: routePoints)
+                            }
 
-                    // Interactive Charts (HR, Pace, Power)
-                    if let splits = metrics.splits, !splits.isEmpty {
-                        SwipeableChartsView(metrics: metrics)
-                    }
+                            // Interactive Charts (HR, Pace, Power)
+                            if let splits = metrics.splits, !splits.isEmpty {
+                                SwipeableChartsView(metrics: metrics)
+                            }
 
-                    // Performance section (no accordion)
-                    if hasPerformanceMetrics(metrics) {
-                        MetricsCard(
-                            title: String(localized: "Performance", comment: "Performance metrics section title"),
-                            icon: "bolt.fill",
-                            iconColor: .yellow
-                        ) {
-                            performanceContent(metrics: metrics)
+                            // Performance section (no accordion)
+                            if hasPerformanceMetrics(metrics) {
+                                MetricsCard(
+                                    title: String(localized: "Performance", comment: "Performance metrics section title"),
+                                    icon: "bolt.fill",
+                                    iconColor: .yellow
+                                ) {
+                                    performanceContent(metrics: metrics)
+                                }
+                            }
+
+                            // Advanced metrics section (no accordion)
+                            if hasAdvancedMetrics(metrics) {
+                                MetricsCard(
+                                    title: String(localized: "Advanced Metrics", comment: "Advanced metrics section title"),
+                                    icon: "waveform.path.ecg",
+                                    iconColor: .indigo
+                                ) {
+                                    advancedMetricsContent(metrics: metrics)
+                                }
+                            }
+
+                            // Splits section (with accordion)
+                            if let splits = metrics.splits, !splits.isEmpty {
+                                AccordionSection(
+                                    title: String(localized: "Splits", comment: "Splits section title"),
+                                    icon: "list.number",
+                                    iconColor: .blue,
+                                    isExpanded: false
+                                ) {
+                                    splitsContent(splits: splits)
+                                }
+                            }
+
+                            sourceSection
                         }
                     }
-
-                    // Advanced metrics section (no accordion)
-                    if hasAdvancedMetrics(metrics) {
-                        MetricsCard(
-                            title: String(localized: "Advanced Metrics", comment: "Advanced metrics section title"),
-                            icon: "waveform.path.ecg",
-                            iconColor: .indigo
-                        ) {
-                            advancedMetricsContent(metrics: metrics)
-                        }
-                    }
-
-                    // Splits section (with accordion)
-                    if let splits = metrics.splits, !splits.isEmpty {
-                        AccordionSection(
-                            title: String(localized: "Splits", comment: "Splits section title"),
-                            icon: "list.number",
-                            iconColor: .blue,
-                            isExpanded: false
-                        ) {
-                            splitsContent(splits: splits)
-                        }
-                    }
-
-                    sourceSection
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
             }
-            .padding()
+            .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .task {
+                await viewModel.loadMetrics()
+                // Update metrics in analysisViewModel after loading
+                analysisViewModel.updateMetrics(viewModel.metrics)
+                // Also load cached analysis automatically
+                await analysisViewModel.loadAnalysis()
+            }
+            .onAppear {
+                // Track workout detail viewed
+                AnalyticsService.shared.trackWorkoutDetailViewed()
+            }
+
+            // Floating AI Button - Only for subscribers
+            if !viewModel.isLoading &&
+               viewModel.metrics != nil &&
+               revenueCatManager.isSubscriptionActive {
+                Button(action: { showingAIAssistant = true }) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.blue, .cyan],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 60, height: 60)
+                            .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
+
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+            }
         }
-        .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await viewModel.loadMetrics()
-            // Update metrics in analysisViewModel after loading
-            analysisViewModel.updateMetrics(viewModel.metrics)
-            // Also load cached analysis automatically
-            await analysisViewModel.loadAnalysis()
-        }
-        .onAppear {
-            // Track workout detail viewed
-            AnalyticsService.shared.trackWorkoutDetailViewed()
+        .sheet(isPresented: $showingAIAssistant) {
+            WorkoutAIAssistantView(
+                mode: .singleWorkout(workout, viewModel.metrics),
+                isPresented: $showingAIAssistant
+            )
         }
     }
 
@@ -512,6 +552,7 @@ struct WorkoutDetailView: View {
                     MarkdownText(analysis)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     HStack {
                         if let analyzedAt = analysisViewModel.analyzedAt {
@@ -850,6 +891,7 @@ struct SwipeableChartsView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 340)
+            .clipped()
 
             // Custom page indicator dots
             HStack(spacing: 8) {
@@ -861,6 +903,7 @@ struct SwipeableChartsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

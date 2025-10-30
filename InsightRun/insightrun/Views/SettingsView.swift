@@ -21,12 +21,14 @@ struct SettingsView: View {
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
-                            Text(String(localized: "Abonnement actif"))
+                            Text(String(localized: "Active subscription"))
                             Spacer()
                         }
 
-                        Button(String(localized: "Gérer l'abonnement")) {
-                            showPaywall = true
+                        Button(String(localized: "Manage subscription")) {
+                            if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                                UIApplication.shared.open(url)
+                            }
                         }
                     } else {
                         Button {
@@ -36,9 +38,9 @@ struct SettingsView: View {
                                 Image(systemName: "crown.fill")
                                     .foregroundStyle(.yellow)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(String(localized: "Débloquer Premium"))
+                                    Text(String(localized: "Unlock Premium"))
                                         .font(.headline)
-                                    Text(String(localized: "Accédez à toutes les fonctionnalités"))
+                                    Text(String(localized: "Access all features"))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -49,28 +51,28 @@ struct SettingsView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                    }
 
-                    Button(String(localized: "Restaurer les achats")) {
-                        Task {
-                            do {
-                                try await revenueCatManager.restorePurchases()
-                            } catch {
-                                print("Error restoring purchases: \(error.localizedDescription)")
+                        Button(String(localized: "Restore Purchases")) {
+                            Task {
+                                do {
+                                    try await revenueCatManager.restorePurchases()
+                                } catch {
+                                    print("Error restoring purchases: \(error.localizedDescription)")
+                                }
                             }
                         }
                     }
                 } header: {
-                    Text(String(localized: "Abonnement"))
+                    Text(String(localized: "Subscription"))
                 } footer: {
                     if !revenueCatManager.isSubscriptionActive {
-                        Text(String(localized: "Débloquez l'accès complet à l'analyse IA avancée, les conseils personnalisés et bien plus encore."))
+                        Text(String(localized: "Unlock full access to advanced AI analysis, personalized advice and more."))
                     }
                 }
 
                 // Appearance Section
                 Section {
-                    Picker(String(localized: "Apparence"), selection: Bindable(themeManager).selectedTheme) {
+                    Picker(String(localized: "Appearance"), selection: Bindable(themeManager).selectedTheme) {
                         ForEach(AppTheme.allCases) { theme in
                             Label(theme.rawValue, systemImage: theme.icon)
                                 .tag(theme)
@@ -78,9 +80,9 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.menu)
                 } header: {
-                    Text(String(localized: "Apparence"))
+                    Text(String(localized: "Appearance"))
                 } footer: {
-                    Text(String(localized: "Choisissez le thème de l'application. Le mode Système s'adapte automatiquement à vos réglages iOS."))
+                    Text(String(localized: "Choose the app theme. System mode automatically adapts to your iOS settings."))
                 }
 
                 // Debug Section (for testing)

@@ -63,7 +63,7 @@ struct AppearancePreview<Content: View>: View {
 // MARK: - Demo Component
 #Preview("Theme Demo - Light") {
     VStack(spacing: 20) {
-        Text("InsightRun")
+        Text("Insight Run")
             .font(.title)
             .foregroundStyle(.primary)
 
@@ -116,7 +116,7 @@ struct AppearancePreview<Content: View>: View {
 
 #Preview("Theme Demo - Dark") {
     VStack(spacing: 20) {
-        Text("InsightRun")
+        Text("Insight Run")
             .font(.title)
             .foregroundStyle(.primary)
 

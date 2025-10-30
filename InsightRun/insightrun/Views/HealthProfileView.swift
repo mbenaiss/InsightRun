@@ -115,7 +115,7 @@ struct HealthProfileView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
-                Text(String(localized: "Tip: Enable permissions in Settings → Privacy → Health → InsightRun", comment: "Tip about enabling HealthKit permissions"))
+                Text(String(localized: "Tip: Enable permissions in Settings → Privacy → Health → Insight Run", comment: "Tip about enabling HealthKit permissions"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)

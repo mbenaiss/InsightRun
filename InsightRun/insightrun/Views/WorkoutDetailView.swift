@@ -16,7 +16,6 @@ struct WorkoutDetailView: View {
     let workout: WorkoutModel
     @StateObject private var viewModel: WorkoutDetailViewModel
     @State private var showingAIAssistant = false
-    @State private var showingConversationalAI = false
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
@@ -116,24 +115,24 @@ struct WorkoutDetailView: View {
                 AnalyticsService.shared.trackWorkoutDetailViewed()
             }
 
-            // Floating AI Chat Button - Only for subscribers
+            // Floating AI Button - Only for subscribers
             if !viewModel.isLoading &&
                viewModel.metrics != nil &&
                revenueCatManager.isSubscriptionActive {
-                Button(action: { showingConversationalAI = true }) {
+                Button(action: { showingAIAssistant = true }) {
                     ZStack {
                         Circle()
                             .fill(
                                 LinearGradient(
-                                    colors: [.purple, .pink],
+                                    colors: [.blue, .cyan],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
                             .frame(width: 60, height: 60)
-                            .shadow(color: .purple.opacity(0.4), radius: 12, y: 6)
+                            .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
 
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                        Image(systemName: "sparkles")
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundColor(.white)
                     }
@@ -142,10 +141,10 @@ struct WorkoutDetailView: View {
                 .padding(.bottom, 20)
             }
         }
-        .sheet(isPresented: $showingConversationalAI) {
+        .sheet(isPresented: $showingAIAssistant) {
             WorkoutAIAssistantView(
                 mode: .singleWorkout(workout, viewModel.metrics),
-                isPresented: $showingConversationalAI
+                isPresented: $showingAIAssistant
             )
         }
     }

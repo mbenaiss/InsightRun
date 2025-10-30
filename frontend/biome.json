@@ -19,7 +19,8 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "useExhaustiveDependencies": "warn"
+        "useExhaustiveDependencies": "warn",
+        "useUniqueElementIds": "off"
       },
       "suspicious": {
         "noExplicitAny": "warn"

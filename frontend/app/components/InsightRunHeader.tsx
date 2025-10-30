@@ -11,7 +11,7 @@ export default function InsightRunHeader() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#FF8C42] to-[#eca869] rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#0094FF] to-[#64B0FF] rounded-xl flex items-center justify-center shadow-lg">
                 <svg
                   className="w-6 h-6 text-white"
                   fill="none"
@@ -37,13 +37,13 @@ export default function InsightRunHeader() {
             <nav className="hidden md:flex items-center gap-8">
               <a
                 href="#features"
-                className="text-gray-600 hover:text-[#FF8C42] font-medium transition-colors"
+                className="text-gray-600 hover:text-[#0094FF] font-medium transition-colors"
               >
                 Features
               </a>
               <Link
                 href="/privacy"
-                className="text-gray-600 hover:text-[#FF8C42] font-medium transition-colors"
+                className="text-gray-600 hover:text-[#0094FF] font-medium transition-colors"
               >
                 Privacy
               </Link>

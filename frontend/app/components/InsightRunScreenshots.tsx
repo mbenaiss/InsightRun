@@ -26,8 +26,8 @@ export default function InsightRunScreenshots() {
             <div className="flex-shrink-0 snap-center">
               <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
                 <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#FF8C42]/10 to-[#1a2942]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#FF8C42] to-[#eca869] rounded-3xl mb-4 flex items-center justify-center">
+                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#0094FF]/10 to-[#64B0FF]/10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#0094FF] to-[#64B0FF] rounded-3xl mb-4 flex items-center justify-center">
                       <svg
                         className="w-10 h-10 text-white"
                         fill="none"
@@ -57,8 +57,8 @@ export default function InsightRunScreenshots() {
             <div className="flex-shrink-0 snap-center">
               <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
                 <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#164ea2]/10 to-[#1a2942]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#164ea2] to-[#1a2942] rounded-3xl mb-4 flex items-center justify-center">
+                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#0094FF]/10 to-[#005A99]/10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#0094FF] to-[#005A99] rounded-3xl mb-4 flex items-center justify-center">
                       <svg
                         className="w-10 h-10 text-white"
                         fill="none"
@@ -88,8 +88,8 @@ export default function InsightRunScreenshots() {
             <div className="flex-shrink-0 snap-center">
               <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
                 <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#FF8C42]/10 to-[#d38236]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#FF8C42] to-[#d38236] rounded-3xl mb-4 flex items-center justify-center">
+                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#64B0FF]/10 to-[#0094FF]/10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#64B0FF] to-[#0094FF] rounded-3xl mb-4 flex items-center justify-center">
                       <svg
                         className="w-10 h-10 text-white"
                         fill="none"
@@ -119,8 +119,8 @@ export default function InsightRunScreenshots() {
             <div className="flex-shrink-0 snap-center">
               <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
                 <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#164ea2]/10 to-[#081d3c]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#164ea2] to-[#081d3c] rounded-3xl mb-4 flex items-center justify-center">
+                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#0094FF]/10 to-[#1a2942]/10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#0094FF] to-[#1a2942] rounded-3xl mb-4 flex items-center justify-center">
                       <svg
                         className="w-10 h-10 text-white"
                         fill="none"
@@ -149,7 +149,7 @@ export default function InsightRunScreenshots() {
 
           {/* Scroll Indicator */}
           <div className="flex justify-center gap-2 mt-8">
-            <div className="w-2 h-2 rounded-full bg-[#FF8C42]" />
+            <div className="w-2 h-2 rounded-full bg-[#0094FF]" />
             <div className="w-2 h-2 rounded-full bg-gray-300" />
             <div className="w-2 h-2 rounded-full bg-gray-300" />
             <div className="w-2 h-2 rounded-full bg-gray-300" />

@@ -21,8 +21,8 @@ export default function InsightRunFeatures() {
       title: 'Advanced Running Metrics',
       description:
         'Track distance, duration, pace, cadence, heart rate, power, stride length, ground contact time, and more with HealthKit integration.',
-      color: 'from-[#FF8C42] to-[#eca869]',
-      bgColor: 'bg-[#fdf8f3]',
+      color: 'from-[#0094FF] to-[#64B0FF]',
+      bgColor: 'bg-[#E5F4FF]',
     },
     {
       icon: (
@@ -45,8 +45,8 @@ export default function InsightRunFeatures() {
       title: 'AI-Powered Coaching',
       description:
         'Get personalized insights and recommendations from advanced AI models (Claude Sonnet 4.5, GPT-5, or Grok-4) analyzing your performance data.',
-      color: 'from-[#164ea2] to-[#1a2942]',
-      bgColor: 'bg-[#1a2942]/5',
+      color: 'from-[#0094FF] to-[#005A99]',
+      bgColor: 'bg-[#E5F4FF]',
     },
     {
       icon: (
@@ -69,8 +69,8 @@ export default function InsightRunFeatures() {
       title: 'Recovery Dashboard',
       description:
         'Monitor your daily readiness score based on HRV, resting heart rate, sleep quality, and respiratory rate. Know when to push hard or rest.',
-      color: 'from-[#FF8C42] to-[#d38236]',
-      bgColor: 'bg-[#fdf8f3]',
+      color: 'from-[#64B0FF] to-[#0094FF]',
+      bgColor: 'bg-[#E5F4FF]',
     },
     {
       icon: (
@@ -93,8 +93,8 @@ export default function InsightRunFeatures() {
       title: 'Detailed Analytics',
       description:
         'View split times, elevation profiles, heart rate zones, and comprehensive performance trends over time to track your progress.',
-      color: 'from-[#164ea2] to-[#081d3c]',
-      bgColor: 'bg-[#1a2942]/5',
+      color: 'from-[#0094FF] to-[#1a2942]',
+      bgColor: 'bg-[#E5F4FF]',
     },
     {
       icon: (
@@ -117,8 +117,8 @@ export default function InsightRunFeatures() {
       title: 'Privacy-First Design',
       description:
         'Your health data stays on your device. Only anonymized metrics are sent to AI services. No user tracking, no data selling, ever.',
-      color: 'from-[#1a2942] to-[#081d3c]',
-      bgColor: 'bg-[#1a2942]/5',
+      color: 'from-[#1a2942] to-[#0094FF]',
+      bgColor: 'bg-[#E5F4FF]',
     },
     {
       icon: (
@@ -141,8 +141,8 @@ export default function InsightRunFeatures() {
       title: 'Native iOS Experience',
       description:
         'Built with SwiftUI for iOS 26+. Seamless HealthKit integration. Beautiful liquid glass design. Optimized for all iPhone sizes.',
-      color: 'from-[#FF8C42] to-[#eca869]',
-      bgColor: 'bg-[#fdf8f3]',
+      color: 'from-[#0094FF] to-[#64B0FF]',
+      bgColor: 'bg-[#E5F4FF]',
     },
   ]
 
@@ -163,7 +163,7 @@ export default function InsightRunFeatures() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group relative bg-white rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-[#FF8C42]/20 hover:-translate-y-1"
+              className="group relative bg-white rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-[#0094FF]/20 hover:-translate-y-1"
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-[0.03] rounded-3xl transition-opacity duration-300`}

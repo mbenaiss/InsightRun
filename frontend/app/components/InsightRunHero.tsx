@@ -10,7 +10,7 @@ export default function InsightRunHero() {
         {/* Hero Content - Centered */}
         <div className="max-w-5xl mx-auto text-center space-y-8 mb-16">
           <div className="inline-flex items-center gap-2">
-            <div className="bg-[#FF8C42] text-white px-4 py-1.5 rounded-full text-sm font-semibold">
+            <div className="bg-[#0094FF] text-white px-4 py-1.5 rounded-full text-sm font-semibold">
               Coming Soon to App Store
             </div>
           </div>
@@ -53,7 +53,7 @@ export default function InsightRunHero() {
         {/* Key Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
           <div className="bg-white rounded-3xl p-6 text-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#FF8C42] to-[#eca869] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#0094FF] to-[#64B0FF] rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"
@@ -75,7 +75,7 @@ export default function InsightRunHero() {
           </div>
 
           <div className="bg-white rounded-3xl p-6 text-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#164ea2] to-[#1a2942] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#0094FF] to-[#005A99] rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"
@@ -97,7 +97,7 @@ export default function InsightRunHero() {
           </div>
 
           <div className="bg-white rounded-3xl p-6 text-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#FF8C42] to-[#d38236] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#64B0FF] to-[#0094FF] rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"
@@ -119,7 +119,7 @@ export default function InsightRunHero() {
           </div>
 
           <div className="bg-white rounded-3xl p-6 text-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#1a2942] to-[#081d3c] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#1a2942] to-[#0094FF] rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"

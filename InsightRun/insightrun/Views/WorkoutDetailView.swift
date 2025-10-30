@@ -36,7 +36,7 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 16) {
                     if viewModel.isLoading {
                         loadingSection
@@ -99,8 +99,10 @@ struct WorkoutDetailView: View {
                         sourceSection
                     }
                 }
+                .frame(maxWidth: .infinity)
                 .padding()
             }
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
@@ -885,6 +887,7 @@ struct SwipeableChartsView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 340)
+            .clipped()
 
             // Custom page indicator dots
             HStack(spacing: 8) {
@@ -896,6 +899,7 @@ struct SwipeableChartsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

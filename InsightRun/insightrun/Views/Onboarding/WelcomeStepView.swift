@@ -20,7 +20,7 @@ struct WelcomeStepView: View {
                     .font(.system(size: 80))
                     .foregroundStyle(.blue.gradient)
 
-                Text(String(localized: "Welcome to InsightRun", comment: "Onboarding welcome title"))
+                Text(String(localized: "Welcome to Insight Run", comment: "Onboarding welcome title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)

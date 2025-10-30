@@ -30,7 +30,7 @@ struct HealthKitPermissionStepView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
 
-                Text(String(localized: "InsightRun needs access to HealthKit to analyze your runs and provide personalized coaching", comment: "Onboarding HealthKit description"))
+                Text(String(localized: "Insight Run needs access to HealthKit to analyze your runs and provide personalized coaching", comment: "Onboarding HealthKit description"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -155,7 +155,7 @@ struct HealthKitPermissionStepView: View {
                         onContinue()
                     } else {
                         // User denied permission
-                        errorMessage = String(localized: "InsightRun cannot work without HealthKit access. Please grant access in Settings.", comment: "Onboarding HealthKit denied message")
+                        errorMessage = String(localized: "Insight Run cannot work without HealthKit access. Please grant access in Settings.", comment: "Onboarding HealthKit denied message")
                         showError = true
                     }
                 }

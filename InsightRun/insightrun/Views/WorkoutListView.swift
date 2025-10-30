@@ -258,7 +258,7 @@ struct WorkoutListView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text(String(localized: "Please enable access in Settings → Privacy → Health → InsightRun", comment: "HealthKit access denied instructions"))
+                Text(String(localized: "Please enable access in Settings → Privacy → Health → Insight Run", comment: "HealthKit access denied instructions"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

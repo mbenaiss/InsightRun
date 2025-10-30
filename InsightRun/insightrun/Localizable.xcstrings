@@ -1098,26 +1098,26 @@
         }
       }
     },
-    "InsightRun cannot work without HealthKit access. Please grant access in Settings." : {
+    "Insight Run cannot work without HealthKit access. Please grant access in Settings." : {
       "comment" : "Onboarding HealthKit denied message",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "InsightRun ne peut pas fonctionner sans accès HealthKit. Veuillez autoriser l'accès dans Réglages."
+            "value" : "Insight Run ne peut pas fonctionner sans accès HealthKit. Veuillez autoriser l'accès dans Réglages."
           }
         }
       }
     },
-    "InsightRun needs access to HealthKit to analyze your runs and provide personalized coaching" : {
+    "Insight Run needs access to HealthKit to analyze your runs and provide personalized coaching" : {
       "comment" : "Onboarding HealthKit description",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "InsightRun a besoin d'accéder à HealthKit pour analyser vos courses et vous fournir un coaching personnalisé"
+            "value" : "Insight Run a besoin d'accéder à HealthKit pour analyser vos courses et vous fournir un coaching personnalisé"
           }
         }
       }
@@ -1477,14 +1477,14 @@
         }
       }
     },
-    "Please enable access in Settings → Privacy → Health → InsightRun" : {
+    "Please enable access in Settings → Privacy → Health → Insight Run" : {
       "comment" : "HealthKit access denied instructions",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Veuillez activer l'accès dans Réglages → Confidentialité → Santé → InsightRun"
+            "value" : "Veuillez activer l'accès dans Réglages → Confidentialité → Santé → Insight Run"
           }
         }
       }
@@ -2190,14 +2190,14 @@
         }
       }
     },
-    "Tip: Enable permissions in Settings → Privacy → Health → InsightRun" : {
+    "Tip: Enable permissions in Settings → Privacy → Health → Insight Run" : {
       "comment" : "Tip about enabling HealthKit permissions",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Astuce : Activez les permissions dans Réglages → Confidentialité → Santé → InsightRun"
+            "value" : "Astuce : Activez les permissions dans Réglages → Confidentialité → Santé → Insight Run"
           }
         }
       }
@@ -2497,14 +2497,14 @@
         }
       }
     },
-    "Welcome to InsightRun" : {
+    "Welcome to Insight Run" : {
       "comment" : "Onboarding welcome title",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bienvenue sur InsightRun"
+            "value" : "Bienvenue sur Insight Run"
           }
         }
       }

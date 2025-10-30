@@ -221,10 +221,10 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-none space-y-2 text-gray-700">
               <li>
-                <strong>Email:</strong> privacy@insightrun.ai
+                <strong>Email:</strong> support@altcode.studio
               </li>
               <li>
-                <strong>Website:</strong> https://insightrun.ai
+                <strong>Website:</strong> https://insightrun.altcode.studio
               </li>
             </ul>
           </section>

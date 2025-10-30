@@ -2,7 +2,6 @@
 
 export default function InsightRunHero() {
   return (
-    // biome-ignore lint/correctness/useUniqueElementIds: Static section ID for navigation
     <section
       id="hero"
       className="pt-24 md:pt-32 pb-20 md:pb-32 relative overflow-hidden bg-gradient-to-b from-blue-50 to-white"

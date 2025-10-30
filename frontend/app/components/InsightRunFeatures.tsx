@@ -147,7 +147,6 @@ export default function InsightRunFeatures() {
   ]
 
   return (
-    // biome-ignore lint/correctness/useUniqueElementIds: Static section ID for navigation
     <section id="features" className="py-20 md:py-32 bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">

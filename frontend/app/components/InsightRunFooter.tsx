@@ -70,7 +70,7 @@ export default function InsightRunFooter() {
               </li>
               <li>
                 <a
-                  href="mailto:privacy@insightrun.ai"
+                  href="mailto:support@altcode.studio"
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   Contact

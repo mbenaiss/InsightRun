@@ -11,21 +11,21 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://insightrun.ai'),
-  title: 'InsightRun - AI-Powered Running Coach for iOS',
+  title: 'Insight Run - AI-Powered Running Coach for iOS',
   description:
-    'Track your running workouts with advanced metrics, get personalized AI coaching, and optimize your recovery with InsightRun. HealthKit integration for comprehensive performance analysis.',
+    'Track your running workouts with advanced metrics, get personalized AI coaching, and optimize your recovery with Insight Run. HealthKit integration for comprehensive performance analysis.',
   keywords:
-    'insightrun, running app, AI coach, HealthKit, workout tracker, recovery score, iOS running, fitness app, running metrics',
+    'insight run, running app, AI coach, HealthKit, workout tracker, recovery score, iOS running, fitness app, running metrics',
   openGraph: {
     type: 'website',
-    title: 'InsightRun - AI-Powered Running Coach for iOS',
+    title: 'Insight Run - AI-Powered Running Coach for iOS',
     description:
       'Track your running workouts with advanced metrics, get personalized AI coaching, and optimize your recovery.',
     images: ['/og-image.jpg'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'InsightRun - AI-Powered Running Coach for iOS',
+    title: 'Insight Run - AI-Powered Running Coach for iOS',
     description:
       'Track your running workouts with advanced metrics, get personalized AI coaching, and optimize your recovery.',
     images: ['/og-image.jpg'],

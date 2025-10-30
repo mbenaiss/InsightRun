@@ -28,7 +28,7 @@ export default function InsightRunHeader() {
                   />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-[#1a2942]">InsightRun</span>
+              <span className="text-xl font-bold text-[#1a2942]">Insight Run</span>
             </Link>
 
             {/* Navigation */}

@@ -25,7 +25,7 @@ export default function InsightRunFooter() {
                   />
                 </svg>
               </div>
-              <span className="text-xl font-bold">InsightRun</span>
+              <span className="text-xl font-bold">Insight Run</span>
             </div>
             <p className="text-gray-400 mb-4 max-w-sm">
               Your AI-powered running coach. Track workouts, optimize recovery, and get personalized
@@ -95,7 +95,7 @@ export default function InsightRunFooter() {
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-[#0094FF]/30">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-400 text-sm">© 2025 InsightRun. All rights reserved.</p>
+            <p className="text-gray-400 text-sm">© 2025 Insight Run. All rights reserved.</p>
 
             <div className="flex items-center gap-6">
               <a

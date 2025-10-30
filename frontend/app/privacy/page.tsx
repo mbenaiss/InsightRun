@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { APP_NAME, APP_URL, LAST_UPDATED_DATE, SUPPORT_EMAIL } from '@/app/lib/constants'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - InsightRun',
-  description: 'Privacy Policy for InsightRun - AI-Powered Running Coach for iOS',
+  title: 'Privacy Policy - Insight Run',
+  description: 'Privacy Policy for Insight Run - AI-Powered Running Coach for iOS',
   alternates: {
     canonical: `${APP_URL}/privacy`,
   },
@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">Privacy Policy for InsightRun</h1>
+        <h1 className="text-4xl font-bold text-gray-900 mb-8">Privacy Policy for Insight Run</h1>
 
         <div className="prose prose-lg max-w-none">
           <p className="text-gray-600 mb-8">Last updated: {LAST_UPDATED_DATE}</p>
@@ -28,7 +28,7 @@ export default function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Data Collection</h2>
             <p className="text-gray-700 mb-4">
-              InsightRun reads the following data from Apple HealthKit:
+              Insight Run reads the following data from Apple HealthKit:
             </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>Running workouts (distance, duration, heart rate, pace, cadence)</li>
@@ -106,7 +106,7 @@ export default function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">HealthKit Permissions</h2>
             <p className="text-gray-700 mb-4">
-              InsightRun requests permission to read specific health data types. You have full
+              Insight Run requests permission to read specific health data types. You have full
               control over which data types to share:
             </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
@@ -115,13 +115,15 @@ export default function PrivacyPolicy() {
               <li>
                 The app will function with partial permissions, though some features may be limited
               </li>
-              <li>InsightRun does not write or modify any data in HealthKit - it is read-only</li>
+              <li>Insight Run does not write or modify any data in HealthKit - it is read-only</li>
             </ul>
           </section>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Third-Party Services</h2>
-            <p className="text-gray-700 mb-4">InsightRun integrates with the following services:</p>
+            <p className="text-gray-700 mb-4">
+              Insight Run integrates with the following services:
+            </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
                 <strong>OpenRouter API</strong> - Used to provide AI-powered coaching and analysis.
@@ -166,10 +168,10 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Data Deletion</h2>
             <p className="text-gray-700 mb-4">You have complete control over your data:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
-              <li>You can delete all app data by uninstalling InsightRun from your device</li>
+              <li>You can delete all app data by uninstalling Insight Run from your device</li>
               <li>
                 Your HealthKit data remains in the Health app and is not affected by uninstalling
-                InsightRun
+                Insight Run
               </li>
               <li>You can manage HealthKit data directly in the Apple Health app</li>
               <li>
@@ -181,7 +183,7 @@ export default function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Children's Privacy</h2>
             <p className="text-gray-700">
-              InsightRun is not directed to children under 13. We do not knowingly collect personal
+              Insight Run is not directed to children under 13. We do not knowingly collect personal
               information from children under 13. If you are a parent or guardian and believe your
               child has provided us with personal information, please contact us.
             </p>
@@ -242,7 +244,7 @@ export default function PrivacyPolicy() {
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Compliance</h2>
-            <p className="text-gray-700">InsightRun complies with:</p>
+            <p className="text-gray-700">Insight Run complies with:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>Apple's App Store Review Guidelines</li>
               <li>Apple's HealthKit Data Usage Guidelines</li>

@@ -1,13 +1,33 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+
 export default function InsightRunScreenshots() {
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const carouselRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const carousel = carouselRef.current
+    if (!carousel) return
+
+    const handleScroll = () => {
+      const scrollLeft = carousel.scrollLeft
+      const slideWidth = carousel.scrollWidth / 4 // 4 screenshots
+      const newSlide = Math.round(scrollLeft / slideWidth)
+      setCurrentSlide(newSlide)
+    }
+
+    carousel.addEventListener('scroll', handleScroll)
+    return () => carousel.removeEventListener('scroll', handleScroll)
+  }, [])
+
   return (
     <section id="screenshots" className="py-20 md:py-32 bg-white relative overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-[#1a2942] mb-6">
-            Experience InsightRun
+            Experience Insight Run
           </h2>
           <p className="text-xl text-gray-600">
             A beautiful, intuitive interface designed to help you understand and improve your
@@ -22,7 +42,10 @@ export default function InsightRunScreenshots() {
           <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white to-transparent z-10" />
 
           {/* Carousel Container */}
-          <div className="flex gap-8 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide">
+          <div
+            ref={carouselRef}
+            className="flex gap-8 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide"
+          >
             {/* Screenshot 1 - Placeholder */}
             <div className="flex-shrink-0 snap-center">
               <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
@@ -158,10 +181,14 @@ export default function InsightRunScreenshots() {
 
           {/* Scroll Indicator */}
           <div className="flex justify-center gap-2 mt-8">
-            <div className="w-2 h-2 rounded-full bg-[#0094FF]" />
-            <div className="w-2 h-2 rounded-full bg-gray-300" />
-            <div className="w-2 h-2 rounded-full bg-gray-300" />
-            <div className="w-2 h-2 rounded-full bg-gray-300" />
+            {[0, 1, 2, 3].map((index) => (
+              <div
+                key={index}
+                className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                  currentSlide === index ? 'bg-[#0094FF]' : 'bg-gray-300'
+                }`}
+              />
+            ))}
           </div>
         </div>
 

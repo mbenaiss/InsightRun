@@ -1,8 +1,19 @@
 import type { Metadata } from 'next'
+import { APP_NAME, APP_URL, LAST_UPDATED_DATE, SUPPORT_EMAIL } from '@/app/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy - InsightRun',
   description: 'Privacy Policy for InsightRun - AI-Powered Running Coach for iOS',
+  alternates: {
+    canonical: `${APP_URL}/privacy`,
+  },
+  openGraph: {
+    title: 'Privacy Policy - Insight Run',
+    description: 'Privacy Policy for Insight Run - AI-powered running coach',
+    url: `${APP_URL}/privacy`,
+    siteName: APP_NAME,
+    type: 'website',
+  },
 }
 
 export default function PrivacyPolicy() {
@@ -12,7 +23,7 @@ export default function PrivacyPolicy() {
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Privacy Policy for InsightRun</h1>
 
         <div className="prose prose-lg max-w-none">
-          <p className="text-gray-600 mb-8">Last updated: October 21, 2025</p>
+          <p className="text-gray-600 mb-8">Last updated: {LAST_UPDATED_DATE}</p>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Data Collection</h2>
@@ -221,10 +232,10 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-none space-y-2 text-gray-700">
               <li>
-                <strong>Email:</strong> support@altcode.studio
+                <strong>Email:</strong> {SUPPORT_EMAIL}
               </li>
               <li>
-                <strong>Website:</strong> https://insightrun.altcode.studio
+                <strong>Website:</strong> {APP_URL}
               </li>
             </ul>
           </section>

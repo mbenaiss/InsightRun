@@ -1,8 +1,25 @@
 import type { Metadata } from 'next'
+import {
+  APP_NAME,
+  APP_URL,
+  JURISDICTION,
+  LAST_UPDATED_DATE,
+  SUPPORT_EMAIL,
+} from '@/app/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Terms of Service - Insight Run',
   description: 'Terms of Service for Insight Run - AI-powered running coach',
+  alternates: {
+    canonical: `${APP_URL}/terms`,
+  },
+  openGraph: {
+    title: 'Terms of Service - Insight Run',
+    description: 'Terms of Service for Insight Run - AI-powered running coach',
+    url: `${APP_URL}/terms`,
+    siteName: APP_NAME,
+    type: 'website',
+  },
 }
 
 export default function TermsPage() {
@@ -13,7 +30,7 @@ export default function TermsPage() {
 
         <div className="prose prose-blue max-w-none">
           <p className="text-gray-700 mb-6">
-            <strong>Last Updated:</strong> October 30, 2025
+            <strong>Last Updated:</strong> {LAST_UPDATED_DATE}
           </p>
 
           <section className="mb-8">
@@ -281,10 +298,9 @@ export default function TermsPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">17. Governing Law</h2>
             <p className="text-gray-700">
-              These Terms shall be governed by and construed in accordance with the laws of the
-              jurisdiction in which Insight Run operates, without regard to its conflict of law
-              provisions. Any disputes arising under these Terms shall be resolved in the
-              appropriate courts of that jurisdiction.
+              These Terms shall be governed by and construed in accordance with the laws of{' '}
+              {JURISDICTION}, without regard to its conflict of law provisions. Any disputes arising
+              under these Terms shall be resolved in the appropriate courts of {JURISDICTION}.
             </p>
           </section>
 
@@ -315,10 +331,10 @@ export default function TermsPage() {
               <p className="text-gray-700 mb-2">
                 <strong>Email:</strong>{' '}
                 <a
-                  href="mailto:support@altcode.studio"
+                  href={`mailto:${SUPPORT_EMAIL}`}
                   className="text-blue-600 hover:text-blue-800 underline"
                 >
-                  support@altcode.studio
+                  {SUPPORT_EMAIL}
                 </a>
               </p>
               <p className="text-gray-700">

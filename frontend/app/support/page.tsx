@@ -1,8 +1,25 @@
 import type { Metadata } from 'next'
+import {
+  APP_NAME,
+  APP_URL,
+  LAST_UPDATED_DATE,
+  MIN_IOS_VERSION,
+  SUPPORT_EMAIL,
+} from '@/app/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Support - Insight Run',
   description: 'Get support for Insight Run - AI-powered running coach',
+  alternates: {
+    canonical: `${APP_URL}/support`,
+  },
+  openGraph: {
+    title: 'Support - Insight Run',
+    description: 'Get support for Insight Run - AI-powered running coach',
+    url: `${APP_URL}/support`,
+    siteName: APP_NAME,
+    type: 'website',
+  },
 }
 
 export default function SupportPage() {
@@ -12,7 +29,7 @@ export default function SupportPage() {
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Support</h1>
 
         <div className="prose prose-blue max-w-none">
-          <section className="mb-8">
+          <section className="mb-8" aria-label="Support Overview">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">
               Welcome to Insight Run Support
             </h2>
@@ -22,7 +39,7 @@ export default function SupportPage() {
             </p>
           </section>
 
-          <section className="mb-8">
+          <section className="mb-8" aria-label="Frequently Asked Questions">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">
               Frequently Asked Questions
             </h2>
@@ -101,7 +118,7 @@ export default function SupportPage() {
             </div>
           </section>
 
-          <section className="mb-8">
+          <section className="mb-8" aria-label="Technical Issues">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Technical Issues</h2>
 
             <div className="space-y-6">
@@ -143,7 +160,7 @@ export default function SupportPage() {
             </div>
           </section>
 
-          <section className="mb-8">
+          <section className="mb-8" aria-label="Contact Us">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Contact Us</h2>
             <p className="text-gray-700 mb-4">
               Can't find what you're looking for? We'd love to hear from you!
@@ -155,10 +172,10 @@ export default function SupportPage() {
                 For technical support, feature requests, or general inquiries:
               </p>
               <a
-                href="mailto:support@altcode.studio"
+                href={`mailto:${SUPPORT_EMAIL}`}
                 className="text-blue-600 hover:text-blue-800 font-semibold underline"
               >
-                support@altcode.studio
+                {SUPPORT_EMAIL}
               </a>
 
               <p className="text-gray-600 text-sm mt-4">
@@ -167,10 +184,10 @@ export default function SupportPage() {
             </div>
           </section>
 
-          <section className="mb-8">
+          <section className="mb-8" aria-label="System Requirements">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">System Requirements</h2>
             <ul className="list-disc list-inside text-gray-700 space-y-2">
-              <li>iOS 15.0 or later</li>
+              <li>iOS {MIN_IOS_VERSION} or later</li>
               <li>iPhone 8 or newer</li>
               <li>Apple Watch (optional, for enhanced tracking)</li>
               <li>Active internet connection for AI insights</li>
@@ -178,7 +195,7 @@ export default function SupportPage() {
             </ul>
           </section>
 
-          <section className="mb-8">
+          <section className="mb-8" aria-label="App Updates">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">App Updates</h2>
             <p className="text-gray-700">
               We regularly update Insight Run with new features, improvements, and bug fixes. Enable
@@ -186,16 +203,16 @@ export default function SupportPage() {
             </p>
           </section>
 
-          <section className="mb-8">
+          <section className="mb-8" aria-label="Feedback">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Feedback</h2>
             <p className="text-gray-700 mb-4">
               Your feedback helps us improve! If you have suggestions for new features or
               improvements, please email us at{' '}
               <a
-                href="mailto:support@altcode.studio"
+                href={`mailto:${SUPPORT_EMAIL}`}
                 className="text-blue-600 hover:text-blue-800 underline"
               >
-                support@altcode.studio
+                {SUPPORT_EMAIL}
               </a>
             </p>
             <p className="text-gray-700">
@@ -205,7 +222,7 @@ export default function SupportPage() {
           </section>
 
           <section className="mt-12 pt-8 border-t border-gray-200">
-            <p className="text-gray-600 text-sm">Last updated: October 30, 2025</p>
+            <p className="text-gray-600 text-sm">Last updated: {LAST_UPDATED_DATE}</p>
           </section>
         </div>
       </div>

@@ -59,6 +59,16 @@ export default function InsightRunFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/support" className="text-gray-400 hover:text-white transition-colors">
+                  Support
+                </Link>
+              </li>
+              <li>
                 <a
                   href="mailto:privacy@insightrun.ai"
                   className="text-gray-400 hover:text-white transition-colors"

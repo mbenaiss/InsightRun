@@ -418,24 +418,10 @@ struct RecoveryDashboardView: View {
             }
 
             // Date Display
-            VStack(spacing: 4) {
-                Text(viewModel.formattedSelectedDate)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-
-                if !viewModel.isToday {
-                    Button(action: {
-                        Task {
-                            await viewModel.goToToday()
-                        }
-                    }) {
-                        Text(String(localized: "Today", comment: "Button to go back to today's date"))
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity)
+            Text(viewModel.formattedSelectedDate)
+                .font(.headline)
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity)
 
             // Next Day Button
             Button(action: {

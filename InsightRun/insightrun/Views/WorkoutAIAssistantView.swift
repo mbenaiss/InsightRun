@@ -27,6 +27,37 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     }
 }
 
+struct ConversationHistory: Identifiable, Codable {
+    let id: UUID
+    let title: String
+    let messages: [ChatMessage]
+    let createdAt: Date
+    let updatedAt: Date
+    let mode: String // Store mode as string for persistence
+
+    init(id: UUID = UUID(), title: String, messages: [ChatMessage], createdAt: Date, updatedAt: Date, mode: String) {
+        self.id = id
+        self.title = title
+        self.messages = messages
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.mode = mode
+    }
+
+    // Generate title from first user message or use default
+    static func generateTitle(from messages: [ChatMessage]) -> String {
+        if let firstUserMessage = messages.first(where: { $0.role == .user }) {
+            let content = firstUserMessage.content
+            let maxLength = 50
+            if content.count > maxLength {
+                return String(content.prefix(maxLength)) + "..."
+            }
+            return content
+        }
+        return String(localized: "Untitled Conversation", comment: "Default title for conversation without messages")
+    }
+}
+
 enum AIAssistantMode {
     case singleWorkout(WorkoutModel, WorkoutMetrics?)
     case recentWorkouts([WorkoutModel])
@@ -44,6 +75,9 @@ struct WorkoutAIAssistantView: View {
     @State private var messageStartTime: Date?
     @FocusState private var isTextFieldFocused: Bool
     @Namespace private var bottomID
+    @State private var showingHistory = false
+    @State private var conversationHistories: [ConversationHistory] = []
+    @State private var currentConversationId: UUID?
 
     // Haptic feedback generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -106,6 +140,10 @@ struct WorkoutAIAssistantView: View {
                             .padding(.vertical, 16)
                         }
                         .scrollDismissesKeyboard(.interactively)
+                        .onTapGesture {
+                            // Hide keyboard when tapping outside of input field
+                            isTextFieldFocused = false
+                        }
                         .onChange(of: aiService.streamedResponse) { oldValue, newValue in
                             // Update streaming message in place only if value actually changed
                             guard oldValue != newValue else { return }
@@ -151,9 +189,18 @@ struct WorkoutAIAssistantView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingHistory) {
+            ConversationHistoryView(
+                histories: $conversationHistories,
+                onSelectConversation: loadConversation,
+                onDeleteConversation: deleteConversation
+            )
+        }
         .onAppear {
             loadMessages()
-            isTextFieldFocused = true
+            loadConversationHistories()
+            // Don't auto-focus keyboard on appear to avoid taking up screen space
+            // isTextFieldFocused = true
 
             // Prepare haptic generators for better responsiveness
             impactLight.prepare()
@@ -191,9 +238,24 @@ struct WorkoutAIAssistantView: View {
             Spacer()
 
             if !messages.isEmpty {
-                Button(action: clearChat) {
-                    Image(systemName: "trash")
-                        .foregroundColor(.secondary)
+                HStack(spacing: 16) {
+                    // New conversation button
+                    Button(action: startNewConversation) {
+                        Image(systemName: "square.and.pencil")
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Conversation history button
+                    Button(action: showConversationHistory) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Clear chat button
+                    Button(action: clearChat) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }
@@ -259,6 +321,7 @@ struct WorkoutAIAssistantView: View {
                         Button(action: {
                             impactLight.impactOccurred()
                             question = sample
+                            isTextFieldFocused = false
                         }) {
                             HStack {
                                 Image(systemName: "lightbulb.fill")
@@ -554,8 +617,37 @@ struct WorkoutAIAssistantView: View {
                 messageStartTime = nil
 
                 saveMessages()
+
+                // Auto-save to history after each response
+                if !messages.isEmpty && aiService.error == nil {
+                    saveCurrentConversationToHistory()
+                }
             }
         }
+    }
+
+    private func startNewConversation() {
+        // Save current conversation if it has messages
+        if !messages.isEmpty {
+            saveCurrentConversationToHistory()
+        }
+
+        withAnimation {
+            messages.removeAll()
+            aiService.streamedResponse = ""
+            aiService.error = nil
+            streamingMessageId = nil
+            currentConversationId = UUID()
+        }
+        saveMessages()
+
+        // Track new conversation started
+        AnalyticsService.shared.trackAIChatOpened()
+    }
+
+    private func showConversationHistory() {
+        loadConversationHistories()
+        showingHistory = true
     }
 
     private func clearChat() {
@@ -566,6 +658,19 @@ struct WorkoutAIAssistantView: View {
             streamingMessageId = nil
         }
         saveMessages()
+    }
+
+    private func loadConversation(_ history: ConversationHistory) {
+        withAnimation {
+            messages = history.messages
+            currentConversationId = history.id
+        }
+        showingHistory = false
+    }
+
+    private func deleteConversation(_ history: ConversationHistory) {
+        conversationHistories.removeAll { $0.id == history.id }
+        saveConversationHistories()
     }
 
     // MARK: - Message Persistence
@@ -580,6 +685,63 @@ struct WorkoutAIAssistantView: View {
         if let data = UserDefaults.standard.data(forKey: "workout_chat_messages"),
            let decoded = try? JSONDecoder().decode([ChatMessage].self, from: data) {
             messages = decoded
+        }
+    }
+
+    // MARK: - Conversation History Persistence
+
+    private func saveCurrentConversationToHistory() {
+        guard !messages.isEmpty else { return }
+
+        let modeString = modeToString(mode)
+        let title = ConversationHistory.generateTitle(from: messages)
+        let conversationId = currentConversationId ?? UUID()
+
+        let conversation = ConversationHistory(
+            id: conversationId,
+            title: title,
+            messages: messages,
+            createdAt: messages.first?.timestamp ?? Date(),
+            updatedAt: Date(),
+            mode: modeString
+        )
+
+        // Update existing or add new
+        if let index = conversationHistories.firstIndex(where: { $0.id == conversationId }) {
+            conversationHistories[index] = conversation
+        } else {
+            conversationHistories.insert(conversation, at: 0)
+        }
+
+        // Keep only last 50 conversations
+        if conversationHistories.count > 50 {
+            conversationHistories = Array(conversationHistories.prefix(50))
+        }
+
+        saveConversationHistories()
+    }
+
+    private func saveConversationHistories() {
+        if let encoded = try? JSONEncoder().encode(conversationHistories) {
+            UserDefaults.standard.set(encoded, forKey: "workout_conversation_histories")
+        }
+    }
+
+    private func loadConversationHistories() {
+        if let data = UserDefaults.standard.data(forKey: "workout_conversation_histories"),
+           let decoded = try? JSONDecoder().decode([ConversationHistory].self, from: data) {
+            conversationHistories = decoded
+        }
+    }
+
+    private func modeToString(_ mode: AIAssistantMode) -> String {
+        switch mode {
+        case .singleWorkout:
+            return "single_workout"
+        case .recentWorkouts:
+            return "recent_workouts"
+        case .recoveryCoaching:
+            return "recovery_coaching"
         }
     }
 }
@@ -835,6 +997,201 @@ struct TypingIndicator: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onAppear {
             animationPhase = 0
+        }
+    }
+}
+
+// MARK: - Conversation History View
+
+struct ConversationHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var histories: [ConversationHistory]
+    let onSelectConversation: (ConversationHistory) -> Void
+    let onDeleteConversation: (ConversationHistory) -> Void
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Liquid Glass Background
+                LinearGradient(
+                    colors: [
+                        Color(.systemBackground),
+                        Color.blue.opacity(0.02),
+                        Color.blue.opacity(0.01)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+
+                if histories.isEmpty {
+                    emptyStateView
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(histories) { history in
+                                ConversationHistoryRow(
+                                    history: history,
+                                    onSelect: {
+                                        onSelectConversation(history)
+                                    },
+                                    onDelete: {
+                                        withAnimation {
+                                            onDeleteConversation(history)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "Conversation History", comment: "Title for conversation history view"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(String(localized: "Done", comment: "Close conversation history button")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 100, height: 100)
+                    .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
+
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 40))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .cyan],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
+            VStack(spacing: 8) {
+                Text(String(localized: "No Conversations Yet", comment: "Empty state title for conversation history"))
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text(String(localized: "Your past conversations will appear here", comment: "Empty state subtitle for conversation history"))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding()
+    }
+}
+
+// MARK: - Conversation History Row
+
+struct ConversationHistoryRow: View {
+    let history: ConversationHistory
+    let onSelect: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 12) {
+                // Icon based on mode
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: modeIcon)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .cyan],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .font(.system(size: 18))
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(history.title)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+
+                    HStack(spacing: 8) {
+                        Text(formatDate(history.updatedAt))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Text("•")
+                            .foregroundColor(.secondary)
+
+                        Text(String(format: String(localized: "%lld messages", comment: "Number of messages in conversation"), history.messages.count))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // Delete button
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(16)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private var modeIcon: String {
+        switch history.mode {
+        case "single_workout":
+            return "figure.run"
+        case "recent_workouts":
+            return "chart.line.uptrend.xyaxis"
+        case "recovery_coaching":
+            return "heart.text.square"
+        default:
+            return "sparkles"
+        }
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+
+        if calendar.isDateInToday(date) {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            return String(localized: "Today at \(formatter.string(from: date))", comment: "Today's date format with time")
+        } else if calendar.isDateInYesterday(date) {
+            return String(localized: "Yesterday", comment: "Yesterday label")
+        } else if let daysAgo = calendar.dateComponents([.day], from: date, to: now).day, daysAgo < 7 {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE"
+            return formatter.string(from: date)
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            return formatter.string(from: date)
         }
     }
 }

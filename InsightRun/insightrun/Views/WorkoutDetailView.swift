@@ -36,73 +36,76 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ScrollView(.vertical, showsIndicators: true) {
-                VStack(spacing: 16) {
-                    if viewModel.isLoading {
-                        loadingSection
-                    } else if let error = viewModel.errorMessage {
-                        errorSection(error)
-                    } else if let metrics = viewModel.metrics {
-                        // Header with date and location
-                        headerSection(metrics: metrics)
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if viewModel.isLoading {
+                            loadingSection
+                        } else if let error = viewModel.errorMessage {
+                            errorSection(error)
+                        } else if let metrics = viewModel.metrics {
+                            // Header with date and location
+                            headerSection(metrics: metrics)
 
-                        // Main metrics grid (2x2)
-                        mainMetricsGrid(metrics: metrics)
+                            // Main metrics grid (2x2)
+                            mainMetricsGrid(metrics: metrics)
 
-                        // AI Analysis Section
-                        aiAnalysisSection
+                            // AI Analysis Section
+                            aiAnalysisSection
 
-                        // Route map after AI analysis
-                        if let routePoints = metrics.routePoints, !routePoints.isEmpty {
-                            routeMapSection(routePoints: routePoints)
-                        }
-
-                        // Interactive Charts (HR, Pace, Power)
-                        if let splits = metrics.splits, !splits.isEmpty {
-                            SwipeableChartsView(metrics: metrics)
-                        }
-
-                        // Performance section (no accordion)
-                        if hasPerformanceMetrics(metrics) {
-                            MetricsCard(
-                                title: String(localized: "Performance", comment: "Performance metrics section title"),
-                                icon: "bolt.fill",
-                                iconColor: .yellow
-                            ) {
-                                performanceContent(metrics: metrics)
+                            // Route map after AI analysis
+                            if let routePoints = metrics.routePoints, !routePoints.isEmpty {
+                                routeMapSection(routePoints: routePoints)
                             }
-                        }
 
-                        // Advanced metrics section (no accordion)
-                        if hasAdvancedMetrics(metrics) {
-                            MetricsCard(
-                                title: String(localized: "Advanced Metrics", comment: "Advanced metrics section title"),
-                                icon: "waveform.path.ecg",
-                                iconColor: .indigo
-                            ) {
-                                advancedMetricsContent(metrics: metrics)
+                            // Interactive Charts (HR, Pace, Power)
+                            if let splits = metrics.splits, !splits.isEmpty {
+                                SwipeableChartsView(metrics: metrics)
                             }
-                        }
 
-                        // Splits section (with accordion)
-                        if let splits = metrics.splits, !splits.isEmpty {
-                            AccordionSection(
-                                title: String(localized: "Splits", comment: "Splits section title"),
-                                icon: "list.number",
-                                iconColor: .blue,
-                                isExpanded: false
-                            ) {
-                                splitsContent(splits: splits)
+                            // Performance section (no accordion)
+                            if hasPerformanceMetrics(metrics) {
+                                MetricsCard(
+                                    title: String(localized: "Performance", comment: "Performance metrics section title"),
+                                    icon: "bolt.fill",
+                                    iconColor: .yellow
+                                ) {
+                                    performanceContent(metrics: metrics)
+                                }
                             }
-                        }
 
-                        sourceSection
+                            // Advanced metrics section (no accordion)
+                            if hasAdvancedMetrics(metrics) {
+                                MetricsCard(
+                                    title: String(localized: "Advanced Metrics", comment: "Advanced metrics section title"),
+                                    icon: "waveform.path.ecg",
+                                    iconColor: .indigo
+                                ) {
+                                    advancedMetricsContent(metrics: metrics)
+                                }
+                            }
+
+                            // Splits section (with accordion)
+                            if let splits = metrics.splits, !splits.isEmpty {
+                                AccordionSection(
+                                    title: String(localized: "Splits", comment: "Splits section title"),
+                                    icon: "list.number",
+                                    iconColor: .blue,
+                                    isExpanded: false
+                                ) {
+                                    splitsContent(splits: splits)
+                                }
+                            }
+
+                            sourceSection
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
-                .padding()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
             }
-            .scrollIndicators(.visible, axes: .vertical)
-            .scrollIndicators(.hidden, axes: .horizontal)
             .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {

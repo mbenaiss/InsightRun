@@ -99,10 +99,10 @@ struct WorkoutDetailView: View {
                         sourceSection
                     }
                 }
-                .frame(maxWidth: .infinity)
                 .padding()
             }
-            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            .scrollIndicators(.visible, axes: .vertical)
+            .scrollIndicators(.hidden, axes: .horizontal)
             .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
@@ -549,6 +549,7 @@ struct WorkoutDetailView: View {
                     MarkdownText(analysis)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     HStack {
                         if let analyzedAt = analysisViewModel.analyzedAt {

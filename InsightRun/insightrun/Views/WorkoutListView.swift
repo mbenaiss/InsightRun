@@ -16,8 +16,8 @@ struct WorkoutListView: View {
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            NavigationStack {
+        NavigationStack {
+            ZStack(alignment: .bottomTrailing) {
                 Group {
                     switch viewModel.authorizationStatus {
                     case .notDetermined:
@@ -73,32 +73,32 @@ struct WorkoutListView: View {
                         AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: viewModel.workouts.count)
                     }
                 }
-            }
 
-            // Floating AI Button - Only for subscribers
-            if viewModel.authorizationStatus == .authorized &&
-               !viewModel.workouts.isEmpty &&
-               revenueCatManager.isSubscriptionActive {
-                Button(action: { showingAIAssistant = true }) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue, .cyan],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                // Floating AI Button - Only for subscribers, only on list view
+                if viewModel.authorizationStatus == .authorized &&
+                   !viewModel.workouts.isEmpty &&
+                   revenueCatManager.isSubscriptionActive {
+                    Button(action: { showingAIAssistant = true }) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.blue, .cyan],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                            .frame(width: 60, height: 60)
-                            .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
+                                .frame(width: 60, height: 60)
+                                .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
 
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(.white)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
                     }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
                 }
-                .padding(.trailing, 20)
-                .padding(.bottom, 20)
             }
         }
         .sheet(isPresented: $showingAIAssistant) {

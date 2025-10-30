@@ -87,6 +87,82 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
     // MARK: - Generate Analysis
 
+    /// Get analysis prompt in user's language
+    private func getAnalysisPrompt() -> String {
+        let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
+
+        if languageCode == "fr" {
+            return """
+            Analyse ce workout en profondeur et fournis une réponse CONCISE (max 250 mots) en markdown avec cette structure exacte:
+
+            ## 🎯 Points Clés
+            - [2-3 insights sur la performance globale]
+
+            ## ✅ Métriques Optimales
+            - [Liste UNIQUEMENT les métriques qui sont dans les normes optimales, groupées en UNE ligne]
+            - Exemple: "Cadence (178 spm), Asymétrie (2.5%), Vitesse marche (5.2 km/h) ✅"
+            - Si AUCUNE métrique n'est optimale, omets cette section
+
+            ## ⚠️ À Optimiser
+            - [Liste UNIQUEMENT les métriques problématiques avec leurs valeurs et cibles]
+            - Format: "Métrique actuelle → Cible optimale + Impact/Conseil"
+            - Exemple: "Temps contact sol: 285 ms → 200-250 ms (perte efficacité ~8%)"
+            - Si TOUT est optimal, omets cette section et mentionne-le dans Points Clés
+
+            ## 💡 Actions Concrètes
+            - [1-2 exercices spécifiques SEULEMENT s'il y a des métriques à améliorer]
+            - Sinon omets cette section
+
+            ## 🔄 Récupération
+            - [1 conseil personnalisé basé sur l'intensité et la durée du workout]
+            - Mentionne le temps de repos recommandé avant le prochain entraînement intense
+            - Exemple: "48h de repos recommandé. Privilégie sommeil 8h+ et hydratation."
+
+            RÈGLES STRICTES:
+            - N'analyse QUE les métriques DISPONIBLES dans les données (ne mentionne JAMAIS "données non disponibles")
+            - Groupe les métriques optimales, détaille seulement celles à améliorer
+            - Sois concis: 1 ligne par métrique problématique max
+            - Si tout est optimal, dis-le clairement et félicite l'athlète
+            - Section Récupération TOUJOURS présente avec conseil adapté à l'effort
+            """
+        } else {
+            // English version
+            return """
+            Analyze this workout in depth and provide a CONCISE response (max 250 words) in markdown with this exact structure:
+
+            ## 🎯 Key Points
+            - [2-3 insights on overall performance]
+
+            ## ✅ Optimal Metrics
+            - [List ONLY metrics that are within optimal ranges, grouped in ONE line]
+            - Example: "Cadence (178 spm), Asymmetry (2.5%), Walking speed (5.2 km/h) ✅"
+            - If NO metrics are optimal, omit this section
+
+            ## ⚠️ To Optimize
+            - [List ONLY problematic metrics with their values and targets]
+            - Format: "Current metric → Optimal target + Impact/Advice"
+            - Example: "Ground contact time: 285 ms → 200-250 ms (~8% efficiency loss)"
+            - If EVERYTHING is optimal, omit this section and mention it in Key Points
+
+            ## 💡 Concrete Actions
+            - [1-2 specific exercises ONLY if there are metrics to improve]
+            - Otherwise omit this section
+
+            ## 🔄 Recovery
+            - [1 personalized advice based on workout intensity and duration]
+            - Mention recommended rest time before next intense training
+            - Example: "48h rest recommended. Focus on 8h+ sleep and hydration."
+
+            STRICT RULES:
+            - Analyze ONLY AVAILABLE metrics in the data (NEVER mention "data not available")
+            - Group optimal metrics, detail only those to improve
+            - Be concise: max 1 line per problematic metric
+            - If everything is optimal, say it clearly and congratulate the athlete
+            - Recovery section ALWAYS present with advice adapted to the effort
+            """
+        }
+    }
+
     /// Generate new AI analysis and save to SwiftData
     func generateAnalysis() async {
         print("🔵 WorkoutAnalysisViewModel: generateAnalysis() started")
@@ -99,40 +175,8 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // Backend will build context from workout data
         print("🔵 WorkoutAnalysisViewModel: Sending workout data to backend for context generation")
 
-        // Ask AI to analyze this specific workout with a concise, structured response
-        let question = """
-        Analyse ce workout en profondeur et fournis une réponse CONCISE (max 250 mots) en markdown avec cette structure exacte:
-
-        ## 🎯 Points Clés
-        - [2-3 insights sur la performance globale]
-
-        ## ✅ Métriques Optimales
-        - [Liste UNIQUEMENT les métriques qui sont dans les normes optimales, groupées en UNE ligne]
-        - Exemple: "Cadence (178 spm), Asymétrie (2.5%), Vitesse marche (5.2 km/h) ✅"
-        - Si AUCUNE métrique n'est optimale, omets cette section
-
-        ## ⚠️ À Optimiser
-        - [Liste UNIQUEMENT les métriques problématiques avec leurs valeurs et cibles]
-        - Format: "Métrique actuelle → Cible optimale + Impact/Conseil"
-        - Exemple: "Temps contact sol: 285 ms → 200-250 ms (perte efficacité ~8%)"
-        - Si TOUT est optimal, omets cette section et mentionne-le dans Points Clés
-
-        ## 💡 Actions Concrètes
-        - [1-2 exercices spécifiques SEULEMENT s'il y a des métriques à améliorer]
-        - Sinon omets cette section
-
-        ## 🔄 Récupération
-        - [1 conseil personnalisé basé sur l'intensité et la durée du workout]
-        - Mentionne le temps de repos recommandé avant le prochain entraînement intense
-        - Exemple: "48h de repos recommandé. Privilégie sommeil 8h+ et hydratation."
-
-        RÈGLES STRICTES:
-        - N'analyse QUE les métriques DISPONIBLES dans les données (ne mentionne JAMAIS "données non disponibles")
-        - Groupe les métriques optimales, détaille seulement celles à améliorer
-        - Sois concis: 1 ligne par métrique problématique max
-        - Si tout est optimal, dis-le clairement et félicite l'athlète
-        - Section Récupération TOUJOURS présente avec conseil adapté à l'effort
-        """
+        // Get analysis prompt in user's language
+        let question = getAnalysisPrompt()
 
         // Use Grok-4-fast for automatic analysis (always use Grok to keep costs low)
         // Backend builds context from structured workout data

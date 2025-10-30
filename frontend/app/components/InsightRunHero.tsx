@@ -20,7 +20,8 @@ export default function InsightRunHero() {
           </h1>
 
           <p className="text-xl md:text-2xl text-gray-600 leading-relaxed max-w-3xl mx-auto">
-            Advanced running analytics meets intelligent coaching. Track every metric, optimize recovery, and achieve your goals with insights from the world's most advanced AI.
+            Advanced running analytics meets intelligent coaching. Track every metric, optimize
+            recovery, and achieve your goals with insights from the world's most advanced AI.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center">

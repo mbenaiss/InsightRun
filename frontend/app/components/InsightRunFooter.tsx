@@ -39,7 +39,10 @@ export default function InsightRunFooter() {
             <h3 className="font-semibold mb-4">Product</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#features" className="text-gray-400 hover:text-[#0094FF] transition-colors">
+                <a
+                  href="#features"
+                  className="text-gray-400 hover:text-[#0094FF] transition-colors"
+                >
                   Features
                 </a>
               </li>
@@ -54,17 +57,26 @@ export default function InsightRunFooter() {
             <h3 className="font-semibold mb-4">Legal</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/privacy" className="text-gray-400 hover:text-[#0094FF] transition-colors">
+                <Link
+                  href="/privacy"
+                  className="text-gray-400 hover:text-[#0094FF] transition-colors"
+                >
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="text-gray-400 hover:text-[#0094FF] transition-colors">
+                <Link
+                  href="/terms"
+                  className="text-gray-400 hover:text-[#0094FF] transition-colors"
+                >
                   Terms of Service
                 </Link>
               </li>
               <li>
-                <Link href="/support" className="text-gray-400 hover:text-[#0094FF] transition-colors">
+                <Link
+                  href="/support"
+                  className="text-gray-400 hover:text-[#0094FF] transition-colors"
+                >
                   Support
                 </Link>
               </li>

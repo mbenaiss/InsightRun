@@ -10,7 +10,8 @@ export default function InsightRunScreenshots() {
             Experience InsightRun
           </h2>
           <p className="text-xl text-gray-600">
-            A beautiful, intuitive interface designed to help you understand and improve your running performance.
+            A beautiful, intuitive interface designed to help you understand and improve your
+            running performance.
           </p>
         </div>
 
@@ -33,6 +34,8 @@ export default function InsightRunScreenshots() {
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        role="img"
+                        aria-label="Dashboard icon"
                       >
                         <path
                           strokeLinecap="round"
@@ -64,6 +67,8 @@ export default function InsightRunScreenshots() {
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        role="img"
+                        aria-label="Analytics icon"
                       >
                         <path
                           strokeLinecap="round"
@@ -95,6 +100,8 @@ export default function InsightRunScreenshots() {
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        role="img"
+                        aria-label="Recovery icon"
                       >
                         <path
                           strokeLinecap="round"
@@ -126,6 +133,8 @@ export default function InsightRunScreenshots() {
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        role="img"
+                        aria-label="AI Insights icon"
                       >
                         <path
                           strokeLinecap="round"
@@ -159,7 +168,8 @@ export default function InsightRunScreenshots() {
         {/* Call to Action */}
         <div className="text-center mt-16">
           <p className="text-gray-600 mb-6">
-            Replace these placeholders with your actual app screenshots to showcase the real experience.
+            Replace these placeholders with your actual app screenshots to showcase the real
+            experience.
           </p>
         </div>
       </div>

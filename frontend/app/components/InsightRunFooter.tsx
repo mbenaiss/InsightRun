@@ -2,13 +2,13 @@ import Link from 'next/link'
 
 export default function InsightRunFooter() {
   return (
-    <footer className="bg-gray-900 text-white py-12">
+    <footer className="bg-[#1a2942] text-white py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Column */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#FF8C42] to-[#eca869] rounded-xl flex items-center justify-center shadow-lg">
                 <svg
                   className="w-6 h-6 text-white"
                   fill="none"
@@ -39,7 +39,7 @@ export default function InsightRunFooter() {
             <h3 className="font-semibold mb-4">Product</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#features" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#features" className="text-gray-400 hover:text-[#FF8C42] transition-colors">
                   Features
                 </a>
               </li>
@@ -54,24 +54,24 @@ export default function InsightRunFooter() {
             <h3 className="font-semibold mb-4">Legal</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/privacy" className="text-gray-400 hover:text-[#FF8C42] transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/terms" className="text-gray-400 hover:text-[#FF8C42] transition-colors">
                   Terms of Service
                 </Link>
               </li>
               <li>
-                <Link href="/support" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/support" className="text-gray-400 hover:text-[#FF8C42] transition-colors">
                   Support
                 </Link>
               </li>
               <li>
                 <a
                   href="mailto:support@altcode.studio"
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-[#FF8C42] transition-colors"
                 >
                   Contact
                 </a>
@@ -81,14 +81,14 @@ export default function InsightRunFooter() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-gray-800">
+        <div className="mt-12 pt-8 border-t border-[#164ea2]/30">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-gray-400 text-sm">© 2025 InsightRun. All rights reserved.</p>
 
             <div className="flex items-center gap-6">
               <a
                 href="https://x.com"
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-[#FF8C42] transition-colors"
                 aria-label="Twitter"
                 target="_blank"
                 rel="noopener noreferrer"

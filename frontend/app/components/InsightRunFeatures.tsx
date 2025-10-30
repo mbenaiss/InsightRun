@@ -21,8 +21,8 @@ export default function InsightRunFeatures() {
       title: 'Advanced Running Metrics',
       description:
         'Track distance, duration, pace, cadence, heart rate, power, stride length, ground contact time, and more with HealthKit integration.',
-      color: 'from-blue-600 to-blue-400',
-      bgColor: 'bg-blue-50',
+      color: 'from-[#FF8C42] to-[#eca869]',
+      bgColor: 'bg-[#fdf8f3]',
     },
     {
       icon: (
@@ -45,8 +45,8 @@ export default function InsightRunFeatures() {
       title: 'AI-Powered Coaching',
       description:
         'Get personalized insights and recommendations from advanced AI models (Claude Sonnet 4.5, GPT-5, or Grok-4) analyzing your performance data.',
-      color: 'from-cyan-600 to-cyan-400',
-      bgColor: 'bg-cyan-50',
+      color: 'from-[#164ea2] to-[#1a2942]',
+      bgColor: 'bg-[#1a2942]/5',
     },
     {
       icon: (
@@ -69,8 +69,8 @@ export default function InsightRunFeatures() {
       title: 'Recovery Dashboard',
       description:
         'Monitor your daily readiness score based on HRV, resting heart rate, sleep quality, and respiratory rate. Know when to push hard or rest.',
-      color: 'from-green-600 to-green-400',
-      bgColor: 'bg-green-50',
+      color: 'from-[#FF8C42] to-[#d38236]',
+      bgColor: 'bg-[#fdf8f3]',
     },
     {
       icon: (
@@ -93,8 +93,8 @@ export default function InsightRunFeatures() {
       title: 'Detailed Analytics',
       description:
         'View split times, elevation profiles, heart rate zones, and comprehensive performance trends over time to track your progress.',
-      color: 'from-purple-600 to-purple-400',
-      bgColor: 'bg-purple-50',
+      color: 'from-[#164ea2] to-[#081d3c]',
+      bgColor: 'bg-[#1a2942]/5',
     },
     {
       icon: (
@@ -117,8 +117,8 @@ export default function InsightRunFeatures() {
       title: 'Privacy-First Design',
       description:
         'Your health data stays on your device. Only anonymized metrics are sent to AI services. No user tracking, no data selling, ever.',
-      color: 'from-pink-600 to-pink-400',
-      bgColor: 'bg-pink-50',
+      color: 'from-[#1a2942] to-[#081d3c]',
+      bgColor: 'bg-[#1a2942]/5',
     },
     {
       icon: (
@@ -140,22 +140,18 @@ export default function InsightRunFeatures() {
       ),
       title: 'Native iOS Experience',
       description:
-        'Built with SwiftUI for iOS 17+. Seamless HealthKit integration. Beautiful liquid glass design. Optimized for all iPhone sizes.',
-      color: 'from-orange-600 to-orange-400',
-      bgColor: 'bg-orange-50',
+        'Built with SwiftUI for iOS 26+. Seamless HealthKit integration. Beautiful liquid glass design. Optimized for all iPhone sizes.',
+      color: 'from-[#FF8C42] to-[#eca869]',
+      bgColor: 'bg-[#fdf8f3]',
     },
   ]
 
   return (
-    <section id="features" className="py-20 md:py-32 bg-white">
+    <section id="features" className="py-20 md:py-32 bg-[#fefbf7]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Everything you need to
-            <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              {' '}
-              run smarter
-            </span>
+          <h2 className="text-4xl md:text-5xl font-bold text-[#1a2942] mb-6">
+            Everything you need to run smarter
           </h2>
           <p className="text-xl text-gray-600">
             InsightRun combines advanced metrics, AI coaching, and recovery insights to help you
@@ -167,10 +163,10 @@ export default function InsightRunFeatures() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-transparent hover:-translate-y-1"
+              className="group relative bg-white rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-[#FF8C42]/20 hover:-translate-y-1"
             >
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300`}
+                className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-[0.03] rounded-3xl transition-opacity duration-300`}
               />
 
               <div className="relative">
@@ -184,7 +180,7 @@ export default function InsightRunFeatures() {
                   </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
+                <h3 className="text-xl font-bold text-[#1a2942] mb-3">{feature.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{feature.description}</p>
               </div>
             </div>

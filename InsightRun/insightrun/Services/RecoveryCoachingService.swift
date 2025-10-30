@@ -47,78 +47,79 @@ class RecoveryCoachingService {
 
     // Analyze recovery data and generate insights
     func analyzeRecovery(metrics: RecoveryMetrics) -> RecoveryInsight {
-        var score = 50 // Base score
+        // Use the optimized recovery score from RecoveryMetrics
+        let score = metrics.recoveryScore
         var recommendations: [String] = []
         var shouldRest = false
 
         // Analyze Resting Heart Rate
         if let restingHR = metrics.restingHeartRate {
-            let hrScore = analyzeRestingHR(restingHR)
-            score += hrScore
-
-            if restingHR > 70 {
+            if restingHR > 75 {
                 recommendations.append("FC au repos élevée (\(Int(restingHR)) bpm) - privilégiez la récupération")
                 shouldRest = true
-            } else if restingHR < 50 {
+            } else if restingHR < 55 {
                 recommendations.append("Excellente FC au repos (\(Int(restingHR)) bpm) - bonne forme aérobie")
+            } else if restingHR >= 55 && restingHR <= 65 {
+                recommendations.append("FC au repos normale (\(Int(restingHR)) bpm) - bonne récupération")
             }
         }
 
         // Analyze HRV
         if let hrv = metrics.hrv {
-            let hrvScore = analyzeHRV(hrv)
-            score += hrvScore
-
             if hrv < 30 {
                 recommendations.append("HRV faible (\(Int(hrv)) ms) - signe de fatigue, repos recommandé")
                 shouldRest = true
             } else if hrv > 60 {
                 recommendations.append("HRV excellente (\(Int(hrv)) ms) - système nerveux bien récupéré")
+            } else if hrv >= 40 && hrv <= 60 {
+                recommendations.append("HRV correcte (\(Int(hrv)) ms) - récupération en cours")
             }
         }
 
         // Analyze Sleep
         if let sleepData = metrics.sleepData {
-            let sleepScore = analyzeSleep(sleepData)
-            score += sleepScore
-
             let hours = sleepData.totalSleepDuration / 3600
             if hours < 7 {
                 recommendations.append("Sommeil insuffisant (\(String(format: "%.1fh", hours))) - visez 7-9h par nuit")
                 shouldRest = true
-            } else if hours >= 8 {
+            } else if hours >= 8 && hours <= 9 {
                 recommendations.append("Excellent sommeil (\(String(format: "%.1fh", hours))) - récupération optimale")
+            } else if hours > 10 {
+                recommendations.append("Sommeil prolongé (\(String(format: "%.1fh", hours))) - possible signe de fatigue")
             }
 
-            if sleepData.sleepEfficiency < 85 {
-                recommendations.append("Efficacité de sommeil à améliorer (\(Int(sleepData.sleepEfficiency))%)")
+            if sleepData.sleepEfficiency < 80 {
+                recommendations.append("Efficacité de sommeil à améliorer (\(Int(sleepData.sleepEfficiency))%) - optimisez votre environnement de sommeil")
+            } else if sleepData.sleepEfficiency >= 90 {
+                recommendations.append("Excellente efficacité de sommeil (\(Int(sleepData.sleepEfficiency))%)")
             }
         }
 
         // Analyze Walking Heart Rate
         if let walkingHR = metrics.walkingHeartRate {
-            if walkingHR > 100 {
-                recommendations.append("FC de marche élevée - possible fatigue cardiaque")
-                score -= 5
+            if walkingHR > 105 {
+                recommendations.append("FC de marche élevée (\(Int(walkingHR)) bpm) - possible fatigue cardiaque")
                 shouldRest = true
+            } else if walkingHR < 80 {
+                recommendations.append("FC de marche excellente (\(Int(walkingHR)) bpm) - bonne condition cardiovasculaire")
             }
         }
 
         // Analyze Respiratory Rate
         if let respRate = metrics.respiratoryRate {
-            if respRate > 20 {
-                recommendations.append("Fréquence respiratoire élevée - stress possible")
-                score -= 5
+            if respRate > 18 {
+                recommendations.append("Fréquence respiratoire élevée (\(Int(respRate)) /min) - stress possible")
+                if respRate > 20 {
+                    shouldRest = true
+                }
             } else if respRate >= 12 && respRate <= 16 {
-                recommendations.append("Fréquence respiratoire optimale")
-                score += 5
+                recommendations.append("Fréquence respiratoire optimale (\(Int(respRate)) /min)")
+            } else if respRate < 10 {
+                recommendations.append("Fréquence respiratoire basse (\(Int(respRate)) /min) - surveillez votre respiration")
             }
         }
 
-        // Cap score between 0-100
-        score = max(0, min(100, score))
-
-        // Determine status
+        // Determine status based on the optimized score
         let status: RecoveryInsight.RecoveryStatus
         if score >= 80 {
             status = .excellent
@@ -165,68 +166,9 @@ class RecoveryCoachingService {
         )
     }
 
-    // MARK: - Private Analysis Methods
-
-    private func analyzeRestingHR(_ hr: Double) -> Int {
-        switch hr {
-        case ..<50:
-            return 20 // Excellent athlete
-        case 50..<60:
-            return 15 // Very good
-        case 60..<70:
-            return 10 // Good
-        case 70..<80:
-            return 0  // Average
-        case 80..<90:
-            return -10 // Below average
-        default:
-            return -20 // Poor
-        }
-    }
-
-    private func analyzeHRV(_ hrv: Double) -> Int {
-        switch hrv {
-        case ..<20:
-            return -15 // Very low
-        case 20..<30:
-            return -5  // Low
-        case 30..<50:
-            return 5   // Average
-        case 50..<70:
-            return 15  // Good
-        default:
-            return 20  // Excellent
-        }
-    }
-
-    private func analyzeSleep(_ sleep: SleepData) -> Int {
-        let hours = sleep.totalSleepDuration / 3600
-        let efficiency = sleep.sleepEfficiency
-
-        var score = 0
-
-        // Duration score
-        if hours >= 8 && hours <= 9 {
-            score += 15
-        } else if hours >= 7 && hours < 8 {
-            score += 10
-        } else if hours >= 6 && hours < 7 {
-            score += 5
-        } else {
-            score -= 10
-        }
-
-        // Efficiency score
-        if efficiency >= 90 {
-            score += 10
-        } else if efficiency >= 85 {
-            score += 5
-        } else if efficiency < 75 {
-            score -= 5
-        }
-
-        return score
-    }
+    // MARK: - Private Helper Methods
+    // Note: Score calculation is now centralized in RecoveryMetrics
+    // This service focuses on generating contextual recommendations
 
     // Generate a contextual string for AI assistant
     func generateRecoveryContext(metrics: RecoveryMetrics) -> String {

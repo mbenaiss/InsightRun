@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     // Required for Cloudflare Workers compatibility
   },
   images: {
+    qualities: [75, 85, 90, 100],
     remotePatterns: [
       {
         protocol: 'https',

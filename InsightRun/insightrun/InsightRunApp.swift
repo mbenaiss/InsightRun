@@ -17,10 +17,8 @@ struct InsightRunApp: App {
         // Configure analytics (PostHog) - non-blocking, won't crash if PostHog is unavailable
         AnalyticsService.shared.configure()
 
-        // Configure RevenueCat on app launch
-        Task { @MainActor in
-            RevenueCatManager.shared.configure()
-        }
+        // Configure RevenueCat on app launch (synchronous - SDK must be ready before UI loads)
+        RevenueCatManager.shared.configure()
 
         // Track app opened event - non-blocking
         Task { @MainActor in

@@ -46,8 +46,9 @@ export default function InsightRunScreenshots() {
 
     const handleScroll = () => {
       const scrollLeft = carousel.scrollLeft
-      // Each screenshot is 300px wide + 32px gap (2rem = 32px)
-      const itemWidth = 300 + 32
+      // Each screenshot width + gap (mobile: 250px + 32px, desktop: 300px + 32px)
+      const isMobile = window.innerWidth < 768
+      const itemWidth = isMobile ? 250 + 32 : 300 + 32
       const newSlide = Math.round(scrollLeft / itemWidth)
       setCurrentSlide(Math.min(newSlide, screenshots.length - 1))
     }
@@ -81,7 +82,10 @@ export default function InsightRunScreenshots() {
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {screenshots.map((screenshot) => (
-              <div key={screenshot.id} className="flex-shrink-0 snap-center pt-8">
+              <div
+                key={screenshot.id}
+                className="flex-shrink-0 snap-center pt-8 w-[250px] md:w-[300px]"
+              >
                 <Image
                   src={screenshot.src}
                   alt={screenshot.title}
@@ -89,7 +93,7 @@ export default function InsightRunScreenshots() {
                   height={650}
                   loading="lazy"
                   quality={85}
-                  className="w-full h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-[2rem]"
+                  className="w-full h-auto max-h-[542px] md:max-h-[650px] object-cover drop-shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-[2rem]"
                 />
               </div>
             ))}
@@ -104,7 +108,8 @@ export default function InsightRunScreenshots() {
                 onClick={() => {
                   const carousel = carouselRef.current
                   if (carousel) {
-                    const itemWidth = 300 + 32 // 300px width + 32px gap
+                    const isMobile = window.innerWidth < 768
+                    const itemWidth = isMobile ? 250 + 32 : 300 + 32 // width + gap
                     carousel.scrollTo({ left: itemWidth * index, behavior: 'smooth' })
                   }
                 }}

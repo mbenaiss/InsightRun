@@ -10,11 +10,11 @@ export default function InsightRunFooter() {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-3 mb-4">
               <Image
-                src="/logo.png"
-                alt="InsightRun logo - Runner"
+                src="/app-icon.png"
+                alt="InsightRun logo"
                 width={40}
                 height={40}
-                className="w-10 h-10"
+                className="w-10 h-10 rounded-xl"
               />
               <span className="text-xl font-bold">Insight Run</span>
             </div>

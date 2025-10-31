@@ -1,7 +1,15 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+// Constants for dimensions and breakpoints
+const MOBILE_BREAKPOINT = 768
+const MOBILE_WIDTH = 250
+const DESKTOP_WIDTH = 300
+const GAP_WIDTH = 32 // Corresponds to gap-8 (8 * 4px = 32px)
+const MOBILE_MAX_HEIGHT = 542
+const DESKTOP_MAX_HEIGHT = 650
 
 const screenshots = [
   {
@@ -38,26 +46,80 @@ const screenshots = [
 
 export default function InsightRunScreenshots() {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
   const carouselRef = useRef<HTMLDivElement>(null)
 
+  // Handle viewport size detection
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateMobile = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    }
+
+    // Set initial value
+    updateMobile()
+
+    // Listen for resize events
+    window.addEventListener('resize', updateMobile)
+    return () => window.removeEventListener('resize', updateMobile)
+  }, [])
+
+  // Calculate item width based on viewport
+  const getItemWidth = useCallback(() => {
+    return isMobile ? MOBILE_WIDTH + GAP_WIDTH : DESKTOP_WIDTH + GAP_WIDTH
+  }, [isMobile])
+
+  // Handle scroll events
   useEffect(() => {
     const carousel = carouselRef.current
     if (!carousel) return
 
     const handleScroll = () => {
       const scrollLeft = carousel.scrollLeft
-      // Each screenshot is 300px wide + 32px gap (2rem = 32px)
-      const itemWidth = 300 + 32
+      const itemWidth = getItemWidth()
       const newSlide = Math.round(scrollLeft / itemWidth)
       setCurrentSlide(Math.min(newSlide, screenshots.length - 1))
     }
 
     carousel.addEventListener('scroll', handleScroll)
     return () => carousel.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [getItemWidth])
+
+  // Navigate to a specific slide
+  const scrollToSlide = useCallback(
+    (index: number) => {
+      const carousel = carouselRef.current
+      if (!carousel) return
+
+      const itemWidth = getItemWidth()
+      carousel.scrollTo({ left: itemWidth * index, behavior: 'smooth' })
+    },
+    [getItemWidth]
+  )
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && currentSlide > 0) {
+        e.preventDefault()
+        scrollToSlide(currentSlide - 1)
+      } else if (e.key === 'ArrowRight' && currentSlide < screenshots.length - 1) {
+        e.preventDefault()
+        scrollToSlide(currentSlide + 1)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentSlide, scrollToSlide])
 
   return (
-    <section id="screenshots" className="py-20 md:py-32 bg-[#0f172a] relative overflow-hidden">
+    <section
+      id="screenshots"
+      className="py-20 md:py-32 bg-[#0f172a] relative overflow-hidden"
+      aria-label="App Screenshots"
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -80,8 +142,11 @@ export default function InsightRunScreenshots() {
             className="flex gap-8 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide px-4 touch-pan-x"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {screenshots.map((screenshot) => (
-              <div key={screenshot.id} className="flex-shrink-0 snap-center pt-8">
+            {screenshots.map((screenshot, _index) => (
+              <div
+                key={screenshot.id}
+                className="flex-shrink-0 snap-center pt-8 w-[250px] md:w-[300px]"
+              >
                 <Image
                   src={screenshot.src}
                   alt={screenshot.title}
@@ -89,32 +154,35 @@ export default function InsightRunScreenshots() {
                   height={650}
                   loading="lazy"
                   quality={85}
-                  className="w-full h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-[2rem]"
+                  className={`w-full h-auto max-h-[${MOBILE_MAX_HEIGHT}px] md:max-h-[${DESKTOP_MAX_HEIGHT}px] object-cover drop-shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-[2rem]`}
                 />
               </div>
             ))}
           </div>
 
           {/* Scroll Indicator */}
-          <div className="flex justify-center gap-2 mt-8">
+          <div className="flex justify-center gap-2 mt-8" aria-live="polite" aria-atomic="true">
+            <span className="sr-only">
+              Slide {currentSlide + 1} of {screenshots.length}
+            </span>
             {screenshots.map((screenshot, index) => (
               <button
                 key={screenshot.id}
                 type="button"
-                onClick={() => {
-                  const carousel = carouselRef.current
-                  if (carousel) {
-                    const itemWidth = 300 + 32 // 300px width + 32px gap
-                    carousel.scrollTo({ left: itemWidth * index, behavior: 'smooth' })
-                  }
-                }}
+                onClick={() => scrollToSlide(index)}
                 className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                   currentSlide === index ? 'bg-white w-8' : 'bg-white/30 w-2 hover:bg-white/50'
                 }`}
                 aria-label={`Go to screenshot ${index + 1}: ${screenshot.title}`}
+                aria-current={currentSlide === index ? 'true' : 'false'}
               />
             ))}
           </div>
+        </div>
+
+        {/* Keyboard navigation hint */}
+        <div className="text-center mt-4 text-sm text-gray-500">
+          Use arrow keys to navigate between screenshots
         </div>
       </div>
 

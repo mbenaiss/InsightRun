@@ -13,11 +13,11 @@ export default function InsightRunHeader() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3">
               <Image
-                src="/logo.png"
-                alt="InsightRun logo - Runner"
+                src="/app-icon.png"
+                alt="InsightRun logo"
                 width={40}
                 height={40}
-                className="w-10 h-10"
+                className="w-10 h-10 rounded-xl"
               />
               <span className="text-xl font-bold text-white">Insight Run</span>
             </Link>

@@ -8,21 +8,21 @@ export default function InsightRunFeatures() {
           stroke="currentColor"
           viewBox="0 0 24 24"
           role="img"
-          aria-label="Lightning bolt icon"
+          aria-label="Chart line icon"
         >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M13 10V3L4 14h7v7l9-11h-7z"
+            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
           />
         </svg>
       ),
-      title: 'Advanced Running Metrics',
+      title: 'Advanced Tracking',
       description:
-        'Track distance, duration, pace, cadence, heart rate, power, stride length, ground contact time, and more with HealthKit integration.',
-      color: 'from-blue-600 to-blue-400',
-      bgColor: 'bg-blue-50',
+        'Detailed metrics for all your runs including distance, pace, heart rate, cadence, power, and more with seamless HealthKit integration.',
+      color: 'from-[#0094FF] to-[#64B0FF]',
+      bgColor: 'bg-[#E5F4FF]',
     },
     {
       icon: (
@@ -32,7 +32,7 @@ export default function InsightRunFeatures() {
           stroke="currentColor"
           viewBox="0 0 24 24"
           role="img"
-          aria-label="Light bulb icon"
+          aria-label="Brain icon"
         >
           <path
             strokeLinecap="round"
@@ -42,150 +42,104 @@ export default function InsightRunFeatures() {
           />
         </svg>
       ),
-      title: 'AI-Powered Coaching',
+      title: 'AI Coach',
       description:
-        'Get personalized insights and recommendations from advanced AI models (Claude Sonnet 4.5, GPT-5, or Grok-4) analyzing your performance data.',
-      color: 'from-cyan-600 to-cyan-400',
-      bgColor: 'bg-cyan-50',
+        'Get personalized advice and analysis from advanced AI to help you improve your performance and reach your goals.',
+      color: 'from-[#8B5CF6] to-[#A78BFA]',
+      bgColor: 'bg-[#F5F3FF]',
     },
     {
       icon: (
         <svg
           className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
+          fill="currentColor"
           viewBox="0 0 24 24"
           role="img"
           aria-label="Heart icon"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-          />
+          <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
         </svg>
       ),
-      title: 'Recovery Dashboard',
+      title: 'Recovery Analysis',
       description:
-        'Monitor your daily readiness score based on HRV, resting heart rate, sleep quality, and respiratory rate. Know when to push hard or rest.',
-      color: 'from-green-600 to-green-400',
-      bgColor: 'bg-green-50',
+        'Track your fitness and readiness with daily recovery scores based on HRV, resting heart rate, sleep quality, and respiratory rate.',
+      color: 'from-[#EF4444] to-[#F87171]',
+      bgColor: 'bg-[#FEF2F2]',
     },
     {
       icon: (
         <svg
           className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
+          fill="currentColor"
           viewBox="0 0 24 24"
           role="img"
-          aria-label="Bar chart icon"
+          aria-label="Chart bar icon"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-          />
+          <path d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V4.125c0-1.036-.84-1.875-1.875-1.875h-.75zM9.75 8.625c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-.75a1.875 1.875 0 01-1.875-1.875V8.625zM3 13.125c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v6.75c0 1.035-.84 1.875-1.875 1.875h-.75A1.875 1.875 0 013 19.875v-6.75z" />
         </svg>
       ),
-      title: 'Detailed Analytics',
+      title: 'Progress Tracking',
       description:
-        'View split times, elevation profiles, heart rate zones, and comprehensive performance trends over time to track your progress.',
-      color: 'from-purple-600 to-purple-400',
-      bgColor: 'bg-purple-50',
+        'Visualize your evolution over time with comprehensive performance trends, split times, elevation profiles, and heart rate zones.',
+      color: 'from-[#10B981] to-[#34D399]',
+      bgColor: 'bg-[#F0FDF4]',
     },
     {
       icon: (
         <svg
           className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
+          fill="currentColor"
           viewBox="0 0 24 24"
           role="img"
           aria-label="Lock icon"
         >
           <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            fillRule="evenodd"
+            d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z"
+            clipRule="evenodd"
           />
         </svg>
       ),
       title: 'Privacy-First Design',
       description:
         'Your health data stays on your device. Only anonymized metrics are sent to AI services. No user tracking, no data selling, ever.',
-      color: 'from-pink-600 to-pink-400',
-      bgColor: 'bg-pink-50',
-    },
-    {
-      icon: (
-        <svg
-          className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          role="img"
-          aria-label="Phone icon"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-          />
-        </svg>
-      ),
-      title: 'Native iOS Experience',
-      description:
-        'Built with SwiftUI for iOS 17+. Seamless HealthKit integration. Beautiful liquid glass design. Optimized for all iPhone sizes.',
-      color: 'from-orange-600 to-orange-400',
-      bgColor: 'bg-orange-50',
+      color: 'from-[#1a2942] to-[#0094FF]',
+      bgColor: 'bg-[#E5F4FF]',
     },
   ]
 
   return (
-    <section id="features" className="py-20 md:py-32 bg-white">
+    <section id="features" className="py-20 md:py-32 bg-[#0f172a]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Everything you need to
-            <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              {' '}
-              run smarter
-            </span>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Everything you need to run smarter
           </h2>
-          <p className="text-xl text-gray-600">
-            InsightRun combines advanced metrics, AI coaching, and recovery insights to help you
+          <p className="text-xl text-gray-300">
+            Insight Run combines advanced metrics, AI coaching, and recovery insights to help you
             reach your running goals.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-transparent hover:-translate-y-1"
+              className="group relative bg-slate-900/50 backdrop-blur rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-700 hover:border-blue-500/50 hover:-translate-y-1"
             >
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300`}
+                className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-[0.05] rounded-3xl transition-opacity duration-300`}
               />
 
               <div className="relative">
                 <div
-                  className={`w-16 h-16 ${feature.bgColor} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
+                  className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
                 >
-                  <div
-                    className={`text-transparent bg-gradient-to-br ${feature.color} bg-clip-text`}
-                  >
-                    {feature.icon}
-                  </div>
+                  <div className="text-white">{feature.icon}</div>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+                <p className="text-gray-400 leading-relaxed">{feature.description}</p>
               </div>
             </div>
           ))}

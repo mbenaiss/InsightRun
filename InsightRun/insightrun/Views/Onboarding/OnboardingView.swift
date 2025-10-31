@@ -13,10 +13,8 @@ struct OnboardingView: View {
 
     @State private var currentStep = 0
 
-    // Calculate total steps based on subscription status
-    private var totalSteps: Int {
-        revenueCatManager.isSubscriptionActive ? 2 : 3
-    }
+    // Fixed number of onboarding steps (always 3 for stability)
+    private let totalSteps = 3
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,28 +36,19 @@ struct OnboardingView: View {
                 // Step 2: HealthKit Permission
                 HealthKitPermissionStepView(onContinue: {
                     AnalyticsService.shared.trackOnboardingStepCompleted(step: 2, stepName: "healthkit_permission")
-
-                    // Check if user is already subscribed
-                    if revenueCatManager.isSubscriptionActive {
-                        // Skip paywall step and complete onboarding
-                        completeOnboarding()
-                    } else {
-                        // Show paywall step
-                        withAnimation {
-                            currentStep = 2
-                        }
+                    // Always show paywall step (handles subscription state internally)
+                    withAnimation {
+                        currentStep = 2
                     }
                 })
                 .tag(1)
 
-                // Step 3: Paywall (only if not subscribed)
-                if !revenueCatManager.isSubscriptionActive {
-                    PaywallStepView(onContinue: {
-                        AnalyticsService.shared.trackOnboardingStepCompleted(step: 3, stepName: "paywall")
-                        completeOnboarding()
-                    })
-                    .tag(2)
-                }
+                // Step 3: Paywall (always present for stability)
+                PaywallStepView(onContinue: {
+                    AnalyticsService.shared.trackOnboardingStepCompleted(step: 3, stepName: "paywall")
+                    completeOnboarding()
+                })
+                .tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut, value: currentStep)

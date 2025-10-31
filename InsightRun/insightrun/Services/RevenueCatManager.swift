@@ -16,6 +16,7 @@ class RevenueCatManager: NSObject, ObservableObject {
 
     @Published var isSubscriptionActive: Bool = false
     @Published var customerInfo: CustomerInfo?
+    @Published var isConfigured: Bool = false
 
     // Track if user has seen the initial paywall after HealthKit authorization
     @Published var hasSeenInitialPaywall: Bool = false
@@ -33,7 +34,7 @@ class RevenueCatManager: NSObject, ObservableObject {
     }
 
     /// Configure RevenueCat SDK with API key and link user identity
-    /// Call this method once at app launch
+    /// Call this method once at app launch (synchronous configuration)
     func configure() {
         // TODO: Replace with your actual RevenueCat API key from dashboard
         // Get it from: https://app.revenuecat.com/settings/api-keys
@@ -43,8 +44,12 @@ class RevenueCatManager: NSObject, ObservableObject {
         // Set up delegate to listen for customer info updates
         Purchases.shared.delegate = self
 
+        // Mark as configured immediately (SDK is ready)
+        isConfigured = true
+
         // Link user identity from UserIdentityService to RevenueCat
         // This ensures purchases are tied to the same UUID across devices
+        // These calls are async but don't block the SDK from working
         Task {
             await linkUserIdentity()
             await fetchCustomerInfo()

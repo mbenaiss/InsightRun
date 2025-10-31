@@ -1,6 +1,40 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
+
+const screenshots = [
+  {
+    id: 'screenshot-01',
+    src: '/screenshots/screenshot-01.png',
+    title: 'AI Coach in Your Pocket',
+    description: 'Get personalized AI analysis of every workout with detailed insights',
+  },
+  {
+    id: 'screenshot-02',
+    src: '/screenshots/screenshot-02.png',
+    title: 'Ask Anything, Train Smarter',
+    description: 'Chat with your AI coach about training, recovery, and performance',
+  },
+  {
+    id: 'screenshot-03',
+    src: '/screenshots/screenshot-03.png',
+    title: 'Advanced Metrics for Serious Runners',
+    description: 'Track performance, biomechanics, and advanced running metrics',
+  },
+  {
+    id: 'screenshot-04',
+    src: '/screenshots/screenshot-04.png',
+    title: 'Track Every Run, Every Achievement',
+    description: 'Complete workout history with stats and records tracking',
+  },
+  {
+    id: 'screenshot-05',
+    src: '/screenshots/screenshot-05.png',
+    title: 'Optimize Recovery, Maximize Performance',
+    description: 'Daily recovery scores based on HRV, heart rate, and sleep quality',
+  },
+]
 
 export default function InsightRunScreenshots() {
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -12,9 +46,10 @@ export default function InsightRunScreenshots() {
 
     const handleScroll = () => {
       const scrollLeft = carousel.scrollLeft
-      const slideWidth = carousel.scrollWidth / 4 // 4 screenshots
-      const newSlide = Math.round(scrollLeft / slideWidth)
-      setCurrentSlide(newSlide)
+      // Each screenshot is 300px wide + 32px gap (2rem = 32px)
+      const itemWidth = 300 + 32
+      const newSlide = Math.round(scrollLeft / itemWidth)
+      setCurrentSlide(Math.min(newSlide, screenshots.length - 1))
     }
 
     carousel.addEventListener('scroll', handleScroll)
@@ -22,182 +57,64 @@ export default function InsightRunScreenshots() {
   }, [])
 
   return (
-    <section id="screenshots" className="py-20 md:py-32 bg-white relative overflow-hidden">
+    <section id="screenshots" className="py-20 md:py-32 bg-[#0f172a] relative overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-[#1a2942] mb-6">
-            Experience Insight Run
-          </h2>
-          <p className="text-xl text-gray-600">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">Experience Insight Run</h2>
+          <p className="text-xl text-gray-300">
             A beautiful, intuitive interface designed to help you understand and improve your
             running performance.
           </p>
         </div>
 
-        {/* Screenshot Carousel Placeholder */}
+        {/* Screenshot Carousel */}
         <div className="relative max-w-7xl mx-auto">
           {/* Gradient fade on edges */}
-          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white to-transparent z-10" />
-          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white to-transparent z-10" />
+          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-slate-900 to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-slate-900 to-transparent z-10 pointer-events-none" />
 
           {/* Carousel Container */}
           <div
             ref={carouselRef}
-            className="flex gap-8 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide"
+            className="flex gap-8 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide px-4 touch-pan-x"
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {/* Screenshot 1 - Placeholder */}
-            <div className="flex-shrink-0 snap-center">
-              <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
-                <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#0094FF]/10 to-[#64B0FF]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#0094FF] to-[#64B0FF] rounded-3xl mb-4 flex items-center justify-center">
-                      <svg
-                        className="w-10 h-10 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        role="img"
-                        aria-label="Dashboard icon"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-bold text-[#1a2942] mb-2">Dashboard</h3>
-                    <p className="text-sm text-gray-600 text-center">
-                      Your complete running overview at a glance
-                    </p>
-                  </div>
-                </div>
-                {/* Notch */}
-                <div className="absolute top-7 left-1/2 transform -translate-x-1/2 w-28 h-6 bg-[#1a2942] rounded-full" />
+            {screenshots.map((screenshot) => (
+              <div key={screenshot.id} className="flex-shrink-0 snap-center pt-8">
+                <Image
+                  src={screenshot.src}
+                  alt={screenshot.title}
+                  width={300}
+                  height={650}
+                  loading="lazy"
+                  quality={85}
+                  className="w-full h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-[2rem]"
+                />
               </div>
-            </div>
-
-            {/* Screenshot 2 - Placeholder */}
-            <div className="flex-shrink-0 snap-center">
-              <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
-                <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#0094FF]/10 to-[#005A99]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#0094FF] to-[#005A99] rounded-3xl mb-4 flex items-center justify-center">
-                      <svg
-                        className="w-10 h-10 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        role="img"
-                        aria-label="Analytics icon"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-bold text-[#1a2942] mb-2">Analytics</h3>
-                    <p className="text-sm text-gray-600 text-center">
-                      Deep insights into your performance
-                    </p>
-                  </div>
-                </div>
-                {/* Notch */}
-                <div className="absolute top-7 left-1/2 transform -translate-x-1/2 w-28 h-6 bg-[#1a2942] rounded-full" />
-              </div>
-            </div>
-
-            {/* Screenshot 3 - Placeholder */}
-            <div className="flex-shrink-0 snap-center">
-              <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
-                <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#64B0FF]/10 to-[#0094FF]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#64B0FF] to-[#0094FF] rounded-3xl mb-4 flex items-center justify-center">
-                      <svg
-                        className="w-10 h-10 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        role="img"
-                        aria-label="Recovery icon"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-bold text-[#1a2942] mb-2">Recovery</h3>
-                    <p className="text-sm text-gray-600 text-center">
-                      Track your readiness to train
-                    </p>
-                  </div>
-                </div>
-                {/* Notch */}
-                <div className="absolute top-7 left-1/2 transform -translate-x-1/2 w-28 h-6 bg-[#1a2942] rounded-full" />
-              </div>
-            </div>
-
-            {/* Screenshot 4 - Placeholder */}
-            <div className="flex-shrink-0 snap-center">
-              <div className="relative bg-[#1a2942] rounded-[3rem] p-4 shadow-2xl w-[300px]">
-                <div className="bg-gradient-to-br from-[#fdf8f3] to-white rounded-[2.5rem] overflow-hidden aspect-[9/19.5]">
-                  <div className="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#0094FF]/10 to-[#1a2942]/10">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#0094FF] to-[#1a2942] rounded-3xl mb-4 flex items-center justify-center">
-                      <svg
-                        className="w-10 h-10 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        role="img"
-                        aria-label="AI Insights icon"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-bold text-[#1a2942] mb-2">AI Insights</h3>
-                    <p className="text-sm text-gray-600 text-center">
-                      Personalized coaching recommendations
-                    </p>
-                  </div>
-                </div>
-                {/* Notch */}
-                <div className="absolute top-7 left-1/2 transform -translate-x-1/2 w-28 h-6 bg-[#1a2942] rounded-full" />
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Scroll Indicator */}
           <div className="flex justify-center gap-2 mt-8">
-            {[0, 1, 2, 3].map((index) => (
-              <div
-                key={index}
-                className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                  currentSlide === index ? 'bg-[#0094FF]' : 'bg-gray-300'
+            {screenshots.map((screenshot, index) => (
+              <button
+                key={screenshot.id}
+                type="button"
+                onClick={() => {
+                  const carousel = carouselRef.current
+                  if (carousel) {
+                    const itemWidth = 300 + 32 // 300px width + 32px gap
+                    carousel.scrollTo({ left: itemWidth * index, behavior: 'smooth' })
+                  }
+                }}
+                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                  currentSlide === index ? 'bg-white w-8' : 'bg-white/30 w-2 hover:bg-white/50'
                 }`}
+                aria-label={`Go to screenshot ${index + 1}: ${screenshot.title}`}
               />
             ))}
           </div>
-        </div>
-
-        {/* Call to Action */}
-        <div className="text-center mt-16">
-          <p className="text-gray-600 mb-6">
-            Replace these placeholders with your actual app screenshots to showcase the real
-            experience.
-          </p>
         </div>
       </div>
 

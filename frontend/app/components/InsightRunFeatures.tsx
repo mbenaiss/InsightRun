@@ -109,13 +109,13 @@ export default function InsightRunFeatures() {
   ]
 
   return (
-    <section id="features" className="py-20 md:py-32 bg-[#fefbf7]">
+    <section id="features" className="py-20 md:py-32 bg-[#0f172a]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-[#1a2942] mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
             Everything you need to run smarter
           </h2>
-          <p className="text-xl text-gray-600">
+          <p className="text-xl text-gray-300">
             Insight Run combines advanced metrics, AI coaching, and recovery insights to help you
             reach your running goals.
           </p>
@@ -125,10 +125,10 @@ export default function InsightRunFeatures() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group relative bg-white rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-[#0094FF]/20 hover:-translate-y-1"
+              className="group relative bg-slate-900/50 backdrop-blur rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-700 hover:border-blue-500/50 hover:-translate-y-1"
             >
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-[0.03] rounded-3xl transition-opacity duration-300`}
+                className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-[0.05] rounded-3xl transition-opacity duration-300`}
               />
 
               <div className="relative">
@@ -138,8 +138,8 @@ export default function InsightRunFeatures() {
                   <div className="text-white">{feature.icon}</div>
                 </div>
 
-                <h3 className="text-xl font-bold text-[#1a2942] mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+                <p className="text-gray-400 leading-relaxed">{feature.description}</p>
               </div>
             </div>
           ))}

@@ -1680,18 +1680,37 @@ struct InteractivePowerChart: View {
 actor LocationCache {
     static let shared = LocationCache()
 
-    private var cache: [String: String] = [:]
+    private var cache: [String: CacheEntry] = [:]
+    private let maxCacheSize = 100 // Limit cache to 100 entries to prevent memory leaks
+
+    private struct CacheEntry {
+        let name: String
+        let timestamp: Date
+    }
 
     private init() {}
 
     func getCachedLocation(for coordinate: CLLocationCoordinate2D) -> String? {
         let key = cacheKey(for: coordinate)
-        return cache[key]
+        return cache[key]?.name
     }
 
     func setCachedLocation(_ name: String, for coordinate: CLLocationCoordinate2D) {
         let key = cacheKey(for: coordinate)
-        cache[key] = name
+        cache[key] = CacheEntry(name: name, timestamp: Date())
+
+        // Evict oldest entries if cache exceeds max size (LRU)
+        if cache.count > maxCacheSize {
+            let sortedEntries = cache.sorted { $0.value.timestamp < $1.value.timestamp }
+            let toRemove = sortedEntries.prefix(cache.count - maxCacheSize)
+            for (key, _) in toRemove {
+                cache.removeValue(forKey: key)
+            }
+        }
+    }
+
+    func clearCache() {
+        cache.removeAll()
     }
 
     private func cacheKey(for coordinate: CLLocationCoordinate2D) -> String {
@@ -1729,6 +1748,9 @@ struct LocationText: View {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         let unknownLocation = String(localized: "location.unknown", comment: "Unknown location")
 
+        // Check if task was cancelled before making network request
+        guard !Task.isCancelled else { return }
+
         guard let request = MKReverseGeocodingRequest(location: location) else {
             locationName = unknownLocation
             await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
@@ -1737,6 +1759,9 @@ struct LocationText: View {
 
         do {
             let mapItems = try await request.mapItems
+
+            // Check cancellation after network request
+            guard !Task.isCancelled else { return }
 
             if let mapItem = mapItems.first {
                 // Use addressRepresentations for iOS 26+ (preferred)
@@ -1774,7 +1799,12 @@ struct LocationText: View {
                 locationName = unknownLocation
                 await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
             }
+        } catch is CancellationError {
+            // Task was cancelled, don't update state or cache
+            return
         } catch {
+            // Only update on non-cancellation errors
+            guard !Task.isCancelled else { return }
             locationName = unknownLocation
             await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
         }

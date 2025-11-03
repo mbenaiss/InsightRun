@@ -112,8 +112,10 @@ struct WorkoutDetailView: View {
                 await viewModel.loadMetrics()
                 // Update metrics in analysisViewModel after loading
                 analysisViewModel.updateMetrics(viewModel.metrics)
-                // Also load cached analysis automatically
-                await analysisViewModel.loadAnalysis()
+                // Load cached analysis only if subscribed
+                if revenueCatManager.isSubscriptionActive {
+                    await analysisViewModel.loadAnalysis()
+                }
             }
             .onAppear {
                 // Track workout detail viewed
@@ -301,7 +303,8 @@ struct WorkoutDetailView: View {
                     icon: "hare.fill",
                     label: String(localized: "Best Pace", comment: "Best pace performance metric"),
                     value: viewModel.formatPace(minPace),
-                    color: .green
+                    color: .green,
+                    metricInfoKey: "metric.best_pace"
                 )
             }
 
@@ -310,7 +313,8 @@ struct WorkoutDetailView: View {
                     icon: "bolt.fill",
                     label: String(localized: "Max Speed", comment: "Maximum speed performance metric"),
                     value: viewModel.formatSpeed(maxSpeed),
-                    color: .yellow
+                    color: .yellow,
+                    metricInfoKey: "metric.max_speed"
                 )
             }
 
@@ -319,7 +323,8 @@ struct WorkoutDetailView: View {
                     icon: "metronome.fill",
                     label: String(localized: "Avg Cadence", comment: "Average cadence performance metric"),
                     value: viewModel.formatCadence(cadence),
-                    color: .indigo
+                    color: .indigo,
+                    metricInfoKey: "metric.avg_cadence"
                 )
             }
 
@@ -328,7 +333,8 @@ struct WorkoutDetailView: View {
                     icon: "figure.walk",
                     label: String(localized: "Stride Length", comment: "Stride length performance metric"),
                     value: viewModel.formatStrideLength(strideLength),
-                    color: .cyan
+                    color: .cyan,
+                    metricInfoKey: "metric.stride_length"
                 )
             }
 
@@ -337,7 +343,8 @@ struct WorkoutDetailView: View {
                     icon: "bolt.circle.fill",
                     label: String(localized: "Power", comment: "Running power performance metric"),
                     value: viewModel.formatPower(power),
-                    color: .orange
+                    color: .orange,
+                    metricInfoKey: "metric.running_power"
                 )
             }
 
@@ -346,7 +353,8 @@ struct WorkoutDetailView: View {
                     icon: "lungs.fill",
                     label: String(localized: "VO2 Max", comment: "VO2 Maximum performance metric"),
                     value: String(format: "%.1f ml/kg/min", vo2Max),
-                    color: .red
+                    color: .red,
+                    metricInfoKey: "metric.vo2_max"
                 )
             }
         }
@@ -407,7 +415,8 @@ struct WorkoutDetailView: View {
                     icon: "timer",
                     label: String(localized: "Ground Contact Time", comment: "Ground contact time advanced metric"),
                     value: String(format: "%.0f ms", gct),
-                    color: .indigo
+                    color: .indigo,
+                    metricInfoKey: "metric.ground_contact_time"
                 )
             }
 
@@ -416,7 +425,8 @@ struct WorkoutDetailView: View {
                     icon: "arrow.up.and.down",
                     label: String(localized: "Vertical Oscillation", comment: "Vertical oscillation advanced metric"),
                     value: String(format: "%.1f cm", vo),
-                    color: .cyan
+                    color: .cyan,
+                    metricInfoKey: "metric.vertical_oscillation"
                 )
             }
 
@@ -425,7 +435,8 @@ struct WorkoutDetailView: View {
                     icon: "scale.3d",
                     label: String(localized: "Contact Balance", comment: "Ground contact time balance advanced metric"),
                     value: viewModel.formatPercentage(balance),
-                    color: .orange
+                    color: .orange,
+                    metricInfoKey: "metric.contact_balance"
                 )
             }
 
@@ -434,7 +445,8 @@ struct WorkoutDetailView: View {
                     icon: "chart.line.uptrend.xyaxis",
                     label: String(localized: "Running Efficiency", comment: "Running efficiency advanced metric"),
                     value: viewModel.formatPercentage(efficiency),
-                    color: .green
+                    color: .green,
+                    metricInfoKey: "metric.running_efficiency"
                 )
             }
 
@@ -444,7 +456,8 @@ struct WorkoutDetailView: View {
                     icon: "figure.walk",
                     label: String(localized: "Walking Steadiness", comment: "Walking steadiness advanced metric"),
                     value: viewModel.formatPercentage(steadiness),
-                    color: .green
+                    color: .green,
+                    metricInfoKey: "metric.walking_steadiness"
                 )
             }
 
@@ -453,7 +466,8 @@ struct WorkoutDetailView: View {
                     icon: "figure.walk.arrival",
                     label: String(localized: "Walking Asymmetry", comment: "Walking asymmetry advanced metric"),
                     value: viewModel.formatPercentage(asymmetry),
-                    color: .orange
+                    color: .orange,
+                    metricInfoKey: "metric.walking_asymmetry"
                 )
             }
 
@@ -462,7 +476,8 @@ struct WorkoutDetailView: View {
                     icon: "figure.2.arms.open",
                     label: String(localized: "Double Support", comment: "Double support percentage advanced metric"),
                     value: viewModel.formatPercentage(doubleSupport),
-                    color: .blue
+                    color: .blue,
+                    metricInfoKey: "metric.double_support"
                 )
             }
 
@@ -471,7 +486,8 @@ struct WorkoutDetailView: View {
                     icon: "figure.walk.circle",
                     label: String(localized: "Walking Speed", comment: "Walking speed advanced metric"),
                     value: viewModel.formatSpeed(speed),
-                    color: .cyan
+                    color: .cyan,
+                    metricInfoKey: "metric.walking_speed"
                 )
             }
 
@@ -480,7 +496,8 @@ struct WorkoutDetailView: View {
                     icon: "figure.stairs",
                     label: String(localized: "Stair Ascent Speed", comment: "Stair ascent speed advanced metric"),
                     value: viewModel.formatSpeed(ascentSpeed),
-                    color: .purple
+                    color: .purple,
+                    metricInfoKey: "metric.stair_ascent_speed"
                 )
             }
 
@@ -489,7 +506,8 @@ struct WorkoutDetailView: View {
                     icon: "figure.stairs",
                     label: String(localized: "Stair Descent Speed", comment: "Stair descent speed advanced metric"),
                     value: viewModel.formatSpeed(descentSpeed),
-                    color: .indigo
+                    color: .indigo,
+                    metricInfoKey: "metric.stair_descent_speed"
                 )
             }
         }
@@ -497,11 +515,19 @@ struct WorkoutDetailView: View {
 
     // MARK: - AI Analysis Section
 
+    @State private var showSubscriptionPaywall = false
+
     private var aiAnalysisSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(.purple.gradient)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .cyan],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .font(.title3)
 
                 Text(String(localized: "AI Analysis", comment: "AI analysis section title"))
@@ -509,7 +535,52 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(.primary)
             }
 
-            if analysisViewModel.isLoading {
+            // Check subscription status first
+            if !revenueCatManager.isSubscriptionActive {
+                // Not subscribed - show locked state with CTA
+                VStack(spacing: 16) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 40))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .cyan],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        showSubscriptionPaywall = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "sparkles")
+                            Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
+                        }
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            LinearGradient(
+                                colors: [.blue, .cyan],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+
+            } else if analysisViewModel.isLoading {
                 // Loading state
                 HStack {
                     ProgressView()
@@ -572,7 +643,7 @@ struct WorkoutDetailView: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
-                        .tint(.purple)
+                        .tint(.blue)
                     }
                 }
 
@@ -594,7 +665,7 @@ struct WorkoutDetailView: View {
                             .fontWeight(.medium)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.purple)
+                    .tint(.blue)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
@@ -604,6 +675,10 @@ struct WorkoutDetailView: View {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .sheet(isPresented: $showSubscriptionPaywall) {
+            SubscriptionPaywallView(isInitialFlow: false)
+                .environmentObject(revenueCatManager)
+        }
     }
 
     // MARK: - Source Section
@@ -631,6 +706,154 @@ struct WorkoutDetailView: View {
 }
 
 // MARK: - Supporting Components
+
+// MARK: - Metric Info Model
+
+struct MetricInfo: Identifiable {
+    let id = UUID()
+    let key: String
+
+    var title: String {
+        NSLocalizedString("\(key).title", comment: "Metric title")
+    }
+
+    var description: String {
+        NSLocalizedString("\(key).description", comment: "Metric description")
+    }
+
+    var usage: String {
+        NSLocalizedString("\(key).usage", comment: "Metric usage")
+    }
+
+    var recommendedValues: String {
+        NSLocalizedString("\(key).recommended", comment: "Metric recommended values")
+    }
+}
+
+// MARK: - Metric Info Sheet
+
+struct MetricInfoSheet: View {
+    let metricInfo: MetricInfo
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header with metric title badge
+                    VStack(spacing: 12) {
+                        Image(systemName: "chart.line.uptrend.xyaxis.circle.fill")
+                            .font(.system(size: 50))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .cyan],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .padding(.top, 8)
+
+                        Text(metricInfo.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 8)
+
+                    // Description Card
+                    InfoCard(
+                        icon: "info.circle.fill",
+                        iconColor: .blue,
+                        title: String(localized: "metric.info.what", comment: "What is this metric?"),
+                        content: metricInfo.description
+                    )
+
+                    // Usage Card
+                    InfoCard(
+                        icon: "lightbulb.fill",
+                        iconColor: .orange,
+                        title: String(localized: "metric.info.usage", comment: "How is it used?"),
+                        content: metricInfo.usage
+                    )
+
+                    // Recommended Values Card
+                    InfoCard(
+                        icon: "checkmark.seal.fill",
+                        iconColor: .green,
+                        title: String(localized: "metric.info.recommended", comment: "Recommended values"),
+                        content: metricInfo.recommendedValues
+                    )
+                }
+                .padding()
+                .padding(.bottom, 20)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+// MARK: - Info Card Component
+
+struct InfoCard: View {
+    let icon: String
+    let iconColor: Color
+    let title: String
+    let content: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with icon and title
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(iconColor.opacity(0.15))
+                        .frame(width: 36, height: 36)
+
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(iconColor)
+                }
+
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+            }
+
+            // Content
+            Text(content)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        )
+    }
+}
 
 struct MetricsCard<Content: View>: View {
     let title: String
@@ -678,6 +901,9 @@ struct MetricRow: View {
     let label: String
     let value: String
     let color: Color
+    var metricInfoKey: String? = nil
+
+    @State private var showingInfo = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -695,6 +921,20 @@ struct MetricRow: View {
             Text(value)
                 .font(.headline)
                 .foregroundStyle(.primary)
+
+            if let metricInfoKey = metricInfoKey {
+                Button {
+                    showingInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showingInfo) {
+                    MetricInfoSheet(metricInfo: MetricInfo(key: metricInfoKey))
+                }
+            }
         }
     }
 }

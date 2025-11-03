@@ -26,7 +26,16 @@ struct WorkoutDetailView: View {
 
         // Initialize analysisViewModel with a temporary modelContext
         // Will be replaced in onAppear with actual modelContext
-        let container = try! ModelContainer(for: WorkoutAnalysis.self)
+        let container: ModelContainer
+        do {
+            container = try ModelContainer(for: WorkoutAnalysis.self)
+        } catch {
+            // Fallback to in-memory container if persistent storage fails
+            let schema = Schema([WorkoutAnalysis.self])
+            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            container = try! ModelContainer(for: schema, configurations: [config])
+        }
+
         _analysisViewModel = StateObject(wrappedValue: WorkoutAnalysisViewModel(
             workout: workout,
             metrics: nil,
@@ -1666,11 +1675,38 @@ struct InteractivePowerChart: View {
     }
 }
 
+// MARK: - Location Cache Actor
+
+actor LocationCache {
+    static let shared = LocationCache()
+
+    private var cache: [String: String] = [:]
+
+    private init() {}
+
+    func getCachedLocation(for coordinate: CLLocationCoordinate2D) -> String? {
+        let key = cacheKey(for: coordinate)
+        return cache[key]
+    }
+
+    func setCachedLocation(_ name: String, for coordinate: CLLocationCoordinate2D) {
+        let key = cacheKey(for: coordinate)
+        cache[key] = name
+    }
+
+    private func cacheKey(for coordinate: CLLocationCoordinate2D) -> String {
+        // Round to 3 decimal places (~110m precision) to improve cache hit rate
+        let lat = String(format: "%.3f", coordinate.latitude)
+        let lon = String(format: "%.3f", coordinate.longitude)
+        return "\(lat),\(lon)"
+    }
+}
+
 // MARK: - Location Text Component
 
 struct LocationText: View {
     let coordinate: CLLocationCoordinate2D
-    @State private var locationName: String = "Chargement..."
+    @State private var locationName: String = String(localized: "location.loading", comment: "Location loading")
 
     var body: some View {
         HStack(spacing: 4) {
@@ -1684,10 +1720,18 @@ struct LocationText: View {
     }
 
     private func fetchLocationName() async {
+        // Check cache first
+        if let cached = await LocationCache.shared.getCachedLocation(for: coordinate) {
+            locationName = cached
+            return
+        }
+
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let unknownLocation = String(localized: "location.unknown", comment: "Unknown location")
 
         guard let request = MKReverseGeocodingRequest(location: location) else {
-            locationName = "Lieu inconnu"
+            locationName = unknownLocation
+            await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
             return
         }
 
@@ -1699,6 +1743,7 @@ struct LocationText: View {
                 if let addressRepresentations = mapItem.addressRepresentations {
                     if let cityName = addressRepresentations.cityName {
                         locationName = cityName
+                        await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
                         return
                     }
                 }
@@ -1708,6 +1753,7 @@ struct LocationText: View {
                     // MKAddress only has fullAddress and shortAddress, parse shortAddress for city
                     if let shortAddress = address.shortAddress {
                         locationName = shortAddress
+                        await LocationCache.shared.setCachedLocation(shortAddress, for: coordinate)
                         return
                     }
                     // Last resort: use full address
@@ -1715,17 +1761,22 @@ struct LocationText: View {
                     if !fullAddress.isEmpty {
                         // Try to extract city from full address (first line usually)
                         let components = fullAddress.components(separatedBy: "\n")
-                        locationName = components.first ?? "Lieu inconnu"
+                        let cityName = components.first ?? unknownLocation
+                        locationName = cityName
+                        await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
                         return
                     }
                 }
 
-                locationName = "Lieu inconnu"
+                locationName = unknownLocation
+                await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
             } else {
-                locationName = "Lieu inconnu"
+                locationName = unknownLocation
+                await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
             }
         } catch {
-            locationName = "Lieu inconnu"
+            locationName = unknownLocation
+            await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
         }
     }
 }

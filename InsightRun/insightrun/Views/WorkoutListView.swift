@@ -29,9 +29,6 @@ struct WorkoutListView: View {
                             loadingView
                         } else if viewModel.workouts.isEmpty {
                             emptyView
-                        } else if !revenueCatManager.isSubscriptionActive {
-                            // Show preview with stats and CTA for non-subscribers
-                            lockedWorkoutsPreview
                         } else {
                             workoutList
                         }
@@ -336,6 +333,13 @@ struct WorkoutListView: View {
                         .padding(.top, 8)
                 }
 
+                // Subscription CTA for non-subscribers
+                if !revenueCatManager.isSubscriptionActive {
+                    subscriptionCTACard
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                }
+
                 // Grouped workout list by month
                 ForEach(viewModel.groupedWorkouts, id: \.0) { groupTitle, groupWorkouts in
                     VStack(alignment: .leading, spacing: 12) {
@@ -422,6 +426,59 @@ struct WorkoutListView: View {
                         }
                     }
                 }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+    }
+
+    // MARK: - Subscription CTA Card
+
+    private var subscriptionCTACard: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 40))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .cyan],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            VStack(spacing: 8) {
+                Text(String(localized: "Unlock AI Coaching", comment: "Subscription CTA title"))
+                    .font(.headline)
+                    .fontWeight(.bold)
+
+                Text(String(localized: "Get personalized insights and coaching powered by AI", comment: "Subscription CTA description"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button {
+                showInitialPaywall = true
+            } label: {
+                HStack {
+                    Image(systemName: "sparkles")
+                    Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
+                }
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .cyan],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .padding()

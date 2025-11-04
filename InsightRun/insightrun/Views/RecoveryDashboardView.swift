@@ -48,8 +48,8 @@ struct RecoveryDashboardView: View {
                 }
             }
 
-            // Floating AI Button (only for subscribed users)
-            if viewModel.recoveryMetrics != nil && revenueCatManager.isSubscriptionActive {
+            // Floating AI Button (only for users with AI access - subscribers or TestFlight)
+            if viewModel.recoveryMetrics != nil && revenueCatManager.hasAIAccess {
                 Button(action: { showingAIAssistant = true }) {
                     ZStack {
                         Circle()

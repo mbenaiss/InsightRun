@@ -4194,6 +4194,168 @@
         }
       }
     },
+    "statistics.charts.distance.title" : {
+      "comment" : "Distance chart title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance Over Time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance par période"
+          }
+        }
+      }
+    },
+    "statistics.charts.noData" : {
+      "comment" : "No chart data message",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No data available for the selected period"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée disponible pour cette période"
+          }
+        }
+      }
+    },
+    "statistics.heatmap.title" : {
+      "comment" : "Activity heat map title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activity Heat Map (12 months)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carte d'activité (12 derniers mois)"
+          }
+        }
+      }
+    },
+    "statistics.distribution.pace.title" : {
+      "comment" : "Pace distribution title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pace Distribution"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distribution des allures"
+          }
+        }
+      }
+    },
+    "statistics.distribution.distance.title" : {
+      "comment" : "Distance distribution title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance Distribution"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Répartition des distances"
+          }
+        }
+      }
+    },
+    "statistics.yearly.title" : {
+      "comment" : "Yearly comparison title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2025 vs 2024"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2025 vs 2024"
+          }
+        }
+      }
+    },
+    "statistics.yearly.distance" : {
+      "comment" : "Yearly distance comparison",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Distance"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance totale"
+          }
+        }
+      }
+    },
+    "statistics.yearly.workouts" : {
+      "comment" : "Yearly workouts comparison",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Workouts"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entraînements"
+          }
+        }
+      }
+    },
+    "statistics.yearly.pace" : {
+      "comment" : "Yearly pace comparison",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average Pace"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allure moyenne"
+          }
+        }
+      }
+    },
     "Temperature" : {
       "comment" : "Label for body temperature",
       "extractionState" : "manual",

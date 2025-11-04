@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Charts
 
 struct StatisticsView: View {
     @StateObject private var viewModel = StatisticsViewModel()
@@ -35,6 +36,23 @@ struct StatisticsView: View {
 
                         // Section 4: Monthly comparison
                         monthlyComparisonSection
+
+                        // Section 5: Distance over time chart
+                        distanceChartSection
+
+                        // Section 6: Activity heat map
+                        activityHeatMapSection
+
+                        // Section 7: Pace distribution
+                        paceDistributionSection
+
+                        // Section 8: Distance distribution
+                        distanceDistributionSection
+
+                        // Section 9: Yearly comparison
+                        if viewModel.yearlyComparisonData.lastYearWorkouts > 0 {
+                            yearlyComparisonSection
+                        }
                     }
                 }
                 .padding()
@@ -325,6 +343,349 @@ struct StatisticsView: View {
         }
     }
 
+    // MARK: - Distance Chart Section
+
+    private var distanceChartSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text(String(localized: "statistics.charts.distance.title"))
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Spacer()
+
+                // Granularity picker
+                Picker("", selection: $viewModel.chartGranularity) {
+                    ForEach(StatisticsViewModel.ChartGranularity.allCases, id: \.self) { granularity in
+                        Text(granularity.rawValue).tag(granularity)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 160)
+            }
+
+            if !viewModel.periodDistanceData.isEmpty {
+                Chart {
+                    ForEach(viewModel.periodDistanceData) { data in
+                        BarMark(
+                            x: .value("Période", data.date, unit: viewModel.chartGranularity == .week ? .weekOfYear : .month),
+                            y: .value("Distance", data.distance / 1000.0)
+                        )
+                        .foregroundStyle(Color.blue.gradient)
+                    }
+                }
+                .frame(height: 250)
+                .chartYAxis {
+                    AxisMarks(position: .leading) { value in
+                        AxisValueLabel {
+                            if let distance = value.as(Double.self) {
+                                Text("\(Int(distance)) km")
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                )
+            } else {
+                Text(String(localized: "statistics.charts.noData"))
+                    .foregroundStyle(.secondary)
+                    .frame(height: 100)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                    )
+            }
+        }
+    }
+
+    // MARK: - Activity Heat Map Section
+
+    private var activityHeatMapSection: some View {
+        VStack(spacing: 16) {
+            Text(String(localized: "statistics.heatmap.title"))
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 8) {
+                // Week day labels
+                HStack(spacing: 4) {
+                    ForEach(["L", "M", "M", "J", "V", "S", "D"], id: \.self) { day in
+                        Text(day)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // Heat map grid
+                let calendar = Calendar.current
+                let weeks = getHeatMapWeeks()
+
+                ForEach(0..<weeks.count, id: \.self) { weekIndex in
+                    HStack(spacing: 4) {
+                        ForEach(0..<7) { dayIndex in
+                            let index = weekIndex * 7 + dayIndex
+                            if index < viewModel.activityHeatMapData.count {
+                                let day = viewModel.activityHeatMapData[index]
+                                Rectangle()
+                                    .fill(day.intensity.color)
+                                    .frame(height: 20)
+                                    .cornerRadius(4)
+                            } else {
+                                Color.clear
+                                    .frame(height: 20)
+                            }
+                        }
+                    }
+                }
+
+                // Legend
+                HStack(spacing: 12) {
+                    Text("Moins")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 3) {
+                        ForEach([StatisticsViewModel.ActivityIntensity.none, .light, .moderate, .high, .veryHigh], id: \.rawValue) { intensity in
+                            Rectangle()
+                                .fill(intensity.color)
+                                .frame(width: 12, height: 12)
+                                .cornerRadius(2)
+                        }
+                    }
+
+                    Text("Plus")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
+            )
+        }
+    }
+
+    // MARK: - Pace Distribution Section
+
+    private var paceDistributionSection: some View {
+        VStack(spacing: 16) {
+            Text(String(localized: "statistics.distribution.pace.title"))
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if !viewModel.paceDistributionData.isEmpty {
+                Chart {
+                    ForEach(viewModel.paceDistributionData) { dist in
+                        BarMark(
+                            x: .value("Zone", dist.range),
+                            y: .value("Pourcentage", dist.percentage)
+                        )
+                        .foregroundStyle(dist.color.gradient)
+                        .annotation(position: .top) {
+                            Text("\(Int(dist.percentage))%")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+                .frame(height: 200)
+                .chartYAxis {
+                    AxisMarks(position: .leading) { value in
+                        AxisValueLabel {
+                            if let pct = value.as(Double.self) {
+                                Text("\(Int(pct))%")
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                )
+
+                // Details list
+                VStack(spacing: 8) {
+                    ForEach(viewModel.paceDistributionData) { dist in
+                        HStack {
+                            Circle()
+                                .fill(dist.color)
+                                .frame(width: 12, height: 12)
+
+                            Text("\(dist.range) /km")
+                                .font(.body)
+
+                            Spacer()
+
+                            Text("\(dist.count) entraînements")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+
+                            Text("(\(Int(dist.percentage))%)")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                )
+            }
+        }
+    }
+
+    // MARK: - Distance Distribution Section
+
+    private var distanceDistributionSection: some View {
+        VStack(spacing: 16) {
+            Text(String(localized: "statistics.distribution.distance.title"))
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if !viewModel.distanceDistributionData.isEmpty {
+                Chart {
+                    ForEach(viewModel.distanceDistributionData) { dist in
+                        SectorMark(
+                            angle: .value("Pourcentage", dist.percentage),
+                            innerRadius: .ratio(0.5),
+                            angularInset: 2
+                        )
+                        .foregroundStyle(by: .value("Catégorie", dist.category))
+                        .annotation(position: .overlay) {
+                            Text("\(Int(dist.percentage))%")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                        }
+                    }
+                }
+                .frame(height: 250)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                )
+
+                // Details list
+                VStack(spacing: 8) {
+                    ForEach(viewModel.distanceDistributionData) { dist in
+                        HStack {
+                            Text(dist.category)
+                                .font(.body)
+
+                            Spacer()
+
+                            Text("\(dist.count) entraînements")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+
+                            Text("(\(Int(dist.percentage))%)")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                )
+            }
+        }
+    }
+
+    // MARK: - Yearly Comparison Section
+
+    private var yearlyComparisonSection: some View {
+        VStack(spacing: 16) {
+            Text(String(localized: "statistics.yearly.title"))
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            let yearData = viewModel.yearlyComparisonData
+
+            VStack(spacing: 12) {
+                YearlyComparisonRow(
+                    title: String(localized: "statistics.yearly.distance"),
+                    thisYear: viewModel.formatDistance(yearData.thisYearDistance),
+                    lastYear: viewModel.formatDistance(yearData.lastYearDistance),
+                    change: yearData.distanceChange
+                )
+
+                Divider()
+
+                YearlyComparisonRow(
+                    title: String(localized: "statistics.yearly.workouts"),
+                    thisYear: "\(yearData.thisYearWorkouts)",
+                    lastYear: "\(yearData.lastYearWorkouts)",
+                    change: yearData.workoutsChange
+                )
+
+                if let thisPace = yearData.thisYearAvgPace, let lastPace = yearData.lastYearAvgPace {
+                    Divider()
+
+                    HStack {
+                        Text(String(localized: "statistics.yearly.pace"))
+                            .font(.body)
+
+                        Spacer()
+
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("2025: \(viewModel.formatPace(thisPace))")
+                                .font(.body)
+                                .fontWeight(.semibold)
+
+                            Text("2024: \(viewModel.formatPace(lastPace))")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let paceChange = yearData.paceChange {
+                            Image(systemName: paceChange < 0 ? "arrow.up.right" : "arrow.down.right")
+                                .foregroundStyle(paceChange < 0 ? .green : .red)
+                                .padding(.leading, 8)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .padding(.vertical)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
+            )
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    private func getHeatMapWeeks() -> [[StatisticsViewModel.ActivityDay]] {
+        let data = viewModel.activityHeatMapData
+        var weeks: [[StatisticsViewModel.ActivityDay]] = []
+
+        for i in stride(from: 0, to: data.count, by: 7) {
+            let endIndex = min(i + 7, data.count)
+            weeks.append(Array(data[i..<endIndex]))
+        }
+
+        return weeks
+    }
+
     // MARK: - Empty State
 
     private var emptyState: some View {
@@ -543,6 +904,42 @@ struct ComparisonCard: View {
             Image(systemName: "minus")
                 .foregroundStyle(.gray)
         }
+    }
+}
+
+struct YearlyComparisonRow: View {
+    let title: String
+    let thisYear: String
+    let lastYear: String
+    let change: Double
+
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.body)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("2025: \(thisYear)")
+                    .font(.body)
+                    .fontWeight(.semibold)
+
+                Text("2024: \(lastYear)")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+
+            Image(systemName: change > 0 ? "arrow.up.right" : (change < 0 ? "arrow.down.right" : "minus"))
+                .foregroundStyle(change > 0 ? .green : (change < 0 ? .red : .gray))
+                .padding(.leading, 8)
+
+            Text(String(format: "%+.0f%%", change))
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(change > 0 ? .green : (change < 0 ? .red : .gray))
+        }
+        .padding(.horizontal)
     }
 }
 

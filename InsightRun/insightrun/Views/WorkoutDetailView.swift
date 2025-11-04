@@ -121,8 +121,8 @@ struct WorkoutDetailView: View {
                 await viewModel.loadMetrics()
                 // Update metrics in analysisViewModel after loading
                 analysisViewModel.updateMetrics(viewModel.metrics)
-                // Load cached analysis only if subscribed
-                if revenueCatManager.isSubscriptionActive {
+                // Load cached analysis only if user has AI access (subscribed or TestFlight)
+                if revenueCatManager.hasAIAccess {
                     await analysisViewModel.loadAnalysis()
                 }
             }
@@ -131,10 +131,10 @@ struct WorkoutDetailView: View {
                 AnalyticsService.shared.trackWorkoutDetailViewed()
             }
 
-            // Floating AI Button - Only for subscribers
+            // Floating AI Button - Only for users with AI access (subscribers or TestFlight)
             if !viewModel.isLoading &&
                viewModel.metrics != nil &&
-               revenueCatManager.isSubscriptionActive {
+               revenueCatManager.hasAIAccess {
                 Button(action: { showingAIAssistant = true }) {
                     ZStack {
                         Circle()
@@ -544,9 +544,9 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(.primary)
             }
 
-            // Check subscription status first
-            if !revenueCatManager.isSubscriptionActive {
-                // Not subscribed - show locked state with CTA
+            // Check AI access first (subscription or TestFlight)
+            if !revenueCatManager.hasAIAccess {
+                // No AI access - show locked state with CTA
                 VStack(spacing: 16) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 40))

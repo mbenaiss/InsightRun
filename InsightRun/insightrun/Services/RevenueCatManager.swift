@@ -27,6 +27,24 @@ class RevenueCatManager: NSObject, ObservableObject {
         self.hasSeenInitialPaywall = UserDefaults.standard.bool(forKey: "hasSeenInitialPaywall")
     }
 
+    // MARK: - TestFlight Detection
+
+    /// Detects if the app is running in TestFlight environment
+    /// Uses Apple's receipt to determine if this is a TestFlight build
+    var isTestFlightEnvironment: Bool {
+        guard let receiptURL = Bundle.main.appStoreReceiptURL else {
+            return false
+        }
+        // TestFlight builds have "sandboxReceipt" in the receipt path
+        return receiptURL.path.contains("sandboxReceipt")
+    }
+
+    /// Determines if the user has access to AI features
+    /// Returns true if user is subscribed OR running in TestFlight
+    var hasAIAccess: Bool {
+        return isSubscriptionActive || isTestFlightEnvironment
+    }
+
     /// Update hasSeenInitialPaywall and persist to UserDefaults
     func markPaywallAsSeen() {
         hasSeenInitialPaywall = true

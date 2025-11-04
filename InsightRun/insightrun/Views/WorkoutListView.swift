@@ -71,10 +71,10 @@ struct WorkoutListView: View {
                     }
                 }
 
-                // Floating AI Button - Only for subscribers, only on list view
+                // Floating AI Button - Only for users with AI access (subscribers or TestFlight), only on list view
                 if viewModel.authorizationStatus == .authorized &&
                    !viewModel.workouts.isEmpty &&
-                   revenueCatManager.isSubscriptionActive {
+                   revenueCatManager.hasAIAccess {
                     Button(action: { showingAIAssistant = true }) {
                         ZStack {
                             Circle()

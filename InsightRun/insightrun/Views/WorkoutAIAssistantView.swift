@@ -60,7 +60,7 @@ struct ConversationHistory: Identifiable, Codable {
 
 enum AIAssistantMode {
     case singleWorkout(WorkoutModel, WorkoutMetrics?)
-    case recentWorkouts([WorkoutModel])
+    case recentWorkouts([WorkoutModel], [UUID: WorkoutMetrics]) // Now includes metrics dictionary
     case recoveryCoaching(RecoveryMetrics)
 }
 

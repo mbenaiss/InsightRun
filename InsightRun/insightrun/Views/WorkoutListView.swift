@@ -12,6 +12,9 @@ struct WorkoutListView: View {
     @StateObject private var viewModel = WorkoutListViewModel()
     @State private var showingAIAssistant = false
     @State private var showInitialPaywall = false
+    @State private var isLoadingMetrics = false
+    @State private var currentYearWorkouts: [WorkoutModel] = []
+    @State private var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
@@ -75,7 +78,12 @@ struct WorkoutListView: View {
                 if viewModel.authorizationStatus == .authorized &&
                    !viewModel.workouts.isEmpty &&
                    revenueCatManager.hasAIAccess {
-                    Button(action: { showingAIAssistant = true }) {
+                    Button(action: {
+                        Task {
+                            await loadCurrentYearWorkoutsWithMetrics()
+                            showingAIAssistant = true
+                        }
+                    }) {
                         ZStack {
                             Circle()
                                 .fill(
@@ -88,11 +96,17 @@ struct WorkoutListView: View {
                                 .frame(width: 60, height: 60)
                                 .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
 
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
+                            if isLoadingMetrics {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
                         }
                     }
+                    .disabled(isLoadingMetrics)
                     .padding(.trailing, 20)
                     .padding(.bottom, 20)
                 }
@@ -100,7 +114,7 @@ struct WorkoutListView: View {
         }
         .sheet(isPresented: $showingAIAssistant) {
             WorkoutAIAssistantView(
-                mode: .recentWorkouts(Array(viewModel.workouts.prefix(10))),
+                mode: .recentWorkouts(currentYearWorkouts, workoutsMetrics),
                 isPresented: $showingAIAssistant
             )
         }
@@ -108,6 +122,45 @@ struct WorkoutListView: View {
             SubscriptionPaywallView(isInitialFlow: true)
                 .environmentObject(revenueCatManager)
         }
+    }
+
+    // MARK: - Helper Functions
+
+    private func loadCurrentYearWorkoutsWithMetrics() async {
+        isLoadingMetrics = true
+
+        // Get current year workouts
+        let calendar = Calendar.current
+        let currentYear = calendar.component(.year, from: Date())
+        let startOfYear = calendar.date(from: DateComponents(year: currentYear, month: 1, day: 1))!
+
+        currentYearWorkouts = viewModel.workouts.filter { workout in
+            calendar.component(.year, from: workout.startDate) == currentYear
+        }
+
+        // Load metrics for all current year workouts
+        await withTaskGroup(of: (UUID, WorkoutMetrics?).self) { group in
+            for workout in currentYearWorkouts {
+                group.addTask {
+                    do {
+                        let metrics = try await HealthKitManager.shared.fetchWorkoutMetrics(for: workout)
+                        return (workout.id, metrics)
+                    } catch {
+                        print("Error loading metrics for workout \(workout.id): \(error)")
+                        return (workout.id, nil)
+                    }
+                }
+            }
+
+            // Collect results
+            for await (id, metrics) in group {
+                if let metrics = metrics {
+                    workoutsMetrics[id] = metrics
+                }
+            }
+        }
+
+        isLoadingMetrics = false
     }
 
     // MARK: - Authorization View

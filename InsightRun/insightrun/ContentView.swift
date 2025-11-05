@@ -19,19 +19,26 @@ struct ContentView: View {
                 }
                 .tag(0)
 
+            // Statistics Tab
+            StatisticsView()
+                .tabItem {
+                    Label(String(localized: "tab.statistics"), systemImage: "chart.bar.fill")
+                }
+                .tag(1)
+
             // Recovery Tab
             RecoveryDashboardView()
                 .tabItem {
                     Label(String(localized: "tab.recovery"), systemImage: "heart.fill")
                 }
-                .tag(1)
+                .tag(2)
 
             // Health Profile Tab
             HealthProfileView()
                 .tabItem {
                     Label(String(localized: "tab.health"), systemImage: "person.fill")
                 }
-                .tag(2)
+                .tag(3)
         }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()

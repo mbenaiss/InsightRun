@@ -381,7 +381,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 profile: nil,
                 recentWorkouts: nil
             )
-        case .recentWorkouts(let workouts):
+        case .recentWorkouts(let workouts, let metricsDict):
             let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
             let totalDuration = workouts.map { $0.duration }.reduce(0, +)
             let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
@@ -392,7 +392,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 recovery: nil,
                 profile: nil,
                 recentWorkouts: RecentWorkoutsData(
-                    workouts: workouts.map { convertToWorkoutData(workout: $0, metrics: nil) },
+                    workouts: workouts.map { workout in
+                        let metrics = metricsDict[workout.id]
+                        return convertToWorkoutData(workout: workout, metrics: metrics)
+                    },
                     totalDistance: totalDistance,
                     totalDuration: totalDuration,
                     totalCalories: totalCalories,

@@ -12,6 +12,9 @@ struct WorkoutListView: View {
     @StateObject private var viewModel = WorkoutListViewModel()
     @State private var showingAIAssistant = false
     @State private var showInitialPaywall = false
+    @State private var isLoadingMetrics = false
+    @State private var currentYearWorkouts: [WorkoutModel] = []
+    @State private var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
@@ -75,7 +78,12 @@ struct WorkoutListView: View {
                 if viewModel.authorizationStatus == .authorized &&
                    !viewModel.workouts.isEmpty &&
                    revenueCatManager.hasAIAccess {
-                    Button(action: { showingAIAssistant = true }) {
+                    Button(action: {
+                        Task {
+                            await loadCurrentYearWorkoutsWithMetrics()
+                            showingAIAssistant = true
+                        }
+                    }) {
                         ZStack {
                             Circle()
                                 .fill(
@@ -88,11 +96,17 @@ struct WorkoutListView: View {
                                 .frame(width: 60, height: 60)
                                 .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
 
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
+                            if isLoadingMetrics {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
                         }
                     }
+                    .disabled(isLoadingMetrics)
                     .padding(.trailing, 20)
                     .padding(.bottom, 20)
                 }
@@ -100,7 +114,7 @@ struct WorkoutListView: View {
         }
         .sheet(isPresented: $showingAIAssistant) {
             WorkoutAIAssistantView(
-                mode: .recentWorkouts(Array(viewModel.workouts.prefix(10))),
+                mode: .recentWorkouts(currentYearWorkouts, workoutsMetrics),
                 isPresented: $showingAIAssistant
             )
         }
@@ -108,6 +122,44 @@ struct WorkoutListView: View {
             SubscriptionPaywallView(isInitialFlow: true)
                 .environmentObject(revenueCatManager)
         }
+    }
+
+    // MARK: - Helper Functions
+
+    private func loadCurrentYearWorkoutsWithMetrics() async {
+        isLoadingMetrics = true
+
+        // Get current year workouts
+        let calendar = Calendar.current
+        let currentYear = calendar.component(.year, from: Date())
+
+        currentYearWorkouts = viewModel.workouts.filter { workout in
+            calendar.component(.year, from: workout.startDate) == currentYear
+        }
+
+        // Load metrics for all current year workouts
+        await withTaskGroup(of: (UUID, WorkoutMetrics?).self) { group in
+            for workout in currentYearWorkouts {
+                group.addTask {
+                    do {
+                        let metrics = try await HealthKitManager.shared.fetchWorkoutMetrics(for: workout)
+                        return (workout.id, metrics)
+                    } catch {
+                        print("Error loading metrics for workout \(workout.id): \(error)")
+                        return (workout.id, nil)
+                    }
+                }
+            }
+
+            // Collect results
+            for await (id, metrics) in group {
+                if let metrics = metrics {
+                    workoutsMetrics[id] = metrics
+                }
+            }
+        }
+
+        isLoadingMetrics = false
     }
 
     // MARK: - Authorization View
@@ -167,11 +219,6 @@ struct WorkoutListView: View {
     private var lockedWorkoutsPreview: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Global stats card
-                combinedStatsCard
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
                 // Premium unlock CTA
                 VStack(spacing: 16) {
                     // Premium icon
@@ -326,13 +373,6 @@ struct WorkoutListView: View {
     private var workoutList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                // Combined stats card
-                if !viewModel.workouts.isEmpty {
-                    combinedStatsCard
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                }
-
                 // Subscription CTA for non-subscribers
                 if !revenueCatManager.isSubscriptionActive {
                     subscriptionCTACard
@@ -364,74 +404,6 @@ struct WorkoutListView: View {
         .refreshable {
             await viewModel.refresh()
         }
-    }
-
-    // MARK: - Combined Stats Card
-
-    private var combinedStatsCard: some View {
-        VStack(spacing: 16) {
-            // Main title
-            Text(String(localized: "Overall Stats", comment: "Combined stats card title"))
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Global stats section
-            VStack(spacing: 12) {
-                StatsRow(icon: "number", label: String(localized: "Workouts", comment: "Number of workouts stat"), value: "\(viewModel.workoutCount)")
-                StatsRow(icon: "ruler", label: String(localized: "Total Distance", comment: "Total distance stat"), value: viewModel.formatTotalDistance())
-                StatsRow(icon: "clock", label: String(localized: "Total Time", comment: "Total duration stat"), value: viewModel.formatTotalDuration())
-                StatsRow(icon: "gauge", label: String(localized: "Avg Pace", comment: "Average pace stat"), value: viewModel.formatAveragePace())
-                StatsRow(icon: "figure.run", label: String(localized: "Avg Distance", comment: "Average distance stat"), value: viewModel.formatAverageDistance())
-            }
-
-            // Records section
-            if viewModel.longestRun != nil || viewModel.fastestRun != nil {
-                Divider()
-
-                Text(String(localized: "Records", comment: "Records section title"))
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                VStack(spacing: 12) {
-                    if let longest = viewModel.longestRun {
-                        HStack {
-                            Image(systemName: "trophy.fill")
-                                .foregroundStyle(.yellow.gradient)
-                                .frame(width: 24)
-                            Text(String(localized: "Longest Run", comment: "Longest run record label"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(String(format: "%.1f km", (longest.distance ?? 0) / 1000.0))
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                        }
-                    }
-
-                    if let fastest = viewModel.fastestRun,
-                       let pace = fastest.averagePace,
-                       let distance = fastest.distance,
-                       distance >= 5000 {
-                        HStack {
-                            Image(systemName: "bolt.fill")
-                                .foregroundStyle(.orange.gradient)
-                                .frame(width: 24)
-                            Text(String(localized: "Fastest Run", comment: "Fastest run record label"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(viewModel.formatPace(pace) + " /km - " + String(format: "%.1f km", distance / 1000.0))
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                        }
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
 
     // MARK: - Subscription CTA Card

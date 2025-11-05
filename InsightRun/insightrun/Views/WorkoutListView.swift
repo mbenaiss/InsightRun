@@ -373,8 +373,8 @@ struct WorkoutListView: View {
     private var workoutList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                // Subscription CTA for non-subscribers
-                if !revenueCatManager.isSubscriptionActive {
+                // Subscription CTA for non-subscribers (hide for TestFlight and subscribers)
+                if !revenueCatManager.hasAIAccess {
                     subscriptionCTACard
                         .padding(.horizontal)
                         .padding(.top, 8)

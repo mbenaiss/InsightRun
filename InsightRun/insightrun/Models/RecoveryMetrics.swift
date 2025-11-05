@@ -13,7 +13,9 @@ struct RecoveryMetrics: Identifiable {
 
     // Heart Rate Metrics
     let restingHeartRate: Double?
-    let hrv: Double? // Heart Rate Variability (SDNN)
+    let hrvAverage: Double? // Heart Rate Variability (SDNN) - Night average
+    let hrvMin: Double? // HRV minimum during night
+    let hrvMax: Double? // HRV maximum during night
     let walkingHeartRate: Double?
 
     // Sleep Metrics
@@ -52,7 +54,7 @@ struct RecoveryMetrics: Identifiable {
         let respRateWeight = 0.07  // 7% - Stress/recovery indicator
 
         // HRV Score (higher is better, typical range: 20-100ms)
-        if let hrv = hrv {
+        if let hrv = hrvAverage {
             let hrvScore = calculateHRVScore(hrv)
             totalScore += hrvScore * hrvWeight
             totalWeight += hrvWeight

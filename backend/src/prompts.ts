@@ -329,6 +329,13 @@ Analyze comprehensive health and workout data to provide actionable insights tha
 # Available Data Context
 `
 
+  // Add historical summary first (if available) - provides long-term context
+  if (data.historicalSummary) {
+    systemPrompt += `# 📚 Historical Training Profile (Complete Analysis)\n\n`
+    systemPrompt += data.historicalSummary
+    systemPrompt += `\n\n---\n\n`
+  }
+
   // Add recovery context if available
   if (data.recovery) {
     systemPrompt += buildRecoveryContext(data.recovery)
@@ -555,6 +562,97 @@ function getLanguageName(langCode: string): string {
     ar: 'Arabic',
   }
   return languages[langCode.toLowerCase()] || 'English'
+}
+
+// Build historical analysis prompt for one-time deep analysis
+export function buildHistoricalAnalysisPrompt(workouts: WorkoutData[], language: string): string {
+  let prompt = `You are an expert running coach analyzing a runner's complete training history.
+
+You will receive ALL workouts from the past 12 months (up to 365 workouts).
+
+Your task is to generate a COMPREHENSIVE HISTORICAL SUMMARY that will be used as context for future coaching conversations.
+
+The summary should include:
+
+1. **PERFORMANCE TRENDS (365-day analysis)**
+   - Pace progression (with regression coefficients if applicable)
+   - Volume progression (monthly averages)
+   - Heart rate efficiency trends
+   - Cadence evolution
+   - VO₂ max estimation trends
+
+2. **TRAINING PATTERNS**
+   - Best performance days/times
+   - Optimal training volume
+   - Recovery patterns
+   - Seasonal variations
+
+3. **PHYSIOLOGICAL PROFILE**
+   - HR zones distribution
+   - Lactate threshold estimation
+   - Aerobic vs anaerobic balance
+   - Biomechanics (cadence, GCT, vertical oscillation)
+
+4. **KEY MILESTONES & ACHIEVEMENTS**
+   - Personal records (pace, distance, duration)
+   - Notable performances
+   - Training blocks/phases completed
+
+5. **INJURY HISTORY & WARNINGS**
+   - Past injuries or issues detected
+   - Overtraining signals observed
+   - Risk factors identified
+
+6. **BASELINE METRICS (for comparison)**
+   - Average pace (overall + by month)
+   - Average HR (overall + by intensity)
+   - Average volume (weekly/monthly)
+   - Consistency metrics
+
+Format the summary in a structured, concise way (~1,500-2,000 tokens max).
+This summary will be used alongside recent workouts for daily coaching.
+
+Keep it factual, quantitative, and actionable.
+
+**IMPORTANT: You MUST respond in ${getLanguageName(language)} language.**
+
+---
+
+# Complete Training History (${workouts.length} workouts)
+
+`
+
+  // Add all workouts
+  for (let i = 0; i < workouts.length; i++) {
+    const w = workouts[i]
+    prompt += `\n${i + 1}. **${w.date}**\n`
+    prompt += `   Duration: ${formatDuration(w.duration)} | Distance: ${formatDistance(w.distance)}\n`
+
+    if (w.pace) {
+      prompt += `   Pace: ${formatPace(w.pace)}`
+      if (w.speed) prompt += ` | Speed: ${w.speed.toFixed(1)} km/h`
+      prompt += `\n`
+    }
+
+    if (w.heartRate && w.heartRate.avg) {
+      prompt += `   HR: Avg ${Math.round(w.heartRate.avg)} bpm`
+      if (w.heartRate.min && w.heartRate.max) {
+        prompt += ` (${Math.round(w.heartRate.min)}-${Math.round(w.heartRate.max)})`
+      }
+      prompt += `\n`
+    }
+
+    if (w.cadence) prompt += `   Cadence: ${Math.round(w.cadence)} spm\n`
+    if (w.vo2Max) prompt += `   VO2 Max: ${w.vo2Max.toFixed(1)} ml/kg/min\n`
+    if (w.elevationGain) prompt += `   Elevation: ${Math.round(w.elevationGain)}m\n`
+  }
+
+  prompt += `
+
+Now generate the comprehensive historical summary based on all ${workouts.length} workouts above.
+`
+
+  return prompt
 }
 
 export function buildPrompt(promptType: string, data: ChatDataPayload, language: string): string {

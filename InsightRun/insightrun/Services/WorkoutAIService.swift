@@ -365,11 +365,19 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     }
 
     private func buildChatPayload(question: String, model: AIModel, mode: AIAssistantMode) -> ChatRequestV2 {
+        // Load historical summary if available
+        let historicalSummary = HistoricalSummaryStorage.shared.load()?.summary
+
+        if let summary = historicalSummary {
+            print("✅ WorkoutAIService: Using historical summary (\(summary.count) chars)")
+        }
+
         var chatData = ChatDataPayload(
             workout: nil,
             recovery: nil,
             profile: nil,
-            recentWorkouts: nil
+            recentWorkouts: nil,
+            historicalSummary: historicalSummary
         )
 
         // Extract data from mode
@@ -379,7 +387,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 workout: convertToWorkoutData(workout: workout, metrics: metrics),
                 recovery: nil,
                 profile: nil,
-                recentWorkouts: nil
+                recentWorkouts: nil,
+                historicalSummary: historicalSummary
             )
         case .recentWorkouts(let workouts, let metricsDict):
             let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
@@ -402,14 +411,16 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     avgPace: avgPace,
                     weeklyVolumeChange: nil,
                     daysSinceLastWorkout: nil
-                )
+                ),
+                historicalSummary: historicalSummary
             )
         case .recoveryCoaching(let recoveryMetrics):
             chatData = ChatDataPayload(
                 workout: nil,
                 recovery: convertToRecoveryData(metrics: recoveryMetrics),
                 profile: nil,
-                recentWorkouts: nil
+                recentWorkouts: nil,
+                historicalSummary: historicalSummary
             )
         }
 

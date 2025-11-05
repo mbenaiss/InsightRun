@@ -22,6 +22,7 @@ struct ChatDataPayload: Encodable {
     let recovery: RecoveryData?
     let profile: HealthProfileData?
     let recentWorkouts: RecentWorkoutsData?
+    let historicalSummary: String? // One-time deep analysis summary
 }
 
 // MARK: - Workout Data
@@ -106,4 +107,18 @@ struct RecentWorkoutsData: Encodable {
     let avgPace: Double
     let weeklyVolumeChange: Double?
     let daysSinceLastWorkout: Int?
+}
+
+// MARK: - Historical Analysis (One-Time Deep Analysis)
+
+struct HistoricalAnalysisRequest: Encodable {
+    let workouts: [WorkoutData]
+    let model: String
+    let language: String
+}
+
+struct HistoricalAnalysisResponse: Decodable {
+    let summary: String
+    let workoutCount: Int
+    let generatedAt: String
 }

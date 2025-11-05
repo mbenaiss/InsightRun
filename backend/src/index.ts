@@ -4,8 +4,8 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { captureLLMEvent, createPostHogClient } from './posthog'
-import { buildPrompt } from './prompts'
-import type { ChatRequestV2 } from './types'
+import { buildPrompt, buildHistoricalAnalysisPrompt } from './prompts'
+import type { ChatRequestV2, HistoricalAnalysisRequest, HistoricalAnalysisResponse } from './types'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -77,6 +77,11 @@ function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
   return !!(req.promptType && req.model && req.userQuestion && req.language && req.data)
 }
 
+function validateHistoricalAnalysisRequest(body: unknown): body is HistoricalAnalysisRequest {
+  const req = body as HistoricalAnalysisRequest
+  return !!(req.workouts && Array.isArray(req.workouts) && req.model && req.language)
+}
+
 async function callOpenRouter(
   apiKey: string,
   model: string,
@@ -104,6 +109,43 @@ async function callOpenRouter(
     },
     body: JSON.stringify(requestBody),
   })
+}
+
+async function callOpenRouterNonStreaming(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  prompt: string,
+  maxTokens: number = 3000
+): Promise<string> {
+  const requestBody = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt },
+    ],
+    max_tokens: maxTokens,
+    temperature: AI_TEMPERATURE,
+    stream: false,
+  }
+
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://insightrun.ai',
+      'X-Title': 'insightRun.ai',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.choices[0].message.content
 }
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
@@ -646,6 +688,121 @@ app.post('/api/chat/v2', async (c) => {
     })
   } catch (error) {
     console.error('Chat v2 endpoint error:', error)
+
+    return c.json(
+      {
+        error: 'Internal Server Error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
+  }
+})
+
+app.post('/api/analyze-history', async (c) => {
+  const startTime = Date.now()
+
+  try {
+    if (!validateAppAuth(c)) {
+      return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+    }
+
+    const body = await c.req.json()
+
+    if (!validateHistoricalAnalysisRequest(body)) {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: 'Missing required fields: workouts (array), model, language',
+        },
+        400
+      )
+    }
+
+    const { workouts, model, language } = body
+
+    // Validate workouts array
+    if (workouts.length === 0) {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: 'Workouts array cannot be empty',
+        },
+        400
+      )
+    }
+
+    if (workouts.length > 500) {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: 'Too many workouts (max 500)',
+        },
+        400
+      )
+    }
+
+    // Get user ID for tracking
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const traceId = crypto.randomUUID()
+
+    console.log(`📊 Historical analysis requested: ${workouts.length} workouts, model: ${model}, user: ${userId}`)
+
+    // Build the analysis prompt
+    const systemPrompt = ''
+    const prompt = buildHistoricalAnalysisPrompt(workouts, language)
+
+    // Call OpenRouter (non-streaming) with higher token limit
+    const summary = await callOpenRouterNonStreaming(
+      c.env.OPENROUTER_API_KEY,
+      model,
+      systemPrompt,
+      prompt,
+      3000 // Max tokens for summary
+    )
+
+    const latency = (Date.now() - startTime) / 1000
+
+    // Log to PostHog
+    if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+      const posthog = createPostHogClient({
+        apiKey: c.env.POSTHOG_API_KEY,
+        host: c.env.POSTHOG_HOST,
+      })
+
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            await captureLLMEvent(posthog, userId, traceId, {
+              model,
+              input: `Historical analysis: ${workouts.length} workouts`,
+              systemPrompt,
+              output: summary,
+              inputTokens: undefined, // OpenRouter doesn't return tokens in non-streaming
+              outputTokens: undefined,
+              latency,
+              cost: undefined,
+              ip,
+            })
+            await posthog.shutdown()
+          } catch (error) {
+            console.error('PostHog capture error:', error)
+          }
+        })()
+      )
+    }
+
+    const response: HistoricalAnalysisResponse = {
+      summary,
+      workoutCount: workouts.length,
+      generatedAt: new Date().toISOString(),
+    }
+
+    return c.json(response)
+
+  } catch (error) {
+    console.error('Historical analysis endpoint error:', error)
 
     return c.json(
       {

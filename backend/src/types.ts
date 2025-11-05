@@ -73,6 +73,7 @@ export interface ChatDataPayload {
   recovery?: RecoveryData
   profile?: HealthProfileData
   recentWorkouts?: RecentWorkoutsData
+  historicalSummary?: string // One-time deep analysis summary
 }
 
 export interface ChatRequestV2 {
@@ -81,4 +82,16 @@ export interface ChatRequestV2 {
   userQuestion: string
   language: string // e.g., "fr", "en", "es", "de"
   data: ChatDataPayload
+}
+
+export interface HistoricalAnalysisRequest {
+  workouts: WorkoutData[]
+  model: string
+  language: string // e.g., "fr", "en", "es", "de"
+}
+
+export interface HistoricalAnalysisResponse {
+  summary: string
+  workoutCount: number
+  generatedAt: string
 }

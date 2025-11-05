@@ -4080,12 +4080,18 @@
     },
     "statistics.charts.workout" : {
       "comment" : "Singular workout",
-      "extractionState" : "extracted_with_value",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "workout"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "entraînement"
           }
         }
       }

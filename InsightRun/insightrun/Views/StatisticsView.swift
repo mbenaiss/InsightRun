@@ -71,7 +71,7 @@ struct StatisticsView: View {
             HStack(spacing: 12) {
                 ForEach(StatisticsViewModel.TimePeriod.allCases, id: \.self) { period in
                     PeriodButton(
-                        title: period.rawValue,
+                        title: period.localizedTitle,
                         isSelected: viewModel.selectedPeriod == period
                     ) {
                         withAnimation {
@@ -103,7 +103,7 @@ struct StatisticsView: View {
                     title: String(localized: "statistics.overview.totalWorkouts"),
                     value: "\(viewModel.totalWorkouts)",
                     subtitle: viewModel.monthlyChange.workoutsChange != 0 ?
-                        "\(viewModel.formatPercentageChange(Double(viewModel.monthlyChange.workoutsChange))) ce mois" : nil,
+                        String(localized: "statistics.thisMonth", defaultValue: "\(viewModel.formatPercentageChange(Double(viewModel.monthlyChange.workoutsChange))) this month", comment: "Change this month") : nil,
                     trend: viewModel.monthlyChange.workoutsChange > 0 ? .up : (viewModel.monthlyChange.workoutsChange < 0 ? .down : nil)
                 )
 
@@ -113,7 +113,7 @@ struct StatisticsView: View {
                     title: String(localized: "statistics.overview.totalDistance"),
                     value: viewModel.formatDistance(viewModel.totalDistance),
                     subtitle: viewModel.monthlyChange.distancePercentage != 0 ?
-                        "\(viewModel.formatPercentageChange(viewModel.monthlyChange.distancePercentage)) ce mois" : nil,
+                        String(localized: "statistics.thisMonth", defaultValue: "\(viewModel.formatPercentageChange(viewModel.monthlyChange.distancePercentage)) this month", comment: "Change this month") : nil,
                     trend: viewModel.monthlyChange.distanceChange > 0 ? .up : (viewModel.monthlyChange.distanceChange < 0 ? .down : nil)
                 )
 
@@ -351,7 +351,7 @@ struct StatisticsView: View {
                 // Granularity picker
                 Picker("", selection: $viewModel.chartGranularity) {
                     ForEach(StatisticsViewModel.ChartGranularity.allCases, id: \.self) { granularity in
-                        Text(granularity.rawValue).tag(granularity)
+                        Text(granularity.localizedTitle).tag(granularity)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -362,8 +362,8 @@ struct StatisticsView: View {
                 Chart {
                     ForEach(viewModel.periodDistanceData) { data in
                         BarMark(
-                            x: .value("Période", data.date, unit: viewModel.chartGranularity == .week ? .weekOfYear : .month),
-                            y: .value("Distance", data.distance / 1000.0)
+                            x: .value(String(localized: "statistics.charts.period", defaultValue: "Period", comment: "Chart period label"), data.date, unit: viewModel.chartGranularity == .week ? .weekOfYear : .month),
+                            y: .value(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label"), data.distance / 1000.0)
                         )
                         .foregroundStyle(Color.blue.gradient)
                     }
@@ -408,8 +408,8 @@ struct StatisticsView: View {
                 Chart {
                     ForEach(viewModel.paceDistributionData) { dist in
                         BarMark(
-                            x: .value("Zone", dist.range),
-                            y: .value("Pourcentage", dist.percentage)
+                            x: .value(String(localized: "statistics.charts.zone", defaultValue: "Zone", comment: "Chart zone label"), dist.range),
+                            y: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage)
                         )
                         .foregroundStyle(dist.color.gradient)
                         .annotation(position: .top) {
@@ -479,11 +479,11 @@ struct StatisticsView: View {
                 Chart {
                     ForEach(viewModel.distanceDistributionData) { dist in
                         SectorMark(
-                            angle: .value("Pourcentage", dist.percentage),
+                            angle: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage),
                             innerRadius: .ratio(0.5),
                             angularInset: 2
                         )
-                        .foregroundStyle(by: .value("Catégorie", dist.category))
+                        .foregroundStyle(by: .value(String(localized: "statistics.charts.category", defaultValue: "Category", comment: "Chart category label"), dist.category))
                         .annotation(position: .overlay) {
                             Text("\(Int(dist.percentage))%")
                                 .font(.caption)
@@ -765,7 +765,7 @@ struct RecordRow: View {
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale.current
         return formatter.string(from: date)
     }
 }

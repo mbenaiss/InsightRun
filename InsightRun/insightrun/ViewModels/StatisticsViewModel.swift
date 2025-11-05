@@ -19,11 +19,26 @@ class StatisticsViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
 
     enum TimePeriod: String, CaseIterable {
-        case thirtyDays = "30j"
-        case ninetyDays = "90j"
-        case sixMonths = "6 mois"
-        case oneYear = "1 an"
-        case allTime = "Tout"
+        case thirtyDays
+        case ninetyDays
+        case sixMonths
+        case oneYear
+        case allTime
+
+        var localizedTitle: String {
+            switch self {
+            case .thirtyDays:
+                return String(localized: "statistics.period.30days", defaultValue: "30d", comment: "30 days period filter")
+            case .ninetyDays:
+                return String(localized: "statistics.period.90days", defaultValue: "90d", comment: "90 days period filter")
+            case .sixMonths:
+                return String(localized: "statistics.period.6months", defaultValue: "6 months", comment: "6 months period filter")
+            case .oneYear:
+                return String(localized: "statistics.period.1year", defaultValue: "1 year", comment: "1 year period filter")
+            case .allTime:
+                return String(localized: "statistics.period.allTime", defaultValue: "All", comment: "All time period filter")
+            }
+        }
 
         var days: Int? {
             switch self {
@@ -37,8 +52,17 @@ class StatisticsViewModel: ObservableObject {
     }
 
     enum ChartGranularity: String, CaseIterable {
-        case week = "Semaine"
-        case month = "Mois"
+        case week
+        case month
+
+        var localizedTitle: String {
+            switch self {
+            case .week:
+                return String(localized: "statistics.granularity.week", defaultValue: "Week", comment: "Week chart granularity")
+            case .month:
+                return String(localized: "statistics.granularity.month", defaultValue: "Month", comment: "Month chart granularity")
+            }
+        }
     }
 
     // MARK: - Data Structures for Charts
@@ -499,10 +523,10 @@ class StatisticsViewModel: ObservableObject {
 
         // Define distance categories
         let categories = [
-            (name: "Courte (< 5 km)", min: 0.0, max: 5000.0),
-            (name: "Moyenne (5-10 km)", min: 5000.0, max: 10000.0),
-            (name: "Longue (10-15 km)", min: 10000.0, max: 15000.0),
-            (name: "Très longue (> 15 km)", min: 15000.0, max: Double.infinity)
+            (nameKey: "statistics.distance.short", min: 0.0, max: 5000.0),
+            (nameKey: "statistics.distance.medium", min: 5000.0, max: 10000.0),
+            (nameKey: "statistics.distance.long", min: 10000.0, max: 15000.0),
+            (nameKey: "statistics.distance.veryLong", min: 15000.0, max: Double.infinity)
         ]
 
         var distribution: [DistanceDistribution] = []
@@ -516,8 +540,22 @@ class StatisticsViewModel: ObservableObject {
             let percentage = (Double(count) / total) * 100
 
             if count > 0 {
+                let localizedName: String
+                switch category.nameKey {
+                case "statistics.distance.short":
+                    localizedName = String(localized: "statistics.distance.short", defaultValue: "Short (< 5 km)", comment: "Short distance category")
+                case "statistics.distance.medium":
+                    localizedName = String(localized: "statistics.distance.medium", defaultValue: "Medium (5-10 km)", comment: "Medium distance category")
+                case "statistics.distance.long":
+                    localizedName = String(localized: "statistics.distance.long", defaultValue: "Long (10-15 km)", comment: "Long distance category")
+                case "statistics.distance.veryLong":
+                    localizedName = String(localized: "statistics.distance.veryLong", defaultValue: "Very long (> 15 km)", comment: "Very long distance category")
+                default:
+                    localizedName = ""
+                }
+
                 distribution.append(DistanceDistribution(
-                    category: category.name,
+                    category: localizedName,
                     count: count,
                     percentage: percentage
                 ))

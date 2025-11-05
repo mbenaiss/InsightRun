@@ -103,7 +103,7 @@ struct StatisticsView: View {
                     title: String(localized: "statistics.overview.totalWorkouts"),
                     value: "\(viewModel.totalWorkouts)",
                     subtitle: viewModel.monthlyChange.workoutsChange != 0 ?
-                        String(localized: "statistics.thisMonth", defaultValue: "\(viewModel.formatPercentageChange(Double(viewModel.monthlyChange.workoutsChange))) this month", comment: "Change this month") : nil,
+                        String(format: String(localized: "statistics.thisMonth", defaultValue: "%@ this month", comment: "Change this month with percentage"), viewModel.formatPercentageChange(Double(viewModel.monthlyChange.workoutsChange))) : nil,
                     trend: viewModel.monthlyChange.workoutsChange > 0 ? .up : (viewModel.monthlyChange.workoutsChange < 0 ? .down : nil)
                 )
 
@@ -113,7 +113,7 @@ struct StatisticsView: View {
                     title: String(localized: "statistics.overview.totalDistance"),
                     value: viewModel.formatDistance(viewModel.totalDistance),
                     subtitle: viewModel.monthlyChange.distancePercentage != 0 ?
-                        String(localized: "statistics.thisMonth", defaultValue: "\(viewModel.formatPercentageChange(viewModel.monthlyChange.distancePercentage)) this month", comment: "Change this month") : nil,
+                        String(format: String(localized: "statistics.thisMonth", defaultValue: "%@ this month", comment: "Change this month with percentage"), viewModel.formatPercentageChange(viewModel.monthlyChange.distancePercentage)) : nil,
                     trend: viewModel.monthlyChange.distanceChange > 0 ? .up : (viewModel.monthlyChange.distanceChange < 0 ? .down : nil)
                 )
 
@@ -130,8 +130,8 @@ struct StatisticsView: View {
                     icon: "flame.fill",
                     iconColor: .red,
                     title: String(localized: "statistics.overview.currentStreak"),
-                    value: String(localized: "statistics.overview.streakValue", defaultValue: "\(viewModel.currentStreak) days"),
-                    subtitle: String(localized: "statistics.overview.recordStreak", defaultValue: "Record: \(viewModel.longestStreak) days"),
+                    value: String(format: String(localized: "statistics.overview.streakValue", defaultValue: "%d days", comment: "Current streak value with number of days"), viewModel.currentStreak),
+                    subtitle: String(format: String(localized: "statistics.overview.recordStreak", defaultValue: "Record: %d days", comment: "Record streak with number of days"), viewModel.longestStreak),
                     trend: nil
                 )
 
@@ -188,7 +188,7 @@ struct StatisticsView: View {
                 PerformanceRow(
                     icon: "calendar",
                     title: String(localized: "statistics.performance.weeklyFrequency"),
-                    value: String(localized: "statistics.performance.workoutsPerWeekValue", defaultValue: "\(viewModel.formatFrequency(viewModel.weeklyFrequency)) workouts/week", comment: "Number of workouts per week")
+                    value: String(format: String(localized: "statistics.performance.workoutsPerWeekValue", defaultValue: "%@ workouts/week", comment: "Number of workouts per week"), viewModel.formatFrequency(viewModel.weeklyFrequency))
                 )
             }
             .padding()
@@ -447,7 +447,7 @@ struct StatisticsView: View {
 
                             Spacer()
 
-                            Text(String(localized: "statistics.distribution.workoutsCount", defaultValue: "\(dist.count) workouts", comment: "Number of workouts in a distribution category"))
+                            Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), dist.count))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
@@ -507,7 +507,7 @@ struct StatisticsView: View {
 
                             Spacer()
 
-                            Text(String(localized: "statistics.distribution.workoutsCount", defaultValue: "\(dist.count) workouts", comment: "Number of workouts in a distribution category"))
+                            Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), dist.count))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
@@ -798,7 +798,7 @@ struct ComparisonCard: View {
                 .font(.subheadline)
                 .fontWeight(.bold)
 
-            Text(String(localized: "statistics.comparison.vsLastMonth", comment: "Comparison label vs last month"))
+            Text(String(localized: "statistics.comparison.vsLastMonth", defaultValue: "vs last month", comment: "Comparison label vs last month"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

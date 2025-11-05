@@ -18,7 +18,22 @@ struct SettingsView: View {
             List {
                 // Subscription Section
                 Section {
-                    if revenueCatManager.isSubscriptionActive {
+                    // TestFlight environment - show TestFlight badge
+                    if revenueCatManager.isTestFlightEnvironment {
+                        HStack {
+                            Image(systemName: "airplane.circle.fill")
+                                .foregroundStyle(.blue)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(String(localized: "TestFlight - Premium Access"))
+                                    .font(.headline)
+                                Text(String(localized: "All features unlocked for testing"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                    } else if revenueCatManager.isSubscriptionActive {
+                        // Production with active subscription
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
@@ -32,6 +47,7 @@ struct SettingsView: View {
                             }
                         }
                     } else {
+                        // Production without subscription - show subscribe button
                         Button {
                             showPaywall = true
                         } label: {
@@ -66,7 +82,7 @@ struct SettingsView: View {
                 } header: {
                     Text(String(localized: "Subscription"))
                 } footer: {
-                    if !revenueCatManager.isSubscriptionActive {
+                    if !revenueCatManager.hasAIAccess {
                         Text(String(localized: "Unlock full access to advanced AI analysis, personalized advice and more."))
                     }
                 }

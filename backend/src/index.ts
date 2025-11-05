@@ -4,7 +4,7 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { captureLLMEvent, createPostHogClient } from './posthog'
-import { buildPrompt, buildHistoricalAnalysisPrompt } from './prompts'
+import { buildHistoricalAnalysisPrompt, buildPrompt } from './prompts'
 import type { ChatRequestV2, HistoricalAnalysisRequest, HistoricalAnalysisResponse } from './types'
 
 type Bindings = {
@@ -747,7 +747,9 @@ app.post('/api/analyze-history', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
-    console.log(`📊 Historical analysis requested: ${workouts.length} workouts, model: ${model}, user: ${userId}`)
+    console.log(
+      `📊 Historical analysis requested: ${workouts.length} workouts, model: ${model}, user: ${userId}`
+    )
 
     // Build the analysis prompt
     const systemPrompt = ''
@@ -800,7 +802,6 @@ app.post('/api/analyze-history', async (c) => {
     }
 
     return c.json(response)
-
   } catch (error) {
     console.error('Historical analysis endpoint error:', error)
 

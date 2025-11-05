@@ -634,7 +634,7 @@ Keep it factual, quantitative, and actionable.
       prompt += `\n`
     }
 
-    if (w.heartRate && w.heartRate.avg) {
+    if (w.heartRate?.avg) {
       prompt += `   HR: Avg ${Math.round(w.heartRate.avg)} bpm`
       if (w.heartRate.min && w.heartRate.max) {
         prompt += ` (${Math.round(w.heartRate.min)}-${Math.round(w.heartRate.max)})`

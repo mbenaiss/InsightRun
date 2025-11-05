@@ -163,6 +163,31 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             self.suggestedQuestions = []
         }
 
+        // Check if historical summary exists, if not generate it first (one-time)
+        if !HistoricalSummaryStorage.shared.hasSummary {
+            print("📊 WorkoutAIService: No historical summary found, generating for first time...")
+
+            await MainActor.run {
+                self.streamedResponse = String(localized: "🔍 First time setup: Analyzing your training history...\nThis will only happen once and takes 10-20 seconds.", comment: "Message during first-time historical analysis")
+            }
+
+            // Generate historical summary in background
+            let success = await generateHistoricalSummaryIfNeeded()
+
+            if !success {
+                // If generation failed, continue without summary (user can retry later)
+                await MainActor.run {
+                    self.streamedResponse = ""
+                }
+                print("⚠️ WorkoutAIService: Historical summary generation failed, continuing without it")
+            } else {
+                print("✅ WorkoutAIService: Historical summary generated successfully")
+                await MainActor.run {
+                    self.streamedResponse = ""
+                }
+            }
+        }
+
         // If model not provided, use intelligent routing
         let selectedModel: AIModel
         if let model = model {
@@ -192,6 +217,86 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             // For remote models, backend builds the full prompt from structured data
             await handleRemoteModelInference(question: question, model: selectedModel, mode: mode)
         }
+    }
+
+    // MARK: - Historical Summary Generation
+
+    /// Generate historical summary automatically (called on first message)
+    private func generateHistoricalSummaryIfNeeded() async -> Bool {
+        do {
+            // Fetch all workouts
+            let workouts = try await HealthKitManager.shared.fetchRunningWorkouts()
+
+            guard !workouts.isEmpty else {
+                print("⚠️ WorkoutAIService: No workouts found, skipping historical analysis")
+                return false
+            }
+
+            print("📊 WorkoutAIService: Found \(workouts.count) workouts for analysis")
+
+            // Convert workouts to API format (limit to 365)
+            var workoutDataList: [WorkoutData] = []
+            let maxWorkouts = min(workouts.count, 365)
+
+            for workout in workouts.prefix(maxWorkouts) {
+                let workoutData = convertToWorkoutDataSimple(workout: workout)
+                workoutDataList.append(workoutData)
+            }
+
+            // Generate summary via backend
+            let language = getUserLanguage()
+            let model = "x-ai/grok-4-fast" // Fast model for historical analysis
+
+            let response = try await backendClient.generateHistoricalSummary(
+                workouts: workoutDataList,
+                model: model,
+                language: language
+            )
+
+            // Save to local storage
+            let summary = HistoricalSummary(
+                summary: response.summary,
+                workoutCount: response.workoutCount,
+                dateRangeStart: workouts.last?.startDate ?? Date(),
+                dateRangeEnd: workouts.first?.startDate ?? Date()
+            )
+
+            HistoricalSummaryStorage.shared.save(summary)
+            print("✅ WorkoutAIService: Historical summary generated and saved")
+
+            return true
+
+        } catch {
+            print("❌ WorkoutAIService: Failed to generate historical summary: \(error)")
+            return false
+        }
+    }
+
+    /// Convert workout to simplified API format (without metrics for bulk analysis)
+    private func convertToWorkoutDataSimple(workout: WorkoutModel) -> WorkoutData {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+
+        return WorkoutData(
+            date: formatter.string(from: workout.startDate),
+            duration: workout.duration,
+            distance: workout.distance ?? 0,
+            calories: workout.totalEnergyBurned,
+            pace: workout.averagePace,
+            speed: workout.averageSpeed,
+            heartRate: nil,
+            minPace: nil,
+            cadence: nil,
+            strideLength: nil,
+            runningPower: nil,
+            vo2Max: nil,
+            elevationGain: nil,
+            groundContactTime: nil,
+            verticalOscillation: nil,
+            mobility: nil,
+            splits: nil
+        )
     }
 
     // MARK: - Local Model Inference

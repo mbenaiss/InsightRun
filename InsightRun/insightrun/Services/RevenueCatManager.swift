@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import RevenueCat
+import StoreKit
 
 /// Manages RevenueCat SDK configuration and subscription state
 @MainActor
@@ -21,22 +22,59 @@ class RevenueCatManager: NSObject, ObservableObject {
     // Track if user has seen the initial paywall after HealthKit authorization
     @Published var hasSeenInitialPaywall: Bool = false
 
+    // Cache TestFlight environment status
+    private var cachedTestFlightStatus: Bool?
+
     override private init() {
         super.init()
         // Load persisted value
         self.hasSeenInitialPaywall = UserDefaults.standard.bool(forKey: "hasSeenInitialPaywall")
+
+        // Detect TestFlight environment on initialization
+        Task {
+            await detectTestFlightEnvironment()
+        }
     }
 
     // MARK: - TestFlight Detection
 
-    /// Detects if the app is running in TestFlight environment
-    /// Uses Apple's receipt to determine if this is a TestFlight build
-    var isTestFlightEnvironment: Bool {
-        guard let receiptURL = Bundle.main.appStoreReceiptURL else {
-            return false
+    /// Detects if the app is running in TestFlight environment asynchronously
+    /// Uses StoreKit 2 AppTransaction to determine environment
+    private func detectTestFlightEnvironment() async {
+        do {
+            // Get app transaction using StoreKit 2 (iOS 15+)
+            // AppTransaction.shared returns a VerificationResult that needs to be unwrapped
+            let verificationResult = try await AppTransaction.shared
+
+            // Extract the verified transaction
+            let transaction: AppTransaction
+            switch verificationResult {
+            case .verified(let appTransaction):
+                transaction = appTransaction
+            case .unverified(let appTransaction, _):
+                // Even if unverified, we can still check the environment
+                transaction = appTransaction
+            }
+
+            // TestFlight builds run in sandbox environment
+            // Production App Store builds run in production environment
+            let isTestFlight = transaction.environment == .sandbox || transaction.environment == .xcode
+
+            await MainActor.run {
+                self.cachedTestFlightStatus = isTestFlight
+            }
+        } catch {
+            // If no transaction available (e.g., fresh install), assume not TestFlight
+            await MainActor.run {
+                self.cachedTestFlightStatus = false
+            }
         }
-        // TestFlight builds have "sandboxReceipt" in the receipt path
-        return receiptURL.path.contains("sandboxReceipt")
+    }
+
+    /// Synchronous access to TestFlight environment status
+    /// Returns cached value, or false if not yet determined
+    var isTestFlightEnvironment: Bool {
+        return cachedTestFlightStatus ?? false
     }
 
     /// Determines if the user has access to AI features

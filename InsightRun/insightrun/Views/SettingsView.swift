@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Environment(ThemeManager.self) private var themeManager
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @State private var showPaywall = false
+    @State private var showingMedicalSources = false
 
     var body: some View {
         NavigationStack {
@@ -85,6 +86,35 @@ struct SettingsView: View {
                     Text(String(localized: "Choose the app theme. System mode automatically adapts to your iOS settings."))
                 }
 
+                // Medical Information Section
+                Section {
+                    Button {
+                        showingMedicalSources = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "book.closed.fill")
+                                .foregroundStyle(.blue)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(String(localized: "Medical Sources", comment: "Medical sources settings button"))
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                Text(String(localized: "View scientific references", comment: "Medical sources subtitle"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text(String(localized: "Medical Information", comment: "Medical information section header"))
+                } footer: {
+                    Text(String(localized: "Health metrics and recovery recommendations are based on published scientific research. Tap to view all sources.", comment: "Medical information footer"))
+                }
+
                 // Debug Section (for testing)
                 #if DEBUG
                 Section {
@@ -137,6 +167,9 @@ struct SettingsView: View {
             .navigationTitle(String(localized: "Settings", comment: "Navigation title for settings view"))
             .fullScreenCover(isPresented: $showPaywall) {
                 SubscriptionPaywallView()
+            }
+            .sheet(isPresented: $showingMedicalSources) {
+                MedicalSourcesView()
             }
         }
         .preferredColorScheme(themeManager.selectedTheme.colorScheme)

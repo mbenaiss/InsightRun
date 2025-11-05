@@ -12,6 +12,7 @@ struct RecoveryDashboardView: View {
     @StateObject private var viewModel = RecoveryViewModel()
     @ObservedObject private var revenueCatManager = RevenueCatManager.shared
     @State private var showingAIAssistant = false
+    @State private var showingMedicalSources = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -79,6 +80,9 @@ struct RecoveryDashboardView: View {
                     isPresented: $showingAIAssistant
                 )
             }
+        }
+        .sheet(isPresented: $showingMedicalSources) {
+            MedicalSourcesView()
         }
     }
 
@@ -191,6 +195,10 @@ struct RecoveryDashboardView: View {
                 respiratorySection(respiratoryRate)
                     .padding(.horizontal)
             }
+
+            // Medical Sources Link
+            medicalSourcesSection
+                .padding(.horizontal)
         }
         .padding(.bottom, 20)
     }
@@ -391,6 +399,53 @@ struct RecoveryDashboardView: View {
                 title: String(localized: "Respiratory rate", comment: "Label for respiratory rate"),
                 value: String(format: "%.0f /min", rate)
             )
+        }
+        .padding(20)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+    }
+
+    // MARK: - Medical Sources Section
+
+    private var medicalSourcesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "book.closed.fill")
+                    .foregroundStyle(.blue.gradient)
+                    .font(.title3)
+
+                Text(String(localized: "Medical Information", comment: "Medical sources section title"))
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+            }
+
+            Text(String(localized: "Recovery recommendations are based on published scientific research. Tap below to view all medical sources.", comment: "Medical sources disclaimer text"))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineSpacing(4)
+
+            Button {
+                showingMedicalSources = true
+            } label: {
+                HStack {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.subheadline)
+                    Text(String(localized: "View Scientific Sources", comment: "Button to view medical sources"))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                .foregroundStyle(.blue)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.blue.opacity(0.1))
+                )
+            }
         }
         .padding(20)
         .background(.ultraThinMaterial)

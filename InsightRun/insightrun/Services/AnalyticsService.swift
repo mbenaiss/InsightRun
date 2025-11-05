@@ -48,12 +48,10 @@ final class AnalyticsService {
                 PostHogSDK.shared.setup(config)
 
                 // Identify user with UUID from UserIdentityService
-                let userID = UserIdentityService.shared.userID
+                let userID = await UserIdentityService.shared.userID
                 PostHogSDK.shared.identify(userID)
 
                 print("✅ PostHog: Configured with user ID \(userID)")
-            } catch {
-                print("⚠️ PostHog configuration failed (non-blocking): \(error.localizedDescription)")
             }
         }
     }
@@ -64,27 +62,21 @@ final class AnalyticsService {
     /// Non-blocking: runs in background and doesn't crash the app if PostHog fails
     func track(_ event: AnalyticsEvent, properties: [String: Any] = [:]) {
         Task.detached { @MainActor in
-            do {
-                var enrichedProperties = properties
+            var enrichedProperties = properties
 
-                // Add global properties to every event
-                enrichedProperties["session_id"] = self.sessionID
-                enrichedProperties["app_version"] = self.appVersion
-                enrichedProperties["ios_version"] = UIDevice.current.systemVersion
-                enrichedProperties["device_model"] = self.deviceModel
-                enrichedProperties["locale"] = Locale.current.identifier
-                enrichedProperties["subscription_status"] = self.subscriptionStatus
+            // Add global properties to every event
+            enrichedProperties["session_id"] = self.sessionID
+            enrichedProperties["app_version"] = self.appVersion
+            enrichedProperties["ios_version"] = UIDevice.current.systemVersion
+            enrichedProperties["device_model"] = self.deviceModel
+            enrichedProperties["locale"] = Locale.current.identifier
+            enrichedProperties["subscription_status"] = self.subscriptionStatus
 
-                #if DEBUG
-                print("📊 Analytics: \(event.rawValue) - \(enrichedProperties)")
-                #endif
+            #if DEBUG
+            print("📊 Analytics: \(event.rawValue) - \(enrichedProperties)")
+            #endif
 
-                PostHogSDK.shared.capture(event.rawValue, properties: enrichedProperties)
-            } catch {
-                #if DEBUG
-                print("⚠️ PostHog tracking failed (non-blocking): \(error.localizedDescription)")
-                #endif
-            }
+            PostHogSDK.shared.capture(event.rawValue, properties: enrichedProperties)
         }
     }
 

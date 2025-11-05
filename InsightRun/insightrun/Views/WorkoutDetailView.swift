@@ -313,7 +313,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Best Pace", comment: "Best pace performance metric"),
                     value: viewModel.formatPace(minPace),
                     color: .green,
-                    metricInfoKey: "metric.best_pace"
+                    metricInfoKey: "metric.best_pace",
+                    currentValue: minPace
                 )
             }
 
@@ -323,7 +324,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Max Speed", comment: "Maximum speed performance metric"),
                     value: viewModel.formatSpeed(maxSpeed),
                     color: .yellow,
-                    metricInfoKey: "metric.max_speed"
+                    metricInfoKey: "metric.max_speed",
+                    currentValue: maxSpeed
                 )
             }
 
@@ -333,7 +335,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Avg Cadence", comment: "Average cadence performance metric"),
                     value: viewModel.formatCadence(cadence),
                     color: .indigo,
-                    metricInfoKey: "metric.avg_cadence"
+                    metricInfoKey: "metric.avg_cadence",
+                    currentValue: cadence
                 )
             }
 
@@ -343,7 +346,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Stride Length", comment: "Stride length performance metric"),
                     value: viewModel.formatStrideLength(strideLength),
                     color: .cyan,
-                    metricInfoKey: "metric.stride_length"
+                    metricInfoKey: "metric.stride_length",
+                    currentValue: strideLength
                 )
             }
 
@@ -353,7 +357,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Power", comment: "Running power performance metric"),
                     value: viewModel.formatPower(power),
                     color: .orange,
-                    metricInfoKey: "metric.running_power"
+                    metricInfoKey: "metric.running_power",
+                    currentValue: power
                 )
             }
 
@@ -363,7 +368,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "VO2 Max", comment: "VO2 Maximum performance metric"),
                     value: String(format: "%.1f ml/kg/min", vo2Max),
                     color: .red,
-                    metricInfoKey: "metric.vo2_max"
+                    metricInfoKey: "metric.vo2_max",
+                    currentValue: vo2Max
                 )
             }
         }
@@ -425,7 +431,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Ground Contact Time", comment: "Ground contact time advanced metric"),
                     value: String(format: "%.0f ms", gct),
                     color: .indigo,
-                    metricInfoKey: "metric.ground_contact_time"
+                    metricInfoKey: "metric.ground_contact_time",
+                    currentValue: gct
                 )
             }
 
@@ -435,7 +442,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Vertical Oscillation", comment: "Vertical oscillation advanced metric"),
                     value: String(format: "%.1f cm", vo),
                     color: .cyan,
-                    metricInfoKey: "metric.vertical_oscillation"
+                    metricInfoKey: "metric.vertical_oscillation",
+                    currentValue: vo
                 )
             }
 
@@ -445,7 +453,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Contact Balance", comment: "Ground contact time balance advanced metric"),
                     value: viewModel.formatPercentage(balance),
                     color: .orange,
-                    metricInfoKey: "metric.contact_balance"
+                    metricInfoKey: "metric.contact_balance",
+                    currentValue: balance
                 )
             }
 
@@ -455,7 +464,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Running Efficiency", comment: "Running efficiency advanced metric"),
                     value: viewModel.formatPercentage(efficiency),
                     color: .green,
-                    metricInfoKey: "metric.running_efficiency"
+                    metricInfoKey: "metric.running_efficiency",
+                    currentValue: efficiency
                 )
             }
 
@@ -466,7 +476,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Walking Steadiness", comment: "Walking steadiness advanced metric"),
                     value: viewModel.formatPercentage(steadiness),
                     color: .green,
-                    metricInfoKey: "metric.walking_steadiness"
+                    metricInfoKey: "metric.walking_steadiness",
+                    currentValue: steadiness
                 )
             }
 
@@ -476,7 +487,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Walking Asymmetry", comment: "Walking asymmetry advanced metric"),
                     value: viewModel.formatPercentage(asymmetry),
                     color: .orange,
-                    metricInfoKey: "metric.walking_asymmetry"
+                    metricInfoKey: "metric.walking_asymmetry",
+                    currentValue: asymmetry
                 )
             }
 
@@ -486,7 +498,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Double Support", comment: "Double support percentage advanced metric"),
                     value: viewModel.formatPercentage(doubleSupport),
                     color: .blue,
-                    metricInfoKey: "metric.double_support"
+                    metricInfoKey: "metric.double_support",
+                    currentValue: doubleSupport
                 )
             }
 
@@ -496,7 +509,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Walking Speed", comment: "Walking speed advanced metric"),
                     value: viewModel.formatSpeed(speed),
                     color: .cyan,
-                    metricInfoKey: "metric.walking_speed"
+                    metricInfoKey: "metric.walking_speed",
+                    currentValue: speed
                 )
             }
 
@@ -506,7 +520,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Stair Ascent Speed", comment: "Stair ascent speed advanced metric"),
                     value: viewModel.formatSpeed(ascentSpeed),
                     color: .purple,
-                    metricInfoKey: "metric.stair_ascent_speed"
+                    metricInfoKey: "metric.stair_ascent_speed",
+                    currentValue: ascentSpeed
                 )
             }
 
@@ -516,7 +531,8 @@ struct WorkoutDetailView: View {
                     label: String(localized: "Stair Descent Speed", comment: "Stair descent speed advanced metric"),
                     value: viewModel.formatSpeed(descentSpeed),
                     color: .indigo,
-                    metricInfoKey: "metric.stair_descent_speed"
+                    metricInfoKey: "metric.stair_descent_speed",
+                    currentValue: descentSpeed
                 )
             }
         }
@@ -721,6 +737,12 @@ struct WorkoutDetailView: View {
 struct MetricInfo: Identifiable {
     let id = UUID()
     let key: String
+    let currentValue: Double?
+
+    init(key: String, currentValue: Double? = nil) {
+        self.key = key
+        self.currentValue = currentValue
+    }
 
     var title: String {
         NSLocalizedString("\(key).title", comment: "Metric title")
@@ -744,6 +766,7 @@ struct MetricInfo: Identifiable {
 struct MetricInfoSheet: View {
     let metricInfo: MetricInfo
     @Environment(\.dismiss) private var dismiss
+    @State private var showingMedicalSources = false
 
     var body: some View {
         NavigationStack {
@@ -787,12 +810,84 @@ struct MetricInfoSheet: View {
                         content: metricInfo.usage
                     )
 
-                    // Recommended Values Card
-                    InfoCard(
-                        icon: "checkmark.seal.fill",
-                        iconColor: .green,
-                        title: String(localized: "metric.info.recommended", comment: "Recommended values"),
-                        content: metricInfo.recommendedValues
+                    // Recommended Values - Visualization or Text
+                    if let rangeModel = MetricRanges.getRangeModel(for: metricInfo.key) {
+                        // Use visual range component when available
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.green.opacity(0.15))
+                                        .frame(width: 36, height: 36)
+
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(.green)
+                                }
+
+                                Text(String(localized: "metric.info.recommended", comment: "Recommended values"))
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+
+                            MetricRangeVisualization(
+                                rangeModel: rangeModel,
+                                currentValue: metricInfo.currentValue
+                            )
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 16)
+                        }
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(.systemBackground))
+                                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                        )
+                    } else {
+                        // Fallback to text card when no visual range available
+                        InfoCard(
+                            icon: "checkmark.seal.fill",
+                            iconColor: .green,
+                            title: String(localized: "metric.info.recommended", comment: "Recommended values"),
+                            content: metricInfo.recommendedValues
+                        )
+                    }
+
+                    // Medical Sources Disclaimer
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(String(localized: "These recommendations are based on published scientific research.", comment: "Metric info medical disclaimer"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(4)
+
+                        Button {
+                            showingMedicalSources = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "doc.text.fill")
+                                    .font(.caption)
+                                Text(String(localized: "View Medical Sources", comment: "Button to view medical sources from metric sheet"))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundStyle(.blue)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.blue.opacity(0.1))
+                            )
+                        }
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
                     )
                 }
                 .padding()
@@ -815,6 +910,9 @@ struct MetricInfoSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showingMedicalSources) {
+            MedicalSourcesView()
+        }
     }
 }
 
@@ -911,6 +1009,7 @@ struct MetricRow: View {
     let value: String
     let color: Color
     var metricInfoKey: String? = nil
+    var currentValue: Double? = nil
 
     @State private var showingInfo = false
 
@@ -941,7 +1040,7 @@ struct MetricRow: View {
                 }
                 .buttonStyle(.plain)
                 .sheet(isPresented: $showingInfo) {
-                    MetricInfoSheet(metricInfo: MetricInfo(key: metricInfoKey))
+                    MetricInfoSheet(metricInfo: MetricInfo(key: metricInfoKey, currentValue: currentValue))
                 }
             }
         }

@@ -349,6 +349,10 @@ class FoundationModelsService: ObservableObject {
             print("🌐 FoundationModels: Unsupported language/locale")
             return "🌐 La langue ou locale n'est pas supportée par le modèle."
 
+        case .unsupportedGuide:
+            print("⚠️ FoundationModels: Unsupported guide - \(error)")
+            return "⚠️ Format de génération non supporté: \(error.localizedDescription)"
+
         @unknown default:
             print("❓ FoundationModels: Unknown error - \(error)")
             return "❓ Erreur inconnue: \(error.localizedDescription)"

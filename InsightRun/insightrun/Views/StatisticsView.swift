@@ -473,18 +473,6 @@ struct StatisticsView: View {
     }
 
     private func distanceChartTooltip(selected: StatisticsViewModel.PeriodData) -> some View {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .short
-        dateFormatter.locale = Locale.current
-
-        let periodLabel: String
-        if viewModel.selectedPeriod == .thisMonth && viewModel.chartGranularity == .week {
-            let weekOfYear = Calendar.current.component(.weekOfYear, from: selected.date)
-            periodLabel = String(format: String(localized: "statistics.charts.week", defaultValue: "Week %d", comment: "Week number label"), weekOfYear)
-        } else {
-            periodLabel = dateFormatter.string(from: selected.date)
-        }
-
         return VStack(spacing: 6) {
             Text(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label").uppercased())
                 .font(.caption2)
@@ -495,10 +483,6 @@ struct StatisticsView: View {
             Text(viewModel.formatDistance(selected.distance))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(.blue)
-
-            Text(periodLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
 
             if selected.workoutCount > 0 {
                 Text("\(selected.workoutCount) " + (selected.workoutCount == 1 ? String(localized: "statistics.charts.workout", defaultValue: "workout", comment: "Singular workout") : String(localized: "statistics.charts.workouts", defaultValue: "workouts", comment: "Plural workouts")))

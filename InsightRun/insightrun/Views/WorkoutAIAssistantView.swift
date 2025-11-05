@@ -268,7 +268,7 @@ struct WorkoutAIAssistantView: View {
         switch mode {
         case .singleWorkout:
             return String(localized: "Workout analysis", comment: "Mode description for single workout analysis")
-        case .recentWorkouts(let workouts):
+        case .recentWorkouts(let workouts, _):
             return String(format: String(localized: "%lld recent workouts", comment: "Mode description for multiple recent workouts (plural form)"), workouts.count)
         case .recoveryCoaching:
             return String(localized: "Recovery coaching", comment: "Mode description for recovery coaching")

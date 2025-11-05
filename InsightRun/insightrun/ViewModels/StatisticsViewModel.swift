@@ -489,7 +489,21 @@ class StatisticsViewModel: ObservableObject {
             ))
         }
 
-        return data.sorted { $0.date < $1.date }
+        data = data.sorted { $0.date < $1.date }
+
+        // When displaying this month with week granularity, filter to only include weeks within the current month
+        if selectedPeriod == .thisMonth && chartGranularity == .week {
+            let now = Date()
+            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else {
+                return data
+            }
+            guard let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth) else {
+                return data
+            }
+            data = data.filter { $0.date >= startOfMonth && $0.date <= endOfMonth }
+        }
+
+        return data
     }
 
     var activityHeatMapData: [ActivityDay] {

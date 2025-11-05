@@ -159,7 +159,7 @@ struct StatisticsView: View {
                     title: String(localized: "statistics.overview.totalWorkouts"),
                     value: "\(viewModel.totalWorkouts)",
                     subtitle: nil,
-                    trend: viewModel.monthlyChange.workoutsChange > 0 ? .up : (viewModel.monthlyChange.workoutsChange < 0 ? .down : nil)
+                    trend: nil
                 )
 
                 StatMetricCard(
@@ -168,7 +168,7 @@ struct StatisticsView: View {
                     title: String(localized: "statistics.overview.totalDistance"),
                     value: viewModel.formatDistance(viewModel.totalDistance),
                     subtitle: nil,
-                    trend: viewModel.monthlyChange.distanceChange > 0 ? .up : (viewModel.monthlyChange.distanceChange < 0 ? .down : nil)
+                    trend: nil
                 )
 
                 StatMetricCard(
@@ -187,7 +187,7 @@ struct StatisticsView: View {
                         title: String(localized: "statistics.overview.averagePace"),
                         value: viewModel.formatPace(avgPace),
                         subtitle: nil,
-                        trend: (viewModel.monthlyChange.paceChange ?? 0) < 0 ? .up : ((viewModel.monthlyChange.paceChange ?? 0) > 0 ? .down : nil)
+                        trend: nil
                     )
                 }
             }
@@ -938,7 +938,7 @@ struct StatMetricCard: View {
             Spacer()
         }
         .padding()
-        .frame(maxWidth: .infinity, minHeight: 120)
+        .frame(maxWidth: .infinity, minHeight: 100)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)

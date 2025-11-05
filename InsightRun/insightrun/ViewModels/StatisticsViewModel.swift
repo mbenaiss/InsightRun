@@ -13,41 +13,42 @@ import HealthKit
 class StatisticsViewModel: ObservableObject {
     @Published var workouts: [WorkoutModel] = []
     @Published var isLoading = false
-    @Published var selectedPeriod: TimePeriod = .thirtyDays
+    @Published var selectedPeriod: TimePeriod = .thisMonth
+    @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
     @Published var chartGranularity: ChartGranularity = .month
 
     private let healthKitManager = HealthKitManager.shared
 
-    enum TimePeriod: String, CaseIterable {
-        case thirtyDays
-        case ninetyDays
+    enum TimePeriod: Equatable, CaseIterable {
+        case thisMonth
         case sixMonths
         case oneYear
-        case allTime
+        case specificYear
 
         var localizedTitle: String {
             switch self {
-            case .thirtyDays:
-                return String(localized: "statistics.period.30days", defaultValue: "30d", comment: "30 days period filter")
-            case .ninetyDays:
-                return String(localized: "statistics.period.90days", defaultValue: "90d", comment: "90 days period filter")
+            case .thisMonth:
+                return String(localized: "statistics.period.thisMonth", defaultValue: "This month", comment: "This month period filter")
             case .sixMonths:
                 return String(localized: "statistics.period.6months", defaultValue: "6 months", comment: "6 months period filter")
             case .oneYear:
                 return String(localized: "statistics.period.1year", defaultValue: "1 year", comment: "1 year period filter")
-            case .allTime:
-                return String(localized: "statistics.period.allTime", defaultValue: "All", comment: "All time period filter")
+            case .specificYear:
+                return String(localized: "statistics.period.year", defaultValue: "Year", comment: "Specific year period filter")
             }
         }
 
         var days: Int? {
             switch self {
-            case .thirtyDays: return 30
-            case .ninetyDays: return 90
+            case .thisMonth: return nil
             case .sixMonths: return 180
             case .oneYear: return 365
-            case .allTime: return nil
+            case .specificYear: return nil
             }
+        }
+
+        static var allCases: [TimePeriod] {
+            [.thisMonth, .sixMonths, .oneYear, .specificYear]
         }
     }
 
@@ -161,9 +162,38 @@ class StatisticsViewModel: ObservableObject {
     // MARK: - Filtered Workouts
 
     var filteredWorkouts: [WorkoutModel] {
-        guard let days = selectedPeriod.days else { return workouts }
-        let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        return workouts.filter { $0.startDate >= cutoffDate }
+        let calendar = Calendar.current
+
+        switch selectedPeriod {
+        case .thisMonth:
+            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: Date())) else {
+                return workouts
+            }
+            return workouts.filter { $0.startDate >= startOfMonth }
+
+        case .sixMonths, .oneYear:
+            guard let days = selectedPeriod.days else { return workouts }
+            let cutoffDate = calendar.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+            return workouts.filter { $0.startDate >= cutoffDate }
+
+        case .specificYear:
+            guard let startOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 1, day: 1)) else {
+                return workouts
+            }
+            guard let endOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 12, day: 31)) else {
+                return workouts
+            }
+            return workouts.filter { $0.startDate >= startOfYear && $0.startDate <= endOfYear }
+        }
+    }
+
+    // MARK: - Available Years
+
+    var availableYears: [Int] {
+        guard !workouts.isEmpty else { return [Calendar.current.component(.year, from: Date())] }
+
+        let years = Set(workouts.map { Calendar.current.component(.year, from: $0.startDate) })
+        return years.sorted(by: >)
     }
 
     // MARK: - Overview Metrics
@@ -276,6 +306,18 @@ class StatisticsViewModel: ObservableObject {
         let paceChange: Double?
         let durationChange: TimeInterval
 
+        // This month values
+        let thisMonthWorkouts: Int
+        let thisMonthDistance: Double
+        let thisMonthDuration: TimeInterval
+        let thisMonthAvgPace: Double?
+
+        // Last month values
+        let lastMonthWorkouts: Int
+        let lastMonthDistance: Double
+        let lastMonthDuration: TimeInterval
+        let lastMonthAvgPace: Double?
+
         var distancePercentage: Double {
             guard distanceChange != 0 else { return 0 }
             return distanceChange * 100
@@ -367,7 +409,11 @@ class StatisticsViewModel: ObservableObject {
 
         guard let startOfThisMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)),
               let startOfLastMonth = calendar.date(byAdding: .month, value: -1, to: startOfThisMonth) else {
-            return MonthlyChange(distanceChange: 0, workoutsChange: 0, paceChange: nil, durationChange: 0)
+            return MonthlyChange(
+                distanceChange: 0, workoutsChange: 0, paceChange: nil, durationChange: 0,
+                thisMonthWorkouts: 0, thisMonthDistance: 0, thisMonthDuration: 0, thisMonthAvgPace: nil,
+                lastMonthWorkouts: 0, lastMonthDistance: 0, lastMonthDuration: 0, lastMonthAvgPace: nil
+            )
         }
 
         let thisMonthWorkouts = workouts.filter { $0.startDate >= startOfThisMonth }
@@ -402,7 +448,15 @@ class StatisticsViewModel: ObservableObject {
             distanceChange: distanceChange,
             workoutsChange: workoutsChange,
             paceChange: paceChange,
-            durationChange: durationChange
+            durationChange: durationChange,
+            thisMonthWorkouts: thisMonthWorkouts.count,
+            thisMonthDistance: thisMonthDistance,
+            thisMonthDuration: thisMonthDuration,
+            thisMonthAvgPace: thisMonthAvgPace,
+            lastMonthWorkouts: lastMonthWorkouts.count,
+            lastMonthDistance: lastMonthDistance,
+            lastMonthDuration: lastMonthDuration,
+            lastMonthAvgPace: lastMonthAvgPace
         )
     }
 
@@ -639,5 +693,37 @@ class StatisticsViewModel: ObservableObject {
 
     func formatFrequency(_ frequency: Double) -> String {
         return String(format: "%.1f", frequency)
+    }
+
+    // MARK: - Test Data
+
+    @MainActor
+    static func createWithTestData() -> StatisticsViewModel {
+        let viewModel = StatisticsViewModel()
+        viewModel.loadTestData()
+        return viewModel
+    }
+
+    func loadTestData() {
+        let testWorkouts = (1...45).map { day -> WorkoutModel in
+            let calendar = Calendar.current
+            let startDate = calendar.date(byAdding: .day, value: -day, to: Date()) ?? Date()
+            let distance = Double.random(in: 3000...15000) // 3-15 km
+            let pace = Double.random(in: 5.5...7.5) // 5:30-7:30 min/km
+            let duration = (distance / 1000.0) * pace * 60 // Convert to seconds
+
+            return WorkoutModel(
+                id: UUID(),
+                workoutType: .running,
+                startDate: startDate,
+                endDate: calendar.date(byAdding: .second, value: Int(duration), to: startDate) ?? startDate,
+                duration: duration,
+                distance: distance,
+                totalEnergyBurned: distance / 1000 * Double.random(in: 50...80), // 50-80 kcal per km
+                sourceName: "Apple Health",
+                sourceVersion: "1.0"
+            )
+        }
+        self.workouts = testWorkouts
     }
 }

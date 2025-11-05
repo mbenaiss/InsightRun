@@ -11,11 +11,26 @@ import Charts
 struct StatisticsView: View {
     @StateObject private var viewModel = StatisticsViewModel()
     @Environment(\.colorScheme) var colorScheme
+    @State private var selectedPeriodDataId: UUID?
+    @State private var selectedPaceDistributionId: UUID?
+    @State private var selectedDistanceDistributionId: UUID?
+
+    // Optional injected viewModel for testing - replaces the default one
+    init(injectedViewModel: StatisticsViewModel? = nil) {
+        if let injected = injectedViewModel {
+            _viewModel = StateObject(wrappedValue: injected)
+        } else {
+            _viewModel = StateObject(wrappedValue: StatisticsViewModel())
+        }
+    }
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
+                    // Section 1: Personal records (always at top)
+                    personalRecordsSection
+
                     // Period selector
                     periodSelector
 
@@ -25,14 +40,11 @@ struct StatisticsView: View {
                     } else if viewModel.workouts.isEmpty {
                         emptyState
                     } else {
-                        // Section 1: Overview metrics
+                        // Section 2: Overview metrics
                         overviewMetricsSection
 
-                        // Section 2: Performance averages
+                        // Section 3: Performance averages
                         performanceAveragesSection
-
-                        // Section 3: Personal records
-                        personalRecordsSection
 
                         // Section 4: Monthly comparison
                         monthlyComparisonSection
@@ -43,13 +55,8 @@ struct StatisticsView: View {
                         // Section 6: Pace distribution
                         paceDistributionSection
 
-                        // Section 8: Distance distribution
+                        // Section 7: Distance distribution
                         distanceDistributionSection
-
-                        // Section 9: Yearly comparison
-                        if viewModel.yearlyComparisonData.lastYearWorkouts > 0 {
-                            yearlyComparisonSection
-                        }
                     }
                 }
                 .padding()
@@ -67,20 +74,69 @@ struct StatisticsView: View {
     // MARK: - Period Selector
 
     private var periodSelector: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(StatisticsViewModel.TimePeriod.allCases, id: \.self) { period in
-                    PeriodButton(
-                        title: period.localizedTitle,
-                        isSelected: viewModel.selectedPeriod == period
-                    ) {
-                        withAnimation {
-                            viewModel.selectedPeriod = period
+        VStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(StatisticsViewModel.TimePeriod.allCases, id: \.self) { period in
+                        PeriodButton(
+                            title: period.localizedTitle,
+                            isSelected: viewModel.selectedPeriod == period
+                        ) {
+                            withAnimation {
+                                viewModel.selectedPeriod = period
+                                // Set default year if switching to year filter
+                                if period == .specificYear {
+                                    viewModel.selectedYear = viewModel.availableYears.first ?? Calendar.current.component(.year, from: Date())
+                                }
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, 4)
             }
-            .padding(.horizontal, 4)
+
+            // Year selector dropdown
+            if viewModel.selectedPeriod == .specificYear {
+                Menu {
+                    ForEach(viewModel.availableYears, id: \.self) { year in
+                        Button(action: {
+                            withAnimation {
+                                viewModel.selectedYear = year
+                            }
+                        }) {
+                            HStack {
+                                Text("\(year)")
+                                if viewModel.selectedYear == year {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(String(localized: "statistics.year"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Text("\(viewModel.selectedYear)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.primary)
+
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 
@@ -102,8 +158,7 @@ struct StatisticsView: View {
                     iconColor: .blue,
                     title: String(localized: "statistics.overview.totalWorkouts"),
                     value: "\(viewModel.totalWorkouts)",
-                    subtitle: viewModel.monthlyChange.workoutsChange != 0 ?
-                        String(format: String(localized: "statistics.thisMonth", defaultValue: "%@ this month", comment: "Change this month with percentage"), viewModel.formatPercentageChange(Double(viewModel.monthlyChange.workoutsChange))) : nil,
+                    subtitle: nil,
                     trend: viewModel.monthlyChange.workoutsChange > 0 ? .up : (viewModel.monthlyChange.workoutsChange < 0 ? .down : nil)
                 )
 
@@ -112,8 +167,7 @@ struct StatisticsView: View {
                     iconColor: .green,
                     title: String(localized: "statistics.overview.totalDistance"),
                     value: viewModel.formatDistance(viewModel.totalDistance),
-                    subtitle: viewModel.monthlyChange.distancePercentage != 0 ?
-                        String(format: String(localized: "statistics.thisMonth", defaultValue: "%@ this month", comment: "Change this month with percentage"), viewModel.formatPercentageChange(viewModel.monthlyChange.distancePercentage)) : nil,
+                    subtitle: nil,
                     trend: viewModel.monthlyChange.distanceChange > 0 ? .up : (viewModel.monthlyChange.distanceChange < 0 ? .down : nil)
                 )
 
@@ -126,32 +180,13 @@ struct StatisticsView: View {
                     trend: nil
                 )
 
-                StatMetricCard(
-                    icon: "flame.fill",
-                    iconColor: .red,
-                    title: String(localized: "statistics.overview.currentStreak"),
-                    value: String(format: String(localized: "statistics.overview.streakValue", defaultValue: "%d days", comment: "Current streak value with number of days"), viewModel.currentStreak),
-                    subtitle: String(format: String(localized: "statistics.overview.recordStreak", defaultValue: "Record: %d days", comment: "Record streak with number of days"), viewModel.longestStreak),
-                    trend: nil
-                )
-
-                StatMetricCard(
-                    icon: "chart.bar.fill",
-                    iconColor: .purple,
-                    title: String(localized: "statistics.overview.consistency"),
-                    value: viewModel.formatConsistencyRate(viewModel.consistencyRate),
-                    subtitle: nil,
-                    trend: nil
-                )
-
                 if let avgPace = viewModel.averagePace {
                     StatMetricCard(
                         icon: "speedometer",
                         iconColor: .cyan,
                         title: String(localized: "statistics.overview.averagePace"),
                         value: viewModel.formatPace(avgPace),
-                        subtitle: viewModel.monthlyChange.paceChange != nil ?
-                            formatPaceChange(viewModel.monthlyChange.paceChange!) : nil,
+                        subtitle: nil,
                         trend: (viewModel.monthlyChange.paceChange ?? 0) < 0 ? .up : ((viewModel.monthlyChange.paceChange ?? 0) > 0 ? .down : nil)
                     )
                 }
@@ -305,34 +340,45 @@ struct StatisticsView: View {
                 GridItem(.flexible())
             ], spacing: 16) {
                 ComparisonCard(
-                    icon: "ruler.fill",
-                    title: String(localized: "statistics.comparison.distance"),
-                    change: viewModel.formatPercentageChange(viewModel.monthlyChange.distancePercentage),
-                    trend: viewModel.monthlyChange.distanceChange > 0 ? .up : (viewModel.monthlyChange.distanceChange < 0 ? .down : .neutral)
-                )
-
-                ComparisonCard(
                     icon: "figure.run",
                     title: String(localized: "statistics.comparison.workouts"),
                     change: viewModel.formatPercentageChange(Double(viewModel.monthlyChange.workoutsChange)),
-                    trend: viewModel.monthlyChange.workoutsChange > 0 ? .up : (viewModel.monthlyChange.workoutsChange < 0 ? .down : .neutral)
+                    trend: viewModel.monthlyChange.workoutsChange > 0 ? .up : (viewModel.monthlyChange.workoutsChange < 0 ? .down : .neutral),
+                    thisMonthValue: "\(viewModel.monthlyChange.thisMonthWorkouts)",
+                    lastMonthValue: "\(viewModel.monthlyChange.lastMonthWorkouts)"
                 )
 
-                if let paceChange = viewModel.monthlyChange.paceChange {
-                    ComparisonCard(
-                        icon: "speedometer",
-                        title: String(localized: "statistics.comparison.pace"),
-                        change: formatPaceChange(paceChange),
-                        trend: paceChange < 0 ? .up : (paceChange > 0 ? .down : .neutral)
-                    )
-                }
+                ComparisonCard(
+                    icon: "ruler.fill",
+                    title: String(localized: "statistics.comparison.distance"),
+                    change: viewModel.formatPercentageChange(viewModel.monthlyChange.distancePercentage),
+                    trend: viewModel.monthlyChange.distanceChange > 0 ? .up : (viewModel.monthlyChange.distanceChange < 0 ? .down : .neutral),
+                    thisMonthValue: viewModel.formatDistance(viewModel.monthlyChange.thisMonthDistance),
+                    lastMonthValue: viewModel.formatDistance(viewModel.monthlyChange.lastMonthDistance)
+                )
 
                 ComparisonCard(
                     icon: "clock.fill",
                     title: String(localized: "statistics.comparison.duration"),
                     change: viewModel.formatDuration(abs(viewModel.monthlyChange.durationChange)),
-                    trend: viewModel.monthlyChange.durationChange > 0 ? .up : (viewModel.monthlyChange.durationChange < 0 ? .down : .neutral)
+                    trend: viewModel.monthlyChange.durationChange > 0 ? .up : (viewModel.monthlyChange.durationChange < 0 ? .down : .neutral),
+                    thisMonthValue: viewModel.formatDuration(viewModel.monthlyChange.thisMonthDuration),
+                    lastMonthValue: viewModel.formatDuration(viewModel.monthlyChange.lastMonthDuration)
                 )
+
+                if let paceChange = viewModel.monthlyChange.paceChange {
+                    let thisMonthPaceValue = viewModel.monthlyChange.thisMonthAvgPace.map { viewModel.formatPace($0) } ?? "—"
+                    let lastMonthPaceValue = viewModel.monthlyChange.lastMonthAvgPace.map { viewModel.formatPace($0) } ?? "—"
+
+                    ComparisonCard(
+                        icon: "speedometer",
+                        title: String(localized: "statistics.comparison.pace"),
+                        change: formatPaceChange(paceChange),
+                        trend: paceChange < 0 ? .up : (paceChange > 0 ? .down : .neutral),
+                        thisMonthValue: thisMonthPaceValue,
+                        lastMonthValue: lastMonthPaceValue
+                    )
+                }
             }
         }
     }
@@ -348,40 +394,28 @@ struct StatisticsView: View {
 
                 Spacer()
 
-                // Granularity picker
-                Picker("", selection: $viewModel.chartGranularity) {
-                    ForEach(StatisticsViewModel.ChartGranularity.allCases, id: \.self) { granularity in
-                        Text(granularity.localizedTitle).tag(granularity)
+                // Granularity picker - only show for "This month" filter with only Week option
+                if viewModel.selectedPeriod == .thisMonth {
+                    Picker("", selection: $viewModel.chartGranularity) {
+                        Text(StatisticsViewModel.ChartGranularity.week.localizedTitle).tag(StatisticsViewModel.ChartGranularity.week)
                     }
+                    .pickerStyle(.segmented)
+                    .frame(width: 160)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 160)
+            }
+            .onChange(of: viewModel.selectedPeriod) { oldValue, newValue in
+                // Force appropriate granularity based on filter
+                if newValue == .thisMonth {
+                    // For "This month", use week granularity
+                    viewModel.chartGranularity = .week
+                } else if newValue != .thisMonth && viewModel.chartGranularity != .month {
+                    // For other filters, use month granularity
+                    viewModel.chartGranularity = .month
+                }
             }
 
             if !viewModel.periodDistanceData.isEmpty {
-                Chart {
-                    ForEach(viewModel.periodDistanceData) { data in
-                        BarMark(
-                            x: .value(String(localized: "statistics.charts.period", defaultValue: "Period", comment: "Chart period label"), data.date, unit: viewModel.chartGranularity == .week ? .weekOfYear : .month),
-                            y: .value(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label"), data.distance / 1000.0)
-                        )
-                        .foregroundStyle(Color.blue.gradient)
-                    }
-                }
-                .frame(height: 250)
-                .chartYAxis {
-                    AxisMarks(position: .leading) { value in
-                        AxisValueLabel {
-                            if let distance = value.as(Double.self) {
-                                Text("\(Int(distance)) km")
-                            }
-                        }
-                    }
-                }
-                .padding()
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+                distanceChartContent
             } else {
                 Text(String(localized: "statistics.charts.noData"))
                     .foregroundStyle(.secondary)
@@ -395,6 +429,119 @@ struct StatisticsView: View {
         }
     }
 
+    private var distanceChartContent: some View {
+        let selectedData = selectedPeriodDataId.flatMap { selectedId in
+            viewModel.periodDistanceData.first { $0.id == selectedId }
+        }
+
+        return VStack(spacing: 12) {
+            distanceChart(selectedData: selectedData)
+
+            if let selected = selectedData {
+                distanceChartDetails(selected: selected)
+            }
+        }
+    }
+
+    private func distanceChart(selectedData: StatisticsViewModel.PeriodData?) -> some View {
+        Chart {
+            ForEach(viewModel.periodDistanceData) { data in
+                BarMark(
+                    x: .value(String(localized: "statistics.charts.period", defaultValue: "Period", comment: "Chart period label"), data.date, unit: viewModel.chartGranularity == .week ? .weekOfYear : .month),
+                    y: .value(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label"), data.distance / 1000.0)
+                )
+                .foregroundStyle(selectedData?.id == data.id ? Color.blue : Color.blue.opacity(0.5))
+                .opacity(selectedData == nil || selectedData?.id == data.id ? 1.0 : 0.5)
+            }
+        }
+        .frame(height: 250)
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisValueLabel {
+                    if let distance = value.as(Double.self) {
+                        Text("\(Int(distance)) km")
+                    }
+                }
+            }
+        }
+        .chartBackground { chartProxy in
+            VStack {
+                GeometryReader { geometry in
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            let frame = geometry.frame(in: .local)
+                            let xPosition = location.x / frame.width
+
+                            let sortedData = viewModel.periodDistanceData.sorted { $0.date < $1.date }
+                            if !sortedData.isEmpty {
+                                let index = Int(xPosition * Double(sortedData.count))
+                                let clampedIndex = max(0, min(index, sortedData.count - 1))
+                                selectedPeriodDataId = sortedData[clampedIndex].id
+                            }
+                        }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+    }
+
+    private func distanceChartDetails(selected: StatisticsViewModel.PeriodData) -> some View {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.locale = Locale.current
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(dateFormatter.string(from: selected.date))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                Button(action: { selectedPeriodDataId = nil }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(viewModel.formatDistance(selected.distance))
+                        .fontWeight(.semibold)
+                }
+
+                HStack {
+                    Text(String(localized: "statistics.charts.workouts"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.workoutCount))
+                        .fontWeight(.semibold)
+                }
+
+                if let avgPace = selected.averagePace {
+                    HStack {
+                        Text(String(localized: "statistics.overview.averagePace", defaultValue: "Average Pace", comment: "Average pace label"))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(viewModel.formatPace(avgPace))
+                            .fontWeight(.semibold)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
     // MARK: - Pace Distribution Section
 
     private var paceDistributionSection: some View {
@@ -405,38 +552,29 @@ struct StatisticsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if !viewModel.paceDistributionData.isEmpty {
-                Chart {
-                    ForEach(viewModel.paceDistributionData) { dist in
-                        BarMark(
-                            x: .value(String(localized: "statistics.charts.zone", defaultValue: "Zone", comment: "Chart zone label"), dist.range),
-                            y: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage)
-                        )
-                        .foregroundStyle(dist.color.gradient)
-                        .annotation(position: .top) {
-                            Text("\(Int(dist.percentage))%")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                        }
-                    }
-                }
-                .frame(height: 200)
-                .chartYAxis {
-                    AxisMarks(position: .leading) { value in
-                        AxisValueLabel {
-                            if let pct = value.as(Double.self) {
-                                Text("\(Int(pct))%")
-                            }
-                        }
-                    }
-                }
-                .padding()
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+                paceChartContent
+            }
+        }
+    }
 
-                // Details list
-                VStack(spacing: 8) {
-                    ForEach(viewModel.paceDistributionData) { dist in
+    private var paceChartContent: some View {
+        let selectedData = selectedPaceDistributionId.flatMap { selectedId in
+            viewModel.paceDistributionData.first { $0.id == selectedId }
+        }
+
+        return VStack(spacing: 12) {
+            paceChart(selectedData: selectedData)
+
+            if let selected = selectedData {
+                paceChartDetails(selected: selected)
+            }
+
+            // Details list
+            VStack(spacing: 8) {
+                ForEach(viewModel.paceDistributionData) { dist in
+                    Button(action: {
+                        selectedPaceDistributionId = dist.id
+                    }) {
                         HStack {
                             Circle()
                                 .fill(dist.color)
@@ -456,14 +594,106 @@ struct StatisticsView: View {
                                 .fontWeight(.semibold)
                         }
                         .padding(.horizontal)
+                        .foregroundStyle(.primary)
+                        .contentShape(Rectangle())
                     }
                 }
-                .padding(.vertical)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+            }
+            .padding(.vertical)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        }
+    }
+
+    private func paceChart(selectedData: StatisticsViewModel.PaceDistribution?) -> some View {
+        Chart {
+            ForEach(viewModel.paceDistributionData) { dist in
+                BarMark(
+                    x: .value(String(localized: "statistics.charts.zone", defaultValue: "Zone", comment: "Chart zone label"), dist.range),
+                    y: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage)
+                )
+                .foregroundStyle(selectedData?.id == dist.id ? dist.color : dist.color.opacity(0.5))
+                .opacity(selectedData == nil || selectedData?.id == dist.id ? 1.0 : 0.5)
+                .annotation(position: .top) {
+                    Text("\(Int(dist.percentage))%")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
             }
         }
+        .frame(height: 200)
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisValueLabel {
+                    if let pct = value.as(Double.self) {
+                        Text("\(Int(pct))%")
+                    }
+                }
+            }
+        }
+        .chartBackground { chartProxy in
+            VStack {
+                GeometryReader { geometry in
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            let frame = geometry.frame(in: .local)
+                            let xPosition = location.x / frame.width
+
+                            let sortedData = viewModel.paceDistributionData.sorted { $0.range < $1.range }
+                            if !sortedData.isEmpty {
+                                let index = Int(xPosition * Double(sortedData.count))
+                                let clampedIndex = max(0, min(index, sortedData.count - 1))
+                                selectedPaceDistributionId = sortedData[clampedIndex].id
+                            }
+                        }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+    }
+
+    private func paceChartDetails(selected: StatisticsViewModel.PaceDistribution) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(selected.range)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                Button(action: { selectedPaceDistributionId = nil }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(Int(selected.percentage))%")
+                        .fontWeight(.semibold)
+                }
+
+                HStack {
+                    Text(String(localized: "statistics.charts.workouts"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.count))
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Distance Distribution Section
@@ -476,31 +706,29 @@ struct StatisticsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if !viewModel.distanceDistributionData.isEmpty {
-                Chart {
-                    ForEach(viewModel.distanceDistributionData) { dist in
-                        SectorMark(
-                            angle: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage),
-                            innerRadius: .ratio(0.5),
-                            angularInset: 2
-                        )
-                        .foregroundStyle(by: .value(String(localized: "statistics.charts.category", defaultValue: "Category", comment: "Chart category label"), dist.category))
-                        .annotation(position: .overlay) {
-                            Text("\(Int(dist.percentage))%")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                        }
-                    }
-                }
-                .frame(height: 250)
-                .padding()
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+                distanceDistributionContent
+            }
+        }
+    }
 
-                // Details list
-                VStack(spacing: 8) {
-                    ForEach(viewModel.distanceDistributionData) { dist in
+    private var distanceDistributionContent: some View {
+        let selectedData = selectedDistanceDistributionId.flatMap { selectedId in
+            viewModel.distanceDistributionData.first { $0.id == selectedId }
+        }
+
+        return VStack(spacing: 12) {
+            distanceDistributionChart(selectedData: selectedData)
+
+            if let selected = selectedData {
+                distanceDistributionDetails(selected: selected)
+            }
+
+            // Details list
+            VStack(spacing: 8) {
+                ForEach(viewModel.distanceDistributionData) { dist in
+                    Button(action: {
+                        selectedDistanceDistributionId = dist.id
+                    }) {
                         HStack {
                             Text(dist.category)
                                 .font(.subheadline)
@@ -516,73 +744,9 @@ struct StatisticsView: View {
                                 .fontWeight(.semibold)
                         }
                         .padding(.horizontal)
+                        .foregroundStyle(.primary)
+                        .contentShape(Rectangle())
                     }
-                }
-                .padding(.vertical)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
-            }
-        }
-    }
-
-    // MARK: - Yearly Comparison Section
-
-    private var yearlyComparisonSection: some View {
-        VStack(spacing: 16) {
-            Text(String(localized: "statistics.yearly.title"))
-                .font(.headline)
-                .fontWeight(.bold)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            let yearData = viewModel.yearlyComparisonData
-
-            VStack(spacing: 12) {
-                YearlyComparisonRow(
-                    title: String(localized: "statistics.yearly.distance"),
-                    thisYear: viewModel.formatDistance(yearData.thisYearDistance),
-                    lastYear: viewModel.formatDistance(yearData.lastYearDistance),
-                    change: yearData.distanceChange
-                )
-
-                Divider()
-
-                YearlyComparisonRow(
-                    title: String(localized: "statistics.yearly.workouts"),
-                    thisYear: "\(yearData.thisYearWorkouts)",
-                    lastYear: "\(yearData.lastYearWorkouts)",
-                    change: yearData.workoutsChange
-                )
-
-                if let thisPace = yearData.thisYearAvgPace, let lastPace = yearData.lastYearAvgPace {
-                    Divider()
-
-                    HStack {
-                        Text(String(localized: "statistics.yearly.pace"))
-                            .font(.subheadline)
-
-                        Spacer()
-
-                        VStack(alignment: .trailing, spacing: 4) {
-                            let currentYear = Calendar.current.component(.year, from: Date())
-                            let lastYear = currentYear - 1
-
-                            Text("\(currentYear): \(viewModel.formatPace(thisPace))")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-
-                            Text("\(lastYear): \(viewModel.formatPace(lastPace))")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if let paceChange = yearData.paceChange {
-                            Image(systemName: paceChange < 0 ? "arrow.up.right" : "arrow.down.right")
-                                .foregroundStyle(paceChange < 0 ? .green : .red)
-                                .padding(.leading, 8)
-                        }
-                    }
-                    .padding(.horizontal)
                 }
             }
             .padding(.vertical)
@@ -591,6 +755,80 @@ struct StatisticsView: View {
             .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
     }
+
+    private func distanceDistributionChart(selectedData: StatisticsViewModel.DistanceDistribution?) -> some View {
+        Chart {
+            ForEach(viewModel.distanceDistributionData) { dist in
+                SectorMark(
+                    angle: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage),
+                    innerRadius: .ratio(0.5),
+                    angularInset: 2
+                )
+                .foregroundStyle(by: .value(String(localized: "statistics.charts.category", defaultValue: "Category", comment: "Chart category label"), dist.category))
+                .opacity(selectedData == nil || selectedData?.id == dist.id ? 1.0 : 0.3)
+                .annotation(position: .overlay) {
+                    Text("\(Int(dist.percentage))%")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .frame(height: 250)
+        .contentShape(Circle())
+        .onTapGesture { location in
+            // For pie charts, tapping selects all slices equally distributed
+            // We'll find the closest slice based on angle
+            if let selectedData = selectedData {
+                selectedDistanceDistributionId = nil
+            } else if !viewModel.distanceDistributionData.isEmpty {
+                selectedDistanceDistributionId = viewModel.distanceDistributionData[0].id
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+    }
+
+    private func distanceDistributionDetails(selected: StatisticsViewModel.DistanceDistribution) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(selected.category)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                Button(action: { selectedDistanceDistributionId = nil }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(Int(selected.percentage))%")
+                        .fontWeight(.semibold)
+                }
+
+                HStack {
+                    Text(String(localized: "statistics.charts.workouts"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.count))
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
 
     // MARK: - Empty State
 
@@ -775,35 +1013,67 @@ struct ComparisonCard: View {
     let title: String
     let change: String
     let trend: Trend
+    let thisMonthValue: String
+    let lastMonthValue: String
 
     enum Trend {
         case up, down, neutral
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            // Top row: Icon + Title with trend arrow on the right
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.subheadline)
-                    .foregroundStyle(.blue)
+                    .font(.body)
+                    .foregroundStyle(.blue.gradient)
+
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
                 Spacer()
+
                 trendIcon
             }
 
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // Current month and last month values
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(String(localized: "statistics.comparison.thisMonth", defaultValue: "This month", comment: "This month label"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(thisMonthValue)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
 
-            Text(change)
-                .font(.subheadline)
-                .fontWeight(.bold)
+                HStack {
+                    Text(String(localized: "statistics.comparison.lastMonth", defaultValue: "Last month", comment: "Last month label"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(lastMonthValue)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+            }
+            .frame(maxWidth: .infinity)
 
-            Text(String(localized: "statistics.comparison.vsLastMonth", defaultValue: "vs last month", comment: "Comparison label vs last month"))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            Spacer()
+
+            // Change value
+            HStack(spacing: 8) {
+                Text(change)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
         }
         .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 140)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
@@ -828,46 +1098,6 @@ struct ComparisonCard: View {
     }
 }
 
-struct YearlyComparisonRow: View {
-    let title: String
-    let thisYear: String
-    let lastYear: String
-    let change: Double
-
-    var body: some View {
-        let currentYear = Calendar.current.component(.year, from: Date())
-        let previousYear = currentYear - 1
-
-        HStack {
-            Text(title)
-                .font(.subheadline)
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("\(currentYear): \(thisYear)")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                Text("\(previousYear): \(lastYear)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Image(systemName: change > 0 ? "arrow.up.right" : (change < 0 ? "arrow.down.right" : "minus"))
-                .font(.caption)
-                .foregroundStyle(change > 0 ? .green : (change < 0 ? .red : .gray))
-                .padding(.leading, 8)
-
-            Text(String(format: "%+.0f%%", change))
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(change > 0 ? .green : (change < 0 ? .red : .gray))
-        }
-        .padding(.horizontal)
-    }
-}
-
 #Preview {
-    StatisticsView()
+    StatisticsView(injectedViewModel: StatisticsViewModel.createWithTestData())
 }

@@ -11,7 +11,7 @@ import Charts
 struct StatisticsView: View {
     @StateObject private var viewModel = StatisticsViewModel()
     @Environment(\.colorScheme) var colorScheme
-    @State private var selectedPeriodDataId: UUID?
+    @State private var selectedPeriodDate: Date?
     @State private var selectedPaceDistributionId: UUID?
     @State private var selectedDistanceDistributionId: UUID?
 
@@ -430,8 +430,8 @@ struct StatisticsView: View {
     }
 
     private var distanceChartContent: some View {
-        let selectedData = selectedPeriodDataId.flatMap { selectedId in
-            viewModel.periodDistanceData.first { $0.id == selectedId }
+        let selectedData = selectedPeriodDate.flatMap { selectedDate in
+            viewModel.periodDistanceData.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
         }
 
         return VStack(spacing: 12) {
@@ -464,26 +464,7 @@ struct StatisticsView: View {
                 }
             }
         }
-        .chartBackground { chartProxy in
-            VStack {
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(Color.clear)
-                        .contentShape(Rectangle())
-                        .onTapGesture { location in
-                            let frame = geometry.frame(in: .local)
-                            let xPosition = location.x / frame.width
-
-                            let sortedData = viewModel.periodDistanceData.sorted { $0.date < $1.date }
-                            if !sortedData.isEmpty {
-                                let index = Int(xPosition * Double(sortedData.count))
-                                let clampedIndex = max(0, min(index, sortedData.count - 1))
-                                selectedPeriodDataId = sortedData[clampedIndex].id
-                            }
-                        }
-                }
-            }
-        }
+        .chartXSelection(value: $selectedPeriodDate)
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -495,44 +476,75 @@ struct StatisticsView: View {
         dateFormatter.dateStyle = .medium
         dateFormatter.locale = Locale.current
 
-        return VStack(alignment: .leading, spacing: 8) {
+        let periodLabel: String
+        if viewModel.selectedPeriod == .thisMonth && viewModel.chartGranularity == .week {
+            // Show week number for this month view
+            let weekOfYear = Calendar.current.component(.weekOfYear, from: selected.date)
+            periodLabel = String(format: String(localized: "statistics.charts.week", defaultValue: "Week %d", comment: "Week number label"), weekOfYear)
+        } else {
+            periodLabel = dateFormatter.string(from: selected.date)
+        }
+
+        return VStack(spacing: 16) {
             HStack {
-                Text(dateFormatter.string(from: selected.date))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(periodLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Text(viewModel.formatDistance(selected.distance))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.blue)
+                }
 
                 Spacer()
 
-                Button(action: { selectedPeriodDataId = nil }) {
+                Button(action: { selectedPeriodDate = nil }) {
                     Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label"))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(viewModel.formatDistance(selected.distance))
-                        .fontWeight(.semibold)
-                }
+            Divider()
 
+            VStack(spacing: 12) {
                 HStack {
-                    Text(String(localized: "statistics.charts.workouts"))
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Image(systemName: "figure.run")
+                            .font(.subheadline)
+                            .foregroundStyle(.blue)
+                        Text(String(localized: "statistics.charts.workouts"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Spacer()
-                    Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.workoutCount))
+
+                    Text("\(selected.workoutCount)")
+                        .font(.headline)
                         .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
                 }
 
                 if let avgPace = selected.averagePace {
                     HStack {
-                        Text(String(localized: "statistics.overview.averagePace", defaultValue: "Average Pace", comment: "Average pace label"))
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            Image(systemName: "speedometer")
+                                .font(.subheadline)
+                                .foregroundStyle(.green)
+                            Text(String(localized: "statistics.overview.averagePace", defaultValue: "Average Pace", comment: "Average pace label"))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+
                         Spacer()
+
                         Text(viewModel.formatPace(avgPace))
+                            .font(.headline)
                             .fontWeight(.semibold)
+                            .foregroundStyle(.primary)
                     }
                 }
             }
@@ -777,9 +789,8 @@ struct StatisticsView: View {
         .frame(height: 250)
         .contentShape(Circle())
         .onTapGesture { location in
-            // For pie charts, tapping selects all slices equally distributed
-            // We'll find the closest slice based on angle
-            if let selectedData = selectedData {
+            // For pie charts, tapping toggles selection
+            if selectedData != nil {
                 selectedDistanceDistributionId = nil
             } else if !viewModel.distanceDistributionData.isEmpty {
                 selectedDistanceDistributionId = viewModel.distanceDistributionData[0].id

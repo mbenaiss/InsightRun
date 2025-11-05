@@ -188,8 +188,7 @@ struct StatisticsView: View {
                 PerformanceRow(
                     icon: "calendar",
                     title: String(localized: "statistics.performance.weeklyFrequency"),
-                    value: String(localized: "statistics.performance.workoutsPerWeek",
-                                defaultValue: "\(viewModel.formatFrequency(viewModel.weeklyFrequency)) entraînements/semaine")
+                    value: String(localized: "statistics.performance.workoutsPerWeekValue", defaultValue: "\(viewModel.formatFrequency(viewModel.weeklyFrequency)) workouts/week", comment: "Number of workouts per week")
                 )
             }
             .padding()
@@ -448,7 +447,7 @@ struct StatisticsView: View {
 
                             Spacer()
 
-                            Text("\(dist.count) entraînements")
+                            Text(String(localized: "statistics.distribution.workoutsCount", defaultValue: "\(dist.count) workouts", comment: "Number of workouts in a distribution category"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
@@ -508,7 +507,7 @@ struct StatisticsView: View {
 
                             Spacer()
 
-                            Text("\(dist.count) entraînements")
+                            Text(String(localized: "statistics.distribution.workoutsCount", defaultValue: "\(dist.count) workouts", comment: "Number of workouts in a distribution category"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
@@ -799,7 +798,7 @@ struct ComparisonCard: View {
                 .font(.subheadline)
                 .fontWeight(.bold)
 
-            Text("vs mois dernier")
+            Text(String(localized: "statistics.comparison.vsLastMonth", comment: "Comparison label vs last month"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

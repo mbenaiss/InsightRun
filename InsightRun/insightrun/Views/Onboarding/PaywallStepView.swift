@@ -78,12 +78,12 @@ struct AlreadySubscribedView: View {
             }
 
             VStack(spacing: 12) {
-                Text("You're Already Premium!")
+                Text(String(localized: "paywall.alreadySubscribed.title", comment: "Title shown when user is already premium"))
                     .font(.title)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
 
-                Text("Your subscription is active.\nEnjoy all premium features!")
+                Text(String(localized: "paywall.alreadySubscribed.message", comment: "Message shown when user is already premium"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -93,7 +93,7 @@ struct AlreadySubscribedView: View {
 
             // Continue Button
             Button(action: onContinue) {
-                Text("Continue")
+                Text(String(localized: "paywall.alreadySubscribed.continue", comment: "Continue button when already subscribed"))
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)

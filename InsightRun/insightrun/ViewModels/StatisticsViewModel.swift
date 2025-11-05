@@ -13,7 +13,7 @@ import HealthKit
 class StatisticsViewModel: ObservableObject {
     @Published var workouts: [WorkoutModel] = []
     @Published var isLoading = false
-    @Published var selectedPeriod: TimePeriod = .allTime
+    @Published var selectedPeriod: TimePeriod = .thirtyDays
     @Published var chartGranularity: ChartGranularity = .month
 
     private let healthKitManager = HealthKitManager.shared

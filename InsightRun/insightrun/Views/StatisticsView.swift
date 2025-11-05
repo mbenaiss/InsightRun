@@ -40,10 +40,7 @@ struct StatisticsView: View {
                         // Section 5: Distance over time chart
                         distanceChartSection
 
-                        // Section 6: Activity heat map
-                        activityHeatMapSection
-
-                        // Section 7: Pace distribution
+                        // Section 6: Pace distribution
                         paceDistributionSection
 
                         // Section 8: Distance distribution
@@ -92,7 +89,7 @@ struct StatisticsView: View {
     private var overviewMetricsSection: some View {
         VStack(spacing: 16) {
             Text(String(localized: "statistics.overview.title"))
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -167,7 +164,7 @@ struct StatisticsView: View {
     private var performanceAveragesSection: some View {
         VStack(spacing: 16) {
             Text(String(localized: "statistics.performance.title"))
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -196,10 +193,9 @@ struct StatisticsView: View {
                 )
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-            )
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
     }
 
@@ -211,7 +207,7 @@ struct StatisticsView: View {
                 Image(systemName: "trophy.fill")
                     .foregroundStyle(.yellow)
                 Text(String(localized: "statistics.records.title"))
-                    .font(.title2)
+                    .font(.headline)
                     .fontWeight(.bold)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -290,10 +286,9 @@ struct StatisticsView: View {
                 }
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-            )
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
     }
 
@@ -302,7 +297,7 @@ struct StatisticsView: View {
     private var monthlyComparisonSection: some View {
         VStack(spacing: 16) {
             Text(String(localized: "statistics.comparison.title"))
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -349,7 +344,7 @@ struct StatisticsView: View {
         VStack(spacing: 16) {
             HStack {
                 Text(String(localized: "statistics.charts.distance.title"))
-                    .font(.title2)
+                    .font(.headline)
                     .fontWeight(.bold)
 
                 Spacer()
@@ -385,91 +380,19 @@ struct StatisticsView: View {
                     }
                 }
                 .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                )
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
             } else {
                 Text(String(localized: "statistics.charts.noData"))
                     .foregroundStyle(.secondary)
                     .frame(height: 100)
                     .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                    )
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
             }
-        }
-    }
-
-    // MARK: - Activity Heat Map Section
-
-    private var activityHeatMapSection: some View {
-        VStack(spacing: 16) {
-            Text(String(localized: "statistics.heatmap.title"))
-                .font(.title2)
-                .fontWeight(.bold)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(spacing: 8) {
-                // Week day labels
-                HStack(spacing: 4) {
-                    ForEach(["L", "M", "M", "J", "V", "S", "D"], id: \.self) { day in
-                        Text(day)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-
-                // Heat map grid
-                let calendar = Calendar.current
-                let weeks = getHeatMapWeeks()
-
-                ForEach(0..<weeks.count, id: \.self) { weekIndex in
-                    HStack(spacing: 4) {
-                        ForEach(0..<7) { dayIndex in
-                            let index = weekIndex * 7 + dayIndex
-                            if index < viewModel.activityHeatMapData.count {
-                                let day = viewModel.activityHeatMapData[index]
-                                Rectangle()
-                                    .fill(day.intensity.color)
-                                    .frame(height: 20)
-                                    .cornerRadius(4)
-                            } else {
-                                Color.clear
-                                    .frame(height: 20)
-                            }
-                        }
-                    }
-                }
-
-                // Legend
-                HStack(spacing: 12) {
-                    Text("Moins")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 3) {
-                        ForEach([StatisticsViewModel.ActivityIntensity.none, .light, .moderate, .high, .veryHigh], id: \.rawValue) { intensity in
-                            Rectangle()
-                                .fill(intensity.color)
-                                .frame(width: 12, height: 12)
-                                .cornerRadius(2)
-                        }
-                    }
-
-                    Text("Plus")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-            )
         }
     }
 
@@ -478,7 +401,7 @@ struct StatisticsView: View {
     private var paceDistributionSection: some View {
         VStack(spacing: 16) {
             Text(String(localized: "statistics.distribution.pace.title"))
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -508,10 +431,9 @@ struct StatisticsView: View {
                     }
                 }
                 .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                )
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
 
                 // Details list
                 VStack(spacing: 8) {
@@ -519,29 +441,28 @@ struct StatisticsView: View {
                         HStack {
                             Circle()
                                 .fill(dist.color)
-                                .frame(width: 12, height: 12)
+                                .frame(width: 10, height: 10)
 
                             Text("\(dist.range) /km")
-                                .font(.body)
+                                .font(.subheadline)
 
                             Spacer()
 
                             Text("\(dist.count) entraînements")
-                                .font(.body)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
                             Text("(\(Int(dist.percentage))%)")
-                                .font(.body)
+                                .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
                         .padding(.horizontal)
                     }
                 }
                 .padding(.vertical)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                )
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
             }
         }
     }
@@ -551,7 +472,7 @@ struct StatisticsView: View {
     private var distanceDistributionSection: some View {
         VStack(spacing: 16) {
             Text(String(localized: "statistics.distribution.distance.title"))
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -574,36 +495,34 @@ struct StatisticsView: View {
                 }
                 .frame(height: 250)
                 .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                )
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
 
                 // Details list
                 VStack(spacing: 8) {
                     ForEach(viewModel.distanceDistributionData) { dist in
                         HStack {
                             Text(dist.category)
-                                .font(.body)
+                                .font(.subheadline)
 
                             Spacer()
 
                             Text("\(dist.count) entraînements")
-                                .font(.body)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
                             Text("(\(Int(dist.percentage))%)")
-                                .font(.body)
+                                .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
                         .padding(.horizontal)
                     }
                 }
                 .padding(.vertical)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                )
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
             }
         }
     }
@@ -613,7 +532,7 @@ struct StatisticsView: View {
     private var yearlyComparisonSection: some View {
         VStack(spacing: 16) {
             Text(String(localized: "statistics.yearly.title"))
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -641,17 +560,17 @@ struct StatisticsView: View {
 
                     HStack {
                         Text(String(localized: "statistics.yearly.pace"))
-                            .font(.body)
+                            .font(.subheadline)
 
                         Spacer()
 
                         VStack(alignment: .trailing, spacing: 4) {
                             Text("2025: \(viewModel.formatPace(thisPace))")
-                                .font(.body)
+                                .font(.subheadline)
                                 .fontWeight(.semibold)
 
                             Text("2024: \(viewModel.formatPace(lastPace))")
-                                .font(.body)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
 
@@ -665,25 +584,10 @@ struct StatisticsView: View {
                 }
             }
             .padding(.vertical)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-            )
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
-    }
-
-    // MARK: - Helper Methods
-
-    private func getHeatMapWeeks() -> [[StatisticsViewModel.ActivityDay]] {
-        let data = viewModel.activityHeatMapData
-        var weeks: [[StatisticsViewModel.ActivityDay]] = []
-
-        for i in stride(from: 0, to: data.count, by: 7) {
-            let endIndex = min(i + 7, data.count)
-            weeks.append(Array(data[i..<endIndex]))
-        }
-
-        return weeks
     }
 
     // MARK: - Empty State
@@ -756,7 +660,7 @@ struct StatMetricCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
-                    .font(.title3)
+                    .font(.headline)
                     .foregroundStyle(iconColor.gradient)
                 Spacer()
                 if let trend = trend {
@@ -770,22 +674,27 @@ struct StatMetricCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
+            Spacer()
 
-            if let subtitle = subtitle {
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 2) {
+                Text(value)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
         }
         .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-        )
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
 }
 
@@ -801,12 +710,12 @@ struct PerformanceRow: View {
                 .frame(width: 24)
 
             Text(title)
-                .font(.body)
+                .font(.subheadline)
 
             Spacer()
 
             Text(value)
-                .font(.body)
+                .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
         }
@@ -822,13 +731,13 @@ struct RecordRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.headline)
                 .foregroundStyle(.yellow.gradient)
-                .frame(width: 32)
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.body)
+                    .font(.subheadline)
                     .fontWeight(.medium)
 
                 Text(formatDate(date))
@@ -839,7 +748,7 @@ struct RecordRow: View {
             Spacer()
 
             Text(value)
-                .font(.title3)
+                .font(.headline)
                 .fontWeight(.bold)
         }
     }
@@ -866,6 +775,7 @@ struct ComparisonCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
+                    .font(.subheadline)
                     .foregroundStyle(.blue)
                 Spacer()
                 trendIcon
@@ -876,7 +786,7 @@ struct ComparisonCard: View {
                 .foregroundStyle(.secondary)
 
             Text(change)
-                .font(.headline)
+                .font(.subheadline)
                 .fontWeight(.bold)
 
             Text("vs mois dernier")
@@ -885,10 +795,9 @@ struct ComparisonCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-        )
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
 
     @ViewBuilder
@@ -896,12 +805,15 @@ struct ComparisonCard: View {
         switch trend {
         case .up:
             Image(systemName: "arrow.up.right")
+                .font(.caption)
                 .foregroundStyle(.green)
         case .down:
             Image(systemName: "arrow.down.right")
+                .font(.caption)
                 .foregroundStyle(.red)
         case .neutral:
             Image(systemName: "minus")
+                .font(.caption)
                 .foregroundStyle(.gray)
         }
     }
@@ -916,21 +828,22 @@ struct YearlyComparisonRow: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.body)
+                .font(.subheadline)
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
                 Text("2025: \(thisYear)")
-                    .font(.body)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
 
                 Text("2024: \(lastYear)")
-                    .font(.body)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             Image(systemName: change > 0 ? "arrow.up.right" : (change < 0 ? "arrow.down.right" : "minus"))
+                .font(.caption)
                 .foregroundStyle(change > 0 ? .green : (change < 0 ? .red : .gray))
                 .padding(.leading, 8)
 

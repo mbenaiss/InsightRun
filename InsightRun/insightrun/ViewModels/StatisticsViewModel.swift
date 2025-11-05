@@ -276,7 +276,10 @@ class StatisticsViewModel: ObservableObject {
 
         while workoutDates.contains(currentDate) {
             streak += 1
-            currentDate = calendar.date(byAdding: .day, value: -1, to: currentDate)!
+            guard let previousDate = calendar.date(byAdding: .day, value: -1, to: currentDate) else {
+                break
+            }
+            currentDate = previousDate
         }
 
         return streak
@@ -440,7 +443,10 @@ class StatisticsViewModel: ObservableObject {
                 intensity: intensity
             ))
 
-            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) else {
+                break
+            }
+            currentDate = nextDate
         }
 
         return data

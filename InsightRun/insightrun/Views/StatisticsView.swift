@@ -130,8 +130,8 @@ struct StatisticsView: View {
                     icon: "flame.fill",
                     iconColor: .red,
                     title: String(localized: "statistics.overview.currentStreak"),
-                    value: "\(viewModel.currentStreak) jours",
-                    subtitle: String(localized: "statistics.overview.recordStreak", defaultValue: "Record: \(viewModel.longestStreak) jours"),
+                    value: String(localized: "statistics.overview.streakValue", defaultValue: "\(viewModel.currentStreak) days"),
+                    subtitle: String(localized: "statistics.overview.recordStreak", defaultValue: "Record: \(viewModel.longestStreak) days"),
                     trend: nil
                 )
 
@@ -188,8 +188,7 @@ struct StatisticsView: View {
                 PerformanceRow(
                     icon: "calendar",
                     title: String(localized: "statistics.performance.weeklyFrequency"),
-                    value: String(localized: "statistics.performance.workoutsPerWeek",
-                                defaultValue: "\(viewModel.formatFrequency(viewModel.weeklyFrequency)) entraînements/semaine")
+                    value: String(localized: "statistics.performance.workoutsPerWeekValue", defaultValue: "\(viewModel.formatFrequency(viewModel.weeklyFrequency)) workouts/week", comment: "Number of workouts per week")
                 )
             }
             .padding()
@@ -448,7 +447,7 @@ struct StatisticsView: View {
 
                             Spacer()
 
-                            Text("\(dist.count) entraînements")
+                            Text(String(localized: "statistics.distribution.workoutsCount", defaultValue: "\(dist.count) workouts", comment: "Number of workouts in a distribution category"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
@@ -508,7 +507,7 @@ struct StatisticsView: View {
 
                             Spacer()
 
-                            Text("\(dist.count) entraînements")
+                            Text(String(localized: "statistics.distribution.workoutsCount", defaultValue: "\(dist.count) workouts", comment: "Number of workouts in a distribution category"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
@@ -565,11 +564,14 @@ struct StatisticsView: View {
                         Spacer()
 
                         VStack(alignment: .trailing, spacing: 4) {
-                            Text("2025: \(viewModel.formatPace(thisPace))")
+                            let currentYear = Calendar.current.component(.year, from: Date())
+                            let lastYear = currentYear - 1
+
+                            Text("\(currentYear): \(viewModel.formatPace(thisPace))")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
 
-                            Text("2024: \(viewModel.formatPace(lastPace))")
+                            Text("\(lastYear): \(viewModel.formatPace(lastPace))")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -657,12 +659,20 @@ struct StatMetricCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            // Top row: Icon + Title with trend arrow on the right
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.headline)
+                    .font(.body)
                     .foregroundStyle(iconColor.gradient)
+
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
                 Spacer()
+
                 if let trend = trend {
                     Image(systemName: trend == .up ? "arrow.up.right" : "arrow.down.right")
                         .font(.caption)
@@ -670,28 +680,27 @@ struct StatMetricCard: View {
                 }
             }
 
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
             Spacer()
 
-            VStack(spacing: 2) {
+            // Center: Value centered horizontally and vertically
+            VStack(spacing: 4) {
                 Text(value)
-                    .font(.title2)
+                    .font(.title)
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity, alignment: .center)
 
                 if let subtitle = subtitle {
                     Text(subtitle)
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
+
+            Spacer()
         }
         .padding()
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 120)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
@@ -789,7 +798,7 @@ struct ComparisonCard: View {
                 .font(.subheadline)
                 .fontWeight(.bold)
 
-            Text("vs mois dernier")
+            Text(String(localized: "statistics.comparison.vsLastMonth", comment: "Comparison label vs last month"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -826,6 +835,9 @@ struct YearlyComparisonRow: View {
     let change: Double
 
     var body: some View {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let previousYear = currentYear - 1
+
         HStack {
             Text(title)
                 .font(.subheadline)
@@ -833,11 +845,11 @@ struct YearlyComparisonRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("2025: \(thisYear)")
+                Text("\(currentYear): \(thisYear)")
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
-                Text("2024: \(lastYear)")
+                Text("\(previousYear): \(lastYear)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

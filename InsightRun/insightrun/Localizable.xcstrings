@@ -237,6 +237,18 @@
         }
       }
     },
+    "All features unlocked for testing" : {
+      "comment" : "TestFlight subscription status subtitle",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les fonctionnalités débloquées pour les tests"
+          }
+        }
+      }
+    },
     "Advanced" : {
       "comment" : "Pace range: Advanced\nSpeed range: Advanced",
       "extractionState" : "manual",
@@ -5331,6 +5343,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Température"
+          }
+        }
+      }
+    },
+    "TestFlight - Premium Access" : {
+      "comment" : "TestFlight subscription status title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TestFlight - Accès Premium"
           }
         }
       }

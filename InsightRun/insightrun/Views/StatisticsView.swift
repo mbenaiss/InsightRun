@@ -434,11 +434,12 @@ struct StatisticsView: View {
             viewModel.periodDistanceData.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
         }
 
-        return VStack(spacing: 12) {
+        return ZStack(alignment: .top) {
             distanceChart(selectedData: selectedData)
 
             if let selected = selectedData {
-                distanceChartDetails(selected: selected)
+                distanceChartTooltip(selected: selected)
+                    .padding(.top, 16)
             }
         }
     }
@@ -471,85 +472,43 @@ struct StatisticsView: View {
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
 
-    private func distanceChartDetails(selected: StatisticsViewModel.PeriodData) -> some View {
+    private func distanceChartTooltip(selected: StatisticsViewModel.PeriodData) -> some View {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
+        dateFormatter.dateStyle = .short
         dateFormatter.locale = Locale.current
 
         let periodLabel: String
         if viewModel.selectedPeriod == .thisMonth && viewModel.chartGranularity == .week {
-            // Show week number for this month view
             let weekOfYear = Calendar.current.component(.weekOfYear, from: selected.date)
             periodLabel = String(format: String(localized: "statistics.charts.week", defaultValue: "Week %d", comment: "Week number label"), weekOfYear)
         } else {
             periodLabel = dateFormatter.string(from: selected.date)
         }
 
-        return VStack(spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(periodLabel)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+        return VStack(spacing: 6) {
+            Text(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label").uppercased())
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .tracking(0.5)
 
-                    Text(viewModel.formatDistance(selected.distance))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.blue)
-                }
+            Text(viewModel.formatDistance(selected.distance))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(.blue)
 
-                Spacer()
+            Text(periodLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                Button(action: { selectedPeriodDate = nil }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Divider()
-
-            VStack(spacing: 12) {
-                HStack {
-                    HStack(spacing: 8) {
-                        Image(systemName: "figure.run")
-                            .font(.subheadline)
-                            .foregroundStyle(.blue)
-                        Text(String(localized: "statistics.charts.workouts"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Text("\(selected.workoutCount)")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
-                }
-
-                if let avgPace = selected.averagePace {
-                    HStack {
-                        HStack(spacing: 8) {
-                            Image(systemName: "speedometer")
-                                .font(.subheadline)
-                                .foregroundStyle(.green)
-                            Text(String(localized: "statistics.overview.averagePace", defaultValue: "Average Pace", comment: "Average pace label"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        Text(viewModel.formatPace(avgPace))
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.primary)
-                    }
-                }
+            if selected.workoutCount > 0 {
+                Text("\(selected.workoutCount) " + (selected.workoutCount == 1 ? String(localized: "statistics.charts.workout", defaultValue: "workout", comment: "Singular workout") : String(localized: "statistics.charts.workouts", defaultValue: "workouts", comment: "Plural workouts")))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding()
+        .frame(maxWidth: 180)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }

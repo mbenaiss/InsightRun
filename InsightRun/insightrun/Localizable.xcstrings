@@ -4031,6 +4031,18 @@
         }
       }
     },
+    "statistics.charts.week" : {
+      "comment" : "Week number label",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Week %d"
+          }
+        }
+      }
+    },
     "statistics.charts.workouts" : {
       "comment" : "Chart workouts label",
       "extractionState" : "manual",

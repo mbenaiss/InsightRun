@@ -284,13 +284,29 @@ struct RecoveryDashboardView: View {
                     )
                 }
 
-                if let hrv = recovery.hrv {
-                    HealthMetricRow(
-                        icon: "waveform.path.ecg",
-                        iconColor: .blue,
-                        title: String(localized: "Variability (HRV)", comment: "Label for heart rate variability"),
-                        value: String(format: "%.0f ms", hrv)
-                    )
+                if let hrvAvg = recovery.hrvAverage {
+                    VStack(spacing: 8) {
+                        HealthMetricRow(
+                            icon: "waveform.path.ecg",
+                            iconColor: .blue,
+                            title: String(localized: "Variability (HRV)", comment: "Label for heart rate variability"),
+                            value: String(format: "%.0f ms", hrvAvg)
+                        )
+
+                        // Show variability range if min and max are available
+                        if let hrvMin = recovery.hrvMin, let hrvMax = recovery.hrvMax {
+                            HStack {
+                                Spacer()
+                                Text(String(localized: "Range:", comment: "Label for HRV range"))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                Text(String(format: "%.0f - %.0f ms", hrvMin, hrvMax))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.leading, 44) // Align with value
+                        }
+                    }
                 }
 
                 if let whr = recovery.walkingHeartRate {

@@ -162,18 +162,92 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
     }
   }
 
-  context += `\n**Recent Workouts Detail:**\n`
-  for (let i = 0; i < Math.min(recent.workouts.length, 5); i++) {
+  context += `\n**Complete Workout Detail (All ${recent.workouts.length} runs):**\n`
+  for (let i = 0; i < recent.workouts.length; i++) {
     const w = recent.workouts[i]
-    context += `\n${i + 1}. ${w.date}: `
-    context += `${formatDistance(w.distance)} in ${formatDuration(w.duration)}`
-    if (w.pace) {
-      context += ` @ ${formatPace(w.pace)}`
+    context += `\n${i + 1}. **${w.date}**\n`
+
+    // Basic metrics
+    context += `   Duration: ${formatDuration(w.duration)} | Distance: ${formatDistance(w.distance)}\n`
+
+    if (w.pace || w.speed) {
+      context += `   Pace: ${w.pace ? formatPace(w.pace) : 'N/A'}`
+      if (w.speed) context += ` | Speed: ${w.speed.toFixed(1)} km/h`
+      context += `\n`
     }
+
+    if (w.minPace) {
+      context += `   Best Pace: ${formatPace(w.minPace)}\n`
+    }
+
+    // Energy
     if (w.calories) {
-      context += `, ${Math.round(w.calories)} kcal`
+      context += `   Calories: ${Math.round(w.calories)} kcal\n`
     }
-    context += `\n`
+
+    // Heart rate
+    if (w.heartRate && (w.heartRate.avg || w.heartRate.min || w.heartRate.max)) {
+      context += `   Heart Rate: Avg ${w.heartRate.avg ? Math.round(w.heartRate.avg) : 'N/A'} bpm`
+      if (w.heartRate.min && w.heartRate.max) {
+        context += ` (Range: ${Math.round(w.heartRate.min)}-${Math.round(w.heartRate.max)} bpm)`
+      }
+      context += `\n`
+    }
+
+    // Running technique metrics
+    if (w.cadence || w.strideLength || w.runningPower) {
+      context += `   Running Technique:`
+      if (w.cadence) context += ` Cadence ${Math.round(w.cadence)} spm |`
+      if (w.strideLength) context += ` Stride ${w.strideLength.toFixed(2)}m |`
+      if (w.runningPower) context += ` Power ${Math.round(w.runningPower)}W`
+      context += `\n`
+    }
+
+    // Biomechanics
+    if (w.groundContactTime || w.verticalOscillation) {
+      context += `   Biomechanics:`
+      if (w.groundContactTime) context += ` GCT ${Math.round(w.groundContactTime)}ms |`
+      if (w.verticalOscillation) context += ` Vert Osc ${w.verticalOscillation.toFixed(1)}cm`
+      context += `\n`
+    }
+
+    // VO2 Max
+    if (w.vo2Max) {
+      context += `   VO2 Max: ${w.vo2Max.toFixed(1)} ml/kg/min\n`
+    }
+
+    // Elevation
+    if (w.elevationGain) {
+      context += `   Elevation Gain: ${Math.round(w.elevationGain)} m\n`
+    }
+
+    // Mobility metrics
+    if (w.mobility && Object.values(w.mobility).some((v) => v !== undefined)) {
+      context += `   Mobility & Balance:\n`
+      if (w.mobility.walkingSteadiness)
+        context += `      - Walking Steadiness: ${w.mobility.walkingSteadiness.toFixed(1)}%\n`
+      if (w.mobility.walkingAsymmetry)
+        context += `      - Walking Asymmetry: ${w.mobility.walkingAsymmetry.toFixed(1)}%\n`
+      if (w.mobility.doubleSupportPercentage)
+        context += `      - Double Support: ${w.mobility.doubleSupportPercentage.toFixed(1)}%\n`
+      if (w.mobility.walkingSpeed)
+        context += `      - Walking Speed: ${w.mobility.walkingSpeed.toFixed(1)} km/h\n`
+      if (w.mobility.stairAscentSpeed)
+        context += `      - Stair Ascent: ${w.mobility.stairAscentSpeed.toFixed(1)} km/h\n`
+      if (w.mobility.stairDescentSpeed)
+        context += `      - Stair Descent: ${w.mobility.stairDescentSpeed.toFixed(1)} km/h\n`
+    }
+
+    // Splits
+    if (w.splits && w.splits.length > 0) {
+      context += `   Splits (per km): `
+      for (let j = 0; j < w.splits.length; j++) {
+        const split = w.splits[j]
+        context += `km${split.kilometer}:${split.pace}`
+        if (j < w.splits.length - 1) context += ` | `
+      }
+      context += `\n`
+    }
   }
 
   return context

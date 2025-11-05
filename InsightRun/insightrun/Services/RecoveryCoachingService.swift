@@ -65,7 +65,7 @@ class RecoveryCoachingService {
         }
 
         // Analyze HRV
-        if let hrv = metrics.hrv {
+        if let hrv = metrics.hrvAverage {
             if hrv < 30 {
                 recommendations.append("HRV faible (\(Int(hrv)) ms) - signe de fatigue, repos recommandé")
                 shouldRest = true
@@ -185,8 +185,12 @@ class RecoveryCoachingService {
             context += "- FC au repos: \(Int(restingHR)) bpm\n"
         }
 
-        if let hrv = metrics.hrv {
-            context += "- HRV (SDNN): \(Int(hrv)) ms\n"
+        if let hrv = metrics.hrvAverage {
+            context += "- HRV (SDNN) moyenne: \(Int(hrv)) ms"
+            if let hrvMin = metrics.hrvMin, let hrvMax = metrics.hrvMax {
+                context += " (plage: \(Int(hrvMin))-\(Int(hrvMax)) ms)"
+            }
+            context += "\n"
         }
 
         if let walkingHR = metrics.walkingHeartRate {

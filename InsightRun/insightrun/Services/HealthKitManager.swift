@@ -1110,22 +1110,78 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Recovery Metrics
 
+    /// Fetch HRV statistics during sleep period
+    /// Returns average, min, and max HRV values during the night
+    private func fetchNightHRVStatistics(for sleepData: SleepData?) async -> (average: Double?, min: Double?, max: Double?) {
+        guard let sleep = sleepData else {
+            return (nil, nil, nil)
+        }
+
+        guard let hrvType = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else {
+            return (nil, nil, nil)
+        }
+
+        // Query HRV samples during sleep period
+        let predicate = HKQuery.predicateForSamples(
+            withStart: sleep.sleepStart,
+            end: sleep.sleepEnd,
+            options: .strictStartDate
+        )
+
+        do {
+            return try await withCheckedThrowingContinuation { continuation in
+                let query = HKSampleQuery(
+                    sampleType: hrvType,
+                    predicate: predicate,
+                    limit: HKObjectQueryNoLimit,
+                    sortDescriptors: nil
+                ) { _, samples, error in
+                    if error != nil {
+                        continuation.resume(returning: (nil, nil, nil))
+                        return
+                    }
+
+                    guard let hrvSamples = samples as? [HKQuantitySample], !hrvSamples.isEmpty else {
+                        continuation.resume(returning: (nil, nil, nil))
+                        return
+                    }
+
+                    // Extract HRV values in milliseconds
+                    let hrvValues = hrvSamples.map { sample in
+                        sample.quantity.doubleValue(for: .secondUnit(with: .milli))
+                    }
+
+                    // Calculate statistics
+                    let average = hrvValues.reduce(0.0, +) / Double(hrvValues.count)
+                    let min = hrvValues.min()
+                    let max = hrvValues.max()
+
+                    continuation.resume(returning: (average, min, max))
+                }
+
+                self.healthStore.execute(query)
+            }
+        } catch {
+            return (nil, nil, nil)
+        }
+    }
+
     func fetchRecoveryMetrics(for date: Date = Date()) async throws -> RecoveryMetrics {
         // Fetch metrics for the given day
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
+        // First, fetch sleep data as we need it for HRV statistics
+        let sleep = await fetchSleepDataSafe(for: startOfDay)
+
+        // Now fetch all other metrics in parallel, including HRV statistics based on sleep period
         async let restingHR = fetchLatestQuantitySafe(
             for: .restingHeartRate,
             before: endOfDay,
             unit: HKUnit.count().unitDivided(by: .minute())
         )
-        async let hrv = fetchLatestQuantitySafe(
-            for: .heartRateVariabilitySDNN,
-            before: endOfDay,
-            unit: .secondUnit(with: .milli)
-        )
+        async let hrvStats = fetchNightHRVStatistics(for: sleep)
         async let walkingHR = fetchLatestQuantitySafe(
             for: .walkingHeartRateAverage,
             before: endOfDay,
@@ -1136,14 +1192,15 @@ class HealthKitManager: ObservableObject {
             before: endOfDay,
             unit: HKUnit.count().unitDivided(by: .minute())
         )
-        async let sleepData = fetchSleepDataSafe(for: startOfDay)
 
-        let (rhrResult, hrvResult, whrResult, respRateResult, sleep) = await (restingHR, hrv, walkingHR, respiratoryRate, sleepData)
+        let (rhrResult, hrvResult, whrResult, respRateResult) = await (restingHR, hrvStats, walkingHR, respiratoryRate)
 
         return RecoveryMetrics(
             date: date,
             restingHeartRate: rhrResult.value,
-            hrv: hrvResult.value,
+            hrvAverage: hrvResult.average,
+            hrvMin: hrvResult.min,
+            hrvMax: hrvResult.max,
             walkingHeartRate: whrResult.value,
             sleepData: sleep,
             respiratoryRate: respRateResult.value

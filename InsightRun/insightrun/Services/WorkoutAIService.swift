@@ -478,7 +478,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     private func convertToRecoveryData(metrics: RecoveryMetrics) -> RecoveryData {
         return RecoveryData(
             restingHeartRate: metrics.restingHeartRate.map { Int($0) },
-            hrv: metrics.hrv.map { Int($0) },
+            hrv: metrics.hrvAverage.map { Int($0) },
             walkingHeartRate: metrics.walkingHeartRate.map { Int($0) },
             respiratoryRate: metrics.respiratoryRate.map { Int($0) },
             sleepData: metrics.sleepData != nil ? SleepDataPayload(

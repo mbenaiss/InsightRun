@@ -1304,7 +1304,15 @@
       }
     },
     "Health metrics and recovery recommendations are based on published scientific research. Tap to view all sources." : {
-      "comment" : "Medical information footer"
+      "comment" : "Medical information footer",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mesures de santé et les recommandations de récupération sont basées sur des recherches scientifiques publiées. Appuyez pour afficher toutes les sources."
+          }
+        }
+      }
     },
     "Health Profile" : {
       "comment" : "Navigation title for health profile view",
@@ -1830,10 +1838,26 @@
       "comment" : "Medical disclaimer section title"
     },
     "Medical Information" : {
-      "comment" : "Medical information section header\nMedical sources section title"
+      "comment" : "Medical information section header\nMedical sources section title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informations médicales"
+          }
+        }
+      }
     },
     "Medical Sources" : {
-      "comment" : "Medical sources settings button\nMedical sources view title"
+      "comment" : "Medical sources settings button\nMedical sources view title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sources médicales"
+          }
+        }
+      }
     },
     "metric.avg_cadence.description" : {
       "comment" : "Average Cadence metric description",
@@ -3441,6 +3465,9 @@
         }
       }
     },
+    "Range:" : {
+      "comment" : "Label for HRV range"
+    },
     "Recommendation" : {
       "comment" : "Section header for recovery recommendation",
       "extractionState" : "manual",
@@ -3526,7 +3553,15 @@
       }
     },
     "Recovery recommendations are based on published scientific research. Tap below to view all medical sources." : {
-      "comment" : "Medical sources disclaimer text"
+      "comment" : "Medical sources disclaimer text",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les recommandations de récupération sont basées sur des recherches scientifiques publiées. Appuyez ci-dessous pour afficher toutes les sources médicales."
+          }
+        }
+      }
     },
     "Recovery Score" : {
       "comment" : "Label for recovery score metric",
@@ -4031,14 +4066,14 @@
         }
       }
     },
-    "statistics.charts.week" : {
-      "comment" : "Week number label",
+    "statistics.charts.workout" : {
+      "comment" : "Singular workout",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Week %d"
+            "value" : "workout"
           }
         }
       }
@@ -5650,10 +5685,26 @@
       }
     },
     "View scientific references" : {
-      "comment" : "Medical sources subtitle"
+      "comment" : "Medical sources subtitle",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les références scientifiques"
+          }
+        }
+      }
     },
     "View Scientific Sources" : {
-      "comment" : "Button to view medical sources"
+      "comment" : "Button to view medical sources",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les sources scientifiques"
+          }
+        }
+      }
     },
     "View Source" : {
       "comment" : "Button to view source link"

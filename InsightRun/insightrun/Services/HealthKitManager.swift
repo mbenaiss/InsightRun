@@ -1736,7 +1736,7 @@ class HealthKitManager: ObservableObject {
 
         return (
             heartRate: (avg: hr.average, min: hr.min, max: hr.max),
-            cadence: cadence,
+            cadence: cadence.map { Int($0.rounded()) },
             vo2Max: vo2Max,
             elevation: elevation.ascent
         )

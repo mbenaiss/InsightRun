@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import FoundationModels
 import NaturalLanguage
+import HealthKit
 
 enum AIModel: String, CaseIterable, Sendable {
     case foundationModels = "local/apple-foundation-model"
@@ -316,8 +317,31 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             let language = getUserLanguage()
             let model = "x-ai/grok-4-fast" // Fast model for historical analysis
 
+            // Fetch user health profile for personalized analysis
+            let healthProfile = try? await HealthKitManager.shared.fetchHealthProfile()
+            let profileData = healthProfile.map { profile in
+                HealthProfileData(
+                    age: profile.age,
+                    sex: profile.biologicalSex.map { sex in
+                        switch sex {
+                        case .male: return "male"
+                        case .female: return "female"
+                        case .other: return "other"
+                        case .notSet: return nil
+                        @unknown default: return nil
+                        }
+                    } ?? nil,
+                    bodyMass: profile.bodyMass,
+                    bodyFatPercentage: profile.bodyFatPercentage,
+                    exerciseTime: profile.exerciseTime.map { Int($0) },
+                    cyclingDistance: profile.cyclingDistance,
+                    swimmingDistance: profile.swimmingDistance
+                )
+            }
+
             let response = try await backendClient.generateHistoricalSummary(
                 workouts: workoutDataList,
+                profile: profileData,
                 model: model,
                 language: language
             )

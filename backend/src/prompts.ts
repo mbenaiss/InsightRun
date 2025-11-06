@@ -570,49 +570,110 @@ export function buildHistoricalAnalysisPrompt(workouts: WorkoutData[], language:
 
 You will receive ALL workouts from the past 12 months (up to 365 workouts).
 
+CRITICAL: Your response must be DETAILED but stay under 4000 tokens.
+Target: 3500-4000 tokens for maximum information density.
+This is a HARD LIMIT - your summary MUST NOT exceed 5000 tokens.
+
 Your task is to generate a COMPREHENSIVE HISTORICAL SUMMARY that will be used as context for future coaching conversations.
 
-The summary should include:
+The summary MUST include these 8 DETAILED sections:
 
-1. **PERFORMANCE TRENDS (365-day analysis)**
-   - Pace progression (with regression coefficients if applicable)
-   - Volume progression (monthly averages)
-   - Heart rate efficiency trends
-   - Cadence evolution
-   - VO₂ max estimation trends
+1. **PERFORMANCE TRENDS (500 tokens)**
+   - Pace progression over 12 months (calculate regression trends if possible)
+   - Volume progression by month (km/week averages, peaks, lows)
+   - Speed evolution (fastest runs, average speed by period)
+   - Heart rate efficiency trends (HR at same pace over time)
+   - Cadence evolution (optimal ranges, improvements)
+   - VO₂ max estimation trends (if available)
+   - Best performances and PRs (personal records)
+   - Seasonal patterns and variations
 
-2. **TRAINING PATTERNS**
-   - Best performance days/times
-   - Optimal training volume
-   - Recovery patterns
-   - Seasonal variations
+2. **PHYSIOLOGICAL PROFILE (600 tokens)**
+   - HR zones distribution (% of time in each zone: Recovery <120, Easy 120-140, Moderate 140-160, Hard 160-175, Max >175)
+   - Lactate threshold estimation (pace at ~85% max HR)
+   - Aerobic base strength (long runs, easy pace efficiency)
+   - Anaerobic capacity (sprint/interval performances)
+   - Cardiovascular efficiency (HR drift, recovery rate)
+   - Running power profile (if available)
+   - Biomechanics baseline:
+     * Cadence average + optimal range
+     * Ground contact time (GCT) patterns
+     * Vertical oscillation trends
+     * Stride length evolution
+   - HRV patterns (if data available from recovery metrics)
 
-3. **PHYSIOLOGICAL PROFILE**
-   - HR zones distribution
-   - Lactate threshold estimation
-   - Aerobic vs anaerobic balance
-   - Biomechanics (cadence, GCT, vertical oscillation)
+3. **TRAINING PATTERNS (500 tokens)**
+   - Training frequency (days per week average, consistency)
+   - Preferred training days/times (morning, evening, weekends)
+   - Optimal training volume (sweet spot for performance without injury)
+   - Hard/easy day distribution (periodization)
+   - Long run patterns (frequency, typical distance)
+   - Interval/speed work frequency
+   - Recovery patterns (days between hard efforts)
+   - Seasonal training variations (summer vs winter)
+   - Weekly structure insights
 
-4. **KEY MILESTONES & ACHIEVEMENTS**
-   - Personal records (pace, distance, duration)
-   - Notable performances
-   - Training blocks/phases completed
+4. **STRENGTHS & ACHIEVEMENTS (400 tokens)**
+   - Top 3 personal records with dates
+   - Most consistent periods (best streaks)
+   - Performance highlights (breakthrough workouts)
+   - Technical strengths (e.g., excellent cadence, good pacing)
+   - Mental strengths (consistency, recovery adherence)
+   - Training discipline indicators
 
-5. **INJURY HISTORY & WARNINGS**
-   - Past injuries or issues detected
-   - Overtraining signals observed
-   - Risk factors identified
+5. **WEAKNESSES & RISKS (400 tokens)**
+   - Injury risk indicators detected:
+     * Volume spikes (>10% increases)
+     * Inadequate recovery patterns
+     * Biomechanical red flags
+   - Overtraining signals observed (elevated HR, pace drop)
+   - Technical weaknesses (low cadence, excessive GCT)
+   - Recovery deficits (insufficient rest between hard efforts)
+   - Training gaps (inconsistent periods)
+   - Areas needing improvement
 
-6. **BASELINE METRICS (for comparison)**
-   - Average pace (overall + by month)
-   - Average HR (overall + by intensity)
-   - Average volume (weekly/monthly)
-   - Consistency metrics
+6. **RACE HISTORY (300 tokens)**
+   - Race efforts identified (hard paces, long distances)
+   - Race pace analysis (average race speed vs training pace)
+   - Race preparation patterns
+   - Race performance trends
+   - Taper strategy observations
+   - Post-race recovery patterns
 
-Format the summary in a structured, concise way (~1,500-2,000 tokens max).
-This summary will be used alongside recent workouts for daily coaching.
+7. **PERIODIZATION ANALYSIS (300 tokens)**
+   - Training cycles observed (build, peak, recovery)
+   - Micro-cycles (weekly patterns)
+   - Meso-cycles (monthly blocks)
+   - Macro-cycles (seasonal phases)
+   - Progression strategy used
+   - Deload/recovery weeks
 
-Keep it factual, quantitative, and actionable.
+8. **STATISTICAL BASELINE (500 tokens)**
+   - All-time stats:
+     * Total distance covered (km)
+     * Total time running (hours)
+     * Average pace (overall)
+     * Average speed (km/h)
+     * Average HR (overall)
+     * Average cadence (spm)
+   - Monthly averages (last 12 months):
+     * Distance per month
+     * Volume per week
+     * Pace by month
+   - Intensity distribution:
+     * % easy runs (<70% max HR)
+     * % moderate runs (70-80% max HR)
+     * % hard runs (>80% max HR)
+   - Consistency metrics:
+     * Longest running streak
+     * Average runs per week
+     * Training adherence score
+
+Format the summary in a structured, well-organized way using clear headings.
+Each section should be factual, quantitative, and actionable.
+Include specific numbers, dates, and trends whenever possible.
+
+**CRITICAL REMINDER: Target 3500-4000 tokens. DO NOT exceed 5000 tokens.**
 
 **IMPORTANT: You MUST respond in ${getLanguageName(language)} language.**
 

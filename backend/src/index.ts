@@ -6,6 +6,7 @@ import { streamSSE } from 'hono/streaming'
 import { captureLLMEvent, createPostHogClient } from './posthog'
 import { buildHistoricalAnalysisPrompt, buildPrompt } from './prompts'
 import type { ChatRequestV2, HistoricalAnalysisRequest, HistoricalAnalysisResponse } from './types'
+import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from './utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -79,7 +80,7 @@ function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
 
 function validateHistoricalAnalysisRequest(body: unknown): body is HistoricalAnalysisRequest {
   const req = body as HistoricalAnalysisRequest
-  return !!(req.workouts && Array.isArray(req.workouts) && req.model && req.language)
+  return !!(req.workouts && Array.isArray(req.workouts) && req.language)
 }
 
 async function callOpenRouter(
@@ -144,7 +145,9 @@ async function callOpenRouterNonStreaming(
     throw new Error(`OpenRouter API error: ${response.status}`)
   }
 
-  const data = await response.json()
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>
+  }
   return data.choices[0].message.content
 }
 
@@ -713,13 +716,15 @@ app.post('/api/analyze-history', async (c) => {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: workouts (array), model, language',
+          message: 'Missing required fields: workouts (array), language',
         },
         400
       )
     }
 
-    const { workouts, model, language } = body
+    const { workouts, language } = body
+    // Force Grok 4 Fast for historical analysis (ignore client model)
+    const model = 'x-ai/grok-4-fast'
 
     // Validate workouts array
     if (workouts.length === 0) {
@@ -755,16 +760,33 @@ app.post('/api/analyze-history', async (c) => {
     const systemPrompt = ''
     const prompt = buildHistoricalAnalysisPrompt(workouts, language)
 
-    // Call OpenRouter (non-streaming) with higher token limit
-    const summary = await callOpenRouterNonStreaming(
+    // Call OpenRouter (non-streaming) with higher token limit for summary generation
+    let summary = await callOpenRouterNonStreaming(
       c.env.OPENROUTER_API_KEY,
       model,
       systemPrompt,
       prompt,
-      3000 // Max tokens for summary
+      5000 // Max tokens for generation (will truncate if needed)
     )
 
+    // Validate and truncate summary if it exceeds 5000 tokens
+    const tokenCount = validateTokenCount(summary, 5000, 'Historical summary')
+
+    if (tokenCount > 5000) {
+      console.warn(`⚠️ Summary exceeds 5000 tokens (${tokenCount}). Truncating intelligently...`)
+      summary = truncateToTokenLimit(summary, 4800) // Truncate to 4800 to leave margin
+      const finalTokenCount = estimateTokenCount(summary)
+      console.log(`✅ Summary truncated to ${finalTokenCount} tokens`)
+    } else if (tokenCount > 4000) {
+      console.log(`⚠️ Summary is large (${tokenCount} tokens) but within 5000 limit`)
+    }
+
+    const finalTokenCount = estimateTokenCount(summary)
     const latency = (Date.now() - startTime) / 1000
+
+    console.log(
+      `✅ Historical summary generated: ${finalTokenCount} tokens, ${workouts.length} workouts, ${latency.toFixed(2)}s`
+    )
 
     // Log to PostHog
     if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
@@ -782,7 +804,7 @@ app.post('/api/analyze-history', async (c) => {
               systemPrompt,
               output: summary,
               inputTokens: undefined, // OpenRouter doesn't return tokens in non-streaming
-              outputTokens: undefined,
+              outputTokens: finalTokenCount,
               latency,
               cost: undefined,
               ip,
@@ -798,6 +820,7 @@ app.post('/api/analyze-history', async (c) => {
     const response: HistoricalAnalysisResponse = {
       summary,
       workoutCount: workouts.length,
+      tokenCount: finalTokenCount,
       generatedAt: new Date().toISOString(),
     }
 

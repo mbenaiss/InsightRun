@@ -8,6 +8,7 @@
 
 import Foundation
 
+@MainActor
 class HistoricalSummaryStorage {
     static let shared = HistoricalSummaryStorage()
 
@@ -74,8 +75,10 @@ class HistoricalSummaryStorage {
         print("🗑️ HistoricalSummaryStorage: Cleared stored summary")
     }
 
-    /// Check if a summary exists
+    /// Check if a summary exists (async for consistency with other methods)
     var hasSummary: Bool {
-        return userDefaults.data(forKey: storageKey) != nil
+        get async {
+            return userDefaults.data(forKey: storageKey) != nil
+        }
     }
 }

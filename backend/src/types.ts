@@ -86,12 +86,13 @@ export interface ChatRequestV2 {
 
 export interface HistoricalAnalysisRequest {
   workouts: WorkoutData[]
-  model: string
   language: string // e.g., "fr", "en", "es", "de"
+  // Note: model is always 'x-ai/grok-4-fast' on backend (hardcoded for consistency)
 }
 
 export interface HistoricalAnalysisResponse {
   summary: string
   workoutCount: number
+  tokenCount: number
   generatedAt: string
 }

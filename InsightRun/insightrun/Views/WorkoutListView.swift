@@ -15,6 +15,8 @@ struct WorkoutListView: View {
     @State private var isLoadingMetrics = false
     @State private var currentYearWorkouts: [WorkoutModel] = []
     @State private var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
+    @State private var showIndexationScreen = false
+    @State private var indexationReason: HistoricalIndexationView.IndexationReason = .initial
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
@@ -80,8 +82,20 @@ struct WorkoutListView: View {
                    revenueCatManager.hasAIAccess {
                     Button(action: {
                         Task {
-                            await loadCurrentYearWorkoutsWithMetrics()
-                            showingAIAssistant = true
+                            // Check if historical summary exists, trigger indexation if needed
+                            let hasSummary = await HistoricalSummaryStorage.shared.hasSummary
+                            let hasFailedBefore = HistoricalIndexationManager.shared.hasFailedOnce
+
+                            if !hasSummary && !hasFailedBefore {
+                                // First time: show indexation screen
+                                indexationReason = .initial
+                                showIndexationScreen = true
+                            } else {
+                                // Either has summary OR failed before: open chat directly
+                                // (if failed, retry button will be shown in chat)
+                                await loadRecentWorkoutsForAI()
+                                showingAIAssistant = true
+                            }
                         }
                     }) {
                         ZStack {
@@ -118,6 +132,15 @@ struct WorkoutListView: View {
                 isPresented: $showingAIAssistant
             )
         }
+        .fullScreenCover(isPresented: $showIndexationScreen) {
+            HistoricalIndexationView(reason: indexationReason) {
+                // On completion, open AI assistant
+                Task {
+                    await loadRecentWorkoutsForAI()
+                    showingAIAssistant = true
+                }
+            }
+        }
         .fullScreenCover(isPresented: $showInitialPaywall) {
             SubscriptionPaywallView(isInitialFlow: true)
                 .environmentObject(revenueCatManager)
@@ -126,20 +149,18 @@ struct WorkoutListView: View {
 
     // MARK: - Helper Functions
 
-    private func loadCurrentYearWorkoutsWithMetrics() async {
+    private func loadRecentWorkoutsForAI() async {
         isLoadingMetrics = true
 
-        // Get current year workouts
-        let calendar = Calendar.current
-        let currentYear = calendar.component(.year, from: Date())
+        // Get last 10 workouts for AI context (much faster than loading entire year)
+        let last10 = Array(viewModel.workouts.prefix(10))
+        currentYearWorkouts = last10
 
-        currentYearWorkouts = viewModel.workouts.filter { workout in
-            calendar.component(.year, from: workout.startDate) == currentYear
-        }
+        print("📊 WorkoutListView: Loading metrics for last \(last10.count) workouts for AI context")
 
-        // Load metrics for all current year workouts
+        // Load metrics for last 10 workouts only
         await withTaskGroup(of: (UUID, WorkoutMetrics?).self) { group in
-            for workout in currentYearWorkouts {
+            for workout in last10 {
                 group.addTask {
                     do {
                         let metrics = try await HealthKitManager.shared.fetchWorkoutMetrics(for: workout)

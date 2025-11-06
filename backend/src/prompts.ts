@@ -565,7 +565,7 @@ function getLanguageName(langCode: string): string {
 }
 
 // Build historical analysis prompt for one-time deep analysis
-export function buildHistoricalAnalysisPrompt(workouts: WorkoutData[], language: string): string {
+export function buildHistoricalAnalysisPrompt(workouts: WorkoutData[], profile: HealthProfileData | undefined, language: string): string {
   let prompt = `You are an expert running coach analyzing a runner's complete training history.
 
 You will receive ALL workouts from the past 12 months (up to 365 workouts).
@@ -574,7 +574,16 @@ CRITICAL: Your response must be DETAILED but stay under 4000 tokens.
 Target: 3500-4000 tokens for maximum information density.
 This is a HARD LIMIT - your summary MUST NOT exceed 5000 tokens.
 
-Your task is to generate a COMPREHENSIVE HISTORICAL SUMMARY that will be used as context for future coaching conversations.
+Your task is to generate a COMPREHENSIVE HISTORICAL SUMMARY that will be used as context for future coaching conversations.`
+
+  // Add runner profile if available
+  if (profile) {
+    prompt += `\n\n# RUNNER PROFILE\n\n${buildHealthProfileContext(profile)}`
+  }
+
+  prompt += `
+
+
 
 The summary MUST include these 8 DETAILED sections:
 

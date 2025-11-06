@@ -113,6 +113,7 @@ struct RecentWorkoutsData: Encodable {
 
 struct HistoricalAnalysisRequest: Encodable {
     let workouts: [WorkoutData]
+    let profile: HealthProfileData?
     let model: String
     let language: String
 }

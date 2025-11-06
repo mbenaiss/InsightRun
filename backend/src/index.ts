@@ -754,7 +754,7 @@ app.post('/api/analyze-history', async (c) => {
       )
     }
 
-    const { workouts, language } = validationResult.data
+    const { workouts, profile, language } = validationResult.data
     // Force Grok 4 Fast for historical analysis (ignore client model)
     const model = 'x-ai/grok-4-fast'
 
@@ -763,13 +763,14 @@ app.post('/api/analyze-history', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
+    const profileInfo = profile ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})` : 'no profile'
     console.log(
-      `📊 Historical analysis requested: ${workouts.length} workouts, model: ${model}, user: ${userId}`
+      `📊 Historical analysis requested: ${workouts.length} workouts, ${profileInfo}, model: ${model}, user: ${userId}`
     )
 
     // Build the analysis prompt
     const systemPrompt = ''
-    const prompt = buildHistoricalAnalysisPrompt(workouts, language)
+    const prompt = buildHistoricalAnalysisPrompt(workouts, profile, language)
 
     // Call OpenRouter (non-streaming) with higher token limit for summary generation
     let summary = await callOpenRouterNonStreaming(

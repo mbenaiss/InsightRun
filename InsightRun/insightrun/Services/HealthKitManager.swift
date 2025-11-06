@@ -1705,4 +1705,40 @@ class HealthKitManager: ObservableObject {
 
         return totalSleep
     }
+
+    // MARK: - Essential Metrics for Historical Indexation
+
+    /// Fetch essential metrics for a workout optimized for bulk historical analysis
+    /// Returns key metrics: HR, cadence, VO2Max, elevation
+    func fetchEssentialMetrics(for workoutModel: WorkoutModel) async throws -> (
+        heartRate: (avg: Double?, min: Double?, max: Double?)?,
+        cadence: Int?,
+        vo2Max: Double?,
+        elevation: Double?
+    ) {
+        // Find the original HKWorkout
+        guard let workout = try await findWorkout(with: workoutModel.id) else {
+            return (nil, nil, nil, nil)
+        }
+
+        // Fetch metrics in parallel for efficiency
+        async let heartRateData = fetchHeartRateData(for: workout)
+        async let stepCountData = fetchStepCount(for: workout)
+        async let vo2MaxData = fetchVO2Max(around: workoutModel.startDate)
+        async let elevationData = fetchElevation(for: workout)
+
+        let (hr, steps, vo2Max, elevation) = try await (
+            heartRateData, stepCountData, vo2MaxData, elevationData
+        )
+
+        // Calculate cadence from steps
+        let cadence = calculateCadence(steps: steps, duration: workout.duration)
+
+        return (
+            heartRate: (avg: hr.average, min: hr.min, max: hr.max),
+            cadence: cadence,
+            vo2Max: vo2Max,
+            elevation: elevation.ascent
+        )
+    }
 }

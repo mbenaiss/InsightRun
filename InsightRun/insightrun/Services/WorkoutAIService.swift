@@ -318,6 +318,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
             let response = try await backendClient.generateHistoricalSummary(
                 workouts: workoutDataList,
+                profile: nil, // Profile not available in this context
                 model: model,
                 language: language
             )

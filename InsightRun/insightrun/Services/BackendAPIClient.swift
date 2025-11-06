@@ -200,7 +200,7 @@ class BackendAPIClient {
 
     // MARK: - Historical Analysis
 
-    func generateHistoricalSummary(workouts: [WorkoutData], model: String, language: String) async throws -> HistoricalAnalysisResponse {
+    func generateHistoricalSummary(workouts: [WorkoutData], profile: HealthProfileData?, model: String, language: String) async throws -> HistoricalAnalysisResponse {
         let url = URL(string: "\(baseURL)/api/analyze-history")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -211,6 +211,7 @@ class BackendAPIClient {
 
         let requestBody = HistoricalAnalysisRequest(
             workouts: workouts,
+            profile: profile,
             model: model,
             language: language
         )

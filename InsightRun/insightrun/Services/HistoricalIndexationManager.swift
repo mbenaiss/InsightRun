@@ -141,7 +141,9 @@ class HistoricalIndexationManager: ObservableObject {
             // Check for cancellation in the loop
             try Task.checkCancellation()
 
-            let workoutData = convertToWorkoutDataSimple(workout: workout)
+            // Fetch essential metrics for each workout
+            let metrics = try? await healthKitManager.fetchEssentialMetrics(for: workout)
+            let workoutData = convertToWorkoutDataWithMetrics(workout: workout, metrics: metrics)
             workoutDataList.append(workoutData)
 
             // Update progress
@@ -163,8 +165,31 @@ class HistoricalIndexationManager: ObservableObject {
         do {
             let language = getUserLanguage()
 
+            // Fetch user health profile for personalized analysis
+            let healthProfile = try? await healthKitManager.fetchHealthProfile()
+            let profileData = healthProfile.map { profile in
+                HealthProfileData(
+                    age: profile.age,
+                    sex: profile.biologicalSex.map { sex in
+                        switch sex {
+                        case .male: return "male"
+                        case .female: return "female"
+                        case .other: return "other"
+                        case .notSet: return nil
+                        @unknown default: return nil
+                        }
+                    } ?? nil,
+                    bodyMass: profile.bodyMass,
+                    bodyFatPercentage: profile.bodyFatPercentage,
+                    exerciseTime: profile.exerciseTime.map { Int($0) },
+                    cyclingDistance: profile.cyclingDistance,
+                    swimmingDistance: profile.swimmingDistance
+                )
+            }
+
             let response = try await backendClient.generateHistoricalSummary(
                 workouts: workoutDataList,
+                profile: profileData,
                 model: model,
                 language: language
             )
@@ -191,10 +216,22 @@ class HistoricalIndexationManager: ObservableObject {
 
     // MARK: - Helper Methods
 
-    private func convertToWorkoutDataSimple(workout: WorkoutModel) -> WorkoutData {
+    private func convertToWorkoutDataWithMetrics(
+        workout: WorkoutModel,
+        metrics: (heartRate: (avg: Double?, min: Double?, max: Double?)?, cadence: Int?, vo2Max: Double?, elevation: Double?)?
+    ) -> WorkoutData {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
+
+        // Extract heart rate data if available
+        let heartRateData: HeartRateData? = metrics?.heartRate.map { hr in
+            HeartRateData(
+                avg: hr.avg.map { Int($0) },
+                min: hr.min.map { Int($0) },
+                max: hr.max.map { Int($0) }
+            )
+        } ?? nil
 
         return WorkoutData(
             date: formatter.string(from: workout.startDate),
@@ -203,17 +240,17 @@ class HistoricalIndexationManager: ObservableObject {
             calories: workout.totalEnergyBurned,
             pace: workout.averagePace,
             speed: workout.averageSpeed,
-            heartRate: nil,
-            minPace: nil,
-            cadence: nil,
-            strideLength: nil,
-            runningPower: nil,
-            vo2Max: nil,
-            elevationGain: nil,
-            groundContactTime: nil,
-            verticalOscillation: nil,
-            mobility: nil,
-            splits: nil
+            heartRate: heartRateData,
+            minPace: nil, // Not essential for historical analysis
+            cadence: metrics?.cadence,
+            strideLength: nil, // Not essential for historical analysis
+            runningPower: nil, // Not essential for historical analysis
+            vo2Max: metrics?.vo2Max,
+            elevationGain: metrics?.elevation,
+            groundContactTime: nil, // Not essential for historical analysis
+            verticalOscillation: nil, // Not essential for historical analysis
+            mobility: nil, // Not essential for historical analysis
+            splits: nil // Too detailed for historical analysis
         )
     }
 

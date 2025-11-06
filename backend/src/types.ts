@@ -46,9 +46,21 @@ export const workoutDataSchema = z.object({
     .optional(),
 })
 
+// Zod schema for HealthProfileData
+export const healthProfileDataSchema = z.object({
+  age: z.number().int().min(1).max(120).optional(),
+  sex: z.string().optional(),
+  bodyMass: z.number().positive().optional(),
+  bodyFatPercentage: z.number().min(0).max(100).optional(),
+  exerciseTime: z.number().nonnegative().optional(),
+  cyclingDistance: z.number().nonnegative().optional(),
+  swimmingDistance: z.number().nonnegative().optional(),
+})
+
 // Zod schema for HistoricalAnalysisRequest validation
 export const historicalAnalysisRequestSchema = z.object({
   workouts: z.array(workoutDataSchema).min(1).max(500),
+  profile: healthProfileDataSchema.optional(),
   language: z.string().min(2).max(5),
 })
 
@@ -138,6 +150,7 @@ export interface ChatRequestV2 {
 
 export interface HistoricalAnalysisRequest {
   workouts: WorkoutData[]
+  profile?: HealthProfileData // User health profile for personalized analysis
   language: string // e.g., "fr", "en", "es", "de"
   // Note: model is always 'x-ai/grok-4-fast' on backend (hardcoded for consistency)
 }

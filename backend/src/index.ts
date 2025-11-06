@@ -754,7 +754,7 @@ app.post('/api/analyze-history', async (c) => {
       )
     }
 
-    const { workouts, language } = validationResult.data
+    const { workouts, profile, language } = validationResult.data
     // Force Grok 4 Fast for historical analysis (ignore client model)
     const model = 'x-ai/grok-4-fast'
 
@@ -763,13 +763,16 @@ app.post('/api/analyze-history', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
+    const profileInfo = profile
+      ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})`
+      : 'no profile'
     console.log(
-      `📊 Historical analysis requested: ${workouts.length} workouts, model: ${model}, user: ${userId}`
+      `📊 Historical analysis requested: ${workouts.length} workouts, ${profileInfo}, model: ${model}, user: ${userId}`
     )
 
     // Build the analysis prompt
     const systemPrompt = ''
-    const prompt = buildHistoricalAnalysisPrompt(workouts, language)
+    const prompt = buildHistoricalAnalysisPrompt(workouts, profile, language)
 
     // Call OpenRouter (non-streaming) with higher token limit for summary generation
     let summary = await callOpenRouterNonStreaming(
@@ -795,8 +798,11 @@ app.post('/api/analyze-history', async (c) => {
     const finalTokenCount = estimateTokenCount(summary)
     const latency = (Date.now() - startTime) / 1000
 
+    // Estimate input token count for logging
+    const inputTokenCount = estimateTokenCount(prompt)
+
     console.log(
-      `✅ Historical summary generated: ${finalTokenCount} tokens, ${workouts.length} workouts, ${latency.toFixed(2)}s`
+      `✅ Historical summary generated: ${finalTokenCount} tokens, ${workouts.length} workouts, ${latency.toFixed(2)}s, input: ${inputTokenCount} tokens`
     )
 
     // Log to PostHog
@@ -809,12 +815,16 @@ app.post('/api/analyze-history', async (c) => {
       c.executionCtx.waitUntil(
         (async () => {
           try {
+            // Log with a summary + size info instead of full prompt to save space
+            // The full prompt with all workout data IS sent to the AI API
+            const inputSummary = `Historical analysis: ${workouts.length} workouts (${inputTokenCount} tokens input)\n\nSample of data sent:\n${prompt.substring(0, 500)}...\n\n[Full workout details sent to AI - truncated here for logging]`
+
             await captureLLMEvent(posthog, userId, traceId, {
               model,
-              input: `Historical analysis: ${workouts.length} workouts`,
+              input: inputSummary,
               systemPrompt,
               output: summary,
-              inputTokens: undefined, // OpenRouter doesn't return tokens in non-streaming
+              inputTokens: inputTokenCount,
               outputTokens: finalTokenCount,
               latency,
               cost: undefined,

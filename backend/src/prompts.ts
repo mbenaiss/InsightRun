@@ -565,7 +565,11 @@ function getLanguageName(langCode: string): string {
 }
 
 // Build historical analysis prompt for one-time deep analysis
-export function buildHistoricalAnalysisPrompt(workouts: WorkoutData[], profile: HealthProfileData | undefined, language: string): string {
+export function buildHistoricalAnalysisPrompt(
+  workouts: WorkoutData[],
+  profile: HealthProfileData | undefined,
+  language: string
+): string {
   let prompt = `You are an expert running coach analyzing a runner's complete training history.
 
 You will receive ALL workouts from the past 12 months (up to 365 workouts).

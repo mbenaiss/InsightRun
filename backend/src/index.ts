@@ -763,7 +763,9 @@ app.post('/api/analyze-history', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
-    const profileInfo = profile ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})` : 'no profile'
+    const profileInfo = profile
+      ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})`
+      : 'no profile'
     console.log(
       `📊 Historical analysis requested: ${workouts.length} workouts, ${profileInfo}, model: ${model}, user: ${userId}`
     )

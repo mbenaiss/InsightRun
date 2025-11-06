@@ -187,6 +187,25 @@ struct WorkoutAIAssistantView: View {
                         isPresented = false
                     }
                 }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if aiService.showRetryIndexation {
+                        Button(action: {
+                            impactMedium.impactOccurred()
+                            Task {
+                                await aiService.retryHistoricalIndexation()
+                            }
+                        }) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.clockwise")
+                                    .imageScale(.small)
+                                Text(String(localized: "Reindex", comment: "Reindex button label"))
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.secondary)
+                        }
+                    }
+                }
             }
         }
         .sheet(isPresented: $showingHistory) {
@@ -207,6 +226,15 @@ struct WorkoutAIAssistantView: View {
             impactMedium.prepare()
             notificationFeedback.prepare()
 
+            // Check if indexation has failed before
+            let hasFailedBefore = HistoricalIndexationManager.shared.hasFailedOnce
+            let needsIndexation = HistoricalSummaryStorage.shared.needsGeneration()
+
+            if hasFailedBefore && needsIndexation {
+                // Show retry button if indexation failed and summary is still missing
+                aiService.showRetryIndexation = true
+            }
+
             // Track AI chat opened
             AnalyticsService.shared.trackAIChatOpened()
         }
@@ -226,14 +254,8 @@ struct WorkoutAIAssistantView: View {
                 )
                 .font(.title3)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(String(localized: "AI Assistant", comment: "AI assistant header title"))
-                    .font(.headline)
-
-                Text(modeDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(String(localized: "AI Assistant", comment: "AI assistant header title"))
+                .font(.headline)
 
             Spacer()
 
@@ -262,17 +284,6 @@ struct WorkoutAIAssistantView: View {
         .padding(.horizontal)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
-    }
-
-    private var modeDescription: String {
-        switch mode {
-        case .singleWorkout:
-            return String(localized: "Workout analysis", comment: "Mode description for single workout analysis")
-        case .recentWorkouts(let workouts, _):
-            return String(format: String(localized: "%lld recent workouts", comment: "Mode description for multiple recent workouts (plural form)"), workouts.count)
-        case .recoveryCoaching:
-            return String(localized: "Recovery coaching", comment: "Mode description for recovery coaching")
-        }
     }
 
     // MARK: - Empty State
@@ -1180,7 +1191,8 @@ struct ConversationHistoryRow: View {
         if calendar.isDateInToday(date) {
             let formatter = DateFormatter()
             formatter.timeStyle = .short
-            return String(localized: "Today at \(formatter.string(from: date))", comment: "Today's date format with time")
+            let timeString = formatter.string(from: date)
+            return String(localized: "Today at %@", comment: "Date format for today with time").replacingOccurrences(of: "%@", with: timeString)
         } else if calendar.isDateInYesterday(date) {
             return String(localized: "Yesterday", comment: "Yesterday label")
         } else if let daysAgo = calendar.dateComponents([.day], from: date, to: now).day, daysAgo < 7 {

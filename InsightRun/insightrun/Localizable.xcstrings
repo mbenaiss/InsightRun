@@ -609,6 +609,24 @@
         }
       }
     },
+    "Apple Intelligence requires iOS 26 or later" : {
+      "comment" : "Error message when Apple Intelligence is not available (iOS version)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence requires iOS 26 or later"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence nécessite iOS 26 ou supérieur"
+          }
+        }
+      }
+    },
     "Ask a question..." : {
       "comment" : "Placeholder text for question input field",
       "extractionState" : "manual",
@@ -665,6 +683,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucune donnée de puissance disponible"
+          }
+        }
+      }
+    },
+    "Authentication error with server" : {
+      "comment" : "Error message for authentication failures",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication error with server"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur d'authentification avec le serveur"
           }
         }
       }
@@ -882,6 +918,9 @@
           }
         }
       }
+    },
+    "Cancelled" : {
+      "comment" : "Status: cancelled"
     },
     "Chargement..." : {
       "comment" : "Location loading state",
@@ -1213,6 +1252,24 @@
         }
       }
     },
+    "Enable Apple Intelligence in Settings" : {
+      "comment" : "Error message when Apple Intelligence is not enabled",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Apple Intelligence in Settings"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez Apple Intelligence dans Réglages"
+          }
+        }
+      }
+    },
     "Error" : {
       "comment" : "Error state title",
       "extractionState" : "manual",
@@ -1221,6 +1278,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Erreur"
+          }
+        }
+      }
+    },
+    "Error %@. Try again later." : {
+      "comment" : "Generic error message with error code",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error %@. Try again later."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur %@. Réessayez plus tard."
           }
         }
       }
@@ -1303,6 +1378,42 @@
         }
       }
     },
+    "Failed to fetch workouts from HealthKit" : {
+      "comment" : "Error message when unable to fetch workouts from HealthKit",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to fetch workouts from HealthKit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de récupérer les entraînements depuis HealthKit"
+          }
+        }
+      }
+    },
+    "Failed to generate AI summary" : {
+      "comment" : "Error message when unable to generate AI summary",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to generate AI summary"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de générer le résumé IA"
+          }
+        }
+      }
+    },
     "Failed to index your data" : {
       "comment" : "Error title when indexation fails",
       "extractionState" : "manual",
@@ -1380,6 +1491,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Étages"
+          }
+        }
+      }
+    },
+    "FoundationModels service is not available" : {
+      "comment" : "Error message when FoundationModels service cannot be initialized",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FoundationModels service is not available"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le service FoundationModels n'est pas disponible"
           }
         }
       }
@@ -1812,6 +1941,9 @@
         }
       }
     },
+    "Indexation cancelled by user" : {
+      "comment" : "Message when user cancels indexation"
+    },
     "Indexing workouts..." : {
       "comment" : "Status: indexing",
       "extractionState" : "manual",
@@ -1880,6 +2012,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Intermédiaire"
+          }
+        }
+      }
+    },
+    "Invalid response from server" : {
+      "comment" : "Error message for invalid server responses",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid response from server"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réponse invalide du serveur"
           }
         }
       }
@@ -3347,6 +3497,42 @@
         }
       }
     },
+    "Model is downloading, please try again later" : {
+      "comment" : "Error message when model is still downloading",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model is downloading, please try again later"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modèle en téléchargement, réessayez plus tard"
+          }
+        }
+      }
+    },
+    "Model is not available" : {
+      "comment" : "Error message when model is not available",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model is not available"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modèle non disponible"
+          }
+        }
+      }
+    },
     "Moderate" : {
       "comment" : "Power range: Moderate",
       "extractionState" : "manual",
@@ -4088,6 +4274,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sessions de course et métriques"
+          }
+        }
+      }
+    },
+    "Server error. Try again later." : {
+      "comment" : "Error message for server errors",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server error. Try again later."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur serveur. Réessayez plus tard."
           }
         }
       }
@@ -5743,6 +5947,24 @@
         }
       }
     },
+    "This device does not support Apple Intelligence" : {
+      "comment" : "Error message when device is not eligible for Apple Intelligence",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device does not support Apple Intelligence"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil ne supporte pas Apple Intelligence"
+          }
+        }
+      }
+    },
     "This is a one-time analysis that takes 15-30 seconds." : {
       "comment" : "Indexation screen description - first time",
       "extractionState" : "manual",
@@ -5827,6 +6049,24 @@
         }
       }
     },
+    "Too many requests. Try again in a few minutes." : {
+      "comment" : "Error message for rate limit exceeded",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many requests. Try again in a few minutes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop de requêtes. Réessayez dans quelques minutes."
+          }
+        }
+      }
+    },
     "Total Distance" : {
       "comment" : "Total distance stat",
       "extractionState" : "manual",
@@ -5883,6 +6123,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réessayer"
+          }
+        }
+      }
+    },
+    "Unable to check model availability" : {
+      "comment" : "Error message when unable to check model availability",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to check model availability"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de vérifier la disponibilité du modèle"
           }
         }
       }
@@ -6659,276 +6917,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Votre valeur"
-          }
-        }
-      }
-    },
-    "Apple Intelligence requires iOS 26 or later" : {
-      "comment" : "Error message when Apple Intelligence is not available (iOS version)",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apple Intelligence requires iOS 26 or later"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apple Intelligence nécessite iOS 26 ou supérieur"
-          }
-        }
-      }
-    },
-    "FoundationModels service is not available" : {
-      "comment" : "Error message when FoundationModels service cannot be initialized",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FoundationModels service is not available"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le service FoundationModels n'est pas disponible"
-          }
-        }
-      }
-    },
-    "This device does not support Apple Intelligence" : {
-      "comment" : "Error message when device is not eligible for Apple Intelligence",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device does not support Apple Intelligence"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cet appareil ne supporte pas Apple Intelligence"
-          }
-        }
-      }
-    },
-    "Enable Apple Intelligence in Settings" : {
-      "comment" : "Error message when Apple Intelligence is not enabled",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable Apple Intelligence in Settings"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activez Apple Intelligence dans Réglages"
-          }
-        }
-      }
-    },
-    "Model is downloading, please try again later" : {
-      "comment" : "Error message when model is still downloading",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model is downloading, please try again later"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modèle en téléchargement, réessayez plus tard"
-          }
-        }
-      }
-    },
-    "Model is not available" : {
-      "comment" : "Error message when model is not available",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model is not available"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modèle non disponible"
-          }
-        }
-      }
-    },
-    "Unable to check model availability" : {
-      "comment" : "Error message when unable to check model availability",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to check model availability"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de vérifier la disponibilité du modèle"
-          }
-        }
-      }
-    },
-    "Authentication error with server" : {
-      "comment" : "Error message for authentication failures",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Authentication error with server"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erreur d'authentification avec le serveur"
-          }
-        }
-      }
-    },
-    "Too many requests. Try again in a few minutes." : {
-      "comment" : "Error message for rate limit exceeded",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Too many requests. Try again in a few minutes."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trop de requêtes. Réessayez dans quelques minutes."
-          }
-        }
-      }
-    },
-    "Server error. Try again later." : {
-      "comment" : "Error message for server errors",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server error. Try again later."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erreur serveur. Réessayez plus tard."
-          }
-        }
-      }
-    },
-    "Invalid response from server" : {
-      "comment" : "Error message for invalid server responses",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invalid response from server"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réponse invalide du serveur"
-          }
-        }
-      }
-    },
-    "Error %@. Try again later." : {
-      "comment" : "Generic error message with error code",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Error %@. Try again later."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erreur %@. Réessayez plus tard."
-          }
-        }
-      }
-    },
-    "Failed to fetch workouts from HealthKit" : {
-      "comment" : "Error message when unable to fetch workouts from HealthKit",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to fetch workouts from HealthKit"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de récupérer les entraînements depuis HealthKit"
-          }
-        }
-      }
-    },
-    "Failed to generate AI summary" : {
-      "comment" : "Error message when unable to generate AI summary",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to generate AI summary"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de générer le résumé IA"
-          }
-        }
-      }
-    },
-    "Today at %@" : {
-      "comment" : "Date format for today with time",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today at %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aujourd'hui à %@"
           }
         }
       }

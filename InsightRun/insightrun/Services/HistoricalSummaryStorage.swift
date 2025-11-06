@@ -26,7 +26,6 @@ class HistoricalSummaryStorage {
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(summary)
             userDefaults.set(data, forKey: storageKey)
-            userDefaults.synchronize()
             print("✅ HistoricalSummaryStorage: Saved summary (\(summary.workoutCount) workouts)")
         } catch {
             print("❌ HistoricalSummaryStorage: Failed to save summary: \(error)")
@@ -71,7 +70,6 @@ class HistoricalSummaryStorage {
     /// Delete the stored summary (useful for testing or resetting)
     func clear() {
         userDefaults.removeObject(forKey: storageKey)
-        userDefaults.synchronize()
         print("🗑️ HistoricalSummaryStorage: Cleared stored summary")
     }
 

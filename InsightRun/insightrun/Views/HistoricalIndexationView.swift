@@ -17,6 +17,7 @@ struct HistoricalIndexationView: View {
     @StateObject private var manager = HistoricalIndexationManager.shared
     @State private var animateSymbol = false
     @State private var showDetails = false
+    @State private var indexationTask: Task<Void, Never>?
 
     // MARK: - Configuration
 
@@ -93,12 +94,32 @@ struct HistoricalIndexationView: View {
 
                 Spacer()
 
+                // Cancel button during indexation
+                if isIndexing {
+                    Button(action: handleCancellation) {
+                        Text(String(localized: "Cancel", comment: "Cancel button"))
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.red.opacity(0.8), Color.red.opacity(0.6)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 32)
+                }
+
             }
             .padding()
         }
         .interactiveDismissDisabled(isIndexing)
         .onChange(of: manager.state) { _, newState in
-            // Auto-dismiss after completion or error
+            // Auto-dismiss after completion, error, or cancellation
             switch newState {
             case .completed:
                 // Show success checkmark for 1.5s before dismissing
@@ -112,6 +133,9 @@ struct HistoricalIndexationView: View {
                     // Open chat even after failure (retry button will be shown)
                     onComplete()
                 }
+            case .cancelled:
+                // Dismiss immediately on cancellation
+                dismiss()
             default:
                 break
             }
@@ -119,14 +143,24 @@ struct HistoricalIndexationView: View {
         .task {
             // Start indexation automatically
             if manager.state == .idle {
-                do {
-                    try await manager.performIndexation()
-                    onComplete()
-                } catch {
-                    print("❌ HistoricalIndexationView: Indexation failed: \(error)")
-                    // onComplete() will be called in onChange when state becomes .failed
+                indexationTask = Task {
+                    do {
+                        try await manager.performIndexation()
+                        onComplete()
+                    } catch is CancellationError {
+                        print("🛑 HistoricalIndexationView: Indexation cancelled")
+                        // Manager state already set to .cancelled
+                    } catch {
+                        print("❌ HistoricalIndexationView: Indexation failed: \(error)")
+                        // onComplete() will be called in onChange when state becomes .failed
+                    }
                 }
             }
+        }
+        .onDisappear {
+            // Clean up task if view disappears
+            indexationTask?.cancel()
+            indexationTask = nil
         }
     }
 
@@ -255,6 +289,16 @@ struct HistoricalIndexationView: View {
         }
     }
 
+    // MARK: - Actions
+
+    private func handleCancellation() {
+        print("🛑 HistoricalIndexationView: User requested cancellation")
+        // Cancel the task
+        indexationTask?.cancel()
+        // Update manager state
+        manager.cancel()
+    }
+
     // MARK: - Computed Properties
 
     private var isIndexing: Bool {
@@ -273,6 +317,8 @@ struct HistoricalIndexationView: View {
             return "checkmark.circle.fill"
         case .failed:
             return "exclamationmark.triangle.fill"
+        case .cancelled:
+            return "xmark.circle.fill"
         case .retrying:
             return "arrow.clockwise"
         }
@@ -310,6 +356,8 @@ struct HistoricalIndexationView: View {
             return String(localized: "Completed", comment: "Status: completed")
         case .failed:
             return String(localized: "Failed", comment: "Status: failed")
+        case .cancelled:
+            return String(localized: "Cancelled", comment: "Status: cancelled")
         case .retrying:
             return String(localized: "Retrying...", comment: "Status: retrying")
         }

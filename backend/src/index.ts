@@ -5,7 +5,10 @@ import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { captureLLMEvent, createPostHogClient } from './posthog'
 import { buildHistoricalAnalysisPrompt, buildPrompt } from './prompts'
-import type { ChatRequestV2, HistoricalAnalysisRequest, HistoricalAnalysisResponse } from './types'
+import type { QuotaCheck } from './quota'
+import { checkQuota, getQuotaConfig, getQuotaHeaders, incrementQuota } from './quota'
+import type { ChatRequestV2, HistoricalAnalysisResponse } from './types'
+import { historicalAnalysisRequestSchema } from './types'
 import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from './utils'
 
 type Bindings = {
@@ -18,6 +21,7 @@ type Bindings = {
 
 type Variables = {
   rateLimitKey: string
+  quotaCheck: QuotaCheck
 }
 
 interface ChatRequest {
@@ -52,8 +56,6 @@ interface StreamChunk {
   }
 }
 
-const RATE_LIMIT = 100
-const RATE_LIMIT_WINDOW = 3600
 const MAX_PROMPT_LENGTH = 2000
 const MAX_TOKENS = 2000
 const AI_TEMPERATURE = 0.7
@@ -76,11 +78,6 @@ function validateChatRequest(body: unknown): body is ChatRequest {
 function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
   const req = body as ChatRequestV2
   return !!(req.promptType && req.model && req.userQuestion && req.language && req.data)
-}
-
-function validateHistoricalAnalysisRequest(body: unknown): body is HistoricalAnalysisRequest {
-  const req = body as HistoricalAnalysisRequest
-  return !!(req.workouts && Array.isArray(req.workouts) && req.language)
 }
 
 async function callOpenRouter(
@@ -165,7 +162,7 @@ app.use(
 )
 
 app.use('/api/*', async (c, next) => {
-  // Use X-User-ID header if available (from iOS app), fallback to IP for backward compatibility
+  // Extract user ID and IP from headers
   const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
   const identifier = userId || ip
@@ -173,26 +170,52 @@ app.use('/api/*', async (c, next) => {
 
   c.set('rateLimitKey', rateLimitKey)
 
-  const count = await c.env.RATE_LIMITER.get(rateLimitKey)
-  const requestCount = count ? Number.parseInt(count, 10) : 0
+  // Check both IP and User quotas
+  const config = getQuotaConfig()
+  const quotaCheck = await checkQuota(c.env.RATE_LIMITER, ip, userId, config)
 
-  if (requestCount >= RATE_LIMIT) {
+  // Store quota check for adding headers to response
+  c.set('quotaCheck', quotaCheck)
+
+  // If quota exceeded, return 429 with detailed error
+  if (!quotaCheck.allowed) {
+    const quotaHeaders = getQuotaHeaders(quotaCheck)
     return c.json(
       {
-        error: 'Rate limit exceeded',
-        message: 'Too many requests. Please try again later.',
-        limit: RATE_LIMIT,
-        retryAfter: RATE_LIMIT_WINDOW,
+        error: 'Quota exceeded',
+        message: quotaCheck.message,
+        restrictedBy: quotaCheck.restrictedBy,
+        quotas: {
+          ip: {
+            limit: quotaCheck.ip.limit,
+            remaining: quotaCheck.ip.remaining,
+            resetAt: quotaCheck.ip.resetAt,
+          },
+          ...(quotaCheck.user && {
+            user: {
+              limit: quotaCheck.user.limit,
+              remaining: quotaCheck.user.remaining,
+              resetAt: quotaCheck.user.resetAt,
+            },
+          }),
+        },
       },
-      429
+      429,
+      quotaHeaders
     )
   }
 
+  // Process request
   await next()
 
-  await c.env.RATE_LIMITER.put(rateLimitKey, (requestCount + 1).toString(), {
-    expirationTtl: RATE_LIMIT_WINDOW,
-  })
+  // Increment both IP and User quotas after successful request
+  await incrementQuota(c.env.RATE_LIMITER, ip, userId, config)
+
+  // Add quota headers to successful responses (if response is a JSON response)
+  const quotaHeaders = getQuotaHeaders(quotaCheck)
+  for (const [key, value] of Object.entries(quotaHeaders)) {
+    c.res.headers.set(key, value)
+  }
 })
 
 app.get('/', (c) => {
@@ -712,40 +735,28 @@ app.post('/api/analyze-history', async (c) => {
 
     const body = await c.req.json()
 
-    if (!validateHistoricalAnalysisRequest(body)) {
+    // Validate request body with Zod
+    const validationResult = historicalAnalysisRequestSchema.safeParse(body)
+
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.issues.map((err) => {
+        const path = err.path.join('.')
+        return `${path}: ${err.message}`
+      })
+
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: workouts (array), language',
+          message: 'Invalid workout data',
+          details: errorMessages,
         },
         400
       )
     }
 
-    const { workouts, language } = body
+    const { workouts, language } = validationResult.data
     // Force Grok 4 Fast for historical analysis (ignore client model)
     const model = 'x-ai/grok-4-fast'
-
-    // Validate workouts array
-    if (workouts.length === 0) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: 'Workouts array cannot be empty',
-        },
-        400
-      )
-    }
-
-    if (workouts.length > 500) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: 'Too many workouts (max 500)',
-        },
-        400
-      )
-    }
 
     // Get user ID for tracking
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
@@ -842,16 +853,35 @@ app.get('/api/stats', async (c) => {
   // Use X-User-ID header if available, fallback to IP
   const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-  const identifier = userId || ip
-  const rateLimitKey = `ratelimit:${identifier}`
-  const count = await c.env.RATE_LIMITER.get(rateLimitKey)
+
+  // Get quota status for both IP and User
+  const config = getQuotaConfig()
+  const quotaCheck = await checkQuota(c.env.RATE_LIMITER, ip, userId, config)
 
   return c.json({
-    requestsRemaining: RATE_LIMIT - (count ? Number.parseInt(count, 10) : 0),
-    limit: RATE_LIMIT,
-    resetIn: RATE_LIMIT_WINDOW,
-    identifier,
+    identifier: userId || ip,
     ip,
+    userId: userId || null,
+    quotas: {
+      ip: {
+        limit: quotaCheck.ip.limit,
+        remaining: quotaCheck.ip.remaining,
+        resetAt: quotaCheck.ip.resetAt,
+        resetIn: quotaCheck.ip.resetIn,
+        window: config.ipWindow,
+      },
+      ...(quotaCheck.user && {
+        user: {
+          limit: quotaCheck.user.limit,
+          remaining: quotaCheck.user.remaining,
+          resetAt: quotaCheck.user.resetAt,
+          resetIn: quotaCheck.user.resetIn,
+          window: config.userWindow,
+        },
+      }),
+    },
+    allowed: quotaCheck.allowed,
+    restrictedBy: quotaCheck.restrictedBy || null,
   })
 })
 

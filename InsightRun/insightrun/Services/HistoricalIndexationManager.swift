@@ -30,6 +30,7 @@ class HistoricalIndexationManager: ObservableObject {
         case generating
         case completed
         case failed
+        case cancelled // State when user cancels indexation
         case retrying // State when retrying after a failure
     }
 
@@ -56,6 +57,13 @@ class HistoricalIndexationManager: ObservableObject {
         errorMessage = nil
     }
 
+    /// Cancel ongoing indexation
+    func cancel() {
+        print("🛑 HistoricalIndexationManager: Cancelling indexation...")
+        state = .cancelled
+        errorMessage = String(localized: "Indexation cancelled by user", comment: "Message when user cancels indexation")
+    }
+
     /// Perform historical indexation with progress updates
     func performIndexation() async throws {
         print("📊 HistoricalIndexationManager: Starting indexation...")
@@ -67,8 +75,14 @@ class HistoricalIndexationManager: ObservableObject {
         totalWorkouts = 0
         errorMessage = nil
 
+        // Check for cancellation
+        try Task.checkCancellation()
+
         // Step 1: Fetch workouts
         let workouts = try await fetchWorkouts()
+
+        // Check for cancellation after fetching
+        try Task.checkCancellation()
 
         guard !workouts.isEmpty else {
             throw IndexationError.noWorkouts
@@ -81,11 +95,17 @@ class HistoricalIndexationManager: ObservableObject {
         state = .indexing
         let workoutDataList = try await convertWorkouts(workouts.prefix(maxWorkouts))
 
+        // Check for cancellation after indexing
+        try Task.checkCancellation()
+
         // Step 3: Generate summary via backend
         state = .generating
         progress = 0.8
 
         let summary = try await generateSummary(workoutDataList: Array(workoutDataList), workouts: Array(workouts.prefix(maxWorkouts)))
+
+        // Check for cancellation after generation
+        try Task.checkCancellation()
 
         // Step 4: Save summary
         summaryStorage.save(summary)
@@ -118,6 +138,9 @@ class HistoricalIndexationManager: ObservableObject {
         let total = workouts.count
 
         for (index, workout) in workouts.enumerated() {
+            // Check for cancellation in the loop
+            try Task.checkCancellation()
+
             let workoutData = convertToWorkoutDataSimple(workout: workout)
             workoutDataList.append(workoutData)
 
@@ -125,7 +148,7 @@ class HistoricalIndexationManager: ObservableObject {
             currentWorkout = index + 1
             progress = Double(index + 1) / Double(total) * 0.6 // 0-60% for indexing
 
-            // Small delay to allow UI updates
+            // Small delay to allow UI updates and check cancellation
             if index % 10 == 0 {
                 try await Task.sleep(nanoseconds: 10_000_000) // 10ms
             }

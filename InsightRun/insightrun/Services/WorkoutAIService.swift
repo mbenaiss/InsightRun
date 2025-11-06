@@ -46,6 +46,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     @Published var streamedResponse = ""
     @Published var error: String?
     @Published var suggestedQuestions: [String] = []
+    @Published var showRetryIndexation = false
 
     // Backend API client (sécurisé)
     private let backendClient = BackendAPIClient.shared
@@ -55,6 +56,11 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     // Language detection cache (question -> language code)
     private var languageCache: [String: String] = [:]
     private let languageCacheMaxSize = 10
+
+    // Store the last question for retry
+    private var lastQuestion: String?
+    private var lastMode: AIAssistantMode?
+    private var lastModel: AIModel?
 
     @MainActor
     private var foundationModelsService: FoundationModelsService? {
@@ -156,11 +162,55 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     }
 
     func askQuestion(question: String, mode: AIAssistantMode, model: AIModel? = nil) async {
+        // Store for retry
+        lastQuestion = question
+        lastMode = mode
+        lastModel = model
+
         await MainActor.run {
             self.isStreaming = true
             self.streamedResponse = ""
             self.error = nil
             self.suggestedQuestions = []
+            self.showRetryIndexation = false
+        }
+
+        // Check if summary needs refresh or generation (automatic after 3 months)
+        let storage = await HistoricalSummaryStorage.shared
+        let needsUpdate = await storage.needsGeneration()
+
+        if needsUpdate {
+            let existingSummary = await storage.load()
+            let isRefresh = existingSummary != nil
+
+            print(isRefresh ? "🔄 WorkoutAIService: Summary needs refresh (>3 months old)" : "📊 WorkoutAIService: No historical summary found")
+
+            await MainActor.run {
+                if isRefresh {
+                    self.streamedResponse = String(localized: "🔄 Updating your athletic profile...\nYour data is being refreshed with recent workouts.", comment: "Message during profile refresh")
+                } else {
+                    self.streamedResponse = String(localized: "🔍 Analyzing your training history...\nThis takes 10-20 seconds.", comment: "Message during first-time historical analysis")
+                }
+            }
+
+            // Generate/refresh historical summary in background
+            let success = await generateHistoricalSummaryIfNeeded()
+
+            if !success {
+                // If generation failed, show error with retry button
+                await MainActor.run {
+                    self.streamedResponse = String(localized: "❌ Failed to analyze your training history.\nYou can still ask questions, or retry the analysis.", comment: "Error message when indexation fails")
+                    self.showRetryIndexation = true
+                    self.isStreaming = false
+                }
+                print("❌ WorkoutAIService: Historical summary generation failed, showing retry button")
+                return
+            } else {
+                print(isRefresh ? "✅ WorkoutAIService: Historical summary refreshed successfully" : "✅ WorkoutAIService: Historical summary generated successfully")
+                await MainActor.run {
+                    self.streamedResponse = ""
+                }
+            }
         }
 
         // If model not provided, use intelligent routing
@@ -194,13 +244,139 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         }
     }
 
+    // MARK: - Historical Summary Generation
+
+    /// Retry indexation after failure (called from UI button)
+    func retryHistoricalIndexation() async {
+        print("🔄 WorkoutAIService: Retry indexation requested")
+
+        await MainActor.run {
+            self.streamedResponse = String(localized: "🔍 Retrying analysis...", comment: "Message when retrying indexation")
+            self.showRetryIndexation = false
+        }
+
+        // Reset manager state
+        let manager = await HistoricalIndexationManager.shared
+        await MainActor.run {
+            manager.resetState()
+        }
+
+        // Try again
+        let success = await generateHistoricalSummaryIfNeeded()
+
+        if !success {
+            await MainActor.run {
+                self.streamedResponse = String(localized: "❌ Failed to analyze your training history.\nYou can still ask questions, or retry the analysis.", comment: "Error message when indexation fails")
+                self.showRetryIndexation = true
+                self.isStreaming = false
+            }
+            print("❌ WorkoutAIService: Retry failed, showing button again")
+        } else {
+            print("✅ WorkoutAIService: Retry succeeded")
+            await MainActor.run {
+                self.streamedResponse = ""
+            }
+
+            // Continue with the original question if available
+            if let question = lastQuestion, let mode = lastMode {
+                await askQuestion(question: question, mode: mode, model: lastModel)
+            }
+        }
+    }
+
+    /// Force refresh of historical summary (for manual refresh from Settings)
+    func forceRefreshHistoricalSummary() async -> Bool {
+        print("🔄 WorkoutAIService: Force refresh requested")
+        return await generateHistoricalSummaryIfNeeded()
+    }
+
+    /// Generate historical summary automatically (called on first message)
+    private func generateHistoricalSummaryIfNeeded() async -> Bool {
+        do {
+            // Fetch all workouts
+            let workouts = try await HealthKitManager.shared.fetchRunningWorkouts()
+
+            guard !workouts.isEmpty else {
+                print("⚠️ WorkoutAIService: No workouts found, skipping historical analysis")
+                return false
+            }
+
+            print("📊 WorkoutAIService: Found \(workouts.count) workouts for analysis")
+
+            // Convert workouts to API format (limit to 365)
+            var workoutDataList: [WorkoutData] = []
+            let maxWorkouts = min(workouts.count, 365)
+
+            for workout in workouts.prefix(maxWorkouts) {
+                let workoutData = convertToWorkoutDataSimple(workout: workout)
+                workoutDataList.append(workoutData)
+            }
+
+            // Generate summary via backend
+            let language = getUserLanguage()
+            let model = "x-ai/grok-4-fast" // Fast model for historical analysis
+
+            let response = try await backendClient.generateHistoricalSummary(
+                workouts: workoutDataList,
+                model: model,
+                language: language
+            )
+
+            // Save to local storage
+            let summary = await MainActor.run {
+                HistoricalSummary(
+                    summary: response.summary,
+                    workoutCount: response.workoutCount,
+                    dateRangeStart: workouts.last?.startDate ?? Date(),
+                    dateRangeEnd: workouts.first?.startDate ?? Date()
+                )
+            }
+
+            await HistoricalSummaryStorage.shared.save(summary)
+            print("✅ WorkoutAIService: Historical summary generated and saved")
+
+            return true
+
+        } catch {
+            print("❌ WorkoutAIService: Failed to generate historical summary: \(error)")
+            return false
+        }
+    }
+
+    /// Convert workout to simplified API format (without metrics for bulk analysis)
+    private func convertToWorkoutDataSimple(workout: WorkoutModel) -> WorkoutData {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+
+        return WorkoutData(
+            date: formatter.string(from: workout.startDate),
+            duration: workout.duration,
+            distance: workout.distance ?? 0,
+            calories: workout.totalEnergyBurned,
+            pace: workout.averagePace,
+            speed: workout.averageSpeed,
+            heartRate: nil,
+            minPace: nil,
+            cadence: nil,
+            strideLength: nil,
+            runningPower: nil,
+            vo2Max: nil,
+            elevationGain: nil,
+            groundContactTime: nil,
+            verticalOscillation: nil,
+            mobility: nil,
+            splits: nil
+        )
+    }
+
     // MARK: - Local Model Inference
 
     private func handleLocalModelInference(systemPrompt: String, question: String, locale: Locale) async {
         // Check iOS version
         guard #available(iOS 26.0, *) else {
             await MainActor.run {
-                self.error = "❌ Apple Intelligence nécessite iOS 26 ou supérieur"
+                self.error = String(localized: "Apple Intelligence requires iOS 26 or later", comment: "Error message when Apple Intelligence is not available (iOS version)")
                 self.isStreaming = false
             }
             return
@@ -208,7 +384,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         guard let service = await foundationModelsService else {
             await MainActor.run {
-                self.error = "❌ Service FoundationModels non disponible"
+                self.error = String(localized: "FoundationModels service is not available", comment: "Error message when FoundationModels service cannot be initialized")
                 self.isStreaming = false
             }
             return
@@ -222,16 +398,16 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             if let availability = await service.availability {
                 switch availability {
                 case .unavailable(.deviceNotEligible):
-                    errorMsg = "❌ Cet appareil ne supporte pas Apple Intelligence"
+                    errorMsg = String(localized: "This device does not support Apple Intelligence", comment: "Error message when device is not eligible for Apple Intelligence")
                 case .unavailable(.appleIntelligenceNotEnabled):
-                    errorMsg = "⚠️ Activez Apple Intelligence dans Réglages"
+                    errorMsg = String(localized: "Enable Apple Intelligence in Settings", comment: "Error message when Apple Intelligence is not enabled")
                 case .unavailable(.modelNotReady):
-                    errorMsg = "⏳ Modèle en téléchargement, réessayez plus tard"
+                    errorMsg = String(localized: "Model is downloading, please try again later", comment: "Error message when model is still downloading")
                 default:
-                    errorMsg = "❌ Modèle non disponible"
+                    errorMsg = String(localized: "Model is not available", comment: "Error message when model is not available")
                 }
             } else {
-                errorMsg = "❌ Impossible de vérifier la disponibilité du modèle"
+                errorMsg = String(localized: "Unable to check model availability", comment: "Error message when unable to check model availability")
             }
 
             await MainActor.run {
@@ -293,7 +469,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             }
 
             // Build payload from mode data
-            let payload = buildChatPayload(question: question, model: model, mode: mode)
+            let payload = await buildChatPayload(question: question, model: model, mode: mode)
 
             // Use new API v2 with streaming
             let stream = try await backendClient.chatStreamV2(payload: payload)
@@ -325,15 +501,15 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             let errorMessage: String
             switch error {
             case .unauthorized:
-                errorMessage = "❌ Erreur d'authentification avec le serveur"
+                errorMessage = String(localized: "Authentication error with server", comment: "Error message for authentication failures")
             case .rateLimitExceeded:
-                errorMessage = "⏱️ Trop de requêtes. Réessayez dans quelques minutes."
+                errorMessage = String(localized: "Too many requests. Try again in a few minutes.", comment: "Error message for rate limit exceeded")
             case .serverError:
-                errorMessage = "❌ Erreur serveur. Réessayez plus tard."
+                errorMessage = String(localized: "Server error. Try again later.", comment: "Error message for server errors")
             case .invalidResponse:
-                errorMessage = "❌ Réponse invalide du serveur"
+                errorMessage = String(localized: "Invalid response from server", comment: "Error message for invalid server responses")
             case .unknownError(let code):
-                errorMessage = "❌ Erreur \(code). Réessayez plus tard."
+                errorMessage = String(localized: "Error %@. Try again later.", comment: "Generic error message with error code").replacingOccurrences(of: "%@", with: String(code))
             }
 
             await MainActor.run {
@@ -364,12 +540,20 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return supportedLanguages.contains(preferredLanguage) ? preferredLanguage : "en"
     }
 
-    private func buildChatPayload(question: String, model: AIModel, mode: AIAssistantMode) -> ChatRequestV2 {
+    private func buildChatPayload(question: String, model: AIModel, mode: AIAssistantMode) async -> ChatRequestV2 {
+        // Load historical summary if available
+        let historicalSummary = await HistoricalSummaryStorage.shared.load()?.summary
+
+        if let summary = historicalSummary {
+            print("✅ WorkoutAIService: Using historical summary (\(summary.count) chars)")
+        }
+
         var chatData = ChatDataPayload(
             workout: nil,
             recovery: nil,
             profile: nil,
-            recentWorkouts: nil
+            recentWorkouts: nil,
+            historicalSummary: historicalSummary
         )
 
         // Extract data from mode
@@ -379,7 +563,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 workout: convertToWorkoutData(workout: workout, metrics: metrics),
                 recovery: nil,
                 profile: nil,
-                recentWorkouts: nil
+                recentWorkouts: nil,
+                historicalSummary: historicalSummary
             )
         case .recentWorkouts(let workouts, let metricsDict):
             let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
@@ -402,14 +587,16 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     avgPace: avgPace,
                     weeklyVolumeChange: nil,
                     daysSinceLastWorkout: nil
-                )
+                ),
+                historicalSummary: historicalSummary
             )
         case .recoveryCoaching(let recoveryMetrics):
             chatData = ChatDataPayload(
                 workout: nil,
                 recovery: convertToRecoveryData(metrics: recoveryMetrics),
                 profile: nil,
-                recentWorkouts: nil
+                recentWorkouts: nil,
+                historicalSummary: historicalSummary
             )
         }
 

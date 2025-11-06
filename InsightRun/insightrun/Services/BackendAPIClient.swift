@@ -198,6 +198,55 @@ class BackendAPIClient {
         }
     }
 
+    // MARK: - Historical Analysis
+
+    func generateHistoricalSummary(workouts: [WorkoutData], model: String, language: String) async throws -> HistoricalAnalysisResponse {
+        let url = URL(string: "\(baseURL)/api/analyze-history")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120 // 2 minutes for large analysis
+
+        let requestBody = HistoricalAnalysisRequest(
+            workouts: workouts,
+            model: model,
+            language: language
+        )
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(requestBody)
+
+        print("📊 BackendAPIClient: Requesting historical analysis for \(workouts.count) workouts...")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let analysisResponse = try decoder.decode(HistoricalAnalysisResponse.self, from: data)
+
+        print("✅ BackendAPIClient: Historical analysis completed (\(analysisResponse.workoutCount) workouts)")
+
+        return analysisResponse
+    }
+
     // MARK: - Stats
 
     func getStats() async throws -> RateLimitStats {

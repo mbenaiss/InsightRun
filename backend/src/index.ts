@@ -4,8 +4,12 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { captureLLMEvent, createPostHogClient } from './posthog'
-import { buildPrompt } from './prompts'
-import type { ChatRequestV2 } from './types'
+import { buildHistoricalAnalysisPrompt, buildPrompt } from './prompts'
+import type { QuotaCheck } from './quota'
+import { checkQuota, getQuotaConfig, getQuotaHeaders, incrementQuota } from './quota'
+import type { ChatRequestV2, HistoricalAnalysisResponse } from './types'
+import { historicalAnalysisRequestSchema } from './types'
+import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from './utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -17,6 +21,7 @@ type Bindings = {
 
 type Variables = {
   rateLimitKey: string
+  quotaCheck: QuotaCheck
 }
 
 interface ChatRequest {
@@ -51,8 +56,6 @@ interface StreamChunk {
   }
 }
 
-const RATE_LIMIT = 100
-const RATE_LIMIT_WINDOW = 3600
 const MAX_PROMPT_LENGTH = 2000
 const MAX_TOKENS = 2000
 const AI_TEMPERATURE = 0.7
@@ -106,6 +109,45 @@ async function callOpenRouter(
   })
 }
 
+async function callOpenRouterNonStreaming(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  prompt: string,
+  maxTokens: number = 3000
+): Promise<string> {
+  const requestBody = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt },
+    ],
+    max_tokens: maxTokens,
+    temperature: AI_TEMPERATURE,
+    stream: false,
+  }
+
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://insightrun.ai',
+      'X-Title': 'insightRun.ai',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter API error: ${response.status}`)
+  }
+
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>
+  }
+  return data.choices[0].message.content
+}
+
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 app.use('*', logger())
@@ -120,7 +162,7 @@ app.use(
 )
 
 app.use('/api/*', async (c, next) => {
-  // Use X-User-ID header if available (from iOS app), fallback to IP for backward compatibility
+  // Extract user ID and IP from headers
   const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
   const identifier = userId || ip
@@ -128,26 +170,52 @@ app.use('/api/*', async (c, next) => {
 
   c.set('rateLimitKey', rateLimitKey)
 
-  const count = await c.env.RATE_LIMITER.get(rateLimitKey)
-  const requestCount = count ? Number.parseInt(count, 10) : 0
+  // Check both IP and User quotas
+  const config = getQuotaConfig()
+  const quotaCheck = await checkQuota(c.env.RATE_LIMITER, ip, userId, config)
 
-  if (requestCount >= RATE_LIMIT) {
+  // Store quota check for adding headers to response
+  c.set('quotaCheck', quotaCheck)
+
+  // If quota exceeded, return 429 with detailed error
+  if (!quotaCheck.allowed) {
+    const quotaHeaders = getQuotaHeaders(quotaCheck)
     return c.json(
       {
-        error: 'Rate limit exceeded',
-        message: 'Too many requests. Please try again later.',
-        limit: RATE_LIMIT,
-        retryAfter: RATE_LIMIT_WINDOW,
+        error: 'Quota exceeded',
+        message: quotaCheck.message,
+        restrictedBy: quotaCheck.restrictedBy,
+        quotas: {
+          ip: {
+            limit: quotaCheck.ip.limit,
+            remaining: quotaCheck.ip.remaining,
+            resetAt: quotaCheck.ip.resetAt,
+          },
+          ...(quotaCheck.user && {
+            user: {
+              limit: quotaCheck.user.limit,
+              remaining: quotaCheck.user.remaining,
+              resetAt: quotaCheck.user.resetAt,
+            },
+          }),
+        },
       },
-      429
+      429,
+      quotaHeaders
     )
   }
 
+  // Process request
   await next()
 
-  await c.env.RATE_LIMITER.put(rateLimitKey, (requestCount + 1).toString(), {
-    expirationTtl: RATE_LIMIT_WINDOW,
-  })
+  // Increment both IP and User quotas after successful request
+  await incrementQuota(c.env.RATE_LIMITER, ip, userId, config)
+
+  // Add quota headers to successful responses (if response is a JSON response)
+  const quotaHeaders = getQuotaHeaders(quotaCheck)
+  for (const [key, value] of Object.entries(quotaHeaders)) {
+    c.res.headers.set(key, value)
+  }
 })
 
 app.get('/', (c) => {
@@ -657,20 +725,163 @@ app.post('/api/chat/v2', async (c) => {
   }
 })
 
+app.post('/api/analyze-history', async (c) => {
+  const startTime = Date.now()
+
+  try {
+    if (!validateAppAuth(c)) {
+      return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+    }
+
+    const body = await c.req.json()
+
+    // Validate request body with Zod
+    const validationResult = historicalAnalysisRequestSchema.safeParse(body)
+
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.issues.map((err) => {
+        const path = err.path.join('.')
+        return `${path}: ${err.message}`
+      })
+
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: 'Invalid workout data',
+          details: errorMessages,
+        },
+        400
+      )
+    }
+
+    const { workouts, language } = validationResult.data
+    // Force Grok 4 Fast for historical analysis (ignore client model)
+    const model = 'x-ai/grok-4-fast'
+
+    // Get user ID for tracking
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const traceId = crypto.randomUUID()
+
+    console.log(
+      `📊 Historical analysis requested: ${workouts.length} workouts, model: ${model}, user: ${userId}`
+    )
+
+    // Build the analysis prompt
+    const systemPrompt = ''
+    const prompt = buildHistoricalAnalysisPrompt(workouts, language)
+
+    // Call OpenRouter (non-streaming) with higher token limit for summary generation
+    let summary = await callOpenRouterNonStreaming(
+      c.env.OPENROUTER_API_KEY,
+      model,
+      systemPrompt,
+      prompt,
+      5000 // Max tokens for generation (will truncate if needed)
+    )
+
+    // Validate and truncate summary if it exceeds 5000 tokens
+    const tokenCount = validateTokenCount(summary, 5000, 'Historical summary')
+
+    if (tokenCount > 5000) {
+      console.warn(`⚠️ Summary exceeds 5000 tokens (${tokenCount}). Truncating intelligently...`)
+      summary = truncateToTokenLimit(summary, 4800) // Truncate to 4800 to leave margin
+      const finalTokenCount = estimateTokenCount(summary)
+      console.log(`✅ Summary truncated to ${finalTokenCount} tokens`)
+    } else if (tokenCount > 4000) {
+      console.log(`⚠️ Summary is large (${tokenCount} tokens) but within 5000 limit`)
+    }
+
+    const finalTokenCount = estimateTokenCount(summary)
+    const latency = (Date.now() - startTime) / 1000
+
+    console.log(
+      `✅ Historical summary generated: ${finalTokenCount} tokens, ${workouts.length} workouts, ${latency.toFixed(2)}s`
+    )
+
+    // Log to PostHog
+    if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+      const posthog = createPostHogClient({
+        apiKey: c.env.POSTHOG_API_KEY,
+        host: c.env.POSTHOG_HOST,
+      })
+
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            await captureLLMEvent(posthog, userId, traceId, {
+              model,
+              input: `Historical analysis: ${workouts.length} workouts`,
+              systemPrompt,
+              output: summary,
+              inputTokens: undefined, // OpenRouter doesn't return tokens in non-streaming
+              outputTokens: finalTokenCount,
+              latency,
+              cost: undefined,
+              ip,
+            })
+            await posthog.shutdown()
+          } catch (error) {
+            console.error('PostHog capture error:', error)
+          }
+        })()
+      )
+    }
+
+    const response: HistoricalAnalysisResponse = {
+      summary,
+      workoutCount: workouts.length,
+      tokenCount: finalTokenCount,
+      generatedAt: new Date().toISOString(),
+    }
+
+    return c.json(response)
+  } catch (error) {
+    console.error('Historical analysis endpoint error:', error)
+
+    return c.json(
+      {
+        error: 'Internal Server Error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
+  }
+})
+
 app.get('/api/stats', async (c) => {
   // Use X-User-ID header if available, fallback to IP
   const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-  const identifier = userId || ip
-  const rateLimitKey = `ratelimit:${identifier}`
-  const count = await c.env.RATE_LIMITER.get(rateLimitKey)
+
+  // Get quota status for both IP and User
+  const config = getQuotaConfig()
+  const quotaCheck = await checkQuota(c.env.RATE_LIMITER, ip, userId, config)
 
   return c.json({
-    requestsRemaining: RATE_LIMIT - (count ? Number.parseInt(count, 10) : 0),
-    limit: RATE_LIMIT,
-    resetIn: RATE_LIMIT_WINDOW,
-    identifier,
+    identifier: userId || ip,
     ip,
+    userId: userId || null,
+    quotas: {
+      ip: {
+        limit: quotaCheck.ip.limit,
+        remaining: quotaCheck.ip.remaining,
+        resetAt: quotaCheck.ip.resetAt,
+        resetIn: quotaCheck.ip.resetIn,
+        window: config.ipWindow,
+      },
+      ...(quotaCheck.user && {
+        user: {
+          limit: quotaCheck.user.limit,
+          remaining: quotaCheck.user.remaining,
+          resetAt: quotaCheck.user.resetAt,
+          resetIn: quotaCheck.user.resetIn,
+          window: config.userWindow,
+        },
+      }),
+    },
+    allowed: quotaCheck.allowed,
+    restrictedBy: quotaCheck.restrictedBy || null,
   })
 })
 

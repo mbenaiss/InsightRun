@@ -4153,7 +4153,15 @@
       }
     },
     "Respiratory rate" : {
-      "comment" : "Label for respiratory rate"
+      "comment" : "Label for respiratory rate",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence respiratoire"
+          }
+        }
+      }
     },
     "Respiratory Rate" : {
       "comment" : "Medical source category: Respiratory",

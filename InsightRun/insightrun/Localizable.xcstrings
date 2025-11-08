@@ -417,14 +417,14 @@
         }
       }
     },
-    "Allow access" : {
+    "Continue" : {
       "comment" : "Onboarding HealthKit authorize button",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autoriser l'accès"
+            "value" : "Continuer"
           }
         }
       }

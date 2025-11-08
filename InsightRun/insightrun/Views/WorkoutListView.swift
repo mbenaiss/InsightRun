@@ -496,48 +496,45 @@ struct WorkoutListView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if stats.count >= 3 {
-                // Show stats only if there are 3 or more workouts
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.formatDistance(stats.totalDistance))
-                            .font(.headline)
-                            .foregroundStyle(.blue)
-                        Text(String(localized: "Distance", comment: "Distance stat label"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-                        .frame(height: 30)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.formatDuration(stats.totalDuration))
-                            .font(.headline)
-                            .foregroundStyle(.green)
-                        Text(String(localized: "Time", comment: "Time stat label"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-                        .frame(height: 30)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.formatPace(stats.averagePace))
-                            .font(.headline)
-                            .foregroundStyle(.orange)
-                        Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.formatDistance(stats.totalDistance))
+                        .font(.headline)
+                        .foregroundStyle(.blue)
+                    Text(String(localized: "Distance", comment: "Distance stat label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
-                .padding()
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                Divider()
+                    .frame(height: 30)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.formatDuration(stats.totalDuration))
+                        .font(.headline)
+                        .foregroundStyle(.green)
+                    Text(String(localized: "Time", comment: "Time stat label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+                    .frame(height: 30)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.formatPace(stats.averagePace))
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
+            .padding()
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 }

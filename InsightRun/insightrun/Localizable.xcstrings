@@ -345,6 +345,9 @@
         }
       }
     },
+    "Afficher paywall" : {
+
+    },
     "Age" : {
       "comment" : "Label for age",
       "extractionState" : "manual",
@@ -413,18 +416,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toutes les fonctionnalités débloquées pour les tests"
-          }
-        }
-      }
-    },
-    "Continue" : {
-      "comment" : "Onboarding HealthKit authorize button",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuer"
           }
         }
       }
@@ -995,7 +986,7 @@
       }
     },
     "Continue" : {
-      "comment" : "Continue button",
+      "comment" : "Onboarding HealthKit authorize button",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {

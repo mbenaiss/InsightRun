@@ -154,6 +154,11 @@ struct SettingsView: View {
                         revenueCatManager.isSubscriptionActive = true
                     }
                     .foregroundStyle(.green)
+
+                    Button(String(localized: "Afficher paywall")) {
+                        showPaywall = true
+                    }
+                    .foregroundStyle(.blue)
                 } header: {
                     Text(String(localized: "Debug"))
                 } footer: {

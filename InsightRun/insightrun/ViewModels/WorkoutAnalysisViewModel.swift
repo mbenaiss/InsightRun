@@ -32,7 +32,15 @@ class WorkoutAnalysisViewModel: ObservableObject {
         aiService.$streamedResponse
             .receive(on: DispatchQueue.main)
             .sink { [weak self] response in
-                if !response.isEmpty && response != "🌐 Connexion au serveur..." {
+                // Filter out system messages (connection, indexation, etc.)
+                let isSystemMessage = response.isEmpty ||
+                                     response == "🌐 Connexion au serveur..." ||
+                                     response.contains("Analyse de votre historique") ||
+                                     response.contains("Analyzing your training history") ||
+                                     response.contains("Updating your athletic profile") ||
+                                     response.contains("Failed to analyze your training history")
+
+                if !isSystemMessage {
                     self?.analysisText = response
                 }
             }

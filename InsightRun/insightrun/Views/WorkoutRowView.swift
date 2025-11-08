@@ -27,15 +27,21 @@ struct WorkoutRowView: View {
 
             // Workout info
             VStack(alignment: .leading, spacing: 6) {
-                Text(workout.startDate, style: .date)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                // Date and time on same line
+                HStack {
+                    Text(workout.startDate, style: .date)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-                Text(workout.startDate, style: .time)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    Spacer()
 
-                HStack(spacing: 12) {
+                    Text(workout.startDate, style: .time)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Metrics on same line with reduced spacing
+                HStack(spacing: 8) {
                     Label(workout.distanceFormatted, systemImage: "ruler")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -52,6 +58,8 @@ struct WorkoutRowView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()

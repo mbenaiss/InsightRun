@@ -12,6 +12,7 @@ struct SettingsView: View {
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @State private var showPaywall = false
     @State private var showingMedicalSources = false
+    @State private var showRefreshSheet = false
 
     var body: some View {
         NavigationStack {
@@ -131,6 +132,73 @@ struct SettingsView: View {
                     Text(String(localized: "Health metrics and recovery recommendations are based on published scientific research. Tap to view all sources.", comment: "Medical information footer"))
                 }
 
+                // Training Data Section
+                Section {
+                    if let summary = HistoricalSummaryStorage.shared.load() {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("\(summary.workoutCount) " + String(localized: "workouts indexed", comment: "Number of indexed workouts"))
+                                    .font(.body)
+                            }
+
+                            Text(String(localized: "Last updated:", comment: "Last update label") + " \(formatDate(summary.indexedAt))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            // Refresh indicator
+                            let days = HistoricalSummaryStorage.shared.daysUntilRefresh()
+                            if days > 0 {
+                                Text(String(localized: "Next update in", comment: "Next update prefix") + " \(days) " + String(localized: "days", comment: "days unit"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text(String(localized: "Update recommended", comment: "Update recommended message"))
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+
+                        // Refresh button
+                        Button {
+                            showRefreshSheet = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                Text(String(localized: "Refresh data", comment: "Refresh data button"))
+                            }
+                        }
+                        .disabled(!HistoricalSummaryStorage.shared.canManualRefresh())
+
+                        if !HistoricalSummaryStorage.shared.canManualRefresh() {
+                            Text(String(localized: "Available 1 month after last update", comment: "Refresh cooldown message"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Image(systemName: "exclamationmark.circle")
+                                    .foregroundStyle(.orange)
+                                Text(String(localized: "No data indexed", comment: "No indexed data message"))
+                                    .font(.body)
+                            }
+
+                            Button {
+                                showRefreshSheet = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text(String(localized: "Index now", comment: "Index now button"))
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text(String(localized: "Training Data", comment: "Training data section header"))
+                }
+
                 // Debug Section (for testing)
                 #if DEBUG
                 Section {
@@ -154,6 +222,16 @@ struct SettingsView: View {
                         revenueCatManager.isSubscriptionActive = true
                     }
                     .foregroundStyle(.green)
+
+                    Button(String(localized: "Afficher paywall")) {
+                        showPaywall = true
+                    }
+                    .foregroundStyle(.blue)
+
+                    Button(String(localized: "Delete LLM History", comment: "Debug button to clear historical summary storage")) {
+                        HistoricalSummaryStorage.shared.clear()
+                    }
+                    .foregroundStyle(.red)
                 } header: {
                     Text(String(localized: "Debug"))
                 } footer: {
@@ -187,8 +265,21 @@ struct SettingsView: View {
             .sheet(isPresented: $showingMedicalSources) {
                 MedicalSourcesView()
             }
+            .sheet(isPresented: $showRefreshSheet) {
+                HistoricalIndexationSheet()
+            }
         }
         .preferredColorScheme(themeManager.selectedTheme.colorScheme)
+    }
+
+    // MARK: - Helper Methods
+
+    /// Format date for display in settings
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 }
 

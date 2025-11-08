@@ -200,6 +200,12 @@ final class AnalyticsService {
         ])
     }
 
+    func trackAIMessageSentWithoutContext(contextType: AIContextType) {
+        track(.aiMessageSentWithoutContext, properties: [
+            "context_type": contextType.rawValue
+        ])
+    }
+
     // MARK: - Recovery Dashboard Events
 
     func trackRecoveryDashboardViewed(recoveryScore: Int?, hasRecentWorkouts: Bool) {
@@ -212,6 +218,74 @@ final class AnalyticsService {
         }
 
         track(.recoveryDashboardViewed, properties: properties)
+    }
+
+    // MARK: - Historical Indexation Events
+
+    func trackIndexationBannerShown() {
+        track(.indexationBannerShown)
+    }
+
+    func trackIndexationBannerSyncTapped() {
+        track(.indexationBannerSyncTapped)
+    }
+
+    func trackIndexationBannerDismissed() {
+        track(.indexationBannerDismissed)
+    }
+
+    func trackIndexationStarted(workoutsCount: Int, totalBatches: Int) {
+        track(.indexationStarted, properties: [
+            "workouts_count": workoutsCount,
+            "total_batches": totalBatches
+        ])
+    }
+
+    func trackIndexationBatchProcessed(batchNumber: Int, totalBatches: Int, progress: Double) {
+        track(.indexationBatchProcessed, properties: [
+            "batch_number": batchNumber,
+            "total_batches": totalBatches,
+            "progress_percentage": Int(progress * 100)
+        ])
+    }
+
+    func trackIndexationCompleted(workoutsCount: Int, durationSeconds: TimeInterval, totalBatches: Int) {
+        track(.indexationCompleted, properties: [
+            "workouts_count": workoutsCount,
+            "duration_seconds": Int(durationSeconds),
+            "total_batches": totalBatches
+        ])
+    }
+
+    func trackIndexationFailed(errorType: String, errorMessage: String, failedAtBatch: Int?, totalBatches: Int?) {
+        var properties: [String: Any] = [
+            "error_type": errorType,
+            "error_message": errorMessage
+        ]
+
+        if let batch = failedAtBatch {
+            properties["failed_at_batch"] = batch
+        }
+
+        if let total = totalBatches {
+            properties["total_batches"] = total
+        }
+
+        track(.indexationFailed, properties: properties)
+    }
+
+    func trackIndexationCancelled(cancelledAtBatch: Int, totalBatches: Int, progress: Double) {
+        track(.indexationCancelled, properties: [
+            "cancelled_at_batch": cancelledAtBatch,
+            "total_batches": totalBatches,
+            "progress_percentage": Int(progress * 100)
+        ])
+    }
+
+    func trackIndexationRetryTapped(previousErrorType: String) {
+        track(.indexationRetryTapped, properties: [
+            "previous_error_type": previousErrorType
+        ])
     }
 
     // MARK: - Monetization Events (RevenueCat)
@@ -285,9 +359,21 @@ enum AnalyticsEvent: String {
     case aiMessageSent = "ai_message_sent"
     case aiResponseReceived = "ai_response_received"
     case aiResponseError = "ai_response_error"
+    case aiMessageSentWithoutContext = "ai_message_sent_without_context"
 
     // Recovery Dashboard
     case recoveryDashboardViewed = "recovery_dashboard_viewed"
+
+    // Historical Indexation
+    case indexationBannerShown = "indexation_banner_shown"
+    case indexationBannerSyncTapped = "indexation_banner_sync_tapped"
+    case indexationBannerDismissed = "indexation_banner_dismissed"
+    case indexationStarted = "indexation_started"
+    case indexationBatchProcessed = "indexation_batch_processed"
+    case indexationCompleted = "indexation_completed"
+    case indexationFailed = "indexation_failed"
+    case indexationCancelled = "indexation_cancelled"
+    case indexationRetryTapped = "indexation_retry_tapped"
 
     // Monetization
     case paywallViewed = "paywall_viewed"

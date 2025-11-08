@@ -15,8 +15,8 @@ struct WorkoutListView: View {
     @State private var isLoadingMetrics = false
     @State private var currentYearWorkouts: [WorkoutModel] = []
     @State private var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
-    @State private var showIndexationScreen = false
-    @State private var indexationReason: HistoricalIndexationView.IndexationReason = .initial
+    @State private var showIndexationBanner = false
+    @State private var showIndexationSheet = false
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
@@ -73,6 +73,12 @@ struct WorkoutListView: View {
                     // Track workout list viewed when authorized
                     if viewModel.authorizationStatus == .authorized {
                         AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: viewModel.workouts.count)
+
+                        // Check if indexation banner should be shown
+                        if revenueCatManager.hasAIAccess {
+                            let needsRefresh = HistoricalSummaryStorage.shared.needsRefresh()
+                            showIndexationBanner = needsRefresh
+                        }
                     }
                 }
 
@@ -82,20 +88,10 @@ struct WorkoutListView: View {
                    revenueCatManager.hasAIAccess {
                     Button(action: {
                         Task {
-                            // Check if historical summary exists, trigger indexation if needed
-                            let hasSummary = await HistoricalSummaryStorage.shared.hasSummary
-                            let hasFailedBefore = HistoricalIndexationManager.shared.hasFailedOnce
-
-                            if !hasSummary && !hasFailedBefore {
-                                // First time: show indexation screen
-                                indexationReason = .initial
-                                showIndexationScreen = true
-                            } else {
-                                // Either has summary OR failed before: open chat directly
-                                // (if failed, retry button will be shown in chat)
-                                await loadRecentWorkoutsForAI()
-                                showingAIAssistant = true
-                            }
+                            // Open AI assistant directly
+                            // Indexation is handled via IndexationBannerView or SettingsView
+                            await loadRecentWorkoutsForAI()
+                            showingAIAssistant = true
                         }
                     }) {
                         ZStack {
@@ -132,18 +128,12 @@ struct WorkoutListView: View {
                 isPresented: $showingAIAssistant
             )
         }
-        .fullScreenCover(isPresented: $showIndexationScreen) {
-            HistoricalIndexationView(reason: indexationReason) {
-                // On completion, open AI assistant
-                Task {
-                    await loadRecentWorkoutsForAI()
-                    showingAIAssistant = true
-                }
-            }
-        }
         .fullScreenCover(isPresented: $showInitialPaywall) {
             SubscriptionPaywallView(isInitialFlow: true)
                 .environmentObject(revenueCatManager)
+        }
+        .sheet(isPresented: $showIndexationSheet) {
+            HistoricalIndexationSheet()
         }
     }
 
@@ -394,6 +384,27 @@ struct WorkoutListView: View {
     private var workoutList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                // Indexation banner for premium users who need to refresh their profile
+                if showIndexationBanner && revenueCatManager.hasAIAccess {
+                    IndexationBannerView(
+                        onSyncTapped: {
+                            AnalyticsService.shared.trackIndexationBannerSyncTapped()
+                            showIndexationBanner = false
+                            showIndexationSheet = true
+                        },
+                        onDismiss: {
+                            AnalyticsService.shared.trackIndexationBannerDismissed()
+                            showIndexationBanner = false
+                        }
+                    )
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .onAppear {
+                        // Track banner shown (only once when it appears)
+                        AnalyticsService.shared.trackIndexationBannerShown()
+                    }
+                }
+
                 // Subscription CTA for non-subscribers (hide for TestFlight and subscribers)
                 if !revenueCatManager.hasAIAccess {
                     subscriptionCTACard
@@ -496,48 +507,46 @@ struct WorkoutListView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if stats.count >= 3 {
-                // Show stats only if there are 3 or more workouts
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.formatDistance(stats.totalDistance))
-                            .font(.headline)
-                            .foregroundStyle(.blue)
-                        Text(String(localized: "Distance", comment: "Distance stat label"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-                        .frame(height: 30)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.formatDuration(stats.totalDuration))
-                            .font(.headline)
-                            .foregroundStyle(.green)
-                        Text(String(localized: "Time", comment: "Time stat label"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-                        .frame(height: 30)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.formatPace(stats.averagePace))
-                            .font(.headline)
-                            .foregroundStyle(.orange)
-                        Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
+            HStack(spacing: 0) {
+                VStack(alignment: .center, spacing: 4) {
+                    Text(viewModel.formatDistance(stats.totalDistance))
+                        .font(.headline)
+                        .foregroundStyle(.blue)
+                    Text(String(localized: "Distance", comment: "Distance stat label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
-                .padding()
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(maxWidth: .infinity)
+
+                Divider()
+                    .frame(height: 30)
+
+                VStack(alignment: .center, spacing: 4) {
+                    Text(viewModel.formatDuration(stats.totalDuration))
+                        .font(.headline)
+                        .foregroundStyle(.green)
+                    Text(String(localized: "Time", comment: "Time stat label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+
+                Divider()
+                    .frame(height: 30)
+
+                VStack(alignment: .center, spacing: 4) {
+                    Text(viewModel.formatPace(stats.averagePace))
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
             }
+            .padding()
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 }

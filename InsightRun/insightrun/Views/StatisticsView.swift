@@ -25,7 +25,7 @@ struct StatisticsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     // Section 1: Personal records (always at top)

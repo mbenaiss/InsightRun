@@ -4,11 +4,11 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { captureLLMEvent, createPostHogClient } from './posthog'
-import { buildHistoricalAnalysisPrompt, buildPrompt } from './prompts'
+import { buildPrompt } from './prompts'
 import type { QuotaCheck } from './quota'
 import { checkQuota, getQuotaConfig, getQuotaHeaders, incrementQuota } from './quota'
-import type { ChatRequestV2, HistoricalAnalysisResponse } from './types'
-import { historicalAnalysisRequestSchema } from './types'
+import analyzeHistoryRoutes from './routes/analyzeHistory'
+import type { ChatRequestV2 } from './types'
 import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from './utils'
 
 type Bindings = {
@@ -217,6 +217,17 @@ app.use('/api/*', async (c, next) => {
     c.res.headers.set(key, value)
   }
 })
+
+// Auth middleware for /api/analyze-history routes
+app.use('/api/analyze-history/*', async (c, next) => {
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+  await next()
+})
+
+// Mount analyze-history routes
+app.route('/api/analyze-history', analyzeHistoryRoutes)
 
 app.get('/', (c) => {
   return c.json({
@@ -714,140 +725,6 @@ app.post('/api/chat/v2', async (c) => {
     })
   } catch (error) {
     console.error('Chat v2 endpoint error:', error)
-
-    return c.json(
-      {
-        error: 'Internal Server Error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      500
-    )
-  }
-})
-
-app.post('/api/analyze-history', async (c) => {
-  const startTime = Date.now()
-
-  try {
-    if (!validateAppAuth(c)) {
-      return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-    }
-
-    const body = await c.req.json()
-
-    // Validate request body with Zod
-    const validationResult = historicalAnalysisRequestSchema.safeParse(body)
-
-    if (!validationResult.success) {
-      const errorMessages = validationResult.error.issues.map((err) => {
-        const path = err.path.join('.')
-        return `${path}: ${err.message}`
-      })
-
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: 'Invalid workout data',
-          details: errorMessages,
-        },
-        400
-      )
-    }
-
-    const { workouts, profile, language } = validationResult.data
-    // Force Grok 4 Fast for historical analysis (ignore client model)
-    const model = 'x-ai/grok-4-fast'
-
-    // Get user ID for tracking
-    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
-    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-    const traceId = crypto.randomUUID()
-
-    const profileInfo = profile
-      ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})`
-      : 'no profile'
-    console.log(
-      `📊 Historical analysis requested: ${workouts.length} workouts, ${profileInfo}, model: ${model}, user: ${userId}`
-    )
-
-    // Build the analysis prompt
-    const systemPrompt = ''
-    const prompt = buildHistoricalAnalysisPrompt(workouts, profile, language)
-
-    // Call OpenRouter (non-streaming) with higher token limit for summary generation
-    let summary = await callOpenRouterNonStreaming(
-      c.env.OPENROUTER_API_KEY,
-      model,
-      systemPrompt,
-      prompt,
-      5000 // Max tokens for generation (will truncate if needed)
-    )
-
-    // Validate and truncate summary if it exceeds 5000 tokens
-    const tokenCount = validateTokenCount(summary, 5000, 'Historical summary')
-
-    if (tokenCount > 5000) {
-      console.warn(`⚠️ Summary exceeds 5000 tokens (${tokenCount}). Truncating intelligently...`)
-      summary = truncateToTokenLimit(summary, 4800) // Truncate to 4800 to leave margin
-      const finalTokenCount = estimateTokenCount(summary)
-      console.log(`✅ Summary truncated to ${finalTokenCount} tokens`)
-    } else if (tokenCount > 4000) {
-      console.log(`⚠️ Summary is large (${tokenCount} tokens) but within 5000 limit`)
-    }
-
-    const finalTokenCount = estimateTokenCount(summary)
-    const latency = (Date.now() - startTime) / 1000
-
-    // Estimate input token count for logging
-    const inputTokenCount = estimateTokenCount(prompt)
-
-    console.log(
-      `✅ Historical summary generated: ${finalTokenCount} tokens, ${workouts.length} workouts, ${latency.toFixed(2)}s, input: ${inputTokenCount} tokens`
-    )
-
-    // Log to PostHog
-    if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
-      const posthog = createPostHogClient({
-        apiKey: c.env.POSTHOG_API_KEY,
-        host: c.env.POSTHOG_HOST,
-      })
-
-      c.executionCtx.waitUntil(
-        (async () => {
-          try {
-            // Log with a summary + size info instead of full prompt to save space
-            // The full prompt with all workout data IS sent to the AI API
-            const inputSummary = `Historical analysis: ${workouts.length} workouts (${inputTokenCount} tokens input)\n\nSample of data sent:\n${prompt.substring(0, 500)}...\n\n[Full workout details sent to AI - truncated here for logging]`
-
-            await captureLLMEvent(posthog, userId, traceId, {
-              model,
-              input: inputSummary,
-              systemPrompt,
-              output: summary,
-              inputTokens: inputTokenCount,
-              outputTokens: finalTokenCount,
-              latency,
-              cost: undefined,
-              ip,
-            })
-            await posthog.shutdown()
-          } catch (error) {
-            console.error('PostHog capture error:', error)
-          }
-        })()
-      )
-    }
-
-    const response: HistoricalAnalysisResponse = {
-      summary,
-      workoutCount: workouts.length,
-      tokenCount: finalTokenCount,
-      generatedAt: new Date().toISOString(),
-    }
-
-    return c.json(response)
-  } catch (error) {
-    console.error('Historical analysis endpoint error:', error)
 
     return c.json(
       {

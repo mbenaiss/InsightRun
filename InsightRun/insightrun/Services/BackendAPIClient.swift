@@ -198,20 +198,21 @@ class BackendAPIClient {
         }
     }
 
-    // MARK: - Historical Analysis
+    // MARK: - Historical Analysis (Batch Processing)
 
-    func generateHistoricalSummary(workouts: [WorkoutData], profile: HealthProfileData?, model: String, language: String) async throws -> HistoricalAnalysisResponse {
-        let url = URL(string: "\(baseURL)/api/analyze-history")!
+    /// Analyze a batch of workouts (up to 50)
+    func analyzeBatch(workouts: [WorkoutData], batchIndex: Int, model: String, language: String) async throws -> BatchAnalysisResponse {
+        let url = URL(string: "\(baseURL)/api/analyze-history/batch")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 120 // 2 minutes for large analysis
+        request.timeoutInterval = 60
 
-        let requestBody = HistoricalAnalysisRequest(
+        let requestBody = BatchAnalysisRequest(
             workouts: workouts,
-            profile: profile,
+            batchIndex: batchIndex,
             model: model,
             language: language
         )
@@ -219,7 +220,7 @@ class BackendAPIClient {
         let encoder = JSONEncoder()
         request.httpBody = try encoder.encode(requestBody)
 
-        print("📊 BackendAPIClient: Requesting historical analysis for \(workouts.count) workouts...")
+        print("📊 BackendAPIClient: Analyzing batch \(batchIndex) (\(workouts.count) workouts)...")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -241,11 +242,61 @@ class BackendAPIClient {
         }
 
         let decoder = JSONDecoder()
-        let analysisResponse = try decoder.decode(HistoricalAnalysisResponse.self, from: data)
+        let batchResponse = try decoder.decode(BatchAnalysisResponse.self, from: data)
 
-        print("✅ BackendAPIClient: Historical analysis completed (\(analysisResponse.workoutCount) workouts)")
+        print("✅ BackendAPIClient: Batch \(batchIndex) analyzed (\(batchResponse.workoutCount) workouts, \(batchResponse.tokenCount) tokens)")
 
-        return analysisResponse
+        return batchResponse
+    }
+
+    /// Consolidate all batch summaries into a final summary
+    func consolidateBatches(batchSummaries: [String], totalWorkouts: Int, profile: HealthProfileData?, model: String, language: String) async throws -> ConsolidationResponse {
+        let url = URL(string: "\(baseURL)/api/analyze-history/consolidate")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+
+        let requestBody = ConsolidationRequest(
+            batchSummaries: batchSummaries,
+            totalWorkouts: totalWorkouts,
+            profile: profile,
+            model: model,
+            language: language
+        )
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(requestBody)
+
+        print("📊 BackendAPIClient: Consolidating \(batchSummaries.count) batch summaries...")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let consolidationResponse = try decoder.decode(ConsolidationResponse.self, from: data)
+
+        print("✅ BackendAPIClient: Consolidation completed (\(consolidationResponse.workoutCount) workouts, \(consolidationResponse.tokenCount) tokens)")
+
+        return consolidationResponse
     }
 
     // MARK: - Stats

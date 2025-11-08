@@ -79,4 +79,55 @@ class HistoricalSummaryStorage {
             return userDefaults.data(forKey: storageKey) != nil
         }
     }
+
+    // MARK: - Refresh Management
+
+    /// Check if the summary needs to be refreshed (older than 3 months)
+    func needsRefresh() -> Bool {
+        guard let summary = load() else {
+            print("📊 HistoricalSummaryStorage: No summary exists, refresh needed")
+            return true
+        }
+
+        if summary.needsRefresh {
+            print("📊 HistoricalSummaryStorage: Summary indexed \(summary.daysSinceGeneration) days ago, refresh needed")
+            return true
+        }
+
+        print("✅ HistoricalSummaryStorage: Summary is fresh (\(summary.daysSinceGeneration) days since indexation)")
+        return false
+    }
+
+    /// Calculate days until a refresh is required (based on 3-month policy)
+    func daysUntilRefresh() -> Int {
+        guard let summary = load() else {
+            return 0 // No summary = refresh needed now
+        }
+
+        let calendar = Calendar.current
+        let threeMonthsAfterIndex = calendar.date(byAdding: .month, value: 3, to: summary.indexedAt) ?? Date()
+        let components = calendar.dateComponents([.day], from: Date(), to: threeMonthsAfterIndex)
+        let daysLeft = components.day ?? 0
+
+        return max(0, daysLeft) // Never return negative
+    }
+
+    /// Check if a manual refresh is allowed (summary is at least 1 month old)
+    func canManualRefresh() -> Bool {
+        guard let summary = load() else {
+            print("📊 HistoricalSummaryStorage: No summary exists, manual refresh allowed")
+            return true
+        }
+
+        let oneMonthAgo = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let canRefresh = summary.indexedAt < oneMonthAgo
+
+        if canRefresh {
+            print("✅ HistoricalSummaryStorage: Manual refresh allowed (indexed \(summary.daysSinceGeneration) days ago)")
+        } else {
+            print("⚠️ HistoricalSummaryStorage: Manual refresh not allowed yet (indexed \(summary.daysSinceGeneration) days ago)")
+        }
+
+        return canRefresh
+    }
 }

@@ -15,6 +15,12 @@ struct HistoricalSummary: Codable {
     /// When this summary was generated
     let generatedDate: Date
 
+    /// When this summary was last indexed (for refresh tracking)
+    let indexedAt: Date
+
+    /// Schema version for future migrations
+    let version: Int
+
     /// Number of workouts that were analyzed
     let workoutCount: Int
 
@@ -22,10 +28,10 @@ struct HistoricalSummary: Codable {
     let dateRangeStart: Date
     let dateRangeEnd: Date
 
-    /// Check if the summary needs to be refreshed (older than 3 months)
+    /// Check if the summary needs to be refreshed (older than 3 months from indexedAt)
     var needsRefresh: Bool {
         let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
-        return generatedDate < threeMonthsAgo
+        return indexedAt < threeMonthsAgo
     }
 
     /// Days since the summary was generated
@@ -36,7 +42,7 @@ struct HistoricalSummary: Codable {
     }
 
     /// Human-readable generated date
-    var generatedDateFormatted: String {
+    nonisolated var generatedDateFormatted: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
@@ -44,7 +50,7 @@ struct HistoricalSummary: Codable {
     }
 
     /// Date range formatted
-    var dateRangeFormatted: String {
+    nonisolated var dateRangeFormatted: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         let start = formatter.string(from: dateRangeStart)
@@ -58,8 +64,11 @@ struct HistoricalSummary: Codable {
 extension HistoricalSummary {
     /// Create a historical summary from an API response
     init(summary: String, workoutCount: Int, dateRangeStart: Date, dateRangeEnd: Date) {
+        let now = Date()
         self.summary = summary
-        self.generatedDate = Date()
+        self.generatedDate = now
+        self.indexedAt = now
+        self.version = 1
         self.workoutCount = workoutCount
         self.dateRangeStart = dateRangeStart
         self.dateRangeEnd = dateRangeEnd

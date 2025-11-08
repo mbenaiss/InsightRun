@@ -1,0 +1,389 @@
+//
+//  BatchIndexationManager.swift
+//  InsightRun
+//
+//  Manager for orchestrating workout indexation by batches
+//  Processes up to 365 workouts in batches of 50 to avoid memory issues
+//
+
+import Foundation
+import Combine
+import HealthKit
+
+// MARK: - Indexation State
+
+enum IndexationState: Equatable {
+    case idle
+    case loading(progress: Double)
+    case completed
+    case failed(String)
+    case cancelled
+
+    var isActive: Bool {
+        switch self {
+        case .loading:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+// MARK: - Configuration
+
+struct BatchIndexationConfig {
+    static let batchSize = 50
+    static let maxWorkouts = 365
+    static let checkCancellationEvery = 5
+
+    // Progress weights (total = 100%)
+    static let batchProcessingWeight = 0.70  // 0-70%
+    static let consolidationWeight = 0.30    // 70-100%
+}
+
+// MARK: - Batch Indexation Manager
+
+@MainActor
+class BatchIndexationManager: ObservableObject {
+    static let shared = BatchIndexationManager()
+
+    // MARK: - Published Properties
+
+    @Published var progress: Double = 0.0
+    @Published var state: IndexationState = .idle
+    @Published var currentBatch: Int = 0
+    @Published var totalBatches: Int = 0
+    @Published var hasFailedOnce: Bool = false // Track if indexation failed at least once
+
+    // MARK: - Private Properties
+
+    private var isCancelled = false
+    private var indexationStartTime: Date?
+    private let healthKitManager = HealthKitManager.shared
+    private let backendClient = BackendAPIClient.shared
+    private let storage = HistoricalSummaryStorage.shared
+
+    private init() {}
+
+    // MARK: - Public Methods
+
+    /// Start the indexation process
+    func startIndexation() async throws {
+        guard state != .loading(progress: 0.0) else {
+            print("⚠️ BatchIndexationManager: Indexation already in progress")
+            return
+        }
+
+        isCancelled = false
+        state = .loading(progress: 0.0)
+        progress = 0.0
+        indexationStartTime = Date()
+
+        do {
+            // Step 1: Fetch total workouts
+            print("📊 BatchIndexationManager: Fetching workouts from HealthKit...")
+            let allWorkouts = try await healthKitManager.fetchRunningWorkouts()
+
+            guard !isCancelled else {
+                state = .cancelled
+                return
+            }
+
+            // Limit to max workouts and sort by date (most recent first)
+            let workoutsToProcess = Array(allWorkouts.prefix(BatchIndexationConfig.maxWorkouts))
+            guard !workoutsToProcess.isEmpty else {
+                throw IndexationError.noWorkoutsFound
+            }
+
+            print("📊 BatchIndexationManager: Processing \(workoutsToProcess.count) workouts...")
+
+            // Step 2: Calculate batches
+            totalBatches = Int(ceil(Double(workoutsToProcess.count) / Double(BatchIndexationConfig.batchSize)))
+            print("📊 BatchIndexationManager: Will process \(totalBatches) batches with Grok, consolidation with Haiku")
+
+            // Track indexation started
+            AnalyticsService.shared.trackIndexationStarted(
+                workoutsCount: workoutsToProcess.count,
+                totalBatches: totalBatches
+            )
+
+            var batchSummaries: [String] = []
+            let batchModel = "google/gemini-2.5-flash-lite" // Gemini Flash Lite for batch processing (cost-effective)
+            let consolidationModel = "anthropic/claude-haiku-4.5" // Haiku for final consolidation
+            let language = Locale.current.language.languageCode?.identifier ?? "en"
+
+            // Step 3: Process batches
+            for batchIndex in 0..<totalBatches {
+                guard !isCancelled else {
+                    state = .cancelled
+                    return
+                }
+
+                currentBatch = batchIndex + 1
+                print("📊 BatchIndexationManager: Processing batch \(currentBatch)/\(totalBatches)...")
+
+                let startIndex = batchIndex * BatchIndexationConfig.batchSize
+                let endIndex = min(startIndex + BatchIndexationConfig.batchSize, workoutsToProcess.count)
+                let batchWorkouts = Array(workoutsToProcess[startIndex..<endIndex])
+
+                // Convert batch workouts to WorkoutData
+                let batchData = try await processBatch(batchWorkouts)
+
+                // Send batch to backend for analysis (using Grok fast)
+                let batchResponse = try await backendClient.analyzeBatch(
+                    workouts: batchData,
+                    batchIndex: batchIndex,
+                    model: batchModel,
+                    language: language
+                )
+
+                // Collect partial summary
+                batchSummaries.append(batchResponse.partialSummary)
+
+                // Update progress (0-70%)
+                let batchProgress = Double(currentBatch) / Double(totalBatches)
+                progress = batchProgress * BatchIndexationConfig.batchProcessingWeight
+                state = .loading(progress: progress)
+
+                // Track batch processed
+                AnalyticsService.shared.trackIndexationBatchProcessed(
+                    batchNumber: currentBatch,
+                    totalBatches: totalBatches,
+                    progress: progress
+                )
+
+                print("📊 BatchIndexationManager: Batch \(currentBatch) completed (\(Int(progress * 100))%)")
+            }
+
+            guard !isCancelled else {
+                state = .cancelled
+                return
+            }
+
+            // Step 4: Consolidation
+            print("📊 BatchIndexationManager: Starting final consolidation...")
+            state = .loading(progress: 0.70)
+            progress = 0.70
+
+            try await consolidateAndSave(
+                batchSummaries: batchSummaries,
+                totalWorkouts: workoutsToProcess.count,
+                model: consolidationModel,
+                language: language
+            )
+
+            // Step 5: Complete
+            progress = 1.0
+            state = .completed
+
+            // Track indexation completed
+            let duration = indexationStartTime.map { Date().timeIntervalSince($0) } ?? 0
+            AnalyticsService.shared.trackIndexationCompleted(
+                workoutsCount: workoutsToProcess.count,
+                durationSeconds: duration,
+                totalBatches: totalBatches
+            )
+
+            print("✅ BatchIndexationManager: Indexation completed successfully!")
+
+        } catch {
+            print("❌ BatchIndexationManager: Indexation failed: \(error)")
+            state = .failed(error.localizedDescription)
+            hasFailedOnce = true // Mark that indexation has failed
+
+            // Track indexation failed
+            let errorType = String(describing: type(of: error))
+            AnalyticsService.shared.trackIndexationFailed(
+                errorType: errorType,
+                errorMessage: error.localizedDescription,
+                failedAtBatch: currentBatch > 0 ? currentBatch : nil,
+                totalBatches: totalBatches > 0 ? totalBatches : nil
+            )
+
+            throw error
+        }
+    }
+
+    /// Cancel the current indexation
+    func cancel() {
+        guard state.isActive else { return }
+
+        print("⚠️ BatchIndexationManager: Cancelling indexation...")
+        isCancelled = true
+        state = .cancelled
+
+        // Track indexation cancelled
+        AnalyticsService.shared.trackIndexationCancelled(
+            cancelledAtBatch: currentBatch,
+            totalBatches: totalBatches,
+            progress: progress
+        )
+    }
+
+    /// Retry after failure
+    func retry() async throws {
+        guard case .failed = state else {
+            print("⚠️ BatchIndexationManager: Can only retry after failure")
+            return
+        }
+
+        try await startIndexation()
+    }
+
+    /// Reset state
+    func reset() {
+        isCancelled = false
+        progress = 0.0
+        state = .idle
+        currentBatch = 0
+        totalBatches = 0
+    }
+
+    // MARK: - Private Methods
+
+    /// Process a batch of workouts
+    private func processBatch(_ workouts: [WorkoutModel]) async throws -> [WorkoutData] {
+        var workoutDataArray: [WorkoutData] = []
+
+        for (index, workout) in workouts.enumerated() {
+            // Check cancellation every N workouts
+            if index % BatchIndexationConfig.checkCancellationEvery == 0 {
+                guard !isCancelled else {
+                    throw IndexationError.cancelled
+                }
+            }
+
+            // Fetch essential metrics (use try? to continue on error)
+            let metrics = try? await healthKitManager.fetchEssentialMetrics(for: workout)
+
+            // Convert to WorkoutData
+            let workoutData = WorkoutData(
+                date: ISO8601DateFormatter().string(from: workout.startDate),
+                duration: workout.duration,
+                distance: workout.distance ?? 0,
+                calories: workout.totalEnergyBurned,
+                pace: workout.averagePace,
+                speed: workout.averageSpeed,
+                heartRate: metrics?.heartRate.map { hr in
+                    HeartRateData(
+                        avg: hr.avg.map { Int($0.rounded()) },
+                        min: hr.min.map { Int($0.rounded()) },
+                        max: hr.max.map { Int($0.rounded()) }
+                    )
+                },
+                minPace: nil,
+                cadence: metrics?.cadence,
+                strideLength: nil,
+                runningPower: nil,
+                vo2Max: metrics?.vo2Max,
+                elevationGain: metrics?.elevation,
+                groundContactTime: nil,
+                verticalOscillation: nil,
+                mobility: nil,
+                splits: nil
+            )
+
+            workoutDataArray.append(workoutData)
+        }
+
+        return workoutDataArray
+    }
+
+    /// Consolidate all batch summaries and save final summary
+    private func consolidateAndSave(batchSummaries: [String], totalWorkouts: Int, model: String, language: String) async throws {
+        guard !batchSummaries.isEmpty else {
+            throw IndexationError.noWorkoutsToConsolidate
+        }
+
+        // Update progress
+        progress = 0.75
+        state = .loading(progress: progress)
+
+        // Fetch health profile
+        let healthProfile = try? await healthKitManager.fetchHealthProfile()
+        let profileData = healthProfile.map { profile in
+            HealthProfileData(
+                age: profile.age,
+                sex: profile.biologicalSex.map { sex in
+                    switch sex {
+                    case HKBiologicalSex.male: return "male"
+                    case HKBiologicalSex.female: return "female"
+                    default: return "other"
+                    }
+                },
+                bodyMass: profile.bodyMass,
+                bodyFatPercentage: profile.bodyFatPercentage,
+                exerciseTime: profile.exerciseTime.map { Int($0) },
+                cyclingDistance: profile.cyclingDistance,
+                swimmingDistance: profile.swimmingDistance
+            )
+        }
+
+        // Update progress
+        progress = 0.80
+        state = .loading(progress: progress)
+
+        // Call backend for consolidation
+        print("📊 BatchIndexationManager: Consolidating \(batchSummaries.count) batch summaries with \(model)...")
+
+        let response = try await backendClient.consolidateBatches(
+            batchSummaries: batchSummaries,
+            totalWorkouts: totalWorkouts,
+            profile: profileData,
+            model: model,
+            language: language
+        )
+
+        // Update progress
+        progress = 0.90
+        state = .loading(progress: progress)
+
+        // Get date range from HealthKit workouts
+        let allWorkouts = try await healthKitManager.fetchRunningWorkouts()
+        let workoutsToIndex = Array(allWorkouts.prefix(totalWorkouts))
+
+        let dateRangeStart = workoutsToIndex.last?.startDate ?? Date() // Oldest
+        let dateRangeEnd = workoutsToIndex.first?.startDate ?? Date() // Most recent
+
+        // Create and save summary
+        let summary = HistoricalSummary(
+            summary: response.summary,
+            workoutCount: response.workoutCount,
+            dateRangeStart: dateRangeStart,
+            dateRangeEnd: dateRangeEnd
+        )
+
+        storage.save(summary)
+
+        // Update progress
+        progress = 1.0
+        state = .loading(progress: progress)
+
+        print("✅ BatchIndexationManager: Summary saved successfully")
+    }
+}
+
+// MARK: - Errors
+
+enum IndexationError: LocalizedError {
+    case noWorkoutsFound
+    case noWorkoutsToConsolidate
+    case cancelled
+    case batchProcessingFailed(String)
+    case consolidationFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .noWorkoutsFound:
+            return "No workouts found in HealthKit"
+        case .noWorkoutsToConsolidate:
+            return "No workout data to consolidate"
+        case .cancelled:
+            return "Indexation was cancelled"
+        case .batchProcessingFailed(let message):
+            return "Batch processing failed: \(message)"
+        case .consolidationFailed(let message):
+            return "Consolidation failed: \(message)"
+        }
+    }
+}

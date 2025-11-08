@@ -65,14 +65,32 @@ class WorkoutListViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
+        // Check if this is the first workout sync
+        let isFirstSync = !UserDefaults.standard.bool(forKey: "hasCompletedFirstWorkoutSync")
+
         do {
             workouts = try await healthKitManager.fetchRunningWorkouts()
 
             if workouts.isEmpty {
                 errorMessage = "Aucun workout de course trouvé."
+            } else if isFirstSync {
+                // Track first workout sync only once
+                AnalyticsService.shared.trackFirstWorkoutSynced(
+                    workoutsCount: workouts.count,
+                    syncSuccess: true
+                )
+                UserDefaults.standard.set(true, forKey: "hasCompletedFirstWorkoutSync")
             }
         } catch {
             errorMessage = "Impossible de charger les workouts: \(error.localizedDescription)"
+
+            // Track first sync failure if it's the first time
+            if isFirstSync {
+                AnalyticsService.shared.trackFirstWorkoutSynced(
+                    workoutsCount: 0,
+                    syncSuccess: false
+                )
+            }
         }
 
         isLoading = false

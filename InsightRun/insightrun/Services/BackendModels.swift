@@ -109,17 +109,34 @@ struct RecentWorkoutsData: Encodable {
     let daysSinceLastWorkout: Int?
 }
 
-// MARK: - Historical Analysis (One-Time Deep Analysis)
+// MARK: - Batch Analysis
 
-struct HistoricalAnalysisRequest: Encodable {
+struct BatchAnalysisRequest: Encodable {
     let workouts: [WorkoutData]
+    let batchIndex: Int
+    let model: String
+    let language: String
+}
+
+struct BatchAnalysisResponse: Decodable {
+    let batchIndex: Int
+    let partialSummary: String
+    let workoutCount: Int
+    let tokenCount: Int
+}
+
+// MARK: - Consolidation (New)
+
+struct ConsolidationRequest: Encodable {
+    let batchSummaries: [String]
+    let totalWorkouts: Int
     let profile: HealthProfileData?
     let model: String
     let language: String
 }
 
-struct HistoricalAnalysisResponse: Decodable {
+struct ConsolidationResponse: Decodable {
     let summary: String
     let workoutCount: Int
-    let generatedAt: String
+    let tokenCount: Int
 }

@@ -57,13 +57,6 @@ export const healthProfileDataSchema = z.object({
   swimmingDistance: z.number().nonnegative().optional(),
 })
 
-// Zod schema for HistoricalAnalysisRequest validation
-export const historicalAnalysisRequestSchema = z.object({
-  workouts: z.array(workoutDataSchema).min(1).max(500),
-  profile: healthProfileDataSchema.optional(),
-  language: z.string().min(2).max(5),
-})
-
 export interface WorkoutData {
   date: string
   duration: number
@@ -148,16 +141,47 @@ export interface ChatRequestV2 {
   data: ChatDataPayload
 }
 
-export interface HistoricalAnalysisRequest {
+// Zod schema for BatchAnalysisRequest validation
+export const batchAnalysisRequestSchema = z.object({
+  workouts: z.array(workoutDataSchema).min(1).max(50),
+  batchIndex: z.number().int().min(0),
+  language: z.string().min(2).max(5),
+  model: z.string().min(1),
+})
+
+// Zod schema for ConsolidateRequest validation
+export const consolidateRequestSchema = z.object({
+  batchSummaries: z.array(z.string().min(1)).min(1).max(20),
+  totalWorkouts: z.number().int().min(1),
+  profile: healthProfileDataSchema.optional(),
+  language: z.string().min(2).max(5),
+  model: z.string().min(1),
+})
+
+export interface BatchAnalysisRequest {
   workouts: WorkoutData[]
-  profile?: HealthProfileData // User health profile for personalized analysis
-  language: string // e.g., "fr", "en", "es", "de"
-  // Note: model is always 'x-ai/grok-4-fast' on backend (hardcoded for consistency)
+  batchIndex: number
+  language: string
+  model: string
 }
 
-export interface HistoricalAnalysisResponse {
+export interface BatchAnalysisResponse {
+  batchIndex: number
+  partialSummary: string
+  workoutCount: number
+  tokenCount: number
+}
+
+export interface ConsolidateRequest {
+  batchSummaries: string[]
+  totalWorkouts: number
+  profile?: HealthProfileData
+  language: string
+  model: string
+}
+
+export interface ConsolidateResponse {
   summary: string
   workoutCount: number
   tokenCount: number
-  generatedAt: string
 }

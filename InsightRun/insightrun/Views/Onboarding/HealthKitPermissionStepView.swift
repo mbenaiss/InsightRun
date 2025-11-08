@@ -98,7 +98,7 @@ struct HealthKitPermissionStepView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                     } else {
-                        Text(String(localized: "Allow access", comment: "Onboarding HealthKit authorize button"))
+                        Text(String(localized: "Continue", comment: "Onboarding HealthKit authorize button"))
                             .font(.headline)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)

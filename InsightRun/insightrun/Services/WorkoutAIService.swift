@@ -47,7 +47,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     @Published var streamedResponse = ""
     @Published var error: String?
     @Published var suggestedQuestions: [String] = []
-    @Published var showRetryIndexation = false
 
     // Backend API client (sécurisé)
     private let backendClient = BackendAPIClient.shared
@@ -173,45 +172,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             self.streamedResponse = ""
             self.error = nil
             self.suggestedQuestions = []
-            self.showRetryIndexation = false
-        }
-
-        // Check if summary needs refresh or generation (automatic after 3 months)
-        let storage = await HistoricalSummaryStorage.shared
-        let needsUpdate = await storage.needsGeneration()
-
-        if needsUpdate {
-            let existingSummary = await storage.load()
-            let isRefresh = existingSummary != nil
-
-            print(isRefresh ? "🔄 WorkoutAIService: Summary needs refresh (>3 months old)" : "📊 WorkoutAIService: No historical summary found")
-
-            await MainActor.run {
-                if isRefresh {
-                    self.streamedResponse = String(localized: "🔄 Updating your athletic profile...\nYour data is being refreshed with recent workouts.", comment: "Message during profile refresh")
-                } else {
-                    self.streamedResponse = String(localized: "🔍 Analyzing your training history...\nThis takes 10-20 seconds.", comment: "Message during first-time historical analysis")
-                }
-            }
-
-            // Generate/refresh historical summary in background
-            let success = await generateHistoricalSummaryIfNeeded()
-
-            if !success {
-                // If generation failed, show error with retry button
-                await MainActor.run {
-                    self.streamedResponse = String(localized: "❌ Failed to analyze your training history.\nYou can still ask questions, or retry the analysis.", comment: "Error message when indexation fails")
-                    self.showRetryIndexation = true
-                    self.isStreaming = false
-                }
-                print("❌ WorkoutAIService: Historical summary generation failed, showing retry button")
-                return
-            } else {
-                print(isRefresh ? "✅ WorkoutAIService: Historical summary refreshed successfully" : "✅ WorkoutAIService: Historical summary generated successfully")
-                await MainActor.run {
-                    self.streamedResponse = ""
-                }
-            }
         }
 
         // If model not provided, use intelligent routing
@@ -243,155 +203,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             // For remote models, backend builds the full prompt from structured data
             await handleRemoteModelInference(question: question, model: selectedModel, mode: mode)
         }
-    }
-
-    // MARK: - Historical Summary Generation
-
-    /// Retry indexation after failure (called from UI button)
-    func retryHistoricalIndexation() async {
-        print("🔄 WorkoutAIService: Retry indexation requested")
-
-        await MainActor.run {
-            self.streamedResponse = String(localized: "🔍 Retrying analysis...", comment: "Message when retrying indexation")
-            self.showRetryIndexation = false
-        }
-
-        // Reset manager state
-        let manager = await HistoricalIndexationManager.shared
-        await MainActor.run {
-            manager.resetState()
-        }
-
-        // Try again
-        let success = await generateHistoricalSummaryIfNeeded()
-
-        if !success {
-            await MainActor.run {
-                self.streamedResponse = String(localized: "❌ Failed to analyze your training history.\nYou can still ask questions, or retry the analysis.", comment: "Error message when indexation fails")
-                self.showRetryIndexation = true
-                self.isStreaming = false
-            }
-            print("❌ WorkoutAIService: Retry failed, showing button again")
-        } else {
-            print("✅ WorkoutAIService: Retry succeeded")
-            await MainActor.run {
-                self.streamedResponse = ""
-            }
-
-            // Continue with the original question if available
-            if let question = lastQuestion, let mode = lastMode {
-                await askQuestion(question: question, mode: mode, model: lastModel)
-            }
-        }
-    }
-
-    /// Force refresh of historical summary (for manual refresh from Settings)
-    func forceRefreshHistoricalSummary() async -> Bool {
-        print("🔄 WorkoutAIService: Force refresh requested")
-        return await generateHistoricalSummaryIfNeeded()
-    }
-
-    /// Generate historical summary automatically (called on first message)
-    private func generateHistoricalSummaryIfNeeded() async -> Bool {
-        do {
-            // Fetch all workouts
-            let workouts = try await HealthKitManager.shared.fetchRunningWorkouts()
-
-            guard !workouts.isEmpty else {
-                print("⚠️ WorkoutAIService: No workouts found, skipping historical analysis")
-                return false
-            }
-
-            print("📊 WorkoutAIService: Found \(workouts.count) workouts for analysis")
-
-            // Convert workouts to API format (limit to 365)
-            var workoutDataList: [WorkoutData] = []
-            let maxWorkouts = min(workouts.count, 365)
-
-            for workout in workouts.prefix(maxWorkouts) {
-                let workoutData = convertToWorkoutDataSimple(workout: workout)
-                workoutDataList.append(workoutData)
-            }
-
-            // Generate summary via backend
-            let language = getUserLanguage()
-            let model = "x-ai/grok-4-fast" // Fast model for historical analysis
-
-            // Fetch user health profile for personalized analysis
-            let healthProfile = try? await HealthKitManager.shared.fetchHealthProfile()
-            let profileData = healthProfile.map { profile in
-                HealthProfileData(
-                    age: profile.age,
-                    sex: profile.biologicalSex.map { sex in
-                        switch sex {
-                        case .male: return "male"
-                        case .female: return "female"
-                        case .other: return "other"
-                        case .notSet: return nil
-                        @unknown default: return nil
-                        }
-                    } ?? nil,
-                    bodyMass: profile.bodyMass,
-                    bodyFatPercentage: profile.bodyFatPercentage,
-                    exerciseTime: profile.exerciseTime.map { Int($0) },
-                    cyclingDistance: profile.cyclingDistance,
-                    swimmingDistance: profile.swimmingDistance
-                )
-            }
-
-            let response = try await backendClient.generateHistoricalSummary(
-                workouts: workoutDataList,
-                profile: profileData,
-                model: model,
-                language: language
-            )
-
-            // Save to local storage
-            let summary = await MainActor.run {
-                HistoricalSummary(
-                    summary: response.summary,
-                    workoutCount: response.workoutCount,
-                    dateRangeStart: workouts.last?.startDate ?? Date(),
-                    dateRangeEnd: workouts.first?.startDate ?? Date()
-                )
-            }
-
-            await HistoricalSummaryStorage.shared.save(summary)
-            print("✅ WorkoutAIService: Historical summary generated and saved")
-
-            return true
-
-        } catch {
-            print("❌ WorkoutAIService: Failed to generate historical summary: \(error)")
-            return false
-        }
-    }
-
-    /// Convert workout to simplified API format (without metrics for bulk analysis)
-    private func convertToWorkoutDataSimple(workout: WorkoutModel) -> WorkoutData {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-
-        return WorkoutData(
-            date: formatter.string(from: workout.startDate),
-            duration: workout.duration,
-            distance: workout.distance ?? 0,
-            calories: workout.totalEnergyBurned,
-            pace: workout.averagePace,
-            speed: workout.averageSpeed,
-            heartRate: nil,
-            minPace: nil,
-            cadence: nil,
-            strideLength: nil,
-            runningPower: nil,
-            vo2Max: nil,
-            elevationGain: nil,
-            groundContactTime: nil,
-            verticalOscillation: nil,
-            mobility: nil,
-            splits: nil
-        )
     }
 
     // MARK: - Local Model Inference
@@ -566,10 +377,26 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     private func buildChatPayload(question: String, model: AIModel, mode: AIAssistantMode) async -> ChatRequestV2 {
         // Load historical summary if available
-        let historicalSummary = await HistoricalSummaryStorage.shared.load()?.summary
+        let historicalSummary = await HistoricalSummaryStorage.shared.load()
 
         if let summary = historicalSummary {
-            print("✅ WorkoutAIService: Using historical summary (\(summary.count) chars)")
+            print("✅ WorkoutAIService: Using historical summary (\(summary.workoutCount) workouts)")
+            print("📊 WorkoutAIService: Summary covers \(summary.dateRangeFormatted)")
+        } else {
+            print("⚠️ WorkoutAIService: No historical summary available")
+
+            // Track AI message sent without historical context
+            let contextType: AIContextType = {
+                switch mode {
+                case .singleWorkout, .recentWorkouts:
+                    return .workout
+                case .recoveryCoaching:
+                    return .recovery
+                }
+            }()
+            await MainActor.run {
+                AnalyticsService.shared.trackAIMessageSentWithoutContext(contextType: contextType)
+            }
         }
 
         var chatData = ChatDataPayload(
@@ -577,7 +404,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             recovery: nil,
             profile: nil,
             recentWorkouts: nil,
-            historicalSummary: historicalSummary
+            historicalSummary: historicalSummary?.summary
         )
 
         // Extract data from mode
@@ -588,20 +415,29 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 recovery: nil,
                 profile: nil,
                 recentWorkouts: nil,
-                historicalSummary: historicalSummary
+                historicalSummary: historicalSummary?.summary
             )
         case .recentWorkouts(let workouts, let metricsDict):
-            let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
-            let totalDuration = workouts.map { $0.duration }.reduce(0, +)
-            let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
-            let avgPace = calculateAveragePace(workouts: workouts) ?? 0
+            // ✅ OPTIMIZATION: Limit to 10 most recent workouts
+            let recentWorkouts = Array(workouts.prefix(10))
+
+            // Calculate stats on recent workouts only
+            let totalDistance = recentWorkouts.compactMap { $0.distance }.reduce(0, +)
+            let totalDuration = recentWorkouts.map { $0.duration }.reduce(0, +)
+            let totalCalories = recentWorkouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
+            let avgPace = calculateAveragePace(workouts: recentWorkouts) ?? 0
+
+            print("📊 WorkoutAIService: Sending \(recentWorkouts.count) recent workouts + historical context")
+            if let summary = historicalSummary {
+                print("📈 WorkoutAIService: Historical context covers \(summary.workoutCount - recentWorkouts.count) older workouts")
+            }
 
             chatData = ChatDataPayload(
                 workout: nil,
                 recovery: nil,
                 profile: nil,
                 recentWorkouts: RecentWorkoutsData(
-                    workouts: workouts.map { workout in
+                    workouts: recentWorkouts.map { workout in
                         let metrics = metricsDict[workout.id]
                         return convertToWorkoutData(workout: workout, metrics: metrics)
                     },
@@ -612,7 +448,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     weeklyVolumeChange: nil,
                     daysSinceLastWorkout: nil
                 ),
-                historicalSummary: historicalSummary
+                historicalSummary: historicalSummary?.summary
             )
         case .recoveryCoaching(let recoveryMetrics):
             chatData = ChatDataPayload(
@@ -620,7 +456,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 recovery: convertToRecoveryData(metrics: recoveryMetrics),
                 profile: nil,
                 recentWorkouts: nil,
-                historicalSummary: historicalSummary
+                historicalSummary: historicalSummary?.summary
             )
         }
 

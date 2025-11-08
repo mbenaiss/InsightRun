@@ -78,6 +78,8 @@ struct WorkoutAIAssistantView: View {
     @State private var showingHistory = false
     @State private var conversationHistories: [ConversationHistory] = []
     @State private var currentConversationId: UUID?
+    @State private var showIndexationBanner = false
+    @State private var showIndexationSheet = false
 
     // Haptic feedback generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -85,7 +87,7 @@ struct WorkoutAIAssistantView: View {
     private let notificationFeedback = UINotificationFeedbackGenerator()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Liquid Glass Background (iOS 26)
                 LinearGradient(
@@ -104,6 +106,26 @@ struct WorkoutAIAssistantView: View {
                     headerView
 
                     Divider()
+
+                    // Indexation Banner (if no historical summary)
+                    if showIndexationBanner {
+                        IndexationBannerView(
+                            onSyncTapped: {
+                                // Track sync tapped
+                                AnalyticsService.shared.trackIndexationBannerSyncTapped()
+                                showIndexationSheet = true
+                            },
+                            onDismiss: {
+                                // Track banner dismissed
+                                AnalyticsService.shared.trackIndexationBannerDismissed()
+                                withAnimation {
+                                    showIndexationBanner = false
+                                }
+                            }
+                        )
+                        .padding()
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
 
                     // Messages Area
                     ScrollViewReader { scrollProxy in
@@ -189,22 +211,7 @@ struct WorkoutAIAssistantView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if aiService.showRetryIndexation {
-                        Button(action: {
-                            impactMedium.impactOccurred()
-                            Task {
-                                await aiService.retryHistoricalIndexation()
-                            }
-                        }) {
-                            HStack(spacing: 3) {
-                                Image(systemName: "arrow.clockwise")
-                                    .imageScale(.small)
-                                Text(String(localized: "Reindex", comment: "Reindex button label"))
-                                    .font(.caption2)
-                            }
-                            .foregroundColor(.secondary)
-                        }
-                    }
+                    EmptyView()
                 }
             }
         }
@@ -214,6 +221,9 @@ struct WorkoutAIAssistantView: View {
                 onSelectConversation: loadConversation,
                 onDeleteConversation: deleteConversation
             )
+        }
+        .sheet(isPresented: $showIndexationSheet) {
+            HistoricalIndexationSheet()
         }
         .onAppear {
             loadMessages()
@@ -226,17 +236,38 @@ struct WorkoutAIAssistantView: View {
             impactMedium.prepare()
             notificationFeedback.prepare()
 
-            // Check if indexation has failed before
-            let hasFailedBefore = HistoricalIndexationManager.shared.hasFailedOnce
-            let needsIndexation = HistoricalSummaryStorage.shared.needsGeneration()
+            // Check if historical summary exists
+            Task {
+                let hasSummary = await HistoricalSummaryStorage.shared.hasSummary
+                await MainActor.run {
+                    // Show banner only if no summary exists
+                    showIndexationBanner = !hasSummary
 
-            if hasFailedBefore && needsIndexation {
-                // Show retry button if indexation failed and summary is still missing
-                aiService.showRetryIndexation = true
+                    // Track banner shown
+                    if !hasSummary {
+                        AnalyticsService.shared.trackIndexationBannerShown()
+                    }
+                }
             }
 
             // Track AI chat opened
             AnalyticsService.shared.trackAIChatOpened()
+        }
+        .onChange(of: showIndexationSheet) { oldValue, newValue in
+            // When sheet is dismissed, check if summary was created
+            if oldValue && !newValue {
+                Task {
+                    let hasSummary = await HistoricalSummaryStorage.shared.hasSummary
+                    await MainActor.run {
+                        // Hide banner if summary now exists
+                        if hasSummary {
+                            withAnimation {
+                                showIndexationBanner = false
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1021,7 +1052,7 @@ struct ConversationHistoryView: View {
     let onDeleteConversation: (ConversationHistory) -> Void
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Liquid Glass Background
                 LinearGradient(

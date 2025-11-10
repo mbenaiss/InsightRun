@@ -8,6 +8,7 @@ import { buildPrompt } from './prompts'
 import type { QuotaCheck } from './quota'
 import { checkQuota, getQuotaConfig, getQuotaHeaders, incrementQuota } from './quota'
 import analyzeHistoryRoutes from './routes/analyzeHistory'
+import generateWorkoutRoutes from './routes/generateWorkout'
 import type { ChatRequestV2 } from './types'
 import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from './utils'
 
@@ -226,8 +227,19 @@ app.use('/api/analyze-history/*', async (c, next) => {
   await next()
 })
 
+// Auth middleware for /api/generate-workout route
+app.use('/api/generate-workout/*', async (c, next) => {
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+  await next()
+})
+
 // Mount analyze-history routes
 app.route('/api/analyze-history', analyzeHistoryRoutes)
+
+// Mount generate-workout route
+app.route('/api/generate-workout', generateWorkoutRoutes)
 
 app.get('/', (c) => {
   return c.json({

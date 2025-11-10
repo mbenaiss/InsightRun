@@ -329,6 +329,57 @@ class BackendAPIClient {
         )
     }
 
+    // MARK: - Workout Generation
+
+    /// Generate a custom workout using AI
+    func generateWorkout(userQuestion: String, language: String, userContext: WorkoutGenerationRequest.UserContext?, model: String? = nil) async throws -> WorkoutGenerationResponse {
+        let url = URL(string: "\(baseURL)/api/generate-workout")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+
+        let requestBody = WorkoutGenerationRequest(
+            userQuestion: userQuestion,
+            language: language,
+            userContext: userContext,
+            model: model
+        )
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(requestBody)
+
+        print("🏃 BackendAPIClient: Generating workout for question: \"\(userQuestion)\"")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let workoutResponse = try decoder.decode(WorkoutGenerationResponse.self, from: data)
+
+        print("✅ BackendAPIClient: Workout generated successfully: \"\(workoutResponse.workout.name)\"")
+
+        return workoutResponse
+    }
+
     // MARK: - Configuration
 
     func setBaseURL(_ url: String) {

@@ -140,3 +140,52 @@ struct ConsolidationResponse: Decodable {
     let workoutCount: Int
     let tokenCount: Int
 }
+
+// MARK: - Workout Generation
+
+struct WorkoutGenerationRequest: Encodable {
+    let userQuestion: String
+    let language: String
+    let userContext: UserContext?
+    let model: String?
+
+    struct UserContext: Encodable {
+        let avgPace: Double? // minutes per km
+        let vo2Max: Double?
+        let recentWorkouts: Int? // count
+        let fitnessLevel: String? // "beginner", "intermediate", "advanced"
+    }
+}
+
+struct WorkoutGenerationResponse: Decodable {
+    let workout: GeneratedWorkoutData
+    let metadata: GenerationMetadata
+
+    struct GeneratedWorkoutData: Decodable {
+        let name: String
+        let description: String
+        let sport: String
+        let steps: [GeneratedWorkoutStep]
+        let totalDistance: Double?
+        let estimatedDuration: Double?
+    }
+
+    struct GeneratedWorkoutStep: Decodable {
+        let type: String // "warmup", "work", "recovery", "cooldown", "interval"
+        let goal: StepGoal
+        let targetPace: String?
+        let targetHeartRateZone: Int?
+        let instructions: String?
+    }
+
+    struct StepGoal: Decodable {
+        let type: String // "distance", "duration", "open"
+        let value: Double // meters for distance, seconds for duration
+    }
+
+    struct GenerationMetadata: Decodable {
+        let generationTimeMs: Int
+        let modelUsed: String
+        let attempts: Int
+    }
+}

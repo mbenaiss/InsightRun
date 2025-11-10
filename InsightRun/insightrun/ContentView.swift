@@ -26,19 +26,26 @@ struct ContentView: View {
                 }
                 .tag(1)
 
+            // Workout Plan Tab (AI Generator)
+            WorkoutPlanView()
+                .tabItem {
+                    Label(String(localized: "tab.plan"), systemImage: "sparkles")
+                }
+                .tag(2)
+
             // Recovery Tab
             RecoveryDashboardView()
                 .tabItem {
                     Label(String(localized: "tab.recovery"), systemImage: "heart.fill")
                 }
-                .tag(2)
+                .tag(3)
 
             // Health Profile Tab
             HealthProfileView()
                 .tabItem {
                     Label(String(localized: "tab.health"), systemImage: "person.fill")
                 }
-                .tag(3)
+                .tag(4)
         }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()

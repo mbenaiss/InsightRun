@@ -11,7 +11,6 @@ import analyzeHistoryRoutes from './routes/analyzeHistory'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
 import type { ChatRequestV2 } from './types'
-import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from './utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -109,45 +108,6 @@ async function callOpenRouter(
     },
     body: JSON.stringify(requestBody),
   })
-}
-
-async function callOpenRouterNonStreaming(
-  apiKey: string,
-  model: string,
-  systemPrompt: string,
-  prompt: string,
-  maxTokens: number = 3000
-): Promise<string> {
-  const requestBody = {
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt },
-    ],
-    max_tokens: maxTokens,
-    temperature: AI_TEMPERATURE,
-    stream: false,
-  }
-
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://insightrun.ai',
-      'X-Title': 'insightRun.ai',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  })
-
-  if (!response.ok) {
-    throw new Error(`OpenRouter API error: ${response.status}`)
-  }
-
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>
-  }
-  return data.choices[0].message.content
 }
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()

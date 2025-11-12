@@ -187,7 +187,11 @@ app.post('/', async (c) => {
     const { system: systemPrompt, user: userPrompt } = buildSmartSuggestionPrompt(body)
 
     // Call Grok (same model as other endpoints)
-    const suggestion = await callGrokForSuggestion(c.env.OPENROUTER_API_KEY, systemPrompt, userPrompt)
+    const suggestion = await callGrokForSuggestion(
+      c.env.OPENROUTER_API_KEY,
+      systemPrompt,
+      userPrompt
+    )
 
     const generationTime = Date.now() - startTime
 

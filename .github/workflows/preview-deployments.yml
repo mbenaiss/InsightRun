@@ -86,14 +86,20 @@ jobs:
         env:
           NODE_ENV: preview
 
-      - name: Extract deployment URL
+      - name: Extract deployment URL and status
         id: extract-url
         run: |
           # Preview URL format: <ALIAS>-<WORKER_NAME>.mbenaissa.workers.dev
           ALIAS="${{ steps.generate-alias.outputs.alias }}"
           PREVIEW_URL="https://${ALIAS}-insightrun-landing.mbenaissa.workers.dev"
+
+          # Set outputs
           echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
-          echo "Preview URL: $PREVIEW_URL"
+          echo "status=READY" >> $GITHUB_OUTPUT
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+
+          echo "✅ Preview URL: $PREVIEW_URL"
+          echo "📝 Alias: $ALIAS"
 
   # Deploy backend preview to Cloudflare Workers
   preview_backend:
@@ -151,14 +157,20 @@ jobs:
         env:
           NODE_ENV: preview
 
-      - name: Extract deployment URL
+      - name: Extract deployment URL and status
         id: extract-url
         run: |
           # Preview URL format: <ALIAS>-<WORKER_NAME>.mbenaissa.workers.dev
           ALIAS="${{ steps.generate-alias.outputs.alias }}"
           PREVIEW_URL="https://${ALIAS}-insightrun-backend.mbenaissa.workers.dev"
+
+          # Set outputs
           echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
-          echo "Preview URL: $PREVIEW_URL"
+          echo "status=READY" >> $GITHUB_OUTPUT
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+
+          echo "✅ Preview URL: $PREVIEW_URL"
+          echo "📝 Alias: $ALIAS"
 
   # Comment on PR with preview URLs
   comment:
@@ -185,47 +197,44 @@ jobs:
           <!-- preview-deployments -->
           ## 🚀 Preview Deployments
 
-          Your changes have been deployed to preview environments:
-
           EOF
 
-          if [ "${{ needs.changes.outputs.frontend }}" == "true" ] && [ "${{ needs.preview_frontend.result }}" == "success" ]; then
-            echo "### 🌐 Frontend Preview" >> comment.md
-            echo "" >> comment.md
-            echo "✅ **Status:** Deployed successfully" >> comment.md
-            echo "" >> comment.md
-            if [ -n "${{ needs.preview_frontend.outputs.url }}" ]; then
-              echo "🔗 **URL:** ${{ needs.preview_frontend.outputs.url }}" >> comment.md
-            else
-              echo "🔗 **URL:** Check [Cloudflare Pages](https://dash.cloudflare.com/) for the preview URL" >> comment.md
+          # Check if any deployments exist
+          HAS_DEPLOYMENTS=false
+
+          if [ "${{ needs.changes.outputs.frontend }}" == "true" ] || [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
+            HAS_DEPLOYMENTS=true
+
+            # Create table header
+            echo "| Name | Preview URL | Status | Branch Alias |" >> comment.md
+            echo "|------|-------------|--------|--------------|" >> comment.md
+
+            # Frontend row
+            if [ "${{ needs.changes.outputs.frontend }}" == "true" ]; then
+              if [ "${{ needs.preview_frontend.result }}" == "success" ]; then
+                FRONTEND_URL="${{ needs.preview_frontend.outputs.url }}"
+                FRONTEND_ALIAS="${{ needs.preview_frontend.outputs.alias }}"
+                echo "| 🌐 Frontend | [$FRONTEND_URL]($FRONTEND_URL) | ✅ READY | \`$FRONTEND_ALIAS\` |" >> comment.md
+              else
+                echo "| 🌐 Frontend | - | ❌ ERROR | - |" >> comment.md
+              fi
             fi
-            echo "" >> comment.md
-          elif [ "${{ needs.changes.outputs.frontend }}" == "true" ]; then
-            echo "### 🌐 Frontend Preview" >> comment.md
-            echo "" >> comment.md
-            echo "❌ **Status:** Deployment failed" >> comment.md
+
+            # Backend row
+            if [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
+              if [ "${{ needs.preview_backend.result }}" == "success" ]; then
+                BACKEND_URL="${{ needs.preview_backend.outputs.url }}"
+                BACKEND_ALIAS="${{ needs.preview_backend.outputs.alias }}"
+                echo "| ⚙️ Backend | [$BACKEND_URL]($BACKEND_URL) | ✅ READY | \`$BACKEND_ALIAS\` |" >> comment.md
+              else
+                echo "| ⚙️ Backend | - | ❌ ERROR | - |" >> comment.md
+              fi
+            fi
+
             echo "" >> comment.md
           fi
 
-          if [ "${{ needs.changes.outputs.backend }}" == "true" ] && [ "${{ needs.preview_backend.result }}" == "success" ]; then
-            echo "### ⚙️ Backend Preview" >> comment.md
-            echo "" >> comment.md
-            echo "✅ **Status:** Deployed successfully" >> comment.md
-            echo "" >> comment.md
-            if [ -n "${{ needs.preview_backend.outputs.url }}" ]; then
-              echo "🔗 **URL:** ${{ needs.preview_backend.outputs.url }}" >> comment.md
-            else
-              echo "🔗 **URL:** Check [Cloudflare Workers](https://dash.cloudflare.com/) for the preview URL" >> comment.md
-            fi
-            echo "" >> comment.md
-          elif [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
-            echo "### ⚙️ Backend Preview" >> comment.md
-            echo "" >> comment.md
-            echo "❌ **Status:** Deployment failed" >> comment.md
-            echo "" >> comment.md
-          fi
-
-          if [ "${{ needs.changes.outputs.frontend }}" != "true" ] && [ "${{ needs.changes.outputs.backend }}" != "true" ]; then
+          if [ "$HAS_DEPLOYMENTS" == "false" ]; then
             echo "ℹ️ No frontend or backend changes detected in this PR." >> comment.md
             echo "" >> comment.md
           fi

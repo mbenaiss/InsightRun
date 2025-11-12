@@ -35,5 +35,8 @@ persist = true
 name = "insightrun-backend"
 route = "api.yourapp.com/*"  # À remplacer par ton domaine
 
+[env.preview]
+name = "insightrun-backend-preview"
+
 [env.development]
 name = "insightrun-backend-dev"

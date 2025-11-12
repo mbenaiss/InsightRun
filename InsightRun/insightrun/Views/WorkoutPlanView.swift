@@ -247,6 +247,13 @@ struct WorkoutPlanView: View {
     @StateObject private var viewModel = WorkoutPlanViewModel()
     @FocusState private var isTextFieldFocused: Bool
 
+    // Edit mode state
+    @State private var isEditing: Bool = false
+    @State private var editedWorkoutName: String = ""
+    @State private var editedSteps: [WorkoutStep] = []
+    @State private var backupWorkoutName: String = ""
+    @State private var backupSteps: [WorkoutStep] = []
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -254,8 +261,8 @@ struct WorkoutPlanView: View {
                 LinearGradient(
                     colors: [
                         Color(.systemBackground),
-                        Color.green.opacity(0.02),
-                        Color.green.opacity(0.01)
+                        Color.blue.opacity(0.02),
+                        Color.blue.opacity(0.01)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -279,16 +286,106 @@ struct WorkoutPlanView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 if viewModel.showPreview {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(String(localized: "New", comment: "Create new workout button")) {
-                            withAnimation {
-                                viewModel.clearWorkout()
+                    if !isEditing {
+                        // View Mode: Edit + New buttons
+                        ToolbarItemGroup(placement: .navigationBarTrailing) {
+                            Button(action: enterEditMode) {
+                                Image(systemName: "pencil")
                             }
+
+                            Button(String(localized: "New", comment: "Create new workout button")) {
+                                withAnimation {
+                                    viewModel.clearWorkout()
+                                }
+                            }
+                        }
+                    } else {
+                        // Edit Mode: Cancel + Save buttons
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button(String(localized: "Cancel", comment: "Cancel editing button")) {
+                                cancelEditing()
+                            }
+                        }
+
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(String(localized: "Save", comment: "Save edits button")) {
+                                saveEditing()
+                            }
+                            .fontWeight(.semibold)
                         }
                     }
                 }
             }
         }
+    }
+
+    // MARK: - Edit Mode Functions
+
+    private func enterEditMode() {
+        guard let workout = viewModel.generatedWorkout else { return }
+
+        // Create backups for reverting
+        backupWorkoutName = workout.name
+        backupSteps = workout.steps
+
+        // Initialize edited values
+        editedWorkoutName = workout.name
+        editedSteps = workout.steps
+
+        // Enable editing
+        withAnimation {
+            isEditing = true
+        }
+    }
+
+    private func cancelEditing() {
+        // Restore from backup (revert unsaved changes)
+        if var workout = viewModel.generatedWorkout {
+            workout.name = backupWorkoutName
+            workout.steps = backupSteps
+            viewModel.generatedWorkout = workout
+        }
+
+        // Clear temporary state
+        editedWorkoutName = ""
+        editedSteps = []
+
+        // Exit edit mode
+        withAnimation {
+            isEditing = false
+        }
+    }
+
+    private func saveEditing() {
+        guard var workout = viewModel.generatedWorkout else { return }
+
+        // Validate workout name
+        guard !editedWorkoutName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            viewModel.error = String(localized: "Workout name cannot be empty", comment: "Validation error")
+            return
+        }
+
+        // Apply edits to the actual model
+        workout.name = editedWorkoutName
+        workout.steps = editedSteps
+
+        // Update viewModel with edited workout
+        viewModel.generatedWorkout = workout
+
+        // Clear temporary state
+        editedWorkoutName = ""
+        editedSteps = []
+
+        // Clear backups
+        backupWorkoutName = ""
+        backupSteps = []
+
+        // Exit edit mode
+        withAnimation {
+            isEditing = false
+        }
+
+        print("✅ Workout edits saved")
     }
 
     // MARK: - Generation View
@@ -306,7 +403,7 @@ struct WorkoutPlanView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.green, .mint],
+                            colors: [.blue, .cyan],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -339,35 +436,37 @@ struct WorkoutPlanView: View {
                     .lineLimit(3...6)
             }
 
-            // Sample Prompts
-            VStack(alignment: .leading, spacing: 12) {
-                Text(String(localized: "Or try these", comment: "Sample prompts label"))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
+            // Sample Prompts (only shown when input is empty)
+            if viewModel.promptText.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(String(localized: "Or try these", comment: "Sample prompts label"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
 
-                ForEach(viewModel.samplePrompts, id: \.self) { sample in
-                    Button(action: {
-                        viewModel.promptText = sample
-                        isTextFieldFocused = false
-                    }) {
-                        HStack {
-                            Image(systemName: "lightbulb.fill")
-                                .font(.caption)
-                                .foregroundColor(.yellow)
-                            Text(sample)
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                    ForEach(viewModel.samplePrompts, id: \.self) { sample in
+                        Button(action: {
+                            viewModel.promptText = sample
+                            isTextFieldFocused = false
+                        }) {
+                            HStack {
+                                Image(systemName: "lightbulb.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.yellow)
+                                Text(sample)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(12)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
-                        .padding(12)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
             }
 
@@ -401,10 +500,10 @@ struct WorkoutPlanView: View {
                 .background(
                     viewModel.promptText.isEmpty || viewModel.isGenerating ?
                     LinearGradient(colors: [.gray, .gray], startPoint: .leading, endPoint: .trailing) :
-                    LinearGradient(colors: [.green, .mint], startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: viewModel.promptText.isEmpty ? .clear : .green.opacity(0.3), radius: 8, y: 4)
+                .shadow(color: viewModel.promptText.isEmpty ? .clear : .blue.opacity(0.4), radius: 8, y: 4)
             }
             .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
         }
@@ -416,22 +515,25 @@ struct WorkoutPlanView: View {
         VStack(spacing: 0) {
             // Workout Header (pinned to top)
             VStack(spacing: 8) {
-                // Editable workout name
-                TextField("Workout name", text: Binding(
-                    get: { workout.name },
-                    set: { newName in
-                        if var updatedWorkout = viewModel.generatedWorkout {
-                            updatedWorkout.name = newName
-                            viewModel.generatedWorkout = updatedWorkout
-                        }
-                    }
-                ))
-                .font(.title3)
-                .fontWeight(.bold)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .padding(.horizontal)
-                .textFieldStyle(.plain)
+                // Conditional workout name (editable in edit mode)
+                if isEditing {
+                    TextField(String(localized: "Workout name", comment: "Workout name placeholder"), text: $editedWorkoutName)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    Text(workout.name)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal)
+                }
 
                 Text(workout.description)
                     .font(.caption)
@@ -447,7 +549,7 @@ struct WorkoutPlanView: View {
                     if let duration = workout.estimatedDurationFormatted {
                         StatBadge(icon: "clock", value: duration)
                     }
-                    StatBadge(icon: "list.bullet", value: "\(workout.steps.count) steps")
+                    StatBadge(icon: "list.bullet", value: "\(workout.steps.count) \(String(localized: "steps", comment: "Steps count unit"))")
                 }
                 .padding(.top, 4)
             }
@@ -473,17 +575,15 @@ struct WorkoutPlanView: View {
                         EditableWorkoutStepRow(
                             step: step,
                             index: index + 1,
+                            isEditing: isEditing,
                             onPaceChanged: { newPace in
-                                if var updatedWorkout = viewModel.generatedWorkout {
-                                    updatedWorkout.steps[index].targetPace = newPace
-                                    viewModel.generatedWorkout = updatedWorkout
+                                if isEditing {
+                                    editedSteps[index].targetPace = newPace
                                 }
                             },
                             onDurationChanged: { newValue in
-                                if var updatedWorkout = viewModel.generatedWorkout,
-                                   step.goal.type == .duration {
-                                    updatedWorkout.steps[index].goal.value = newValue
-                                    viewModel.generatedWorkout = updatedWorkout
+                                if isEditing && step.goal.type == .duration {
+                                    editedSteps[index].goal.value = newValue
                                 }
                             }
                         )
@@ -521,12 +621,12 @@ struct WorkoutPlanView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(
-                        LinearGradient(colors: [.green, .mint], startPoint: .leading, endPoint: .trailing)
+                        LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: .green.opacity(0.3), radius: 8, y: 4)
+                    .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
                 }
-                .disabled(WorkoutKitManager.shared.isExporting)
+                .disabled(WorkoutKitManager.shared.isExporting || isEditing)
                 .padding()
             }
             .background(.ultraThinMaterial)
@@ -579,24 +679,26 @@ struct WorkoutVisualization: View {
             Text(String(localized: "Workout Structure", comment: "Visualization title"))
                 .font(.headline)
 
-            HStack(spacing: 2) {
-                ForEach(workout.steps) { step in
-                    Rectangle()
-                        .fill(colorForStepType(step.type))
-                        .frame(width: widthForStep(step), height: 60)
-                        .overlay(
-                            VStack(spacing: 2) {
-                                Image(systemName: iconForStepType(step.type))
-                                    .font(.caption2)
-                                Text(step.type.rawValue)
-                                    .font(.system(size: 8))
-                                    .lineLimit(1)
-                            }
-                            .foregroundColor(.white)
-                        )
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(workout.steps) { step in
+                        Rectangle()
+                            .fill(colorForStepType(step.type))
+                            .frame(width: widthForStep(step), height: 60)
+                            .overlay(
+                                VStack(spacing: 2) {
+                                    Image(systemName: iconForStepType(step.type))
+                                        .font(.caption2)
+                                    Text(step.type.rawValue)
+                                        .font(.system(size: 8))
+                                        .lineLimit(1)
+                                }
+                                .foregroundColor(.white)
+                            )
+                    }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .padding()
         .background(.ultraThinMaterial)
@@ -624,9 +726,8 @@ struct WorkoutVisualization: View {
     }
 
     private func widthForStep(_ step: WorkoutStep) -> CGFloat {
-        let totalSteps = workout.steps.count
-        let baseWidth = CGFloat(350) / CGFloat(totalSteps)
-        return max(baseWidth, 40) // Minimum 40pt width
+        // Fixed width for better readability, allowing horizontal scroll
+        return 70 // Consistent width for all steps
     }
 }
 
@@ -661,11 +762,11 @@ struct WorkoutStepRow: View {
 
             // Details
             if let pace = step.targetPace {
-                DetailRow(icon: "speedometer", text: "\(pace)/km")
+                DetailRow(icon: "speedometer", text: "\(pace)\(String(localized: "/km", comment: "Pace unit suffix"))")
             }
 
             if let hrZone = step.targetHeartRateZone {
-                DetailRow(icon: "heart.fill", text: "Zone \(hrZone)")
+                DetailRow(icon: "heart.fill", text: "\(String(localized: "Zone", comment: "Heart rate zone prefix")) \(hrZone)")
             }
 
             if let instructions = step.instructions {
@@ -727,21 +828,50 @@ struct DetailRow: View {
 struct EditableWorkoutStepRow: View {
     let step: WorkoutStep
     let index: Int
+    let isEditing: Bool
     let onPaceChanged: (String?) -> Void
     let onDurationChanged: (Double) -> Void
 
     @State private var editedPace: String
     @State private var editedDuration: String
 
-    init(step: WorkoutStep, index: Int, onPaceChanged: @escaping (String?) -> Void, onDurationChanged: @escaping (Double) -> Void) {
+    // Picker values for pace (minutes:seconds)
+    @State private var paceMinutes: Int = 0
+    @State private var paceSeconds: Int = 0
+    @State private var showPacePicker: Bool = false
+
+    // Picker values for duration (minutes:seconds)
+    @State private var durationMinutes: Int = 0
+    @State private var durationSeconds: Int = 0
+    @State private var showDurationPicker: Bool = false
+
+    init(step: WorkoutStep, index: Int, isEditing: Bool = false, onPaceChanged: @escaping (String?) -> Void, onDurationChanged: @escaping (Double) -> Void) {
         self.step = step
         self.index = index
+        self.isEditing = isEditing
         self.onPaceChanged = onPaceChanged
         self.onDurationChanged = onDurationChanged
 
         // Initialize editable values
         _editedPace = State(initialValue: step.targetPace ?? "")
         _editedDuration = State(initialValue: Self.formatGoalValue(step.goal))
+
+        // Initialize pace picker values
+        if let pace = step.targetPace {
+            let components = pace.split(separator: ":")
+            if components.count == 2,
+               let min = Int(components[0]),
+               let sec = Int(components[1]) {
+                _paceMinutes = State(initialValue: min)
+                _paceSeconds = State(initialValue: sec)
+            }
+        }
+
+        // Initialize duration picker values
+        let minutes = Int(step.goal.value / 60)
+        let seconds = Int(step.goal.value.truncatingRemainder(dividingBy: 60))
+        _durationMinutes = State(initialValue: minutes)
+        _durationSeconds = State(initialValue: seconds)
     }
 
     var body: some View {
@@ -763,20 +893,23 @@ struct EditableWorkoutStepRow: View {
 
                 Spacer()
 
-                // Goal (editable for duration)
-                if step.goal.type == .duration {
-                    HStack(spacing: 4) {
-                        TextField("MM:SS", text: $editedDuration)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .frame(width: 50)
-                            .multilineTextAlignment(.trailing)
-                            .textFieldStyle(.plain)
-                            .onChange(of: editedDuration) { oldValue, newValue in
-                                if let seconds = Self.parseDuration(newValue) {
-                                    onDurationChanged(seconds)
-                                }
-                            }
+                // Goal (editable for duration in edit mode)
+                if isEditing && step.goal.type == .duration {
+                    Button(action: {
+                        showDurationPicker = true
+                    }) {
+                        HStack(spacing: 2) {
+                            Text("\(durationMinutes):\(String(format: "%02d", durationSeconds))")
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray5))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                 } else {
                     Text(goalText(step.goal))
@@ -785,30 +918,52 @@ struct EditableWorkoutStepRow: View {
                 }
             }
 
-            // Editable Pace
-            HStack(spacing: 4) {
-                Image(systemName: "speedometer")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                TextField("MM:SS/km", text: $editedPace)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: 80)
-                    .textFieldStyle(.plain)
-                    .onChange(of: editedPace) { oldValue, newValue in
-                        // Validate pace format (e.g., "7:00" or "7:30")
-                        let cleaned = newValue.replacingOccurrences(of: "/km", with: "").trimmingCharacters(in: .whitespaces)
-                        if cleaned.isEmpty {
-                            onPaceChanged(nil)
-                        } else if Self.isValidPaceFormat(cleaned) {
-                            onPaceChanged(cleaned)
-                        }
-                    }
-            }
+            // Pace and Heart Rate Zone on same line
+            HStack(spacing: 12) {
+                // Pace (editable in edit mode)
+                HStack(spacing: 4) {
+                    Image(systemName: "speedometer")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
 
-            // Heart Rate Zone (read-only)
-            if let hrZone = step.targetHeartRateZone {
-                DetailRow(icon: "heart.fill", text: "Zone \(hrZone)")
+                    if isEditing {
+                        Button(action: {
+                            showPacePicker = true
+                        }) {
+                            HStack(spacing: 2) {
+                                Text("\(paceMinutes):\(String(format: "%02d", paceSeconds))")
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                Text(String(localized: "/km", comment: "Pace unit suffix"))
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(.systemGray5))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                    } else {
+                        Text(step.targetPace != nil ? "\(step.targetPace!)\(String(localized: "/km", comment: "Pace unit suffix"))" : "-")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // Heart Rate Zone (read-only)
+                if let hrZone = step.targetHeartRateZone {
+                    HStack(spacing: 4) {
+                        Image(systemName: "heart.fill")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text("\(String(localized: "Zone", comment: "Heart rate zone prefix")) \(hrZone)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
 
             // Instructions
@@ -820,8 +975,38 @@ struct EditableWorkoutStepRow: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background {
+            if isEditing {
+                Color(.systemGray6)
+            } else {
+                Color.clear.background(.ultraThinMaterial)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(isPresented: $showPacePicker) {
+            PacePickerView(
+                minutes: $paceMinutes,
+                seconds: $paceSeconds,
+                onSave: {
+                    let pace = "\(paceMinutes):\(String(format: "%02d", paceSeconds))"
+                    onPaceChanged(pace)
+                    showPacePicker = false
+                }
+            )
+            .presentationDetents([.height(300)])
+        }
+        .sheet(isPresented: $showDurationPicker) {
+            DurationPickerView(
+                minutes: $durationMinutes,
+                seconds: $durationSeconds,
+                onSave: {
+                    let totalSeconds = Double(durationMinutes * 60 + durationSeconds)
+                    onDurationChanged(totalSeconds)
+                    showDurationPicker = false
+                }
+            )
+            .presentationDetents([.height(300)])
+        }
     }
 
     private func colorForStepType(_ type: WorkoutStep.StepType) -> Color {
@@ -882,6 +1067,116 @@ struct EditableWorkoutStepRow: View {
             return false
         }
         return true
+    }
+}
+
+// MARK: - Pace Picker View
+
+struct PacePickerView: View {
+    @Binding var minutes: Int
+    @Binding var seconds: Int
+    let onSave: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                HStack(spacing: 0) {
+                    // Minutes picker
+                    Picker("", selection: $minutes) {
+                        ForEach(0..<60, id: \.self) { minute in
+                            Text("\(minute)")
+                                .tag(minute)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+
+                    Text(":")
+                        .font(.title)
+                        .fontWeight(.semibold)
+
+                    // Seconds picker
+                    Picker("", selection: $seconds) {
+                        ForEach(0..<60, id: \.self) { second in
+                            Text(String(format: "%02d", second))
+                                .tag(second)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+
+                    Text(String(localized: "/km", comment: "Pace unit suffix"))
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 8)
+                }
+                .padding()
+            }
+            .navigationTitle(String(localized: "Pace", comment: "Pace picker title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "Done", comment: "Done button")) {
+                        onSave()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Duration Picker View
+
+struct DurationPickerView: View {
+    @Binding var minutes: Int
+    @Binding var seconds: Int
+    let onSave: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                HStack(spacing: 0) {
+                    // Minutes picker
+                    Picker("", selection: $minutes) {
+                        ForEach(0..<60, id: \.self) { minute in
+                            Text("\(minute)")
+                                .tag(minute)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+
+                    Text(String(localized: "min", comment: "Minutes abbreviation"))
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    // Seconds picker
+                    Picker("", selection: $seconds) {
+                        ForEach(0..<60, id: \.self) { second in
+                            Text(String(format: "%02d", second))
+                                .tag(second)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+
+                    Text(String(localized: "sec", comment: "Seconds abbreviation"))
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                        .padding(.trailing, 8)
+                }
+                .padding()
+            }
+            .navigationTitle(String(localized: "Duration", comment: "Duration picker title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "Done", comment: "Done button")) {
+                        onSave()
+                    }
+                }
+            }
+        }
     }
 }
 

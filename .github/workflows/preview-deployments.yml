@@ -110,13 +110,28 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Generate preview alias
+        id: generate-alias
+        run: |
+          # Generate valid preview alias from branch name
+          # Rules: lowercase, alphanumeric + dashes, must start with letter, max 63 chars with worker name
+          BRANCH_NAME="${{ github.head_ref }}"
+          # Convert to lowercase, replace non-alphanumeric with dash, remove leading/trailing dashes
+          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | sed 's/-*$//' | cut -c1-30)
+          # Ensure it starts with a letter
+          if ! [[ $ALIAS =~ ^[a-z] ]]; then
+            ALIAS="pr-$ALIAS"
+          fi
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+          echo "Generated alias: $ALIAS"
+
       - name: Deploy to Cloudflare Workers (Preview)
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env preview
+          command: versions upload --preview-alias ${{ steps.generate-alias.outputs.alias }}
           workingDirectory: backend
         env:
           NODE_ENV: preview
@@ -124,12 +139,14 @@ jobs:
       - name: Extract deployment URL
         id: extract-url
         run: |
-          # Cloudflare Workers preview URL - using the worker name from wrangler.toml
-          # The actual subdomain will be based on your Cloudflare account
-          # Format: https://insightrun-backend-preview.<subdomain>.workers.dev
-          # We'll provide a link to the dashboard since the exact URL depends on account config
-          echo "url=https://dash.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/services/view/insightrun-backend-preview/production" >> $GITHUB_OUTPUT
-          echo "Dashboard URL for preview worker"
+          # Preview URL format: <ALIAS>-<WORKER_NAME>.<SUBDOMAIN>.workers.dev
+          ALIAS="${{ steps.generate-alias.outputs.alias }}"
+          # Note: The exact subdomain depends on your Cloudflare account
+          # This is a best-effort URL construction
+          PREVIEW_URL="https://${ALIAS}-insightrun-backend.workers.dev"
+          echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "Preview URL: $PREVIEW_URL"
+          echo "Note: If URL doesn't work, check Cloudflare dashboard for actual subdomain"
 
   # Comment on PR with preview URLs
   comment:

@@ -89,14 +89,11 @@ jobs:
       - name: Extract deployment URL
         id: extract-url
         run: |
-          # Preview URL format: <ALIAS>-<WORKER_NAME>.<SUBDOMAIN>.workers.dev
+          # Preview URL format: <ALIAS>-<WORKER_NAME>.mbenaissa.workers.dev
           ALIAS="${{ steps.generate-alias.outputs.alias }}"
-          # Note: The exact subdomain depends on your Cloudflare account
-          # This is a best-effort URL construction
-          PREVIEW_URL="https://${ALIAS}-insightrun-landing.workers.dev"
+          PREVIEW_URL="https://${ALIAS}-insightrun-landing.mbenaissa.workers.dev"
           echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $PREVIEW_URL"
-          echo "Note: If URL doesn't work, check Cloudflare dashboard for actual subdomain"
 
   # Deploy backend preview to Cloudflare Workers
   preview_backend:
@@ -157,14 +154,11 @@ jobs:
       - name: Extract deployment URL
         id: extract-url
         run: |
-          # Preview URL format: <ALIAS>-<WORKER_NAME>.<SUBDOMAIN>.workers.dev
+          # Preview URL format: <ALIAS>-<WORKER_NAME>.mbenaissa.workers.dev
           ALIAS="${{ steps.generate-alias.outputs.alias }}"
-          # Note: The exact subdomain depends on your Cloudflare account
-          # This is a best-effort URL construction
-          PREVIEW_URL="https://${ALIAS}-insightrun-backend.workers.dev"
+          PREVIEW_URL="https://${ALIAS}-insightrun-backend.mbenaissa.workers.dev"
           echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $PREVIEW_URL"
-          echo "Note: If URL doesn't work, check Cloudflare dashboard for actual subdomain"
 
   # Comment on PR with preview URLs
   comment:

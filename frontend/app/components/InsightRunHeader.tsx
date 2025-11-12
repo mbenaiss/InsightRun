@@ -40,13 +40,14 @@ export default function InsightRunHeader() {
 
             {/* CTA Button */}
             <div className="flex items-center gap-4">
-              <button
-                type="button"
-                disabled
-                className="px-6 py-2 bg-slate-700 text-gray-400 rounded-lg font-medium text-sm cursor-not-allowed"
+              <a
+                href="https://apps.apple.com/us/app/insight-run/id6754607965"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-2 bg-gradient-to-r from-[#0094FF] to-[#64B0FF] text-white rounded-lg font-medium text-sm hover:opacity-90 transition-all"
               >
-                Coming Soon
-              </button>
+                Download
+              </a>
             </div>
           </div>
         </div>

@@ -66,7 +66,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .open-next/worker --project-name=insightrun-frontend --branch=${{ github.head_ref }}
+          command: pages deploy .open-next/worker --project-name=insightrun-landing --branch=${{ github.head_ref }}
           workingDirectory: frontend
 
       - name: Extract deployment URL
@@ -76,7 +76,7 @@ jobs:
           BRANCH_NAME="${{ github.head_ref }}"
           # Replace special characters for URL-safe branch name
           SAFE_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '-' | tr '_' '-' | tr '[:upper:]' '[:lower:]')
-          PREVIEW_URL="https://${SAFE_BRANCH}.insightrun-frontend.pages.dev"
+          PREVIEW_URL="https://${SAFE_BRANCH}.insightrun-landing.pages.dev"
           echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $PREVIEW_URL"
 

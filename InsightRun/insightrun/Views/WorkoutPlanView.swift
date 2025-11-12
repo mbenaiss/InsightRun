@@ -20,6 +20,10 @@ class WorkoutPlanViewModel: ObservableObject {
     private let workoutKitManager = WorkoutKitManager.shared
     private let healthKitManager = HealthKitManager.shared
 
+    // Smart suggestion state
+    @Published var isGeneratingSmartSuggestion = false
+    @Published var smartSuggestionError: String?
+
     // Sample prompts
     let samplePrompts = [
         String(localized: "10x400m speed intervals", comment: "Sample workout prompt"),
@@ -241,6 +245,131 @@ class WorkoutPlanViewModel: ObservableObject {
             errorMessage: self.error ?? "Unknown error"
         )
     }
+
+    // MARK: - Smart Suggestion
+
+    func generateSmartSuggestion() async {
+        isGeneratingSmartSuggestion = true
+        smartSuggestionError = nil
+
+        do {
+            // 1. Load last 10 workouts with metrics (same as WorkoutListView)
+            let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 10)
+
+            print("📊 WorkoutPlanView: Loading metrics for \(recentWorkouts.count) workouts for smart suggestion")
+
+            // 2. Load metrics in parallel (same logic as WorkoutListView)
+            var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
+            await withTaskGroup(of: (UUID, WorkoutMetrics?).self) { group in
+                for workout in recentWorkouts {
+                    group.addTask {
+                        do {
+                            let metrics = try await HealthKitManager.shared.fetchWorkoutMetrics(for: workout)
+                            return (workout.id, metrics)
+                        } catch {
+                            print("Error loading metrics for workout \(workout.id): \(error)")
+                            return (workout.id, nil)
+                        }
+                    }
+                }
+
+                for await (id, metrics) in group {
+                    if let metrics = metrics {
+                        workoutsMetrics[id] = metrics
+                    }
+                }
+            }
+
+            // 3. Build ChatRequestV2 payload (reuse WorkoutAIService logic)
+            let historicalSummary = HistoricalSummaryStorage.shared.load()
+
+            let totalDistance = recentWorkouts.compactMap { $0.distance }.reduce(0, +)
+            let totalDuration = recentWorkouts.map { $0.duration }.reduce(0, +)
+            let totalCalories = recentWorkouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
+            let avgPace = calculateAveragePace(workouts: recentWorkouts) ?? 0
+
+            let recentWorkoutsData = RecentWorkoutsData(
+                workouts: recentWorkouts.map { workout in
+                    convertToWorkoutData(workout: workout, metrics: workoutsMetrics[workout.id])
+                },
+                totalDistance: totalDistance,
+                totalDuration: totalDuration,
+                totalCalories: totalCalories,
+                avgPace: avgPace,
+                weeklyVolumeChange: nil,
+                daysSinceLastWorkout: nil
+            )
+
+            let language = Locale.current.language.languageCode?.identifier ?? "en"
+
+            // 4. Call smart suggestion endpoint with ChatRequestV2 payload
+            let response = try await backendClient.generateSmartWorkoutSuggestion(
+                recentWorkoutsData: recentWorkoutsData,
+                historicalSummary: historicalSummary?.summary,
+                language: language
+            )
+
+            // 5. Fill the prompt text field with the suggestion
+            promptText = response.suggestion
+
+            print("✅ Smart suggestion generated: \(response.suggestion)")
+
+        } catch let backendError as BackendError {
+            smartSuggestionError = backendError.localizedDescription
+            print("❌ Smart suggestion error: \(backendError)")
+        } catch {
+            smartSuggestionError = error.localizedDescription
+            print("❌ Smart suggestion error: \(error)")
+        }
+
+        isGeneratingSmartSuggestion = false
+    }
+
+    private func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
+        let heartRateData: HeartRateData?
+        if let avgHR = metrics?.averageHeartRate {
+            heartRateData = HeartRateData(
+                avg: Int(avgHR),
+                min: metrics?.minHeartRate.map { Int($0) },
+                max: metrics?.maxHeartRate.map { Int($0) }
+            )
+        } else {
+            heartRateData = nil
+        }
+
+        let splits: [SplitData]?
+        if let metricsArray = metrics?.splits {
+            splits = metricsArray.map { split in
+                SplitData(
+                    kilometer: split.kilometer,
+                    pace: split.paceFormatted,
+                    time: split.timeFormatted
+                )
+            }
+        } else {
+            splits = nil
+        }
+
+        return WorkoutData(
+            date: workout.startDate.ISO8601Format(),
+            duration: workout.duration,
+            distance: workout.distance ?? 0,
+            calories: workout.totalEnergyBurned,
+            pace: workout.averagePace,
+            speed: workout.averageSpeed,
+            heartRate: heartRateData,
+            minPace: metrics?.minPace,
+            cadence: metrics?.averageCadence.map { Int($0) },
+            strideLength: metrics?.strideLength,
+            runningPower: metrics?.runningPower.map { Int($0) },
+            vo2Max: metrics?.vo2Max,
+            elevationGain: metrics?.totalElevationAscent,
+            groundContactTime: metrics?.groundContactTime.map { Int($0) },
+            verticalOscillation: metrics?.verticalOscillation,
+            mobility: nil,
+            splits: splits
+        )
+    }
 }
 
 struct WorkoutPlanView: View {
@@ -280,6 +409,11 @@ struct WorkoutPlanView: View {
                         }
                     }
                     .padding()
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .onTapGesture {
+                    // Dismiss keyboard when tapping outside
+                    isTextFieldFocused = false
                 }
             }
             .navigationTitle(String(localized: "Workout Plan", comment: "Workout plan screen title"))
@@ -430,6 +564,10 @@ struct WorkoutPlanView: View {
 
                 TextField(String(localized: "E.g., '10x400m speed intervals'", comment: "Prompt placeholder"), text: $viewModel.promptText, axis: .vertical)
                     .focused($isTextFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        isTextFieldFocused = false
+                    }
                     .padding()
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -444,6 +582,87 @@ struct WorkoutPlanView: View {
                         .foregroundColor(.secondary)
                         .textCase(.uppercase)
 
+                    // AI-Powered Smart Suggestion (NEW)
+                    Button(action: {
+                        Task {
+                            await viewModel.generateSmartSuggestion()
+                        }
+                    }) {
+                        HStack {
+                            // Sparkles icon with gradient
+                            Image(systemName: "sparkles")
+                                .font(.caption)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .cyan],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+
+                            if viewModel.isGeneratingSmartSuggestion {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                Text(String(localized: "Generating suggestion...", comment: "AI suggestion loading"))
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                            } else {
+                                Text(String(localized: "Suggest a workout based on my history", comment: "AI suggestion prompt"))
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                            }
+
+                            Spacer()
+
+                            if !viewModel.isGeneratingSmartSuggestion {
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(12)
+                        .background(
+                            // Gradient background to differentiate
+                            LinearGradient(
+                                colors: [
+                                    Color.blue.opacity(0.08),
+                                    Color.cyan.opacity(0.08)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            .overlay(.ultraThinMaterial)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [.blue.opacity(0.3), .cyan.opacity(0.3)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(viewModel.isGeneratingSmartSuggestion)
+
+                    // Error display for smart suggestion
+                    if let error = viewModel.smartSuggestionError {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                    }
+
+                    // Regular sample prompts
                     ForEach(viewModel.samplePrompts, id: \.self) { sample in
                         Button(action: {
                             viewModel.promptText = sample
@@ -560,12 +779,7 @@ struct WorkoutPlanView: View {
 
             // Scrollable Steps List
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    // Visual Representation
-                    if workout.steps.count <= 15 {
-                        WorkoutVisualization(workout: workout)
-                    }
-
+                VStack(alignment: .leading, spacing: 16) {
                     // Steps List
                     Text(String(localized: "Workout Steps", comment: "Steps section title"))
                         .font(.headline)
@@ -588,48 +802,43 @@ struct WorkoutPlanView: View {
                             }
                         )
                     }
-                }
-                .padding(.bottom, 100) // Space for button
-            }
 
-            // Error Display
-            if let error = viewModel.error {
-                errorView(error)
-                    .padding(.horizontal)
-            }
-
-            // Export Button (pinned to bottom)
-            VStack {
-                Divider()
-                Button(action: {
-                    Task {
-                        await viewModel.exportToFitness()
+                    // Error Display
+                    if let error = viewModel.error {
+                        errorView(error)
                     }
-                }) {
-                    HStack {
-                        if WorkoutKitManager.shared.isExporting {
-                            ProgressView()
-                                .tint(.white)
-                            Text(String(localized: "Exporting...", comment: "Exporting button text"))
-                        } else {
-                            Image(systemName: "applewatch")
-                            Text(String(localized: "Export to Fitness App", comment: "Export button text"))
+
+                    // Export Button
+                    Button(action: {
+                        Task {
+                            await viewModel.exportToFitness()
                         }
+                    }) {
+                        HStack {
+                            if WorkoutKitManager.shared.isExporting {
+                                ProgressView()
+                                    .tint(.white)
+                                Text(String(localized: "Exporting...", comment: "Exporting button text"))
+                            } else {
+                                Image(systemName: "applewatch")
+                                Text(String(localized: "Export to Fitness App", comment: "Export button text"))
+                            }
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
                     }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
+                    .disabled(WorkoutKitManager.shared.isExporting || isEditing)
+                    .padding(.top, 8)
                 }
-                .disabled(WorkoutKitManager.shared.isExporting || isEditing)
-                .padding()
+                .padding(.bottom, 16)
             }
-            .background(.ultraThinMaterial)
         }
     }
 

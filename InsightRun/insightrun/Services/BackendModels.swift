@@ -189,3 +189,9 @@ struct WorkoutGenerationResponse: Decodable {
         let attempts: Int
     }
 }
+
+// MARK: - Smart Workout Suggestion Response
+
+struct SmartSuggestionResponse: Decodable {
+    let suggestion: String
+}

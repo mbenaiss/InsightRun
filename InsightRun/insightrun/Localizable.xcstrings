@@ -1879,6 +1879,23 @@
         }
       }
     },
+    "Generating suggestion..." : {
+      "comment" : "AI suggestion loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generating suggestion..."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Génération de la suggestion..."
+          }
+        }
+      }
+    },
     "Get detailed analysis of your performance" : {
       "comment" : "AI analysis prompt",
       "extractionState" : "manual",
@@ -6357,6 +6374,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abonnement"
+          }
+        }
+      }
+    },
+    "Suggest a workout based on my history" : {
+      "comment" : "AI suggestion prompt",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggest a workout based on my history"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggérer un entraînement basé sur mon historique"
           }
         }
       }

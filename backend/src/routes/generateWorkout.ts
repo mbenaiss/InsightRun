@@ -234,11 +234,11 @@ app.post('/', async (c) => {
       )
     }
 
-    if (body.userQuestion.length > 500) {
+    if (body.userQuestion.length > 2000) {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'User question too long (max 500 characters)',
+          message: 'User question too long (max 2000 characters)',
         },
         400
       )

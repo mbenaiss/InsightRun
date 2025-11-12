@@ -30,7 +30,7 @@ jobs:
             backend:
               - 'backend/**'
 
-  # Deploy frontend preview to Cloudflare Pages
+  # Deploy frontend preview to Cloudflare Workers
   preview_frontend:
     name: Deploy Frontend Preview
     needs: changes
@@ -54,31 +54,49 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build for Cloudflare Pages
+      - name: Build for Cloudflare Workers
         run: bun run pages:build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
           NEXT_PUBLIC_ENV: preview
 
-      - name: Deploy to Cloudflare Pages
+      - name: Generate preview alias
+        id: generate-alias
+        run: |
+          # Generate valid preview alias from branch name
+          # Rules: lowercase, alphanumeric + dashes, must start with letter, max 63 chars with worker name
+          BRANCH_NAME="${{ github.head_ref }}"
+          # Convert to lowercase, replace non-alphanumeric with dash, remove leading/trailing dashes
+          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | sed 's/-*$//' | cut -c1-30)
+          # Ensure it starts with a letter
+          if ! [[ $ALIAS =~ ^[a-z] ]]; then
+            ALIAS="pr-$ALIAS"
+          fi
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+          echo "Generated alias: $ALIAS"
+
+      - name: Deploy to Cloudflare Workers (Preview)
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .open-next/worker --project-name=insightrun-landing --branch=${{ github.head_ref }}
+          command: versions upload --preview-alias ${{ steps.generate-alias.outputs.alias }}
           workingDirectory: frontend
+        env:
+          NODE_ENV: preview
 
       - name: Extract deployment URL
         id: extract-url
         run: |
-          # Cloudflare Pages preview URL format: https://<branch>.<project>.pages.dev
-          BRANCH_NAME="${{ github.head_ref }}"
-          # Replace special characters for URL-safe branch name
-          SAFE_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '-' | tr '_' '-' | tr '[:upper:]' '[:lower:]')
-          PREVIEW_URL="https://${SAFE_BRANCH}.insightrun-landing.pages.dev"
+          # Preview URL format: <ALIAS>-<WORKER_NAME>.<SUBDOMAIN>.workers.dev
+          ALIAS="${{ steps.generate-alias.outputs.alias }}"
+          # Note: The exact subdomain depends on your Cloudflare account
+          # This is a best-effort URL construction
+          PREVIEW_URL="https://${ALIAS}-insightrun-landing.workers.dev"
           echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $PREVIEW_URL"
+          echo "Note: If URL doesn't work, check Cloudflare dashboard for actual subdomain"
 
   # Deploy backend preview to Cloudflare Workers
   preview_backend:

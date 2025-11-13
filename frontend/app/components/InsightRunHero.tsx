@@ -27,7 +27,7 @@ export default function InsightRunHero() {
               recovery, and achieve your goals with insights from the world's most advanced AI.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center lg:justify-start">
+            <div className="flex justify-center lg:justify-start pt-4">
               <a
                 href="https://apps.apple.com/us/app/insight-run/id6754607965"
                 target="_blank"
@@ -41,13 +41,6 @@ export default function InsightRunHero() {
                   height={53}
                   className="h-[53px] w-auto"
                 />
-              </a>
-
-              <a
-                href="/privacy"
-                className="px-8 py-4 border-2 border-white/20 text-white rounded-2xl font-semibold text-lg inline-flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/40 transition-all"
-              >
-                Privacy Policy
               </a>
             </div>
           </div>

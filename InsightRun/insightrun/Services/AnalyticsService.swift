@@ -173,6 +173,16 @@ final class AnalyticsService {
         ])
     }
 
+    func trackWorkoutExported() {
+        track(.workoutExported)
+    }
+
+    func trackWorkoutExportFailed(errorMessage: String) {
+        track(.workoutExportFailed, properties: [
+            "error_message": errorMessage
+        ])
+    }
+
     // MARK: - AI Assistant Events
 
     func trackAIChatOpened() {
@@ -383,6 +393,13 @@ enum AnalyticsEvent: String {
     case subscriptionPurchaseFailed = "subscription_purchase_failed"
     case subscriptionCancelled = "subscription_cancelled"
     case subscriptionRenewed = "subscription_renewed"
+
+    // Workout Generation
+    case workoutGenerationRequested = "workout_generation_requested"
+    case workoutGenerated = "workout_generated"
+    case workoutGenerationFailed = "workout_generation_failed"
+    case workoutExported = "workout_exported"
+    case workoutExportFailed = "workout_export_failed"
 }
 
 // MARK: - Supporting Types

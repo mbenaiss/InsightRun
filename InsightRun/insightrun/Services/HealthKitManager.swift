@@ -155,6 +155,86 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    /// Fetch recent workouts with a limit
+    func fetchWorkouts(limit: Int) async -> [WorkoutModel] {
+        let workoutType = HKObjectType.workoutType()
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+
+        do {
+            return try await withCheckedThrowingContinuation { continuation in
+                let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+
+                let query = HKSampleQuery(
+                    sampleType: workoutType,
+                    predicate: runningPredicate,
+                    limit: limit,
+                    sortDescriptors: [sortDescriptor]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: HealthKitError.queryFailed(error))
+                        return
+                    }
+
+                    guard let workouts = samples as? [HKWorkout] else {
+                        continuation.resume(returning: [])
+                        return
+                    }
+
+                    let workoutModels = workouts.map { WorkoutModel(from: $0) }
+                    continuation.resume(returning: workoutModels)
+                }
+
+                healthStore.execute(query)
+            }
+        } catch {
+            return []
+        }
+    }
+
+    /// Fetch latest VO2 Max value
+    func fetchLatestVO2Max() async -> Double? {
+        guard let vo2MaxType = HKQuantityType.quantityType(forIdentifier: .vo2Max) else {
+            return nil
+        }
+
+        // Query VO2Max from the last 30 days
+        let endDate = Date()
+        let startDate = Calendar.current.date(byAdding: .day, value: -30, to: endDate) ?? endDate
+
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+
+        do {
+            return try await withCheckedThrowingContinuation { continuation in
+                let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+                let query = HKSampleQuery(
+                    sampleType: vo2MaxType,
+                    predicate: predicate,
+                    limit: 1,
+                    sortDescriptors: [sortDescriptor]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: HealthKitError.queryFailed(error))
+                        return
+                    }
+
+                    if let sample = samples?.first as? HKQuantitySample {
+                        let vo2Max = sample.quantity.doubleValue(
+                            for: HKUnit.literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute()))
+                        )
+                        continuation.resume(returning: vo2Max)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
+                }
+
+                healthStore.execute(query)
+            }
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Fetch Workout Details
 
     func fetchWorkoutMetrics(for workoutModel: WorkoutModel) async throws -> WorkoutMetrics {

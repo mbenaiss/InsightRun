@@ -30,12 +30,6 @@ export default function InsightRunHeader() {
               >
                 Features
               </a>
-              <Link
-                href="/privacy"
-                className="text-gray-300 hover:text-blue-400 font-medium transition-colors"
-              >
-                Privacy
-              </Link>
             </nav>
 
             {/* CTA Button */}

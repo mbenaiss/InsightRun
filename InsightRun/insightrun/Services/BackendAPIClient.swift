@@ -329,6 +329,116 @@ class BackendAPIClient {
         )
     }
 
+    // MARK: - Workout Generation
+
+    /// Generate a custom workout using AI
+    func generateWorkout(userQuestion: String, language: String, userContext: WorkoutGenerationRequest.UserContext?, model: String? = nil) async throws -> WorkoutGenerationResponse {
+        let url = URL(string: "\(baseURL)/api/generate-workout")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60 // Increased timeout for AI generation (parsing + generation)
+
+        let requestBody = WorkoutGenerationRequest(
+            userQuestion: userQuestion,
+            language: language,
+            userContext: userContext,
+            model: model
+        )
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(requestBody)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        do {
+            let workoutResponse = try decoder.decode(WorkoutGenerationResponse.self, from: data)
+            return workoutResponse
+        } catch {
+            throw BackendError.invalidResponse
+        }
+    }
+
+    /// Generate a smart workout suggestion based on recent workout history
+    /// Uses ChatRequestV2 payload like /api/chat/v2
+    func generateSmartWorkoutSuggestion(recentWorkoutsData: RecentWorkoutsData, historicalSummary: String?, language: String) async throws -> SmartSuggestionResponse {
+        let url = URL(string: "\(baseURL)/api/workout/smart-suggestion")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+
+        // Build ChatRequestV2 payload (same structure as WorkoutAIService)
+        let chatData = ChatDataPayload(
+            workout: nil,
+            recovery: nil,
+            profile: nil,
+            recentWorkouts: recentWorkoutsData,
+            historicalSummary: historicalSummary
+        )
+
+        let requestBody = ChatRequestV2(
+            promptType: "workout_suggestion",
+            model: "x-ai/grok-4-fast",
+            userQuestion: "Suggest a detailed workout based on my recent training",
+            language: language,
+            data: chatData
+        )
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(requestBody)
+
+        print("✨ BackendAPIClient: Generating smart workout suggestion...")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let suggestionResponse = try decoder.decode(SmartSuggestionResponse.self, from: data)
+
+        print("✅ BackendAPIClient: Smart suggestion generated: \"\(suggestionResponse.suggestion)\"")
+
+        return suggestionResponse
+    }
+
     // MARK: - Configuration
 
     func setBaseURL(_ url: String) {

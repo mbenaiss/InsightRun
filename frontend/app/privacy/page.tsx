@@ -75,15 +75,15 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
                 Your workout data and metrics are sent to our secure backend server for AI analysis
-                via OpenRouter API
+                via third-party AI services
               </li>
               <li>No personally identifiable information (name, email, etc.) is transmitted</li>
               <li>Only anonymized workout metrics are sent to the AI service</li>
               <li>AI responses are not stored on our servers</li>
               <li>All communication is encrypted using HTTPS</li>
               <li>
-                Rate limiting is applied (100 requests per hour per IP) to prevent abuse and ensure
-                fair usage
+                Rate limiting is applied (a limited number of requests per hour) to prevent abuse
+                and ensure fair usage
               </li>
             </ul>
           </section>
@@ -94,10 +94,6 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>All health data is stored exclusively in Apple's HealthKit on your device</li>
               <li>We do not maintain any databases of user health information</li>
-              <li>
-                API keys and sensitive credentials are stored securely using Cloudflare Workers
-                secrets
-              </li>
               <li>All network communications use industry-standard encryption (HTTPS/TLS)</li>
               <li>We implement security best practices following Apple's App Store guidelines</li>
             </ul>
@@ -126,16 +122,20 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
-                <strong>OpenRouter API</strong> - Used to provide AI-powered coaching and analysis.
-                Only anonymized workout metrics are sent.
+                <strong>Third-party AI services</strong> - Used to provide AI-powered coaching and
+                analysis. Only anonymized workout metrics are sent.
               </li>
               <li>
-                <strong>Cloudflare Workers</strong> - Our backend infrastructure that securely
-                handles API requests without storing user data.
+                <strong>Cloud infrastructure services</strong> - Our backend infrastructure that
+                securely handles API requests without storing user data.
               </li>
               <li>
                 <strong>Apple HealthKit</strong> - Native iOS framework for accessing health data
                 with your permission.
+              </li>
+              <li>
+                <strong>Analytics services</strong> - Used to improve app performance and user
+                experience. Only anonymized usage data is collected.
               </li>
             </ul>
             <p className="text-gray-700 mt-4">
@@ -219,10 +219,9 @@ export default function PrivacyPolicy() {
               International Data Transfers
             </h2>
             <p className="text-gray-700">
-              Our backend services (Cloudflare Workers) operate globally. When you use AI features,
-              your anonymized workout data may be processed in different geographic regions. All
-              data transfers are protected by encryption and comply with applicable data protection
-              laws.
+              Our backend services operate globally. When you use AI features, your anonymized
+              workout data may be processed in different geographic regions. All data transfers are
+              protected by encryption and comply with applicable data protection laws.
             </p>
           </section>
 

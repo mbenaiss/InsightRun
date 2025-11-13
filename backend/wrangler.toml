@@ -31,9 +31,6 @@ head_sampling_rate = 1
 invocation_logs = true
 persist = true
 
-[env.production]
-name = "insightrun-backend"
-route = "api.yourapp.com/*"  # À remplacer par ton domaine
-
-[env.development]
-name = "insightrun-backend-dev"
+# Preview URLs - Enabled for automatic version preview generation
+# Preview URLs follow the format: <ALIAS>-insightrun-backend.<subdomain>.workers.dev
+preview_urls = true

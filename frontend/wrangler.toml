@@ -5,3 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 # Cloudflare Workers configuration
 main = ".open-next/worker.js"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
+
+# Preview URLs - Enabled for automatic version preview generation
+# Preview URLs follow the format: <ALIAS>-insightrun-landing.<subdomain>.workers.dev
+preview_urls = true

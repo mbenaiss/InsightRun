@@ -25,6 +25,11 @@ class RevenueCatManager: NSObject, ObservableObject {
     // Cache TestFlight environment status
     private var cachedTestFlightStatus: Bool?
 
+    // Debug override for TestFlight environment (only used in DEBUG builds)
+    #if DEBUG
+    @Published var debugTestFlightOverride: Bool?
+    #endif
+
     override private init() {
         super.init()
         // Load persisted value
@@ -73,7 +78,14 @@ class RevenueCatManager: NSObject, ObservableObject {
 
     /// Synchronous access to TestFlight environment status
     /// Returns cached value, or false if not yet determined
+    /// In DEBUG mode, can be overridden using debugTestFlightOverride
     var isTestFlightEnvironment: Bool {
+        #if DEBUG
+        // Allow debug override to take precedence
+        if let override = debugTestFlightOverride {
+            return override
+        }
+        #endif
         return cachedTestFlightStatus ?? false
     }
 

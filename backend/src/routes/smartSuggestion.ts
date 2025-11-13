@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
-import { createPostHogClient } from '../posthog'
+import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { ChatRequestV2 } from '../types'
+import { estimateTokenCount } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -19,26 +20,6 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 4000 // Increased for full workout generation
 const AI_TEMPERATURE = 0.7
-
-interface WorkoutStep {
-  type: 'warmup' | 'work' | 'recovery' | 'cooldown' | 'interval'
-  goal: {
-    type: 'distance' | 'duration' | 'open'
-    value: number // meters for distance, seconds for duration
-  }
-  targetPace?: string // "4:30" format
-  targetHeartRateZone?: number // 1-5
-  instructions?: string
-}
-
-interface AIGeneratedWorkout {
-  name: string
-  description: string
-  sport: 'running' | 'cycling' | 'swimming'
-  steps: WorkoutStep[]
-  totalDistance?: number // meters
-  estimatedDuration?: number // seconds
-}
 
 function buildSmartSuggestionPrompt(payload: ChatRequestV2): { system: string; user: string } {
   const { data, language } = payload
@@ -201,6 +182,8 @@ app.post('/', async (c) => {
 
     // Get user ID for analytics
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const traceId = crypto.randomUUID()
 
     console.log(
       `✨ Generating smart suggestion for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
@@ -217,54 +200,46 @@ app.post('/', async (c) => {
     )
 
     const generationTime = Date.now() - startTime
+    const latency = generationTime / 1000
 
     console.log(`✅ Smart suggestion generated in ${generationTime}ms (${suggestion.length} chars)`)
 
-    // Track analytics
-    const posthog = createPostHogClient({
-      apiKey: c.env.POSTHOG_API_KEY,
-      host: c.env.POSTHOG_HOST,
-    })
-    posthog.capture({
-      distinctId: userId,
-      event: 'smart_suggestion_generated',
-      properties: {
-        workout_count: body.data.recentWorkouts.workouts.length,
-        total_distance: body.data.recentWorkouts.totalDistance,
-        avg_pace: body.data.recentWorkouts.avgPace,
-        has_historical_summary: !!body.data.historicalSummary,
-        suggestion_length: suggestion.length,
-        generation_time_ms: generationTime,
-        language: body.language,
-        model_used: body.model,
-      },
-    })
-    await posthog.shutdown()
+    // Log to PostHog (optional, async)
+    if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+      const posthog = createPostHogClient({
+        apiKey: c.env.POSTHOG_API_KEY,
+        host: c.env.POSTHOG_HOST,
+      })
+
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
+            const outputTokenCount = estimateTokenCount(suggestion)
+            await captureLLMEvent(posthog, userId, traceId, {
+              model: body.model,
+              input: userPrompt,
+              systemPrompt,
+              output: suggestion,
+              inputTokens: inputTokenCount,
+              outputTokens: outputTokenCount,
+              latency,
+              cost: undefined,
+              ip,
+            })
+            await posthog.shutdown()
+          } catch (error) {
+            console.error('PostHog capture error:', error)
+          }
+        })()
+      )
+    }
 
     return c.json({
       suggestion: suggestion,
     })
   } catch (error) {
-    const generationTime = Date.now() - startTime
-    console.error('❌ Smart suggestion error:', error)
-
-    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
-
-    // Track error
-    const posthog = createPostHogClient({
-      apiKey: c.env.POSTHOG_API_KEY,
-      host: c.env.POSTHOG_HOST,
-    })
-    posthog.capture({
-      distinctId: userId,
-      event: 'smart_suggestion_failed',
-      properties: {
-        error_type: 'generation_error',
-        error_message: error instanceof Error ? error.message : String(error),
-        generation_time_ms: generationTime,
-      },
-    })
-    await posthog.shutdown()
+    console.error('Smart suggestion error:', error)
 
     return c.json(
       {

@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import { createPostHogClient } from '../posthog'
+import { captureLLMEvent, createPostHogClient } from '../posthog'
+import { estimateTokenCount } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -262,6 +263,8 @@ app.post('/', async (c) => {
 
     // Get user ID for analytics
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const traceId = crypto.randomUUID()
 
     // Build prompt
     const { system: systemPrompt, user: userPrompt } = buildWorkoutGenerationPrompt(
@@ -324,29 +327,38 @@ app.post('/', async (c) => {
     }
 
     const generationTime = Date.now() - startTime
+    const latency = generationTime / 1000
 
-    // Track analytics
-    const posthog = createPostHogClient({
-      apiKey: c.env.POSTHOG_API_KEY,
-      host: c.env.POSTHOG_HOST,
-    })
-    posthog.capture({
-      distinctId: userId,
-      event: 'workout_generated',
-      properties: {
-        workout_name: workoutJSON.name,
-        sport: workoutJSON.sport,
-        step_count: workoutJSON.steps.length,
-        total_distance: workoutJSON.totalDistance,
-        estimated_duration: workoutJSON.estimatedDuration,
-        generation_time_ms: generationTime,
-        model_used: model,
-        user_question_length: body.userQuestion.length,
-        language: body.language,
-        attempts: attempts,
-      },
-    })
-    await posthog.shutdown()
+    // Log to PostHog (optional, async)
+    if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+      const posthog = createPostHogClient({
+        apiKey: c.env.POSTHOG_API_KEY,
+        host: c.env.POSTHOG_HOST,
+      })
+
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
+            const outputTokenCount = estimateTokenCount(JSON.stringify(workoutJSON))
+            await captureLLMEvent(posthog, userId, traceId, {
+              model,
+              input: userPrompt,
+              systemPrompt,
+              output: JSON.stringify(workoutJSON),
+              inputTokens: inputTokenCount,
+              outputTokens: outputTokenCount,
+              latency,
+              cost: undefined,
+              ip,
+            })
+            await posthog.shutdown()
+          } catch (error) {
+            console.error('PostHog capture error:', error)
+          }
+        })()
+      )
+    }
 
     console.log(`✅ Workout generated successfully in ${generationTime}ms`)
 
@@ -359,26 +371,7 @@ app.post('/', async (c) => {
       },
     })
   } catch (error) {
-    const generationTime = Date.now() - startTime
-    console.error('❌ Workout generation error:', error)
-
-    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
-
-    // Track error
-    const posthog = createPostHogClient({
-      apiKey: c.env.POSTHOG_API_KEY,
-      host: c.env.POSTHOG_HOST,
-    })
-    posthog.capture({
-      distinctId: userId,
-      event: 'workout_generation_failed',
-      properties: {
-        error_type: 'generation_error',
-        error_message: error instanceof Error ? error.message : String(error),
-        generation_time_ms: generationTime,
-      },
-    })
-    await posthog.shutdown()
+    console.error('Workout generation error:', error)
 
     return c.json(
       {

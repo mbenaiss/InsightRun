@@ -116,6 +116,49 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
             return String(localized: "Interval", comment: "Workout step type: interval")
         }
     }
+
+    // Calculate distance for this step
+    var calculatedDistance: Double {
+        // If goal is already distance, return it
+        if goal.type == .distance {
+            return goal.value
+        }
+
+        // If goal is duration, calculate distance based on pace
+        if goal.type == .duration, let paceStr = targetPace {
+            // Parse pace string (e.g., "5:30" → 5.5 minutes per km)
+            let paceComponents = paceStr.split(separator: ":")
+            guard paceComponents.count == 2,
+                  let minutes = Double(paceComponents[0]),
+                  let seconds = Double(paceComponents[1]) else {
+                return 0
+            }
+
+            let paceMinutesPerKm = minutes + (seconds / 60.0)
+            let durationMinutes = goal.value / 60.0
+
+            // Distance in km = duration / pace
+            let distanceKm = durationMinutes / paceMinutesPerKm
+
+            // Return in meters
+            return distanceKm * 1000.0
+        }
+
+        return 0
+    }
+
+    // Formatted distance for display
+    var distanceFormatted: String? {
+        let distance = calculatedDistance
+        guard distance > 0 else { return nil }
+
+        let km = distance / 1000.0
+        if km >= 1.0 {
+            return String(format: "%.2f km", km)
+        } else {
+            return String(format: "%.0f m", distance)
+        }
+    }
 }
 
 // MARK: - AIGeneratedWorkout
@@ -177,7 +220,8 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         guard steps.allSatisfy({ $0.isValid }) else { return false }
 
         if let distance = totalDistance {
-            guard distance > 0 && distance <= 100_000 else { return false } // Max 100km
+            // Allow 0.0 for duration-based workouts, just check max limit
+            guard distance >= 0 && distance <= 100_000 else { return false } // Max 100km
         }
 
         if let duration = estimatedDuration {
@@ -189,7 +233,8 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
 
     // Display helpers
     var totalDistanceFormatted: String? {
-        guard let distance = totalDistance else { return nil }
+        let distance = calculatedTotalDistance
+        guard distance > 0 else { return nil }
         let km = distance / 1000.0
         return String(format: "%.2f km", km)
     }
@@ -206,17 +251,16 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         }
     }
 
-    // Calculate total distance from steps if not provided
+    // Calculate total distance from steps (including estimated from duration+pace)
     var calculatedTotalDistance: Double {
-        if let total = totalDistance {
+        // If total distance is explicitly provided, use it
+        if let total = totalDistance, total > 0 {
             return total
         }
 
+        // Otherwise, sum up distances from all steps (including calculated ones)
         return steps.reduce(0) { sum, step in
-            if step.goal.type == .distance {
-                return sum + step.goal.value
-            }
-            return sum
+            return sum + step.calculatedDistance
         }
     }
 

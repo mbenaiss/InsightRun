@@ -58,8 +58,22 @@ class WorkoutKitManager: ObservableObject {
 
     /// Convert AIGeneratedWorkout to WorkoutKit CustomWorkout
     func createCustomWorkout(from aiWorkout: AIGeneratedWorkout) throws -> CustomWorkout {
-        // Validate workout
+        // Validate workout with detailed logging
+        print("🔍 WorkoutKitManager: Validating workout '\(aiWorkout.name)'")
+        print("   - Name: '\(aiWorkout.name)' (isEmpty: \(aiWorkout.name.isEmpty))")
+        print("   - Steps count: \(aiWorkout.steps.count) (max: 50)")
+        print("   - Total distance: \(aiWorkout.totalDistance ?? 0)m")
+        print("   - Estimated duration: \(aiWorkout.estimatedDuration ?? 0)s")
+
+        for (index, step) in aiWorkout.steps.enumerated() {
+            print("   - Step \(index + 1): type=\(step.type.rawValue), goal=\(step.goal.type.rawValue)(\(step.goal.value)), isValid=\(step.isValid)")
+            if !step.isValid {
+                print("      ⚠️ Invalid step: goalValid=\(step.goal.isValid), hrZone=\(step.targetHeartRateZone ?? -1)")
+            }
+        }
+
         guard aiWorkout.isValid else {
+            print("❌ WorkoutKitManager: Workout validation failed")
             throw WorkoutKitError.invalidWorkout
         }
 

@@ -17,8 +17,28 @@ type Variables = {
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const MAX_TOKENS = 1000 // Allow detailed suggestions
+const MAX_TOKENS = 4000 // Increased for full workout generation
 const AI_TEMPERATURE = 0.7
+
+interface WorkoutStep {
+  type: 'warmup' | 'work' | 'recovery' | 'cooldown' | 'interval'
+  goal: {
+    type: 'distance' | 'duration' | 'open'
+    value: number // meters for distance, seconds for duration
+  }
+  targetPace?: string // "4:30" format
+  targetHeartRateZone?: number // 1-5
+  instructions?: string
+}
+
+interface AIGeneratedWorkout {
+  name: string
+  description: string
+  sport: 'running' | 'cycling' | 'swimming'
+  steps: WorkoutStep[]
+  totalDistance?: number // meters
+  estimatedDuration?: number // seconds
+}
 
 function buildSmartSuggestionPrompt(payload: ChatRequestV2): { system: string; user: string } {
   const { data, language } = payload
@@ -74,30 +94,33 @@ OUTPUT FORMAT (strict):
 
 - [Phase]: [duration] at [exact pace]
 - [Phase]: [duration] at [exact pace]
+- [Phase]: [duration] at [exact pace]
 ...
 
 EXAMPLE:
-"Threshold Development Run
+"Séance de Récupération Active avec Tempo Léger
 
-- Warm-up: 10 min at 6:00/km
-- Tempo 1: 12 min at 5:30/km
-- Recovery: 3 min at 6:15/km
-- Tempo 2: 10 min at 5:25/km
-- Cool-down: 10 min at 6:00/km"
+- Échauffement : 10 min à 6:39/km
+- Endurance facile : 20 min à 6:54/km
+- Tempo modéré : 12 min à 6:14/km
+- Récupération : 5 min à 6:54/km
+- Retour au calme : 10 min à 6:39/km"
 
 STRICT RULES:
-- Title + blocks ONLY (NO explanations, NO descriptions, NO markdown)
-- Each block = ONE exact pace (e.g., "8 min at 5:42/km")
-- NO ranges/progressive (FORBIDDEN: "5:15→4:30/km")
+- Title + phases format (clear, detailed, editable by user)
+- Each phase MUST have exact duration (min or km) + exact pace
+- NO ranges/progressive paces (FORBIDDEN: "5:15→4:30/km")
 - Calculate paces from runner's ${avgPaceFormatted} avg:
-  * Easy: +15-30 sec/km slower
+  * Easy/Recovery: +15-30 sec/km slower
+  * Endurance: +0-15 sec/km
   * Tempo: -10 to -20 sec/km faster
-  * Speed: -30 to -45 sec/km faster
-- Adapt blocks to runner's current fitness (use actual data)
-- NO generic tips (hydration/monitoring/equipment/purpose)
+  * Speed intervals: -30 to -45 sec/km faster
+- Adapt to runner's current fitness, fatigue, and recent training
+- Use appropriate phase names: Échauffement, Endurance, Tempo, Intervalles, Récupération, Retour au calme
 - Language: ${language}
+- Total workout should be 40-90 minutes based on runner's recent volume
 
-OUTPUT: Title + blank line + blocks. NOTHING ELSE.`
+OUTPUT: Title + blank line + phases list. User will edit this before generating the structured workout.`
 
   const userPrompt = `Based on my recent training history, suggest a detailed workout for my next run.`
 

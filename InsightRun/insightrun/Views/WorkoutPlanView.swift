@@ -14,6 +14,7 @@ class WorkoutPlanViewModel: ObservableObject {
     @Published var isGenerating = false
     @Published var generatedWorkout: AIGeneratedWorkout?
     @Published var error: String?
+    @Published var showSuccessAlert = false
     @Published var showPreview = false
 
     private let backendClient = BackendAPIClient.shared
@@ -23,6 +24,9 @@ class WorkoutPlanViewModel: ObservableObject {
     // Smart suggestion state
     @Published var isGeneratingSmartSuggestion = false
     @Published var smartSuggestionError: String?
+
+    // Subscription state
+    @Published var showSubscriptionPaywall = false
 
     // Sample prompts
     let samplePrompts = [
@@ -38,6 +42,7 @@ class WorkoutPlanViewModel: ObservableObject {
 
         isGenerating = true
         error = nil
+        showSuccessAlert = false
         generatedWorkout = nil
 
         // Track generation requested
@@ -49,13 +54,13 @@ class WorkoutPlanViewModel: ObservableObject {
         let startTime = Date()
 
         do {
-            // Get user context from HealthKit
-            let userContext = await buildUserContext()
+            // Get enriched user context from HealthKit
+            let userContext = await buildEnrichedUserContext()
 
             // Get user language
             let language = Locale.current.language.languageCode?.identifier ?? "en"
 
-            // Call backend
+            // Call backend (instructions are in backend system prompt)
             let response = try await backendClient.generateWorkout(
                 userQuestion: promptText,
                 language: language,
@@ -104,11 +109,18 @@ class WorkoutPlanViewModel: ObservableObject {
 
             // Success feedback
             error = nil
+            showSuccessAlert = true
             print("✅ Workout exported to Fitness app")
+
+            // Track successful export
+            AnalyticsService.shared.trackWorkoutExported()
 
         } catch {
             self.error = error.localizedDescription
             print("❌ Export error: \(error)")
+
+            // Track export failure
+            AnalyticsService.shared.trackWorkoutExportFailed(errorMessage: error.localizedDescription)
         }
     }
 
@@ -117,16 +129,23 @@ class WorkoutPlanViewModel: ObservableObject {
         showPreview = false
         promptText = ""
         error = nil
+        showSuccessAlert = false
     }
 
     // MARK: - Helper Methods
 
-    private func buildUserContext() async -> WorkoutGenerationRequest.UserContext {
-        // Get recent workouts to calculate average pace
-        let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 10)
+    private func buildEnrichedUserContext() async -> WorkoutGenerationRequest.UserContext {
+        // Get recent workouts to calculate average pace and trends
+        let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 20)
 
         let avgPace = calculateAveragePace(workouts: recentWorkouts)
         let vo2Max = await healthKitManager.fetchLatestVO2Max()
+
+        // Calculate weekly volume change
+        _ = calculateWeeklyVolumeChange(workouts: recentWorkouts)
+
+        // Calculate days since last workout
+        _ = calculateDaysSinceLastWorkout(workouts: recentWorkouts)
 
         return WorkoutGenerationRequest.UserContext(
             avgPace: avgPace,
@@ -165,6 +184,29 @@ class WorkoutPlanViewModel: ObservableObject {
         }
 
         return "intermediate"
+    }
+
+    private func calculateWeeklyVolumeChange(workouts: [WorkoutModel]) -> Double? {
+        guard workouts.count >= 4 else { return nil }
+
+        let now = Date()
+        let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: now)!
+        let twoWeeksAgo = Calendar.current.date(byAdding: .day, value: -14, to: now)!
+
+        let lastWeek = workouts.filter { $0.startDate > oneWeekAgo }
+        let previousWeek = workouts.filter { $0.startDate > twoWeeksAgo && $0.startDate <= oneWeekAgo }
+
+        let lastWeekDistance = lastWeek.compactMap { $0.distance }.reduce(0, +)
+        let previousWeekDistance = previousWeek.compactMap { $0.distance }.reduce(0, +)
+
+        guard previousWeekDistance > 0 else { return nil }
+
+        return ((lastWeekDistance - previousWeekDistance) / previousWeekDistance) * 100
+    }
+
+    private func calculateDaysSinceLastWorkout(workouts: [WorkoutModel]) -> Int? {
+        guard let lastWorkout = workouts.first else { return nil }
+        return Calendar.current.dateComponents([.day], from: lastWorkout.startDate, to: Date()).day
     }
 
     private func convertToAIWorkout(_ workoutData: WorkoutGenerationResponse.GeneratedWorkoutData) -> AIGeneratedWorkout {
@@ -253,12 +295,10 @@ class WorkoutPlanViewModel: ObservableObject {
         smartSuggestionError = nil
 
         do {
-            // 1. Load last 10 workouts with metrics (same as WorkoutListView)
-            let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 10)
+            // 1. Load last 15 workouts with metrics for better analysis
+            let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 15)
 
-            print("📊 WorkoutPlanView: Loading metrics for \(recentWorkouts.count) workouts for smart suggestion")
-
-            // 2. Load metrics in parallel (same logic as WorkoutListView)
+            // 2. Load metrics in parallel
             var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
             await withTaskGroup(of: (UUID, WorkoutMetrics?).self) { group in
                 for workout in recentWorkouts {
@@ -280,13 +320,20 @@ class WorkoutPlanViewModel: ObservableObject {
                 }
             }
 
-            // 3. Build ChatRequestV2 payload (reuse WorkoutAIService logic)
+            // 3. Build enriched ChatRequestV2 payload with additional context
             let historicalSummary = HistoricalSummaryStorage.shared.load()
 
             let totalDistance = recentWorkouts.compactMap { $0.distance }.reduce(0, +)
             let totalDuration = recentWorkouts.map { $0.duration }.reduce(0, +)
             let totalCalories = recentWorkouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
             let avgPace = calculateAveragePace(workouts: recentWorkouts) ?? 0
+
+            // Calculate trends for better suggestions
+            let weeklyVolumeChange = calculateWeeklyVolumeChange(workouts: recentWorkouts)
+            let daysSinceLastWorkout = calculateDaysSinceLastWorkout(workouts: recentWorkouts)
+
+            // Get VO2 Max for fitness level assessment
+            _ = await healthKitManager.fetchLatestVO2Max()
 
             let recentWorkoutsData = RecentWorkoutsData(
                 workouts: recentWorkouts.map { workout in
@@ -296,13 +343,13 @@ class WorkoutPlanViewModel: ObservableObject {
                 totalDuration: totalDuration,
                 totalCalories: totalCalories,
                 avgPace: avgPace,
-                weeklyVolumeChange: nil,
-                daysSinceLastWorkout: nil
+                weeklyVolumeChange: weeklyVolumeChange,
+                daysSinceLastWorkout: daysSinceLastWorkout
             )
 
             let language = Locale.current.language.languageCode?.identifier ?? "en"
 
-            // 4. Call smart suggestion endpoint with ChatRequestV2 payload
+            // 4. Call smart suggestion endpoint with enriched payload
             let response = try await backendClient.generateSmartWorkoutSuggestion(
                 recentWorkoutsData: recentWorkoutsData,
                 historicalSummary: historicalSummary?.summary,
@@ -311,8 +358,6 @@ class WorkoutPlanViewModel: ObservableObject {
 
             // 5. Fill the prompt text field with the suggestion
             promptText = response.suggestion
-
-            print("✅ Smart suggestion generated: \(response.suggestion)")
 
         } catch let backendError as BackendError {
             smartSuggestionError = backendError.localizedDescription
@@ -375,6 +420,10 @@ class WorkoutPlanViewModel: ObservableObject {
 struct WorkoutPlanView: View {
     @StateObject private var viewModel = WorkoutPlanViewModel()
     @FocusState private var isTextFieldFocused: Bool
+    @EnvironmentObject private var revenueCatManager: RevenueCatManager
+
+    // Subscription state
+    @State private var showSubscriptionPaywall = false
 
     // Edit mode state
     @State private var isEditing: Bool = false
@@ -400,12 +449,19 @@ struct WorkoutPlanView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
-                        if !viewModel.showPreview {
-                            // Generation Screen
-                            generationView
-                        } else if let workout = viewModel.generatedWorkout {
-                            // Preview Screen
-                            workoutPreviewView(workout: workout)
+                        // Check if user has AI access (subscription or TestFlight)
+                        if !revenueCatManager.hasAIAccess {
+                            // Show subscription CTA if no access
+                            subscriptionCTAView
+                        } else {
+                            // Show normal UI if has access
+                            if !viewModel.showPreview {
+                                // Generation Screen
+                                generationView
+                            } else if let workout = viewModel.generatedWorkout {
+                                // Preview Screen
+                                workoutPreviewView(workout: workout)
+                            }
                         }
                     }
                     .padding()
@@ -418,6 +474,10 @@ struct WorkoutPlanView: View {
             }
             .navigationTitle(String(localized: "Workout Plan", comment: "Workout plan screen title"))
             .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showSubscriptionPaywall) {
+                SubscriptionPaywallView(isInitialFlow: false)
+                    .environmentObject(revenueCatManager)
+            }
             .toolbar {
                 if viewModel.showPreview {
                     if !isEditing {
@@ -450,6 +510,101 @@ struct WorkoutPlanView: View {
                     }
                 }
             }
+            .sheet(isPresented: $viewModel.showSuccessAlert) {
+                WorkoutExportSuccessView()
+            }
+        }
+    }
+
+    // MARK: - Subscription CTA View
+
+    private var subscriptionCTAView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            // Icon with gradient
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 100, height: 100)
+                    .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 44))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .cyan],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            .padding(.top, 8)
+
+            // Title & Description
+            VStack(spacing: 8) {
+                Text(String(localized: "AI Workout Generator", comment: "Subscription CTA title"))
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+
+                Text(String(localized: "Subscribe to unlock AI-powered workout generation, personalized training plans, and smart suggestions based on your training history.", comment: "Subscription CTA description"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
+            // Features list
+            VStack(alignment: .leading, spacing: 12) {
+                WorkoutFeatureRow(icon: "sparkles", text: String(localized: "AI-powered workout generation", comment: "Feature"))
+                WorkoutFeatureRow(icon: "brain.head.profile", text: String(localized: "Smart suggestions based on your history", comment: "Feature"))
+                WorkoutFeatureRow(icon: "pencil", text: String(localized: "Editable workout plans", comment: "Feature"))
+                WorkoutFeatureRow(icon: "applewatch", text: String(localized: "Export to Apple Fitness", comment: "Feature"))
+            }
+            .padding(.horizontal, 32)
+
+            Spacer()
+
+            // Subscribe button
+            Button(action: {
+                showSubscriptionPaywall = true
+            }) {
+                HStack {
+                    Image(systemName: "sparkles")
+                    Text(String(localized: "Subscribe Now", comment: "Subscribe button"))
+                }
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .cyan],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .padding(.horizontal, 32)
+
+            // Restore purchases
+            Button(action: {
+                Task {
+                    do {
+                        try await revenueCatManager.restorePurchases()
+                    } catch {
+                        print("Error restoring purchases: \(error.localizedDescription)")
+                    }
+                }
+            }) {
+                Text(String(localized: "Restore Purchases", comment: "Restore button"))
+                    .font(.subheadline)
+                    .foregroundStyle(.blue)
+            }
+            .padding(.bottom, 16)
         }
     }
 
@@ -1127,7 +1282,7 @@ struct EditableWorkoutStepRow: View {
                 }
             }
 
-            // Pace and Heart Rate Zone on same line
+            // Pace, Distance, and Heart Rate Zone
             HStack(spacing: 12) {
                 // Pace (editable in edit mode)
                 HStack(spacing: 4) {
@@ -1157,6 +1312,18 @@ struct EditableWorkoutStepRow: View {
                         }
                     } else {
                         Text(step.targetPace != nil ? "\(step.targetPace!)\(String(localized: "/km", comment: "Pace unit suffix"))" : "-")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // Distance (calculated from duration + pace, or direct distance goal)
+                if let distance = step.distanceFormatted {
+                    HStack(spacing: 4) {
+                        Image(systemName: "figure.run")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text(distance)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -1389,6 +1556,116 @@ struct DurationPickerView: View {
     }
 }
 
+// MARK: - Workout Feature Row Component
+
+struct WorkoutFeatureRow: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .cyan],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 30)
+
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Workout Export Success View
+
+struct WorkoutExportSuccessView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            // Background gradient matching app style
+            LinearGradient(
+                colors: [
+                    Color.blue.opacity(0.05),
+                    Color(.systemBackground)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 32) {
+                Spacer()
+
+                // Success icon with animation
+                ZStack {
+                    Circle()
+                        .fill(.green.opacity(0.15))
+                        .frame(width: 120, height: 120)
+
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.green.gradient)
+                        .symbolEffect(.bounce)
+                }
+
+                // Success message
+                VStack(spacing: 8) {
+                    Text(String(localized: "Export Successful!", comment: "Success title after workout export"))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+
+                    Text(String(localized: "Your workout has been exported successfully. Open the Fitness app to see it.", comment: "Success message after workout export"))
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+
+                Spacer()
+
+                // Continue button
+                Button(action: {
+                    dismiss()
+                }) {
+                    Text(String(localized: "Continue", comment: "Continue button after successful export"))
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [.blue, .cyan],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 32)
+            }
+        }
+        .onAppear {
+            // Trigger haptic feedback on success
+            let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+            impactFeedback.impactOccurred()
+        }
+    }
+}
+
 #Preview {
     WorkoutPlanView()
+        .environmentObject(RevenueCatManager.shared)
 }

@@ -173,6 +173,16 @@ final class AnalyticsService {
         ])
     }
 
+    func trackWorkoutExported() {
+        track(.workoutExported)
+    }
+
+    func trackWorkoutExportFailed(errorMessage: String) {
+        track(.workoutExportFailed, properties: [
+            "error_message": errorMessage
+        ])
+    }
+
     // MARK: - AI Assistant Events
 
     func trackAIChatOpened() {

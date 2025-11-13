@@ -63,10 +63,26 @@ CRITICAL RULES:
 - RESPECT the user's request exactly - if they ask for a simple continuous run, generate ONE step only
 - Only add warm-up and cool-down phases if the workout is high-intensity (intervals, speed work, tempo)
 - For easy/endurance/steady runs, generate a single step with the requested duration/distance
-- Provide specific paces based on user's fitness level
+- **MANDATORY: If the user specifies EXACT pace values (e.g., "5:30/km", "4:45 per kilometer"), you MUST use those EXACT values in the targetPace field. Do NOT modify, estimate, or adjust user-specified paces, distances, or durations. These are strict requirements, not suggestions.**
+- If no specific pace is mentioned, provide specific paces based on user's fitness level
 - Recovery times should be appropriate to workout intensity
 - Max 50 steps per workout
 - Distances in meters, durations in seconds
+
+SPECIAL CASE - DETAILED PHASE FORMAT:
+If the user provides a pre-formatted workout with phases (e.g., "Échauffement: 10 min à 6:00/km, Tempo: 20 min à 5:30/km"), parse it EXACTLY:
+- Extract the title (first line before the phases)
+- Convert each phase to a step with EXACT values specified
+- Identify step type from phase name:
+  * "Échauffement", "Warm-up", "Warmup" → type: "warmup"
+  * "Tempo", "Seuil", "Threshold" → type: "work"
+  * "Intervalles", "Intervals", "Répétitions" → type: "interval"
+  * "Récupération", "Recovery" → type: "recovery"
+  * "Retour au calme", "Cool-down", "Cooldown" → type: "cooldown"
+  * "Endurance", "Easy", "Facile" → type: "work"
+- Parse duration: "10 min" → 600 seconds, "5 km" → 5000 meters
+- Parse pace: "5:30/km" → "5:30"
+- Keep phases in the EXACT order provided by user
 
 OUTPUT FORMAT (MUST be valid JSON):
 {

@@ -339,7 +339,7 @@ class BackendAPIClient {
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 60 // Increased timeout for AI generation (parsing + generation)
 
         let requestBody = WorkoutGenerationRequest(
             userQuestion: userQuestion,
@@ -350,8 +350,6 @@ class BackendAPIClient {
 
         let encoder = JSONEncoder()
         request.httpBody = try encoder.encode(requestBody)
-
-        print("🏃 BackendAPIClient: Generating workout for question: \"\(userQuestion)\"")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -373,11 +371,12 @@ class BackendAPIClient {
         }
 
         let decoder = JSONDecoder()
-        let workoutResponse = try decoder.decode(WorkoutGenerationResponse.self, from: data)
-
-        print("✅ BackendAPIClient: Workout generated successfully: \"\(workoutResponse.workout.name)\"")
-
-        return workoutResponse
+        do {
+            let workoutResponse = try decoder.decode(WorkoutGenerationResponse.self, from: data)
+            return workoutResponse
+        } catch {
+            throw BackendError.invalidResponse
+        }
     }
 
     /// Generate a smart workout suggestion based on recent workout history

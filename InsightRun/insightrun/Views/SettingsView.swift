@@ -202,6 +202,41 @@ struct SettingsView: View {
                 // Debug Section (for testing)
                 #if DEBUG
                 Section {
+                    // Environment simulation
+                    Button(String(localized: "Simuler TestFlight")) {
+                        revenueCatManager.debugTestFlightOverride = true
+                    }
+                    .foregroundStyle(.blue)
+
+                    Button(String(localized: "Simuler Production")) {
+                        revenueCatManager.debugTestFlightOverride = false
+                    }
+                    .foregroundStyle(.indigo)
+
+                    Button(String(localized: "Reset environnement")) {
+                        revenueCatManager.debugTestFlightOverride = nil
+                    }
+                    .foregroundStyle(.gray)
+
+                    // Subscription simulation
+                    Button(String(localized: "Simuler non-abonné")) {
+                        revenueCatManager.debugTestFlightOverride = false
+                        revenueCatManager.isSubscriptionActive = false
+                    }
+                    .foregroundStyle(.red)
+
+                    Button(String(localized: "Simuler abonné")) {
+                        revenueCatManager.debugTestFlightOverride = false
+                        revenueCatManager.isSubscriptionActive = true
+                    }
+                    .foregroundStyle(.green)
+
+                    // Paywall & Onboarding
+                    Button(String(localized: "Afficher paywall")) {
+                        showPaywall = true
+                    }
+                    .foregroundStyle(.blue)
+
                     Button(String(localized: "Réinitialiser le paywall")) {
                         UserDefaults.standard.removeObject(forKey: "hasSeenInitialPaywall")
                         revenueCatManager.hasSeenInitialPaywall = false
@@ -213,21 +248,7 @@ struct SettingsView: View {
                     }
                     .foregroundStyle(.purple)
 
-                    Button(String(localized: "Simuler non-abonné")) {
-                        revenueCatManager.isSubscriptionActive = false
-                    }
-                    .foregroundStyle(.red)
-
-                    Button(String(localized: "Simuler abonné")) {
-                        revenueCatManager.isSubscriptionActive = true
-                    }
-                    .foregroundStyle(.green)
-
-                    Button(String(localized: "Afficher paywall")) {
-                        showPaywall = true
-                    }
-                    .foregroundStyle(.blue)
-
+                    // Data management
                     Button(String(localized: "Delete LLM History", comment: "Debug button to clear historical summary storage")) {
                         HistoricalSummaryStorage.shared.clear()
                     }

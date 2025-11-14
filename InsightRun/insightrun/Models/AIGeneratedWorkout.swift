@@ -53,7 +53,9 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
     let id: UUID
     let type: StepType
     var goal: WorkoutGoal
-    var targetPace: String? // Format: "4:30" per km
+    var targetPace: String? // Format: "4:30" per km (for single value)
+    var targetPaceMin: String? // Format: "4:30" per km (for range minimum)
+    var targetPaceMax: String? // Format: "4:45" per km (for range maximum)
     var targetHeartRateZone: Int? // 1-5
     var instructions: String?
 
@@ -65,11 +67,13 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         case interval
     }
 
-    init(id: UUID = UUID(), type: StepType, goal: WorkoutGoal, targetPace: String? = nil, targetHeartRateZone: Int? = nil, instructions: String? = nil) {
+    init(id: UUID = UUID(), type: StepType, goal: WorkoutGoal, targetPace: String? = nil, targetPaceMin: String? = nil, targetPaceMax: String? = nil, targetHeartRateZone: Int? = nil, instructions: String? = nil) {
         self.id = id
         self.type = type
         self.goal = goal
         self.targetPace = targetPace
+        self.targetPaceMin = targetPaceMin
+        self.targetPaceMax = targetPaceMax
         self.targetHeartRateZone = targetHeartRateZone
         self.instructions = instructions
     }
@@ -158,6 +162,18 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         } else {
             return String(format: "%.0f m", distance)
         }
+    }
+
+    // Formatted pace for display (handles both single and range)
+    var paceFormatted: String? {
+        if let min = targetPaceMin, let max = targetPaceMax {
+            // Range format
+            return "\(min)–\(max)/km"
+        } else if let pace = targetPace {
+            // Single value format
+            return "\(pace)/km"
+        }
+        return nil
     }
 }
 

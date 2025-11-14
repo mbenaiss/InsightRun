@@ -92,31 +92,68 @@ class WorkoutKitManager: ObservableObject {
             throw WorkoutKitError.unsupportedSportType // Not supported in MVP
         }
 
-        // Build interval blocks from steps
+        // Separate warmup, cooldown, and main blocks
+        var warmupWorkoutStep: WorkoutKit.WorkoutStep?
+        var cooldownWorkoutStep: WorkoutKit.WorkoutStep?
         var blocks: [IntervalBlock] = []
 
         for step in aiWorkout.steps {
-            let intervalStep = try convertToIntervalStep(step)
-            let block = IntervalBlock(steps: [intervalStep], iterations: 1)
-            blocks.append(block)
+            // Assign first warmup step to warmup parameter
+            if step.type == .warmup && warmupWorkoutStep == nil {
+                warmupWorkoutStep = try convertToWorkoutStep(step)
+            }
+            // Assign last cooldown step to cooldown parameter
+            else if step.type == .cooldown {
+                cooldownWorkoutStep = try convertToWorkoutStep(step)
+            }
+            // All other steps (work, recovery, interval) go to blocks
+            else {
+                let intervalStep = try convertToIntervalStep(step)
+                let block = IntervalBlock(steps: [intervalStep], iterations: 1)
+                blocks.append(block)
+            }
         }
 
-        // Create custom workout
+        // Create custom workout with proper warmup and cooldown
         let customWorkout = CustomWorkout(
             activity: activityType,
             location: .outdoor,
             displayName: aiWorkout.name,
-            warmup: nil, // Warmup is included in blocks
+            warmup: warmupWorkoutStep,
             blocks: blocks,
-            cooldown: nil // Cooldown is included in blocks
+            cooldown: cooldownWorkoutStep
         )
 
-        print("✅ WorkoutKitManager: Created custom workout '\(aiWorkout.name)' with \(blocks.count) steps")
+        let totalSteps = (warmupWorkoutStep != nil ? 1 : 0) + blocks.count + (cooldownWorkoutStep != nil ? 1 : 0)
+        print("✅ WorkoutKitManager: Created custom workout '\(aiWorkout.name)' with \(totalSteps) steps (warmup: \(warmupWorkoutStep != nil), blocks: \(blocks.count), cooldown: \(cooldownWorkoutStep != nil))")
 
         return customWorkout
     }
 
     // MARK: - Convert Steps
+
+    /// Convert WorkoutStep to WorkoutKit WorkoutStep (for warmup/cooldown)
+    private func convertToWorkoutStep(_ step: WorkoutStep) throws -> WorkoutKit.WorkoutStep {
+        // Create alert for pace and/or heart rate zone
+        let alert = createWorkoutAlert(for: step)
+
+        // Create WorkoutKit WorkoutStep based on goal type
+        switch step.goal.type {
+        case .distance:
+            let meters = step.goal.value
+            let goal = WorkoutKit.WorkoutGoal.distance(meters, UnitLength.meters)
+            return WorkoutKit.WorkoutStep(goal: goal, alert: alert)
+
+        case .duration:
+            let seconds = step.goal.value
+            let goal = WorkoutKit.WorkoutGoal.time(seconds, UnitDuration.seconds)
+            return WorkoutKit.WorkoutStep(goal: goal, alert: alert)
+
+        case .open:
+            let goal = WorkoutKit.WorkoutGoal.open
+            return WorkoutKit.WorkoutStep(goal: goal, alert: alert)
+        }
+    }
 
     /// Convert WorkoutStep to WorkoutKit IntervalStep
     private func convertToIntervalStep(_ step: WorkoutStep) throws -> IntervalStep {
@@ -151,11 +188,20 @@ class WorkoutKitManager: ObservableObject {
 
     /// Create WorkoutAlert from target pace and/or heart rate zone
     private func createWorkoutAlert(for step: WorkoutStep) -> (any WorkoutAlert)? {
-        // Priority 1: Pace (convert to speed range)
-        // For most workouts, pace is the primary target
-        if let paceString = step.targetPace {
-            if let speedRange = convertPaceToSpeedRange(paceString) {
+        // Priority 1: Pace
+        // Check if pace range is specified (min/max)
+        if let paceMin = step.targetPaceMin, let paceMax = step.targetPaceMax {
+            if let speedRange = convertPaceRangeToSpeedRange(paceMin, paceMax) {
+                // Use SpeedRangeAlert for pace range
                 return SpeedRangeAlert.speed(speedRange, unit: UnitSpeed.metersPerSecond, metric: .current)
+            }
+        }
+
+        // Otherwise check for single pace value
+        if let paceString = step.targetPace {
+            if let speed = convertPaceToSpeed(paceString) {
+                // Use SpeedThresholdAlert for exact pace target
+                return SpeedThresholdAlert.speed(speed, unit: UnitSpeed.metersPerSecond, metric: .current)
             }
         }
 
@@ -168,9 +214,9 @@ class WorkoutKitManager: ObservableObject {
         return nil
     }
 
-    /// Convert pace string (e.g., "4:30") to speed range in m/s
-    /// Returns a range with ±5% tolerance
-    private func convertPaceToSpeedRange(_ paceString: String) -> ClosedRange<Double>? {
+    /// Convert pace string (e.g., "4:30") to speed in m/s
+    /// Returns exact speed value for use with SpeedThresholdAlert
+    private func convertPaceToSpeed(_ paceString: String) -> Double? {
         // Parse pace format "4:30" or "4:30/km"
         let cleanPace = paceString.replacingOccurrences(of: "/km", with: "").trimmingCharacters(in: .whitespaces)
         let components = cleanPace.split(separator: ":")
@@ -186,10 +232,16 @@ class WorkoutKitManager: ObservableObject {
         let speedKmPerHour = 3600 / totalSecondsPerKm // km/h
         let speedMetersPerSecond = speedKmPerHour * 1000 / 3600 // m/s
 
-        // Create range with ±5% tolerance
-        let tolerance = 0.05
-        let minSpeed = speedMetersPerSecond * (1 - tolerance)
-        let maxSpeed = speedMetersPerSecond * (1 + tolerance)
+        return speedMetersPerSecond
+    }
+
+    /// Convert pace range (e.g., "6:52" to "7:22") to speed range in m/s
+    /// Returns a range for use with SpeedRangeAlert
+    private func convertPaceRangeToSpeedRange(_ paceMin: String, _ paceMax: String) -> ClosedRange<Double>? {
+        guard let minSpeed = convertPaceToSpeed(paceMax), // Slower pace = lower speed
+              let maxSpeed = convertPaceToSpeed(paceMin) else { // Faster pace = higher speed
+            return nil
+        }
 
         return minSpeed...maxSpeed
     }

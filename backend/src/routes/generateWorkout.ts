@@ -32,7 +32,9 @@ interface WorkoutStep {
     type: 'distance' | 'duration' | 'open'
     value: number // meters for distance, seconds for duration
   }
-  targetPace?: string // "4:30" format
+  targetPace?: string // "4:30" format (single value)
+  targetPaceMin?: string // "4:30" format (for ranges)
+  targetPaceMax?: string // "4:45" format (for ranges)
   targetHeartRateZone?: number // 1-5
   instructions?: string
 }
@@ -82,7 +84,10 @@ If the user provides a pre-formatted workout with phases (e.g., "Échauffement: 
   * "Retour au calme", "Cool-down", "Cooldown" → type: "cooldown"
   * "Endurance", "Easy", "Facile" → type: "work"
 - Parse duration: "10 min" → 600 seconds, "5 km" → 5000 meters
-- Parse pace: "5:30/km" → "5:30"
+- Parse pace:
+  * Single value: "5:30/km" → targetPace: "5:30"
+  * Range: "6:52 – 7:22 /km" → targetPaceMin: "6:52", targetPaceMax: "7:22" (NO targetPace field)
+  * IMPORTANT: When user specifies a pace RANGE (e.g., "6:00-6:30" or "6:00 – 6:30"), use targetPaceMin and targetPaceMax. Do NOT use targetPace for ranges.
 - Keep phases in the EXACT order provided by user
 
 OUTPUT FORMAT (MUST be valid JSON):
@@ -93,17 +98,17 @@ OUTPUT FORMAT (MUST be valid JSON):
   "steps": [
     {
       "type": "warmup",
-      "goal": { "type": "distance", "value": 1000 },
-      "targetPace": "5:30",
-      "targetHeartRateZone": 2,
-      "instructions": "Start slow and gradually increase pace"
+      "goal": { "type": "duration", "value": 900 },
+      "targetPaceMin": "6:30",
+      "targetPaceMax": "7:00",
+      "instructions": "Easy warm-up, build up gradually"
     },
     {
       "type": "work",
       "goal": { "type": "distance", "value": 400 },
       "targetPace": "4:00",
       "targetHeartRateZone": 4,
-      "instructions": "Fast but controlled"
+      "instructions": "Fast but controlled - note: single targetPace when exact pace specified"
     },
     {
       "type": "recovery",
@@ -114,13 +119,21 @@ OUTPUT FORMAT (MUST be valid JSON):
     {
       "type": "cooldown",
       "goal": { "type": "distance", "value": 800 },
-      "targetPace": "5:45",
-      "instructions": "Easy pace to finish"
+      "targetPaceMin": "6:00",
+      "targetPaceMax": "6:30",
+      "instructions": "Easy pace to finish - note: paceMin/Max when range specified"
     }
   ],
   "totalDistance": 7600,
   "estimatedDuration": 2700
 }
+
+IMPORTANT PACE RULES:
+- Use "targetPace" (single value) when user specifies an EXACT pace like "5:09/km"
+- Use "targetPaceMin" + "targetPaceMax" (range) when user specifies a RANGE like "6:52 – 7:22 /km"
+- NEVER mix both in the same step (either targetPace OR targetPaceMin/Max, not both)
+- For warmup/cooldown without specified pace, you can suggest a range
+- For work intervals with specified pace, use the exact value
 
 USER CONTEXT:
 ${

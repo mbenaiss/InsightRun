@@ -253,6 +253,8 @@ class WorkoutPlanViewModel: ObservableObject {
                 type: stepType,
                 goal: WorkoutGoal(type: goalType, value: stepData.goal.value),
                 targetPace: stepData.targetPace,
+                targetPaceMin: stepData.targetPaceMin,
+                targetPaceMax: stepData.targetPaceMax,
                 targetHeartRateZone: stepData.targetHeartRateZone,
                 instructions: stepData.instructions
             )
@@ -1125,8 +1127,8 @@ struct WorkoutStepRow: View {
             }
 
             // Details
-            if let pace = step.targetPace {
-                DetailRow(icon: "speedometer", text: "\(pace)\(String(localized: "/km", comment: "Pace unit suffix"))")
+            if let paceFormatted = step.paceFormatted {
+                DetailRow(icon: "speedometer", text: paceFormatted)
             }
 
             if let hrZone = step.targetHeartRateZone {
@@ -1311,7 +1313,7 @@ struct EditableWorkoutStepRow: View {
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                     } else {
-                        Text(step.targetPace != nil ? "\(step.targetPace!)\(String(localized: "/km", comment: "Pace unit suffix"))" : "-")
+                        Text(step.paceFormatted ?? "-")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }

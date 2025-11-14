@@ -288,7 +288,8 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
     }
 
     var estimatedDurationFormatted: String? {
-        guard let duration = estimatedDuration else { return nil }
+        let duration = calculatedEstimatedDuration
+        guard duration > 0 else { return nil }
         let hours = Int(duration / 3600)
         let minutes = Int((duration.truncatingRemainder(dividingBy: 3600)) / 60)
 
@@ -312,7 +313,7 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         }
     }
 
-    // Calculate estimated duration from steps if not provided
+    // Calculate estimated duration from steps (source of truth)
     var calculatedEstimatedDuration: TimeInterval {
         // Always calculate from steps for accuracy (sum of all step durations)
         return steps.reduce(0) { sum, step in

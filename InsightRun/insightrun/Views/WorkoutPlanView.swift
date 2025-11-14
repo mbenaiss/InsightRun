@@ -71,6 +71,9 @@ class WorkoutPlanViewModel: ObservableObject {
             // Convert backend response to AIGeneratedWorkout
             let workout = convertToAIWorkout(response.workout)
 
+            // Validate backend values vs calculated values
+            validateWorkoutCalculations(workout)
+
             generatedWorkout = workout
             showPreview = true
 
@@ -268,6 +271,42 @@ class WorkoutPlanViewModel: ObservableObject {
             totalDistance: workoutData.totalDistance,
             estimatedDuration: workoutData.estimatedDuration
         )
+    }
+
+    private func validateWorkoutCalculations(_ workout: AIGeneratedWorkout) {
+        // Compare backend values with calculated values to detect inconsistencies
+
+        // Check distance
+        if let backendDistance = workout.totalDistance, backendDistance > 0 {
+            let calculatedDistance = workout.calculatedTotalDistance
+            let distanceDiff = abs(backendDistance - calculatedDistance)
+            let distanceDiffPercent = (distanceDiff / backendDistance) * 100
+
+            if distanceDiffPercent > 5 {
+                print("⚠️ Distance mismatch: backend=\(Int(backendDistance))m, calculated=\(Int(calculatedDistance))m (diff: \(String(format: "%.1f", distanceDiffPercent))%)")
+            } else {
+                print("✅ Distance coherent: backend=\(Int(backendDistance))m, calculated=\(Int(calculatedDistance))m")
+            }
+        } else {
+            let calculatedDistance = workout.calculatedTotalDistance
+            print("ℹ️ Backend didn't provide distance, using calculated: \(Int(calculatedDistance))m")
+        }
+
+        // Check duration
+        if let backendDuration = workout.estimatedDuration, backendDuration > 0 {
+            let calculatedDuration = workout.calculatedEstimatedDuration
+            let durationDiff = abs(backendDuration - calculatedDuration)
+            let durationDiffPercent = (durationDiff / backendDuration) * 100
+
+            if durationDiffPercent > 5 {
+                print("⚠️ Duration mismatch: backend=\(Int(backendDuration))s, calculated=\(Int(calculatedDuration))s (diff: \(String(format: "%.1f", durationDiffPercent))%)")
+            } else {
+                print("✅ Duration coherent: backend=\(Int(backendDuration))s, calculated=\(Int(calculatedDuration))s")
+            }
+        } else {
+            let calculatedDuration = workout.calculatedEstimatedDuration
+            print("ℹ️ Backend didn't provide duration, using calculated: \(Int(calculatedDuration))s")
+        }
     }
 
     private func handleError(_ error: BackendError) {

@@ -173,7 +173,9 @@ struct WorkoutGenerationResponse: Decodable {
     struct GeneratedWorkoutStep: Decodable {
         let type: String // "warmup", "work", "recovery", "cooldown", "interval"
         let goal: StepGoal
-        let targetPace: String?
+        let targetPace: String? // Single pace value (e.g., "5:09")
+        let targetPaceMin: String? // Minimum pace for range (e.g., "6:52")
+        let targetPaceMax: String? // Maximum pace for range (e.g., "7:22")
         let targetHeartRateZone: Int?
         let instructions: String?
     }

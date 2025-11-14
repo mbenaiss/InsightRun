@@ -53,7 +53,9 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
     let id: UUID
     let type: StepType
     var goal: WorkoutGoal
-    var targetPace: String? // Format: "4:30" per km
+    var targetPace: String? // Format: "4:30" per km (for single value)
+    var targetPaceMin: String? // Format: "4:30" per km (for range minimum)
+    var targetPaceMax: String? // Format: "4:45" per km (for range maximum)
     var targetHeartRateZone: Int? // 1-5
     var instructions: String?
 
@@ -65,11 +67,13 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         case interval
     }
 
-    init(id: UUID = UUID(), type: StepType, goal: WorkoutGoal, targetPace: String? = nil, targetHeartRateZone: Int? = nil, instructions: String? = nil) {
+    init(id: UUID = UUID(), type: StepType, goal: WorkoutGoal, targetPace: String? = nil, targetPaceMin: String? = nil, targetPaceMax: String? = nil, targetHeartRateZone: Int? = nil, instructions: String? = nil) {
         self.id = id
         self.type = type
         self.goal = goal
         self.targetPace = targetPace
+        self.targetPaceMin = targetPaceMin
+        self.targetPaceMax = targetPaceMax
         self.targetHeartRateZone = targetHeartRateZone
         self.instructions = instructions
     }
@@ -125,23 +129,55 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         }
 
         // If goal is duration, calculate distance based on pace
-        if goal.type == .duration, let paceStr = targetPace {
-            // Parse pace string (e.g., "5:30" → 5.5 minutes per km)
-            let paceComponents = paceStr.split(separator: ":")
-            guard paceComponents.count == 2,
-                  let minutes = Double(paceComponents[0]),
-                  let seconds = Double(paceComponents[1]) else {
-                return 0
+        if goal.type == .duration {
+            // Try to get pace value (either single or average of range)
+            let paceStr: String?
+            if let pace = targetPace {
+                // Single pace value
+                paceStr = pace
+            } else if let paceMin = targetPaceMin, let paceMax = targetPaceMax {
+                // Calculate average pace from range for distance estimation
+                let minComponents = paceMin.split(separator: ":")
+                let maxComponents = paceMax.split(separator: ":")
+
+                guard minComponents.count == 2, maxComponents.count == 2,
+                      let minMinutes = Double(minComponents[0]),
+                      let minSeconds = Double(minComponents[1]),
+                      let maxMinutes = Double(maxComponents[0]),
+                      let maxSeconds = Double(maxComponents[1]) else {
+                    return 0
+                }
+
+                let minPaceMinutes = minMinutes + (minSeconds / 60.0)
+                let maxPaceMinutes = maxMinutes + (maxSeconds / 60.0)
+                let avgPaceMinutes = (minPaceMinutes + maxPaceMinutes) / 2.0
+
+                // Convert back to "M:SS" format for parsing below
+                let avgMinutes = Int(avgPaceMinutes)
+                let avgSeconds = Int((avgPaceMinutes - Double(avgMinutes)) * 60)
+                paceStr = "\(avgMinutes):\(String(format: "%02d", avgSeconds))"
+            } else {
+                paceStr = nil
             }
 
-            let paceMinutesPerKm = minutes + (seconds / 60.0)
-            let durationMinutes = goal.value / 60.0
+            if let paceStr = paceStr {
+                // Parse pace string (e.g., "5:30" → 5.5 minutes per km)
+                let paceComponents = paceStr.split(separator: ":")
+                guard paceComponents.count == 2,
+                      let minutes = Double(paceComponents[0]),
+                      let seconds = Double(paceComponents[1]) else {
+                    return 0
+                }
 
-            // Distance in km = duration / pace
-            let distanceKm = durationMinutes / paceMinutesPerKm
+                let paceMinutesPerKm = minutes + (seconds / 60.0)
+                let durationMinutes = goal.value / 60.0
 
-            // Return in meters
-            return distanceKm * 1000.0
+                // Distance in km = duration / pace
+                let distanceKm = durationMinutes / paceMinutesPerKm
+
+                // Return in meters
+                return distanceKm * 1000.0
+            }
         }
 
         return 0
@@ -158,6 +194,18 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         } else {
             return String(format: "%.0f m", distance)
         }
+    }
+
+    // Formatted pace for display (handles both single and range)
+    var paceFormatted: String? {
+        if let min = targetPaceMin, let max = targetPaceMax {
+            // Range format
+            return "\(min)–\(max)/km"
+        } else if let pace = targetPace {
+            // Single value format
+            return "\(pace)/km"
+        }
+        return nil
     }
 }
 
@@ -240,7 +288,8 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
     }
 
     var estimatedDurationFormatted: String? {
-        guard let duration = estimatedDuration else { return nil }
+        let duration = calculatedEstimatedDuration
+        guard duration > 0 else { return nil }
         let hours = Int(duration / 3600)
         let minutes = Int((duration.truncatingRemainder(dividingBy: 3600)) / 60)
 
@@ -264,21 +313,57 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         }
     }
 
-    // Calculate estimated duration from steps if not provided
+    // Calculate estimated duration from steps (source of truth)
     var calculatedEstimatedDuration: TimeInterval {
-        if let duration = estimatedDuration {
-            return duration
-        }
-
+        // Always calculate from steps for accuracy (sum of all step durations)
         return steps.reduce(0) { sum, step in
             if step.goal.type == .duration {
                 return sum + step.goal.value
             }
-            // Estimate duration for distance-based steps (assume 5:00/km pace)
+            // Estimate duration for distance-based steps using pace if available
             if step.goal.type == .distance {
                 let km = step.goal.value / 1000.0
-                let estimatedMinutes = km * 5.0
-                return sum + (estimatedMinutes * 60.0)
+
+                // Try to get pace value (either single or average of range)
+                if let pace = step.targetPace {
+                    // Use single pace value
+                    let paceComponents = pace.split(separator: ":")
+                    guard paceComponents.count == 2,
+                          let minutes = Double(paceComponents[0]),
+                          let seconds = Double(paceComponents[1]) else {
+                        // Fallback to 5:00/km if pace parsing fails
+                        return sum + (km * 5.0 * 60.0)
+                    }
+
+                    let paceMinutesPerKm = minutes + (seconds / 60.0)
+                    let estimatedMinutes = km * paceMinutesPerKm
+                    return sum + (estimatedMinutes * 60.0)
+
+                } else if let paceMin = step.targetPaceMin, let paceMax = step.targetPaceMax {
+                    // Calculate average pace from range
+                    let minComponents = paceMin.split(separator: ":")
+                    let maxComponents = paceMax.split(separator: ":")
+
+                    guard minComponents.count == 2, maxComponents.count == 2,
+                          let minMinutes = Double(minComponents[0]),
+                          let minSeconds = Double(minComponents[1]),
+                          let maxMinutes = Double(maxComponents[0]),
+                          let maxSeconds = Double(maxComponents[1]) else {
+                        // Fallback to 5:00/km if pace parsing fails
+                        return sum + (km * 5.0 * 60.0)
+                    }
+
+                    let minPaceMinutes = minMinutes + (minSeconds / 60.0)
+                    let maxPaceMinutes = maxMinutes + (maxSeconds / 60.0)
+                    let avgPaceMinutes = (minPaceMinutes + maxPaceMinutes) / 2.0
+
+                    let estimatedMinutes = km * avgPaceMinutes
+                    return sum + (estimatedMinutes * 60.0)
+
+                } else {
+                    // Fallback to 5:00/km if no pace specified
+                    return sum + (km * 5.0 * 60.0)
+                }
             }
             return sum
         }

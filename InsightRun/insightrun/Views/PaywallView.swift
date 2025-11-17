@@ -20,8 +20,41 @@ struct SubscriptionPaywallView: View {
     var onDismiss: (() -> Void)? = nil
 
     @State private var paywallAppearTime: Date?
+    @State private var showConsentSheet = false
+    @State private var hasConsented = false
 
     var body: some View {
+        Group {
+            if !hasConsented && ConsentService.shared.isConsentRequired() {
+                // Show consent sheet first
+                Color.clear
+                    .sheet(isPresented: .constant(true)) {
+                        AIConsentSheet(
+                            onConsent: {
+                                hasConsented = true
+                            },
+                            onDecline: {
+                                // User declined consent, dismiss paywall
+                                if let onDismiss = onDismiss {
+                                    onDismiss()
+                                } else {
+                                    dismiss()
+                                }
+                            }
+                        )
+                    }
+            } else {
+                // Show paywall once consented
+                actualPaywallView
+            }
+        }
+        .onAppear {
+            // Check if already consented
+            hasConsented = !ConsentService.shared.isConsentRequired()
+        }
+    }
+
+    private var actualPaywallView: some View {
         PaywallView()
             .onPurchaseCompleted { customerInfo in
                 // Track purchase completed

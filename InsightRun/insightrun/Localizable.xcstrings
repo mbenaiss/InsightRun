@@ -1141,6 +1141,240 @@
         }
       }
     },
+    "consent.accept" : {
+      "comment" : "Button to accept consent",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes, I accept"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oui, j'accepte"
+          }
+        }
+      }
+    },
+    "consent.decline" : {
+      "comment" : "Button to decline consent",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No thanks"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non merci"
+          }
+        }
+      }
+    },
+    "consent.how_description" : {
+      "comment" : "How it works description",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your workout data (distance, pace, heart rate) is sent securely and anonymously to our AI analysis partner."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos données d'entraînement (distance, allure, fréquence cardiaque) sont envoyées de manière sécurisée et anonymisée à notre partenaire d'analyse IA."
+          }
+        }
+      }
+    },
+    "consent.how_it_works" : {
+      "comment" : "How it works header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "📊 How does it work?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "📊 Comment ça fonctionne ?"
+          }
+        }
+      }
+    },
+    "consent.privacy_header" : {
+      "comment" : "Privacy header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔒 Your privacy is our priority"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔒 Votre vie privée est notre priorité"
+          }
+        }
+      }
+    },
+    "consent.privacy_policy" : {
+      "comment" : "Privacy policy link",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more about our privacy policy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En savoir plus sur notre politique de confidentialité"
+          }
+        }
+      }
+    },
+    "consent.privacy.anonymous" : {
+      "comment" : "Anonymous data guarantee",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "100% anonymized data (no name, email or identifiers)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Données 100% anonymisées (pas de nom, email ou identifiants)"
+          }
+        }
+      }
+    },
+    "consent.privacy.no_sale" : {
+      "comment" : "No sale guarantee",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data is never sold"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos données ne sont jamais vendues"
+          }
+        }
+      }
+    },
+    "consent.privacy.no_storage" : {
+      "comment" : "No storage guarantee",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No permanent storage of your data"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun stockage permanent de vos données"
+          }
+        }
+      }
+    },
+    "consent.privacy.only_analysis" : {
+      "comment" : "Only for analysis guarantee",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used only to generate your personalized insights"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisées uniquement pour générer vos analyses personnalisées"
+          }
+        }
+      }
+    },
+    "consent.question" : {
+      "comment" : "Question asking user to continue",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Would you like to activate the AI assistant?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Souhaitez-vous activer l'assistant IA ?"
+          }
+        }
+      }
+    },
+    "consent.requirement" : {
+      "comment" : "Bold requirement text",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your consent is required to use AI features."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre consentement est requis pour utiliser les fonctionnalités IA."
+          }
+        }
+      }
+    },
+    "consent.title" : {
+      "comment" : "Title of AI consent screen",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personal AI Assistant"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assistant IA Personnel"
+          }
+        }
+      }
+    },
     "Contact Balance" : {
       "comment" : "Ground contact time balance advanced metric",
       "extractionState" : "manual",
@@ -4729,6 +4963,9 @@
         }
       }
     },
+    "Réinitialiser consentement IA" : {
+
+    },
     "Réinitialiser l'onboarding" : {
       "comment" : "Debug button to reset onboarding",
       "extractionState" : "manual",
@@ -7814,6 +8051,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hier"
+          }
+        }
+      }
+    },
+    "You must consent to data sharing to use the AI assistant." : {
+      "comment" : "Error when AI consent is not given",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You must consent to data sharing to use the AI assistant."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous devez consentir au partage de données pour utiliser l'assistant IA."
           }
         }
       }

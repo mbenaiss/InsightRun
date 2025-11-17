@@ -397,6 +397,10 @@ enum AnalyticsEvent: String {
     // Workout Generation
     case workoutGenerationRequested = "workout_generation_requested"
     case workoutGenerated = "workout_generated"
+
+    // AI Consent (Apple 5.1.2(i) compliance)
+    case aiConsentGranted = "ai_consent_granted"
+    case aiConsentRevoked = "ai_consent_revoked"
     case workoutGenerationFailed = "workout_generation_failed"
     case workoutExported = "workout_exported"
     case workoutExportFailed = "workout_export_failed"

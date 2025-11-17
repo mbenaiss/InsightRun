@@ -162,6 +162,17 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     }
 
     func askQuestion(question: String, mode: AIAssistantMode, model: AIModel? = nil) async {
+        // Check AI consent (Apple 5.1.2(i) compliance)
+        guard await MainActor.run(body: { ConsentService.shared.hasConsentedToAIDataSharing }) else {
+            await MainActor.run {
+                self.error = String(
+                    localized: "You must consent to data sharing to use the AI assistant.",
+                    comment: "Error when AI consent is not given"
+                )
+            }
+            return
+        }
+
         // Store for retry
         lastQuestion = question
         lastMode = mode

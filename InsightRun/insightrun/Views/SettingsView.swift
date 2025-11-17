@@ -253,6 +253,11 @@ struct SettingsView: View {
                         HistoricalSummaryStorage.shared.clear()
                     }
                     .foregroundStyle(.red)
+
+                    Button(String(localized: "Réinitialiser consentement IA")) {
+                        ConsentService.shared.resetConsentState()
+                    }
+                    .foregroundStyle(.red)
                 } header: {
                     Text(String(localized: "Debug"))
                 } footer: {

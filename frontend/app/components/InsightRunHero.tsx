@@ -59,21 +59,6 @@ export default function InsightRunHero() {
                   className="h-[52px] w-auto"
                 />
               </a>
-
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs text-foreground"
-                    >
-                      {/* Placeholder for user avatars */}
-                      <span className="opacity-50">U{i}</span>
-                    </div>
-                  ))}
-                </div>
-                <span>Trusted by 1000+ runners</span>
-              </div>
             </div>
           </div>
 

@@ -3,197 +3,166 @@
 import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-// Constants for dimensions and breakpoints
-const MOBILE_BREAKPOINT = 768
-const MOBILE_WIDTH = 250
-const DESKTOP_WIDTH = 300
-const GAP_WIDTH = 32 // Corresponds to gap-8 (8 * 4px = 32px)
-const MOBILE_MAX_HEIGHT = 542
-const DESKTOP_MAX_HEIGHT = 650
-
 const screenshots = [
   {
     id: 'screenshot-01',
     src: '/screenshots/screenshot-01.png',
-    title: 'AI Coach in Your Pocket',
-    description: 'Get personalized AI analysis of every workout with detailed insights',
+    title: 'AI Coach',
+    description: 'Personalized AI analysis.',
   },
   {
     id: 'screenshot-02',
     src: '/screenshots/screenshot-02.png',
-    title: 'Ask Anything, Train Smarter',
-    description: 'Chat with your AI coach about training, recovery, and performance',
+    title: 'Chat',
+    description: 'Ask anything about training.',
   },
   {
     id: 'screenshot-03',
     src: '/screenshots/screenshot-03.png',
-    title: 'Advanced Metrics for Serious Runners',
-    description: 'Track performance, biomechanics, and advanced running metrics',
+    title: 'Advanced Metrics',
+    description: 'Biomechanics & performance.',
   },
   {
     id: 'screenshot-04',
     src: '/screenshots/screenshot-04.png',
-    title: 'Track Every Run, Every Achievement',
-    description: 'Complete workout history with stats and records tracking',
+    title: 'History',
+    description: 'Track every achievement.',
   },
   {
     id: 'screenshot-05',
     src: '/screenshots/screenshot-05.png',
-    title: 'Optimize Recovery, Maximize Performance',
-    description: 'Daily recovery scores based on HRV, heart rate, and sleep quality',
+    title: 'Recovery',
+    description: 'HRV & sleep analysis.',
   },
 ]
 
 export default function InsightRunScreenshots() {
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [isMobile, setIsMobile] = useState(false)
-  const carouselRef = useRef<HTMLDivElement>(null)
+  const [currentSlide, setCurrentSlide] = useState(2)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Handle viewport size detection
-  useEffect(() => {
-    if (typeof window === 'undefined') return
+  const scrollToSlide = useCallback((index: number) => {
+    const container = scrollContainerRef.current
+    if (!container) return
 
-    const updateMobile = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
+    const cardWidth = 320 // width of card
+    const gap = 32 // gap
 
-    // Set initial value
-    updateMobile()
+    // With the padding strategy, scrolling to index * (width + gap) centers the item
+    const scrollLeft = index * (cardWidth + gap)
 
-    // Listen for resize events
-    window.addEventListener('resize', updateMobile)
-    return () => window.removeEventListener('resize', updateMobile)
+    container.scrollTo({
+      left: scrollLeft,
+      behavior: 'smooth',
+    })
+    setCurrentSlide(index)
   }, [])
 
-  // Calculate item width based on viewport
-  const getItemWidth = useCallback(() => {
-    return isMobile ? MOBILE_WIDTH + GAP_WIDTH : DESKTOP_WIDTH + GAP_WIDTH
-  }, [isMobile])
-
-  // Handle scroll events
   useEffect(() => {
-    const carousel = carouselRef.current
-    if (!carousel) return
-
-    const handleScroll = () => {
-      const scrollLeft = carousel.scrollLeft
-      const itemWidth = getItemWidth()
-      const newSlide = Math.round(scrollLeft / itemWidth)
-      setCurrentSlide(Math.min(newSlide, screenshots.length - 1))
-    }
-
-    carousel.addEventListener('scroll', handleScroll)
-    return () => carousel.removeEventListener('scroll', handleScroll)
-  }, [getItemWidth])
-
-  // Navigate to a specific slide
-  const scrollToSlide = useCallback(
-    (index: number) => {
-      const carousel = carouselRef.current
-      if (!carousel) return
-
-      const itemWidth = getItemWidth()
-      carousel.scrollTo({ left: itemWidth * index, behavior: 'smooth' })
-    },
-    [getItemWidth]
-  )
-
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && currentSlide > 0) {
-        e.preventDefault()
-        scrollToSlide(currentSlide - 1)
-      } else if (e.key === 'ArrowRight' && currentSlide < screenshots.length - 1) {
-        e.preventDefault()
-        scrollToSlide(currentSlide + 1)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentSlide, scrollToSlide])
+    // Scroll to the default slide on mount
+    scrollToSlide(2)
+  }, [scrollToSlide])
 
   return (
     <section
       id="screenshots"
-      className="py-20 md:py-32 bg-[#0f172a] relative overflow-hidden"
-      aria-label="App Screenshots"
+      className="py-24 bg-gradient-to-b from-background to-muted overflow-hidden"
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">Experience Insight Run</h2>
-          <p className="text-xl text-gray-300">
-            A beautiful, intuitive interface designed to help you understand and improve your
-            running performance.
-          </p>
-        </div>
+      <div className="container mx-auto px-4 mb-16 text-center">
+        <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">
+          Experience Insight Run
+        </h2>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          A beautiful, intuitive interface designed to help you understand and improve your running
+          performance.
+        </p>
+      </div>
 
-        {/* Screenshot Carousel */}
-        <div className="relative max-w-7xl mx-auto">
-          {/* Gradient fade on edges */}
-          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-slate-900 to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-slate-900 to-transparent z-10 pointer-events-none" />
+      <div className="relative w-full group">
+        {/* Fade Edges */}
+        <div className="absolute left-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-r from-background to-transparent z-20 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-background to-transparent z-20 pointer-events-none" />
 
-          {/* Carousel Container */}
-          <div
-            ref={carouselRef}
-            className="flex gap-8 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide px-4 touch-pan-x"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
-            {screenshots.map((screenshot, _index) => (
+        {/* Carousel */}
+        <div
+          ref={scrollContainerRef}
+          className="flex gap-8 overflow-x-auto pb-12 pt-8 snap-x snap-mandatory scrollbar-hide"
+          style={{
+            paddingLeft: 'max(1rem, calc(50% - 160px))',
+            paddingRight: 'max(1rem, calc(50% - 160px))',
+          }}
+          onScroll={(e) => {
+            // Optional: Update active state on scroll
+            const container = e.currentTarget
+            const scrollLeft = container.scrollLeft
+            const cardWidth = 320 + 32 // card + gap
+            // Add half width to find center point of viewport relative to content start
+            // Actually with padding strategy, the item is centered when scrollLeft matches its start pos.
+            // So closest index is round(scrollLeft / cardWidth)
+            const index = Math.round(scrollLeft / cardWidth)
+
+            if (index !== currentSlide && index >= 0 && index < screenshots.length) {
+              setCurrentSlide(index)
+            }
+          }}
+        >
+          {screenshots.map((screenshot, index) => (
+            <button
+              type="button"
+              key={screenshot.id}
+              className="flex-shrink-0 snap-center w-[320px] group/card cursor-pointer transition-all duration-500 appearance-none bg-transparent border-none p-0 text-left outline-none focus:outline-none"
+              onClick={() => scrollToSlide(index)}
+            >
               <div
-                key={screenshot.id}
-                className="flex-shrink-0 snap-center pt-8 w-[250px] md:w-[300px]"
+                className={`relative rounded-[2.5rem] overflow-hidden border-[4px] border-muted bg-card shadow-2xl transition-all duration-500 ${
+                  currentSlide === index
+                    ? 'scale-100 border-primary/30 shadow-primary/10 opacity-100'
+                    : 'scale-90 opacity-50 hover:opacity-80'
+                }`}
               >
                 <Image
                   src={screenshot.src}
                   alt={screenshot.title}
-                  width={300}
-                  height={650}
-                  loading="lazy"
-                  quality={85}
-                  className={`w-full h-auto max-h-[${MOBILE_MAX_HEIGHT}px] md:max-h-[${DESKTOP_MAX_HEIGHT}px] object-cover drop-shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-[2rem]`}
+                  width={320}
+                  height={693}
+                  className="w-full h-auto"
+                  quality={90}
                 />
+                <div
+                  className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity duration-300 flex flex-col justify-end p-6 text-center ${currentSlide === index ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'}`}
+                >
+                  <h3 className="text-white font-bold text-lg">{screenshot.title}</h3>
+                  <p className="text-gray-300 text-sm">{screenshot.description}</p>
+                </div>
               </div>
-            ))}
-          </div>
-
-          {/* Scroll Indicator */}
-          <div className="flex justify-center gap-2 mt-8" aria-live="polite" aria-atomic="true">
-            <span className="sr-only">
-              Slide {currentSlide + 1} of {screenshots.length}
-            </span>
-            {screenshots.map((screenshot, index) => (
-              <button
-                key={screenshot.id}
-                type="button"
-                onClick={() => scrollToSlide(index)}
-                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                  currentSlide === index ? 'bg-white w-8' : 'bg-white/30 w-2 hover:bg-white/50'
-                }`}
-                aria-label={`Go to screenshot ${index + 1}: ${screenshot.title}`}
-                aria-current={currentSlide === index ? 'true' : 'false'}
-              />
-            ))}
-          </div>
+            </button>
+          ))}
         </div>
 
-        {/* Keyboard navigation hint */}
-        <div className="text-center mt-4 text-sm text-gray-500">
-          Use arrow keys to navigate between screenshots
+        {/* Indicators */}
+        <div className="flex justify-center gap-3 mt-4">
+          {screenshots.map((screenshot, index) => (
+            <button
+              type="button"
+              key={`indicator-${screenshot.id}`}
+              onClick={() => scrollToSlide(index)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                currentSlide === index
+                  ? 'w-8 bg-primary'
+                  : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Add custom CSS to hide scrollbar */}
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
-          display: none;
+            display: none;
         }
         .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
       `}</style>
     </section>

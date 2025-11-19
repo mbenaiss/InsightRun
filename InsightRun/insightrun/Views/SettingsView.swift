@@ -23,7 +23,7 @@ struct SettingsView: View {
                     if revenueCatManager.isTestFlightEnvironment {
                         HStack {
                             Image(systemName: "airplane.circle.fill")
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.irPrimaryAccent)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(String(localized: "TestFlight - Premium Access"))
                                     .font(.headline)
@@ -37,7 +37,7 @@ struct SettingsView: View {
                         // Production with active subscription
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.irSuccess)
                             Text(String(localized: "Active subscription"))
                             Spacer()
                         }
@@ -54,7 +54,7 @@ struct SettingsView: View {
                         } label: {
                             HStack {
                                 Image(systemName: "crown.fill")
-                                    .foregroundStyle(.yellow)
+                                    .foregroundStyle(Color.irWarning)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(String(localized: "Unlock Premium"))
                                         .font(.headline)
@@ -110,11 +110,11 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Image(systemName: "book.closed.fill")
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.irPrimaryAccent)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(String(localized: "Medical Sources", comment: "Medical sources settings button"))
                                     .font(.body)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Color.irTextPrimary)
                                 Text(String(localized: "View scientific references", comment: "Medical sources subtitle"))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -138,7 +138,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(Color.irSuccess)
                                 Text("\(summary.workoutCount) " + String(localized: "workouts indexed", comment: "Number of indexed workouts"))
                                     .font(.body)
                             }
@@ -156,7 +156,7 @@ struct SettingsView: View {
                             } else {
                                 Text(String(localized: "Update recommended", comment: "Update recommended message"))
                                     .font(.caption)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(Color.irWarning)
                             }
                         }
 
@@ -180,7 +180,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading) {
                             HStack {
                                 Image(systemName: "exclamationmark.circle")
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(Color.irWarning)
                                 Text(String(localized: "No data indexed", comment: "No indexed data message"))
                                     .font(.body)
                             }
@@ -206,7 +206,7 @@ struct SettingsView: View {
                     Button(String(localized: "Simuler TestFlight")) {
                         revenueCatManager.debugTestFlightOverride = true
                     }
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.irPrimaryAccent)
 
                     Button(String(localized: "Simuler Production")) {
                         revenueCatManager.debugTestFlightOverride = false
@@ -229,19 +229,19 @@ struct SettingsView: View {
                         revenueCatManager.debugTestFlightOverride = false
                         revenueCatManager.isSubscriptionActive = true
                     }
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.irSuccess)
 
                     // Paywall & Onboarding
                     Button(String(localized: "Afficher paywall")) {
                         showPaywall = true
                     }
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.irPrimaryAccent)
 
                     Button(String(localized: "Réinitialiser le paywall")) {
                         UserDefaults.standard.removeObject(forKey: "hasSeenInitialPaywall")
                         revenueCatManager.hasSeenInitialPaywall = false
                     }
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.irWarning)
 
                     Button(String(localized: "Réinitialiser l'onboarding")) {
                         OnboardingManager.shared.resetOnboarding()
@@ -252,12 +252,12 @@ struct SettingsView: View {
                     Button(String(localized: "Delete LLM History", comment: "Debug button to clear historical summary storage")) {
                         HistoricalSummaryStorage.shared.clear()
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.irError)
 
                     Button(String(localized: "Réinitialiser consentement IA")) {
                         ConsentService.shared.resetConsentState()
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.irError)
                 } header: {
                     Text(String(localized: "Debug"))
                 } footer: {

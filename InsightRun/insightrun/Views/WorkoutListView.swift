@@ -98,13 +98,13 @@ struct WorkoutListView: View {
                             Circle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [.blue, .cyan],
+                                        colors: [Color.irPrimaryAccent, .cyan],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
                                 .frame(width: 60, height: 60)
-                                .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
+                                .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 12, y: 6)
 
                             if isLoadingMetrics {
                                 ProgressView()
@@ -182,7 +182,7 @@ struct WorkoutListView: View {
             // Icon with Liquid Glass effect
             ZStack {
                 Circle()
-                    .fill(.thinMaterial)
+                    .fill(Color.irCardBackground)
                     .frame(width: 120, height: 120)
                     .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
 
@@ -213,9 +213,9 @@ struct WorkoutListView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.blue.gradient)
+                    .background(Color.irPrimaryAccent.gradient)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: .blue.opacity(0.3), radius: 10, y: 5)
+                    .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 10, y: 5)
             }
             .padding(.horizontal, 32)
             .padding(.top, 16)
@@ -262,9 +262,9 @@ struct WorkoutListView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.blue.gradient)
+                        .background(Color.irPrimaryAccent.gradient)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .blue.opacity(0.3), radius: 10, y: 5)
+                        .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 10, y: 5)
                     }
                     .padding(.horizontal, 32)
                     .padding(.top, 8)
@@ -281,11 +281,11 @@ struct WorkoutListView: View {
                     } label: {
                         Text(String(localized: "Restore Purchases", comment: "Restore purchases button"))
                             .font(.subheadline)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.irPrimaryAccent)
                     }
                 }
                 .padding()
-                .background(.ultraThinMaterial)
+                .background(Color.irCardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 20))
                 .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
                 .padding(.horizontal)
@@ -330,7 +330,7 @@ struct WorkoutListView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.orange.gradient)
+                    .background(Color.irWarning.gradient)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .padding(.horizontal, 32)
@@ -477,7 +477,7 @@ struct WorkoutListView: View {
                 .padding(.vertical, 12)
                 .background(
                     LinearGradient(
-                        colors: [.blue, .cyan],
+                        colors: [Color.irPrimaryAccent, .cyan],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -486,7 +486,7 @@ struct WorkoutListView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -511,7 +511,7 @@ struct WorkoutListView: View {
                 VStack(alignment: .center, spacing: 4) {
                     Text(viewModel.formatDistance(stats.totalDistance))
                         .font(.headline)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Distance", comment: "Distance stat label"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -524,7 +524,7 @@ struct WorkoutListView: View {
                 VStack(alignment: .center, spacing: 4) {
                     Text(viewModel.formatDuration(stats.totalDuration))
                         .font(.headline)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.irSuccess)
                     Text(String(localized: "Time", comment: "Time stat label"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -537,7 +537,7 @@ struct WorkoutListView: View {
                 VStack(alignment: .center, spacing: 4) {
                     Text(viewModel.formatPace(stats.averagePace))
                         .font(.headline)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.irWarning)
                     Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -545,7 +545,7 @@ struct WorkoutListView: View {
                 .frame(maxWidth: .infinity)
             }
             .padding()
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -562,7 +562,7 @@ struct StatItem: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundStyle(.blue.gradient)
+                .foregroundStyle(Color.irPrimaryAccent.gradient)
 
             Text(value)
                 .font(.title3)
@@ -586,7 +586,7 @@ struct StatsRow: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundStyle(.blue.gradient)
+                .foregroundStyle(Color.irPrimaryAccent.gradient)
                 .frame(width: 24)
 
             Text(label)

@@ -99,14 +99,14 @@ struct AppearancePreview<Content: View>: View {
                 Text("Ultra Thin Material")
                     .padding()
             }
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             VStack {
                 Text("Thin Material")
                     .padding()
             }
-            .background(.thinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -152,14 +152,14 @@ struct AppearancePreview<Content: View>: View {
                 Text("Ultra Thin Material")
                     .padding()
             }
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             VStack {
                 Text("Thin Material")
                     .padding()
             }
-            .background(.thinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }

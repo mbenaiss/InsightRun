@@ -28,6 +28,7 @@ struct AIConsentSheet: View {
                             .font(.title2)
                             .fontWeight(.bold)
                             .multilineTextAlignment(.center)
+                            .foregroundStyle(Color.irTextPrimary)
 
                         // Main description with bold requirement
                         VStack(alignment: .leading, spacing: 16) {
@@ -35,18 +36,18 @@ struct AIConsentSheet: View {
                                 .font(.body)
                                 .fontWeight(.bold)
                                 .multilineTextAlignment(.leading)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(Color.irTextPrimary)
 
                             // How it works
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(String(localized: "consent.how_it_works", comment: "How it works header"))
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Color.irTextPrimary)
 
                                 Text(String(localized: "consent.how_description", comment: "How it works description"))
                                     .font(.body)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
 
                             // Privacy guarantees
@@ -54,7 +55,7 @@ struct AIConsentSheet: View {
                                 Text(String(localized: "consent.privacy_header", comment: "Privacy header"))
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Color.irTextPrimary)
 
                                 VStack(alignment: .leading, spacing: 6) {
                                     PrivacyCheckRow(text: String(localized: "consent.privacy.anonymous", comment: "Anonymous data guarantee"))
@@ -70,13 +71,13 @@ struct AIConsentSheet: View {
                         Link(destination: URL(string: "https://insightrun.altcode.studio/privacy")!) {
                             HStack {
                                 Image(systemName: "lock.shield.fill")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.irPrimaryAccent)
                                 Text(String(localized: "consent.privacy_policy", comment: "Privacy policy link"))
                                     .font(.subheadline)
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.irPrimaryAccent)
                                 Image(systemName: "arrow.up.right")
                                     .font(.caption)
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.irPrimaryAccent)
                             }
                         }
                         .padding(.top, 8)
@@ -85,6 +86,7 @@ struct AIConsentSheet: View {
                         Text(String(localized: "consent.question", comment: "Question asking user to continue"))
                             .font(.headline)
                             .multilineTextAlignment(.center)
+                            .foregroundStyle(Color.irTextPrimary)
                             .padding(.top, 16)
 
                         // Buttons
@@ -99,7 +101,7 @@ struct AIConsentSheet: View {
                                     .foregroundStyle(.white)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 56)
-                                    .background(Color.blue)
+                                    .background(Color.irPrimaryAccent)
                                     .cornerRadius(16)
                             }
 
@@ -109,7 +111,7 @@ struct AIConsentSheet: View {
                             }) {
                                 Text(String(localized: "consent.decline", comment: "Button to decline consent"))
                                     .font(.headline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 56)
                             }
@@ -133,10 +135,10 @@ struct PrivacyCheckRow: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.body)
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.irSuccess)
             Text(text)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

@@ -22,17 +22,18 @@ struct HealthKitPermissionStepView: View {
             VStack(spacing: 16) {
                 Image(systemName: "heart.text.square.fill")
                     .font(.system(size: 80))
-                    .foregroundStyle(.red.gradient)
+                    .foregroundStyle(Color.irError.gradient)
 
                 Text(String(localized: "Access to your health data", comment: "Onboarding HealthKit title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "Insight Run needs access to HealthKit to analyze your runs and provide personalized coaching", comment: "Onboarding HealthKit description"))
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
@@ -69,21 +70,22 @@ struct HealthKitPermissionStepView: View {
             HStack(spacing: 12) {
                 Image(systemName: "lock.shield.fill")
                     .font(.title3)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.irSuccess)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "Your data is private", comment: "Onboarding privacy note title"))
                         .font(.subheadline)
                         .fontWeight(.semibold)
+                        .foregroundStyle(Color.irTextPrimary)
                     Text(String(localized: "All data stays on your device", comment: "Onboarding privacy note description"))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
 
                 Spacer()
             }
             .padding()
-            .background(.green.opacity(0.1))
+            .background(Color.irSuccess.opacity(0.1))
             .cornerRadius(12)
             .padding(.horizontal, 24)
 
@@ -105,14 +107,14 @@ struct HealthKitPermissionStepView: View {
                             .padding()
                     }
                 }
-                .background(.blue.gradient)
+                .background(Color.irPrimaryAccent.gradient)
                 .cornerRadius(16)
                 .disabled(isRequesting)
 
                 if showError {
                     Text(errorMessage)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.irError)
                         .multilineTextAlignment(.center)
                 }
             }
@@ -179,23 +181,24 @@ struct DataAccessRow: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.irPrimaryAccent)
                 .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.medium)
+                    .foregroundStyle(Color.irTextPrimary)
                 Text(description)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
 
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.title3)
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.irSuccess)
         }
     }
 }

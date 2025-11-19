@@ -12,7 +12,7 @@ extension Color {
     // MARK: - Custom Adaptive Colors
 
     /// App background color - main screen background
-    /// Light: #F5F5F7 (soft gray) | Dark: #000000 (black)
+    /// Light: #EBEBF0 (medium light gray) | Dark: #000000 (black)
     static let irBackgroundApp = Color("BackgroundApp", bundle: nil)
 
     /// Background color for cards - adapts to light/dark mode
@@ -34,7 +34,7 @@ extension Color {
     static let irTextPrimary = Color("TextPrimary", bundle: nil)
 
     /// Secondary text color - less prominent text
-    /// Light: #5F6368 (medium gray) | Dark: #B0B3B8 (light gray)
+    /// Light: #8E8E93 (iOS secondary label gray) | Dark: #B0B3B8 (light gray)
     static let irTextSecondary = Color("TextSecondary", bundle: nil)
 
     // MARK: - Border & Dividers
@@ -82,7 +82,7 @@ extension Color {
  Use the colors defined in Assets.xcassets/Colors/:
 
  **Backgrounds:**
- - `Color.irBackgroundApp` - For main app background (#F5F5F7 light)
+ - `Color.irBackgroundApp` - For main app background (#EBEBF0 light)
  - `Color.irCardBackground` - For card backgrounds (#FFFFFF light)
  - `Color.irSurface` - For elevated surfaces (#F5F5F7 light)
 
@@ -91,7 +91,7 @@ extension Color {
 
  **Text:**
  - `Color.irTextPrimary` - For primary text (#1C1E21 light)
- - `Color.irTextSecondary` - For secondary text (#5F6368 light)
+ - `Color.irTextSecondary` - For secondary text (#8E8E93 light)
 
  **Borders:**
  - `Color.irBorder` - For borders and dividers (#E4E4E7 light)

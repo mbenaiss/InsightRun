@@ -173,7 +173,7 @@ struct WorkoutDetailView: View {
             Text(workout.startDate, style: .date)
                 .font(.title3)
                 .fontWeight(.semibold)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
@@ -182,7 +182,7 @@ struct WorkoutDetailView: View {
                let firstPoint = routePoints.first {
                 LocationText(coordinate: firstPoint.coordinate)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -195,18 +195,18 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "map.fill")
-                    .foregroundStyle(.green.gradient)
+                    .foregroundStyle(Color.irSuccess.gradient)
                     .font(.headline)
 
                 Text(String(localized: "Route", comment: "Route map section title"))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
 
                 Text(String(format: String(localized: "%lld GPS points", comment: "GPS points count"), routePoints.count))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
 
             RouteMapView(routePoints: routePoints)
@@ -214,9 +214,9 @@ struct WorkoutDetailView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
     }
 
     // MARK: - Main Metrics Grid
@@ -280,7 +280,7 @@ struct WorkoutDetailView: View {
             ProgressView()
             Text(String(localized: "Loading data...", comment: "Loading indicator"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(40)
@@ -292,11 +292,11 @@ struct WorkoutDetailView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.irWarning)
 
             Text(error)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -384,13 +384,13 @@ struct WorkoutDetailView: View {
                     VStack(spacing: 4) {
                         Text(String(localized: "Best", comment: "Best split label"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                         Text(best.paceFormatted)
                             .font(.headline)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.irSuccess)
                         Text("km \(best.kilometer)")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                     .frame(maxWidth: .infinity)
 
@@ -400,13 +400,13 @@ struct WorkoutDetailView: View {
                     VStack(spacing: 4) {
                         Text(String(localized: "Slowest", comment: "Slowest split label"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                         Text(worst.paceFormatted)
                             .font(.headline)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.irWarning)
                         Text("km \(worst.kilometer)")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -557,7 +557,7 @@ struct WorkoutDetailView: View {
 
                 Text(String(localized: "AI Analysis", comment: "AI analysis section title"))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
             }
 
             // Check AI access first (subscription or TestFlight)
@@ -576,7 +576,7 @@ struct WorkoutDetailView: View {
 
                     Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
                     Button {
@@ -612,7 +612,7 @@ struct WorkoutDetailView: View {
                         .controlSize(.small)
                     Text(String(localized: "Analyzing...", comment: "AI analysis loading indicator"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 20)
@@ -622,11 +622,11 @@ struct WorkoutDetailView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.title2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.irWarning)
 
                     Text(error)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
                     Button {
@@ -647,14 +647,14 @@ struct WorkoutDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     MarkdownText(analysis)
                         .font(.subheadline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     HStack {
                         if let analyzedAt = analysisViewModel.analyzedAt {
                             Text(analyzedAt, style: .relative)
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
 
                         Spacer()
@@ -668,7 +668,7 @@ struct WorkoutDetailView: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
-                        .tint(.blue)
+                        .tint(Color.irPrimaryAccent)
                     }
                 }
 
@@ -677,7 +677,7 @@ struct WorkoutDetailView: View {
                 VStack(spacing: 12) {
                     Text(String(localized: "Get detailed analysis of your performance", comment: "AI analysis prompt"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
                     Button {
@@ -690,16 +690,16 @@ struct WorkoutDetailView: View {
                             .fontWeight(.medium)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.blue)
+                    .tint(Color.irPrimaryAccent)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
         .sheet(isPresented: $showSubscriptionPaywall) {
             SubscriptionPaywallView(isInitialFlow: false)
                 .environmentObject(revenueCatManager)
@@ -712,16 +712,16 @@ struct WorkoutDetailView: View {
         VStack(spacing: 8) {
             HStack {
                 Image(systemName: "info.circle")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 Text(String(localized: "workout.detail.source") + " \(workout.sourceName)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 if let version = workout.sourceVersion {
                     Text("v\(version)")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
         }
@@ -788,7 +788,7 @@ struct MetricInfoSheet: View {
                         Text(metricInfo.title)
                             .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.irTextPrimary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
@@ -827,7 +827,7 @@ struct MetricInfoSheet: View {
 
                                 Text(String(localized: "metric.info.recommended", comment: "Recommended values"))
                                     .font(.headline)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Color.irTextPrimary)
 
                                 Spacer()
                             }
@@ -843,8 +843,8 @@ struct MetricInfoSheet: View {
                         }
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(.systemBackground))
-                                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                                .fill(Color.irCardBackground)
+                                .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 2)
                         )
                     } else {
                         // Fallback to text card when no visual range available
@@ -860,7 +860,7 @@ struct MetricInfoSheet: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(String(localized: "These recommendations are based on published scientific research.", comment: "Metric info medical disclaimer"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                             .lineSpacing(4)
 
                         Button {
@@ -873,12 +873,12 @@ struct MetricInfoSheet: View {
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.irPrimaryAccent)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .fill(.blue.opacity(0.1))
+                                    .fill(Color.irPrimaryAccent.opacity(0.1))
                             )
                         }
                     }
@@ -886,14 +886,14 @@ struct MetricInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                            .fill(Color.irCardBackground)
+                            .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 2)
                     )
                 }
                 .padding()
                 .padding(.bottom, 20)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.irBackgroundApp)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -903,7 +903,7 @@ struct MetricInfoSheet: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
@@ -940,7 +940,7 @@ struct InfoCard: View {
 
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
             }
@@ -948,7 +948,7 @@ struct InfoCard: View {
             // Content
             Text(content)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -956,8 +956,8 @@ struct InfoCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                .fill(Color.irCardBackground)
+                .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 2)
         )
     }
 }
@@ -990,16 +990,16 @@ struct MetricsCard<Content: View>: View {
 
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
             }
 
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 10, y: 5)
     }
 }
 
@@ -1022,13 +1022,13 @@ struct MetricRow: View {
 
             Text(label)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
 
             Text(value)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             if let metricInfoKey = metricInfoKey {
                 Button {
@@ -1036,7 +1036,7 @@ struct MetricRow: View {
                 } label: {
                     Image(systemName: "info.circle")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .buttonStyle(.plain)
                 .sheet(isPresented: $showingInfo) {
@@ -1057,14 +1057,14 @@ struct SplitRow: View {
                 Text("km \(split.kilometer)")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 // Show actual distance if different from 1000m
                 let distanceKm = split.distance / 1000.0
                 if abs(distanceKm - 1.0) > 0.01 {
                     Text(String(format: "%.2f km", distanceKm))
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
             .frame(width: 60, alignment: .leading)
@@ -1072,7 +1072,7 @@ struct SplitRow: View {
             // Pace - 1/3
             Text(split.paceFormatted)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             // Heart Rate - 1/3
@@ -1083,7 +1083,7 @@ struct SplitRow: View {
                         .foregroundStyle(.red)
                     Text(String(format: "%.0f bpm", hr))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -1151,17 +1151,17 @@ struct AccordionSection<Content: View>: View {
 
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     Spacer()
 
                     Image(systemName: "chevron.down")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding()
-                .background(.ultraThinMaterial)
+                .background(Color.irCardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 20))
             }
             .buttonStyle(.plain)
@@ -1170,7 +1170,7 @@ struct AccordionSection<Content: View>: View {
             if isExpanded {
                 content
                     .padding()
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(.top, 4)
             }
@@ -1195,22 +1195,22 @@ struct CompactMetricCard: View {
             VStack(spacing: 4) {
                 Text(value)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
                 Text(label)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 100)
         .padding(.vertical, 14)
         .padding(.horizontal, 10)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
     }
 }
 
@@ -1245,7 +1245,7 @@ struct SwipeableChartsView: View {
             HStack(spacing: 8) {
                 ForEach(0..<(metrics.runningPower != nil ? 3 : 2), id: \.self) { index in
                     Circle()
-                        .fill(selectedPage == index ? Color.primary : Color.secondary.opacity(0.3))
+                        .fill(selectedPage == index ? Color.irTextPrimary : Color.irTextSecondary.opacity(0.3))
                         .frame(width: 8, height: 8)
                         .animation(.easeInOut, value: selectedPage)
                 }
@@ -1312,7 +1312,7 @@ struct InteractiveHeartRateChart: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "Heart Rate", comment: "Heart rate chart title"))
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
                         Text("\(Int(data.value)) bpm")
@@ -1321,7 +1321,7 @@ struct InteractiveHeartRateChart: View {
                             .foregroundStyle(.red)
                         Text(data.label)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minHeartRate, let max = maxHeartRate {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1331,7 +1331,7 @@ struct InteractiveHeartRateChart: View {
                                     .foregroundStyle(.red)
                                 Text(String(localized: "min", comment: "Minimum label"))
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(Int(max)) bpm")
@@ -1340,13 +1340,13 @@ struct InteractiveHeartRateChart: View {
                                     .foregroundStyle(.red)
                                 Text(String(localized: "max", comment: "Maximum label"))
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     } else {
                         Text(String(localized: "No data available", comment: "Empty state message"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
 
@@ -1362,10 +1362,10 @@ struct InteractiveHeartRateChart: View {
                 VStack(spacing: 12) {
                     Image(systemName: "heart.slash")
                         .font(.largeTitle)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Text(String(localized: "No heart rate data available", comment: "Empty HR chart message"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(height: 240)
@@ -1422,7 +1422,7 @@ struct InteractiveHeartRateChart: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
@@ -1503,7 +1503,7 @@ struct InteractivePaceChart: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "workout.detail.pace"))
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
                         Text(formatPace(data.value))
@@ -1512,7 +1512,7 @@ struct InteractivePaceChart: View {
                             .foregroundStyle(.green)
                         Text(data.label)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minPace, let max = maxPace {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1522,7 +1522,7 @@ struct InteractivePaceChart: View {
                                     .foregroundStyle(.green)
                                 Text("min")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(formatPace(max))
@@ -1531,7 +1531,7 @@ struct InteractivePaceChart: View {
                                     .foregroundStyle(.green)
                                 Text("max")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     }
@@ -1594,7 +1594,7 @@ struct InteractivePaceChart: View {
             .frame(height: 240)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
@@ -1663,7 +1663,7 @@ struct InteractivePowerChart: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "workout.detail.power"))
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
                         Text("\(Int(data.value)) W")
@@ -1672,7 +1672,7 @@ struct InteractivePowerChart: View {
                             .foregroundStyle(.orange)
                         Text(data.label)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minPower, let max = maxPower {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1682,7 +1682,7 @@ struct InteractivePowerChart: View {
                                     .foregroundStyle(.orange)
                                 Text("min")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(Int(max)) W")
@@ -1691,7 +1691,7 @@ struct InteractivePowerChart: View {
                                     .foregroundStyle(.orange)
                                 Text("max")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     }
@@ -1709,10 +1709,10 @@ struct InteractivePowerChart: View {
                 VStack(spacing: 12) {
                     Image(systemName: "bolt.slash")
                         .font(.largeTitle)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Text(String(localized: "workout.detail.no_power_data"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(height: 240)
@@ -1769,7 +1769,7 @@ struct InteractivePowerChart: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }

@@ -13,10 +13,8 @@ struct SubscriptionPaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
-    // Indicates if this is the initial paywall shown after HealthKit authorization
     var isInitialFlow: Bool = false
 
-    // Optional callback when paywall is dismissed (for onboarding flow)
     var onDismiss: (() -> Void)? = nil
 
     @State private var paywallAppearTime: Date?
@@ -26,7 +24,6 @@ struct SubscriptionPaywallView: View {
     var body: some View {
         Group {
             if !hasConsented && ConsentService.shared.isConsentRequired() {
-                // Show consent sheet first
                 Color.clear
                     .sheet(isPresented: .constant(true)) {
                         AIConsentSheet(
@@ -34,7 +31,6 @@ struct SubscriptionPaywallView: View {
                                 hasConsented = true
                             },
                             onDecline: {
-                                // User declined consent, dismiss paywall
                                 if let onDismiss = onDismiss {
                                     onDismiss()
                                 } else {
@@ -44,12 +40,10 @@ struct SubscriptionPaywallView: View {
                         )
                     }
             } else {
-                // Show paywall once consented
                 actualPaywallView
             }
         }
         .onAppear {
-            // Check if already consented
             hasConsented = !ConsentService.shared.isConsentRequired()
         }
     }

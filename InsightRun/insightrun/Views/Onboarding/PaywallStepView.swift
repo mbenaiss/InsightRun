@@ -69,7 +69,7 @@ struct AlreadySubscribedView: View {
             // Premium Icon
             ZStack {
                 Circle()
-                    .fill(Color.yellow.gradient)
+                    .fill(Color.irWarning.gradient)
                     .frame(width: 120, height: 120)
 
                 Image(systemName: "crown.fill")
@@ -82,10 +82,11 @@ struct AlreadySubscribedView: View {
                     .font(.title)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "paywall.alreadySubscribed.message", comment: "Message shown when user is already premium"))
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -98,7 +99,7 @@ struct AlreadySubscribedView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(Color.blue)
+                    .background(Color.irPrimaryAccent)
                     .cornerRadius(16)
             }
             .padding(.horizontal, 24)
@@ -119,23 +120,24 @@ struct PremiumFeatureRow: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundStyle(.yellow.gradient)
+                .foregroundStyle(Color.irWarning.gradient)
                 .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.medium)
+                    .foregroundStyle(Color.irTextPrimary)
                 Text(description)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
 
             Spacer()
 
             Image(systemName: "star.fill")
                 .font(.title3)
-                .foregroundStyle(.yellow)
+                .foregroundStyle(Color.irWarning)
         }
     }
 }

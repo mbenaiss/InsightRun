@@ -17,12 +17,12 @@ struct WorkoutRowView: View {
             // Icon with gradient
             ZStack {
                 Circle()
-                    .fill(.blue.gradient.opacity(0.2))
+                    .fill(Color.irPrimaryAccent.opacity(0.2))
                     .frame(width: 56, height: 56)
 
                 Image(systemName: "figure.run")
                     .font(.title2)
-                    .foregroundStyle(.blue.gradient)
+                    .foregroundStyle(Color.irPrimaryAccent)
             }
 
             // Workout info
@@ -31,7 +31,7 @@ struct WorkoutRowView: View {
                 HStack {
                     Text(workout.startDate, style: .date)
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     Spacer()
 
@@ -70,8 +70,12 @@ struct WorkoutRowView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.irBorder, lineWidth: 0.5)
+        )
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
 }

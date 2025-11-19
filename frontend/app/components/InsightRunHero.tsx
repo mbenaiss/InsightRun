@@ -59,7 +59,6 @@ export default function InsightRunHero() {
                   className="h-[52px] w-auto"
                 />
               </a>
-
             </div>
           </div>
 

@@ -18,16 +18,17 @@ struct WelcomeStepView: View {
             VStack(spacing: 16) {
                 Image(systemName: "figure.run.circle.fill")
                     .font(.system(size: 80))
-                    .foregroundStyle(.blue.gradient)
+                    .foregroundStyle(Color.irPrimaryAccent.gradient)
 
                 Text(String(localized: "Welcome to Insight Run", comment: "Onboarding welcome title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "Your intelligent running coach", comment: "Onboarding welcome subtitle"))
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal)
@@ -73,7 +74,7 @@ struct WelcomeStepView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.blue.gradient)
+                    .background(Color.irPrimaryAccent.gradient)
                     .cornerRadius(16)
             }
             .padding(.horizontal, 24)
@@ -103,9 +104,10 @@ struct FeatureRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
                 Text(description)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
 
             Spacer()

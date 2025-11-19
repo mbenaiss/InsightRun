@@ -73,7 +73,7 @@ struct OnboardingProgressView: View {
             HStack(spacing: 8) {
                 ForEach(0..<totalSteps, id: \.self) { step in
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(step <= currentStep ? Color.blue : Color.gray.opacity(0.3))
+                        .fill(step <= currentStep ? Color.irPrimaryAccent : Color.irBorder.opacity(0.5))
                         .frame(height: 4)
                         .animation(.easeInOut, value: currentStep)
                 }
@@ -82,7 +82,7 @@ struct OnboardingProgressView: View {
 
             Text(String(localized: "Step \(currentStep + 1) of \(totalSteps)", comment: "Onboarding progress text"))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
     }
 }

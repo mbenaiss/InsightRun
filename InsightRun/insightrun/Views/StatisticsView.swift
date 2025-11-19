@@ -108,7 +108,7 @@ struct StatisticsView: View {
                                 Text("\(year)")
                                 if viewModel.selectedYear == year {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(.blue)
+                                        .foregroundStyle(Color.irPrimaryAccent)
                                 }
                             }
                         }
@@ -124,7 +124,7 @@ struct StatisticsView: View {
                         Text("\(viewModel.selectedYear)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.irTextPrimary)
 
                         Image(systemName: "chevron.down")
                             .font(.caption)
@@ -132,7 +132,7 @@ struct StatisticsView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -227,7 +227,7 @@ struct StatisticsView: View {
                 )
             }
             .padding()
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
@@ -320,7 +320,7 @@ struct StatisticsView: View {
                 }
             }
             .padding()
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
@@ -422,7 +422,7 @@ struct StatisticsView: View {
                     .frame(height: 100)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
             }
@@ -451,7 +451,7 @@ struct StatisticsView: View {
                     x: .value(String(localized: "statistics.charts.period", defaultValue: "Period", comment: "Chart period label"), data.date, unit: viewModel.chartGranularity == .week ? .weekOfYear : .month),
                     y: .value(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label"), data.distance / 1000.0)
                 )
-                .foregroundStyle(selectedData?.id == data.id ? Color.blue : Color.blue.opacity(0.5))
+                .foregroundStyle(selectedData?.id == data.id ? Color.irPrimaryAccent : Color.irPrimaryAccent.opacity(0.5))
                 .opacity(selectedData == nil || selectedData?.id == data.id ? 1.0 : 0.5)
             }
         }
@@ -467,7 +467,7 @@ struct StatisticsView: View {
         }
         .chartXSelection(value: $selectedPeriodDate)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
@@ -482,7 +482,7 @@ struct StatisticsView: View {
 
             Text(viewModel.formatDistance(selected.distance))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.irPrimaryAccent)
 
             if selected.workoutCount > 0 {
                 Text("\(selected.workoutCount) " + (selected.workoutCount == 1 ? String(localized: "statistics.charts.workout", defaultValue: "workout", comment: "Singular workout") : String(localized: "statistics.charts.workouts", defaultValue: "workouts", comment: "Plural workouts")))
@@ -493,7 +493,7 @@ struct StatisticsView: View {
         .frame(maxWidth: 180)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -549,13 +549,13 @@ struct StatisticsView: View {
                                 .fontWeight(.semibold)
                         }
                         .padding(.horizontal)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
                         .contentShape(Rectangle())
                     }
                 }
             }
             .padding(.vertical)
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
@@ -608,7 +608,7 @@ struct StatisticsView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
@@ -647,7 +647,7 @@ struct StatisticsView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -699,13 +699,13 @@ struct StatisticsView: View {
                                 .fontWeight(.semibold)
                         }
                         .padding(.horizontal)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
                         .contentShape(Rectangle())
                     }
                 }
             }
             .padding(.vertical)
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
         }
@@ -725,7 +725,7 @@ struct StatisticsView: View {
                     Text("\(Int(dist.percentage))%")
                         .font(.caption)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundStyle(Color.irTextPrimary)
                 }
             }
         }
@@ -740,7 +740,7 @@ struct StatisticsView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
@@ -779,7 +779,7 @@ struct StatisticsView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -831,9 +831,9 @@ struct PeriodButton: View {
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? Color.blue : Color(uiColor: .secondarySystemGroupedBackground))
+                        .fill(isSelected ? Color.irPrimaryAccent : Color.irSurface)
                 )
-                .foregroundStyle(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? Color.irTextPrimary : Color.irTextPrimary)
         }
     }
 }
@@ -893,7 +893,7 @@ struct StatMetricCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, minHeight: 100)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
@@ -907,7 +907,7 @@ struct PerformanceRow: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.irPrimaryAccent)
                 .frame(width: 24)
 
             Text(title)
@@ -980,7 +980,7 @@ struct ComparisonCard: View {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.body)
-                    .foregroundStyle(.blue.gradient)
+                    .foregroundStyle(Color.irPrimaryAccent.gradient)
 
                 Text(title)
                     .font(.caption)
@@ -1028,7 +1028,7 @@ struct ComparisonCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, minHeight: 140)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }

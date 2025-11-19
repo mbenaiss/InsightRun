@@ -66,7 +66,7 @@ struct RecoveryDashboardView: View {
 
                         Image(systemName: "sparkles")
                             .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.white) // White for contrast on gradient background
                     }
                 }
                 .padding(.trailing, 20)
@@ -243,7 +243,7 @@ struct RecoveryDashboardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -258,12 +258,12 @@ struct RecoveryDashboardView: View {
 
             Text(recovery.recoveryStatus.recommendation)
                 .font(.body)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
                 .multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(.orange.opacity(0.1))
+        .background(Color.irWarning.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -320,7 +320,7 @@ struct RecoveryDashboardView: View {
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -397,7 +397,7 @@ struct RecoveryDashboardView: View {
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -417,7 +417,7 @@ struct RecoveryDashboardView: View {
             )
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -428,19 +428,19 @@ struct RecoveryDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "book.closed.fill")
-                    .foregroundStyle(.blue.gradient)
+                    .foregroundStyle(Color.irPrimaryAccent.gradient)
                     .font(.title3)
 
                 Text(String(localized: "Medical Information", comment: "Medical sources section title"))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
             }
 
             Text(String(localized: "Recovery recommendations are based on published scientific research. Tap below to view all medical sources.", comment: "Medical sources disclaimer text"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
 
             Button {
@@ -453,18 +453,18 @@ struct RecoveryDashboardView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                 }
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.irPrimaryAccent)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(.blue.opacity(0.1))
+                        .fill(Color.irPrimaryAccent.opacity(0.1))
                 )
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -484,14 +484,14 @@ struct RecoveryDashboardView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.blue)
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCardBackground)
                     .clipShape(Circle())
             }
 
             // Date Display
             Text(viewModel.formattedSelectedDate)
                 .font(.headline)
-                .foregroundColor(.primary)
+                .foregroundColor(Color.irTextPrimary)
                 .frame(maxWidth: .infinity)
 
             // Next Day Button
@@ -505,14 +505,14 @@ struct RecoveryDashboardView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(viewModel.isToday ? .gray : .blue)
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCardBackground)
                     .clipShape(Circle())
             }
             .disabled(viewModel.isToday)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -559,14 +559,14 @@ struct HealthMetricRow: View {
 
             Text(title)
                 .font(.body)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
             Text(value)
                 .font(.body)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
     }
 }
@@ -592,12 +592,14 @@ struct SleepStageRow: View {
 
             Text(stage)
                 .font(.subheadline)
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
             Text(formattedDuration)
                 .font(.subheadline)
                 .fontWeight(.medium)
+                .foregroundStyle(Color.irTextSecondary)
         }
     }
 }

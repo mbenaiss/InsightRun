@@ -69,16 +69,16 @@ struct MetricRangeVisualization: View {
                                     HStack(spacing: 3) {
                                         Text(String(format: "%.0f", value))
                                             .font(.system(size: 15, weight: .bold))
-                                            .foregroundStyle(.primary)
+                                            .foregroundStyle(Color.irTextPrimary)
 
                                         Text(String(localized: "current", comment: "Label for current value indicator"))
                                             .font(.system(size: 10, weight: .medium))
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(Color.irTextSecondary)
                                     }
 
                                     Image(systemName: "arrowtriangle.down.fill")
                                         .font(.system(size: 12))
-                                        .foregroundStyle(.primary)
+                                        .foregroundStyle(Color.irPrimaryAccent)
                                 }
                                 .offset(x: position - 25, y: 0)
                             }
@@ -103,13 +103,13 @@ struct MetricRangeVisualization: View {
                             HStack(spacing: 0) {
                                 Text("\(Int(range.minValue))")
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
 
                                 if index == rangeModel.ranges.count - 1 {
                                     Spacer()
                                     Text("\(Int(range.maxValue))+")
                                         .font(.system(size: 10, weight: .medium))
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.irTextSecondary)
                                 } else {
                                     Spacer()
                                 }
@@ -119,14 +119,14 @@ struct MetricRangeVisualization: View {
                     }
                     .padding(.top, 3)
                 }
-                
+
                 // Current range description
                 if let value = currentValue,
                    let currentRange = rangeModel.ranges.first(where: { $0.contains(value) }) {
                     Text(rangeDescription(for: currentRange))
                         .font(.subheadline)
                         .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 4)
                 }

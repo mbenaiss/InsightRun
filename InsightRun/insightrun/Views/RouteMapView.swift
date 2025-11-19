@@ -18,10 +18,10 @@ struct RouteMapView: View {
             if routePoints.isEmpty {
                 // Placeholder for empty route
                 Rectangle()
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.irCardBackground)
                     .overlay {
                         Text(String(localized: "workout.detail.no_gps_data"))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
             } else {
                 mapView

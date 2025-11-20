@@ -10,6 +10,9 @@ coverage/
 dist/
 .wrangler/
 
+# Generated type definitions
+worker-configuration.d.ts
+
 # Misc
 .DS_Store
 *.log

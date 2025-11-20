@@ -99,7 +99,7 @@ class BatchIndexationManager: ObservableObject {
 
             // Step 2: Calculate batches
             totalBatches = Int(ceil(Double(workoutsToProcess.count) / Double(BatchIndexationConfig.batchSize)))
-            print("📊 BatchIndexationManager: Will process \(totalBatches) batches with Grok, consolidation with Haiku")
+            print("📊 BatchIndexationManager: Will process \(totalBatches) batches, then consolidate")
 
             // Track indexation started
             AnalyticsService.shared.trackIndexationStarted(
@@ -108,8 +108,8 @@ class BatchIndexationManager: ObservableObject {
             )
 
             var batchSummaries: [String] = []
-            let batchRequestType = RequestType.batchProcessing.rawValue // Backend will use Gemini for batch processing
-            let consolidationRequestType = RequestType.moderate.rawValue // Backend will use Haiku for consolidation
+            let batchRequestType = RequestType.batchProcessing.rawValue // Backend selects optimal model
+            let consolidationRequestType = RequestType.moderate.rawValue // Backend selects optimal model
             let language = Locale.current.language.languageCode?.identifier ?? "en"
 
             // Step 3: Process batches

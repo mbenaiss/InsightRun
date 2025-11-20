@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
-import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
+import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { QuotaCheck } from '../quota'
 import type {
@@ -368,28 +368,18 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     // Get user ID for quota management
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
 
-    // Determine which model to use
-    let finalModel: string
-    const modelType = requestType || RequestType.BATCH_PROCESSING // Default to BATCH_PROCESSING
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      manualModel,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.BATCH_PROCESSING
+    )
 
-    if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
-      finalModel = selection.model.modelId
-      console.log(
-        `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, type: ${modelType}, model: ${selection.model.displayName}, language: ${language}`
-      )
-    } else if (manualModel) {
-      finalModel = manualModel
-      console.log(
-        `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, manual model: ${finalModel}, language: ${language}`
-      )
-    } else {
-      // Default fallback
-      finalModel = 'google/gemini-2.5-flash-lite'
-      console.log(
-        `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, default model: ${finalModel}, language: ${language}`
-      )
-    }
+    console.log(
+      `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, model: ${finalModel}, language: ${language}`
+    )
 
     // Build batch analysis prompt
     const systemPrompt = ''
@@ -405,10 +395,9 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
       BATCH_TIMEOUT
     )
 
-    // Increment quota if needed
-    if (requestType && Object.values(RequestType).includes(requestType as RequestType)) {
-      const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
-      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
     }
 
     // Validate and truncate if needed
@@ -521,25 +510,20 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     // Get user ID for quota management
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
 
-    // Determine which model to use
-    let finalModel: string
-    const modelType = requestType || RequestType.MODERATE // Default to MODERATE for consolidation
-
-    if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
-      finalModel = selection.model.modelId
-    } else if (manualModel) {
-      finalModel = manualModel
-    } else {
-      // Default fallback to Haiku for consolidation
-      finalModel = 'anthropic/claude-haiku-4.5'
-    }
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      manualModel,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.MODERATE
+    )
 
     const profileInfo = profile
       ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})`
       : 'no profile'
     console.log(
-      `🔄 Consolidation requested: ${batchSummaries.length} batches, ${totalWorkouts} workouts, ${profileInfo}, type: ${modelType}, model: ${finalModel}, language: ${language}`
+      `🔄 Consolidation requested: ${batchSummaries.length} batches, ${totalWorkouts} workouts, ${profileInfo}, model: ${finalModel}, language: ${language}`
     )
 
     // Build consolidation prompt with optional profile context
@@ -556,10 +540,9 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
       CONSOLIDATE_TIMEOUT
     )
 
-    // Increment quota if needed
-    if (requestType && Object.values(RequestType).includes(requestType as RequestType)) {
-      const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
-      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
     }
 
     // Validate and truncate if needed

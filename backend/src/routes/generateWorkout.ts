@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
+import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { estimateTokenCount } from '../utils'
 
@@ -288,26 +288,16 @@ app.post('/', async (c) => {
       body.userContext
     )
 
-    // Determine which model to use
-    let finalModel: string
-    const modelType = body.requestType || RequestType.WORKOUT_GENERATION // Default to WORKOUT_GENERATION
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      body.requestType,
+      body.model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.WORKOUT_GENERATION
+    )
 
-    if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
-      finalModel = selection.model.modelId
-      console.log(
-        `🏃 Generating workout with ${selection.model.displayName} for "${body.userQuestion}"`
-      )
-    } else if (body.model) {
-      finalModel = body.model
-      console.log(
-        `🏃 Generating workout with manual model ${finalModel} for "${body.userQuestion}"`
-      )
-    } else {
-      // Default fallback
-      finalModel = 'google/gemini-2.5-flash-lite'
-      console.log(`🏃 Generating workout with default model for "${body.userQuestion}"`)
-    }
+    console.log(`🏃 Generating workout with ${finalModel} for "${body.userQuestion}"`)
 
     // Call OpenRouter with retry logic
     let workoutJSON: AIGeneratedWorkout | null = null
@@ -360,14 +350,9 @@ app.post('/', async (c) => {
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
 
-    // Increment quota if needed
-    if (body.requestType && Object.values(RequestType).includes(body.requestType as RequestType)) {
-      const selection = await selectModel(
-        body.requestType as RequestType,
-        c.env.RATE_LIMITER,
-        userId
-      )
-      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
     }
 
     // Log to PostHog (optional, async)

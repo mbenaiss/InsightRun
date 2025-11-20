@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
-import { afterModelUsage, RequestType, selectModel } from './modelRouter'
+import { afterModelUsage, RequestType, selectModel, selectModelFromRequest } from './modelRouter'
 import { captureLLMEvent, createPostHogClient } from './posthog'
 import { buildPrompt } from './prompts'
 import type { QuotaCheck } from './quota'
@@ -29,7 +29,8 @@ type Variables = {
 interface ChatRequest {
   prompt: string
   systemPrompt: string
-  model: string
+  model?: string
+  requestType?: string
 }
 
 interface OpenRouterMessage {
@@ -74,7 +75,8 @@ function validateAppAuth(c: AppContext): boolean {
 
 function validateChatRequest(body: unknown): body is ChatRequest {
   const req = body as ChatRequest
-  return !!(req.prompt && req.systemPrompt && req.model)
+  // Either model or requestType must be provided
+  return !!(req.prompt && req.systemPrompt && (req.model || req.requestType))
 }
 
 function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
@@ -251,13 +253,13 @@ app.post('/api/chat', async (c) => {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: prompt, systemPrompt, model',
+          message: 'Missing required fields: prompt, systemPrompt, and (model or requestType)',
         },
         400
       )
     }
 
-    const { prompt, systemPrompt, model } = body
+    const { prompt, systemPrompt, model, requestType } = body
 
     if (prompt.length > MAX_PROMPT_LENGTH) {
       return c.json(
@@ -274,9 +276,20 @@ app.post('/api/chat', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
+    // Select model using requestType or manual model
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.MODERATE
+    )
+
+    console.log(`🎯 /api/chat: Using model ${finalModel} for requestType ${requestType || 'none'}`)
+
     const openRouterResponse = await callOpenRouter(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt
     )
@@ -330,6 +343,11 @@ app.post('/api/chat', async (c) => {
                   data: '[DONE]',
                 })
 
+                // Increment quota if model requires it
+                if (modelConfig) {
+                  await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+                }
+
                 // Capture LLM event with all collected data
                 const latency = (Date.now() - startTime) / 1000
 
@@ -343,7 +361,7 @@ app.post('/api/chat', async (c) => {
                     (async () => {
                       try {
                         await captureLLMEvent(posthog, userId, traceId, {
-                          model,
+                          model: finalModel,
                           input: prompt,
                           systemPrompt,
                           output: fullOutput,
@@ -421,16 +439,29 @@ app.post('/api/chat/stream', async (c) => {
       return c.json({ error: 'Bad Request', message: 'Missing required fields' }, 400)
     }
 
-    const { prompt, systemPrompt, model } = body
+    const { prompt, systemPrompt, model, requestType } = body
 
     // Get user ID from X-User-ID header (from iOS app) or fallback to IP
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
+    // Select model using requestType or manual model
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.MODERATE
+    )
+
+    console.log(
+      `🎯 /api/chat/stream: Using model ${finalModel} for requestType ${requestType || 'none'}`
+    )
+
     const openRouterResponse = await callOpenRouter(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt
     )
@@ -456,6 +487,11 @@ app.post('/api/chat/stream', async (c) => {
           while (true) {
             const { done, value } = await reader.read()
             if (done) {
+              // Increment quota if model requires it
+              if (modelConfig) {
+                await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+              }
+
               // Capture LLM event with all collected data
               const latency = (Date.now() - startTime) / 1000
 
@@ -469,7 +505,7 @@ app.post('/api/chat/stream', async (c) => {
                   (async () => {
                     try {
                       await captureLLMEvent(posthog, userId, traceId, {
-                        model,
+                        model: finalModel,
                         input: prompt,
                         systemPrompt,
                         output: fullOutput,

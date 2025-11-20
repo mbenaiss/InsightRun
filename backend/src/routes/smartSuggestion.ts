@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
+import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { ChatRequestV2 } from '../types'
 import { estimateTokenCount } from '../utils'
@@ -161,12 +161,12 @@ app.post('/', async (c) => {
   try {
     const body = (await c.req.json()) as ChatRequestV2
 
-    // Validate request (same as /api/chat/v2)
-    if (!body.promptType || !body.model || !body.language || !body.data) {
+    // Validate request
+    if (!body.promptType || !body.language || !body.data) {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: promptType, model, language, data',
+          message: 'Missing required fields: promptType, language, data',
         },
         400
       )
@@ -187,26 +187,18 @@ app.post('/', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
-    // Determine which model to use
-    let finalModel: string
-    const modelType = body.requestType || RequestType.SMART_SUGGESTION // Default to SMART_SUGGESTION
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      body.requestType,
+      body.model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.SMART_SUGGESTION
+    )
 
-    if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
-      finalModel = selection.model.modelId
-      console.log(
-        `✨ Generating smart suggestion with ${selection.model.displayName} for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
-      )
-    } else if (body.model) {
-      finalModel = body.model
-      console.log(
-        `✨ Generating smart suggestion with manual model ${finalModel} for user ${userId}`
-      )
-    } else {
-      // Default to Grok for suggestions (fast and cheap)
-      finalModel = 'x-ai/grok-4-fast'
-      console.log(`✨ Generating smart suggestion with default model for user ${userId}`)
-    }
+    console.log(
+      `✨ Generating smart suggestion with ${finalModel} for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
+    )
 
     // Build prompt (specific to smart suggestion)
     const { system: systemPrompt, user: userPrompt } = buildSmartSuggestionPrompt(body)
@@ -222,14 +214,9 @@ app.post('/', async (c) => {
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
 
-    // Increment quota if needed
-    if (body.requestType && Object.values(RequestType).includes(body.requestType as RequestType)) {
-      const selection = await selectModel(
-        body.requestType as RequestType,
-        c.env.RATE_LIMITER,
-        userId
-      )
-      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
     }
 
     console.log(`✅ Smart suggestion generated in ${generationTime}ms (${suggestion.length} chars)`)

@@ -234,6 +234,57 @@ export async function afterModelUsage(
 }
 
 /**
+ * Helper to select model from request parameters
+ * Handles requestType, manual model override, and defaults
+ * Returns modelId and modelConfig for quota tracking
+ */
+export async function selectModelFromRequest(
+  requestType: string | undefined,
+  manualModel: string | undefined,
+  kv: KVNamespace,
+  userId: string,
+  defaultRequestType: RequestType = RequestType.MODERATE
+): Promise<{ modelId: string; modelConfig: ModelConfig | null }> {
+  const modelType = requestType || defaultRequestType
+
+  // Validate and use requestType
+  if (Object.values(RequestType).includes(modelType as RequestType)) {
+    const selection = await selectModel(modelType as RequestType, kv, userId)
+    return {
+      modelId: selection.model.modelId,
+      modelConfig: selection.model,
+    }
+  }
+
+  // Fallback to manual model if provided
+  if (manualModel) {
+    console.log(`⚠️ Using manual model override: ${manualModel}`)
+    return {
+      modelId: manualModel,
+      modelConfig: null, // No quota tracking for manual models
+    }
+  }
+
+  // Final fallback to default
+  console.warn(`⚠️ Invalid requestType "${modelType}", using default: ${defaultRequestType}`)
+  const selection = await selectModel(defaultRequestType, kv, userId)
+  return {
+    modelId: selection.model.modelId,
+    modelConfig: selection.model,
+  }
+}
+
+/**
+ * Validate that requestType is a valid enum value
+ */
+export function isValidRequestType(requestType: unknown): requestType is RequestType {
+  return (
+    typeof requestType === 'string' &&
+    Object.values(RequestType).includes(requestType as RequestType)
+  )
+}
+
+/**
  * Classify prompt complexity using Grok
  * Returns a RequestType enum value
  */

@@ -60,12 +60,12 @@ class WorkoutPlanViewModel: ObservableObject {
             // Get user language
             let language = Locale.current.language.languageCode?.identifier ?? "en"
 
-            // Call backend (instructions are in backend system prompt)
+            // Call backend (backend selects optimal model based on requestType)
             let response = try await backendClient.generateWorkout(
                 userQuestion: promptText,
                 language: language,
                 userContext: userContext,
-                model: nil // Use default (Gemini Flash)
+                model: nil // Backend selects optimal model
             )
 
             // Convert backend response to AIGeneratedWorkout

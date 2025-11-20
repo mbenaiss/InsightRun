@@ -186,12 +186,11 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // Get analysis prompt in user's language
         let question = getAnalysisPrompt()
 
-        // Use Grok-4-fast for automatic analysis (always use Grok to keep costs low)
+        // ModelRouter will automatically select appropriate model based on request complexity
         // Backend builds context from structured workout data
         await aiService.askQuestion(
             question: question,
-            mode: .singleWorkout(workout, metrics),
-            model: .grok4
+            mode: .singleWorkout(workout, metrics)
         )
 
         // Wait for streaming to complete by observing isStreaming
@@ -218,8 +217,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         let analysis = WorkoutAnalysis(
             workoutId: workout.id,
             analysisText: finalAnalysis,
-            analyzedAt: Date(),
-            model: "grok-4-fast"
+            analyzedAt: Date()
         )
 
         modelContext.insert(analysis)

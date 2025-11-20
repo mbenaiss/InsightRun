@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import { batchAnalysisRequestSchema, consolidateRequestSchema } from '../types'
 import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from '../utils'
+import { RequestType, selectModel, afterModelUsage } from '../modelRouter'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -356,11 +357,37 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
       )
     }
 
-    const { workouts, batchIndex, language, model } = validationResult.data
+    const { workouts, batchIndex, language, requestType, model: manualModel } = validationResult.data
 
-    console.log(
-      `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, model: ${model}, language: ${language}`
-    )
+    // Get user ID for quota management
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+
+    // Determine which model to use
+    let finalModel: string
+    const modelType = requestType || RequestType.BATCH_PROCESSING // Default to BATCH_PROCESSING
+
+    if (Object.values(RequestType).includes(modelType as RequestType)) {
+      const selection = await selectModel(
+        modelType as RequestType,
+        c.env.RATE_LIMITER,
+        userId
+      )
+      finalModel = selection.model.modelId
+      console.log(
+        `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, type: ${modelType}, model: ${selection.model.displayName}, language: ${language}`
+      )
+    } else if (manualModel) {
+      finalModel = manualModel
+      console.log(
+        `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, manual model: ${finalModel}, language: ${language}`
+      )
+    } else {
+      // Default fallback
+      finalModel = 'google/gemini-2.5-flash-lite'
+      console.log(
+        `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, default model: ${finalModel}, language: ${language}`
+      )
+    }
 
     // Build batch analysis prompt
     const systemPrompt = ''
@@ -369,12 +396,18 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     // Call OpenRouter with batch timeout
     let summary = await callOpenRouterNonStreaming(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt,
       MAX_BATCH_TOKENS,
       BATCH_TIMEOUT
     )
+
+    // Increment quota if needed
+    if (requestType && Object.values(RequestType).includes(requestType as RequestType)) {
+      const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
+      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    }
 
     // Validate and truncate if needed
     const tokenCount = validateTokenCount(summary, MAX_BATCH_TOKENS, 'Batch summary')
@@ -409,7 +442,7 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
           try {
             const inputTokenCount = estimateTokenCount(prompt)
             await captureLLMEvent(posthog, userId, traceId, {
-              model,
+              model: finalModel,
               input: `Batch analysis: ${workouts.length} workouts (${inputTokenCount} tokens)`,
               systemPrompt,
               output: summary,
@@ -474,13 +507,34 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
       )
     }
 
-    const { batchSummaries, totalWorkouts, profile, language, model } = validationResult.data
+    const { batchSummaries, totalWorkouts, profile, language, requestType, model: manualModel } = validationResult.data
+
+    // Get user ID for quota management
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+
+    // Determine which model to use
+    let finalModel: string
+    const modelType = requestType || RequestType.MODERATE // Default to MODERATE for consolidation
+
+    if (Object.values(RequestType).includes(modelType as RequestType)) {
+      const selection = await selectModel(
+        modelType as RequestType,
+        c.env.RATE_LIMITER,
+        userId
+      )
+      finalModel = selection.model.modelId
+    } else if (manualModel) {
+      finalModel = manualModel
+    } else {
+      // Default fallback to Haiku for consolidation
+      finalModel = 'anthropic/claude-haiku-4.5'
+    }
 
     const profileInfo = profile
       ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})`
       : 'no profile'
     console.log(
-      `🔄 Consolidation requested: ${batchSummaries.length} batches, ${totalWorkouts} workouts, ${profileInfo}, model: ${model}, language: ${language}`
+      `🔄 Consolidation requested: ${batchSummaries.length} batches, ${totalWorkouts} workouts, ${profileInfo}, type: ${modelType}, model: ${finalModel}, language: ${language}`
     )
 
     // Build consolidation prompt with optional profile context
@@ -490,12 +544,18 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     // Call OpenRouter with consolidation timeout
     let summary = await callOpenRouterNonStreaming(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt,
       MAX_CONSOLIDATE_TOKENS,
       CONSOLIDATE_TIMEOUT
     )
+
+    // Increment quota if needed
+    if (requestType && Object.values(RequestType).includes(requestType as RequestType)) {
+      const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
+      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    }
 
     // Validate and truncate if needed
     const tokenCount = validateTokenCount(summary, MAX_CONSOLIDATE_TOKENS, 'Consolidated summary')
@@ -530,7 +590,7 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
           try {
             const inputTokenCount = estimateTokenCount(prompt)
             await captureLLMEvent(posthog, userId, traceId, {
-              model,
+              model: finalModel,
               input: `Consolidation: ${batchSummaries.length} batches (${inputTokenCount} tokens)`,
               systemPrompt,
               output: summary,

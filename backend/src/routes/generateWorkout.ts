@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { estimateTokenCount } from '../utils'
+import { RequestType, selectModel, afterModelUsage } from '../modelRouter'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -23,7 +24,8 @@ interface WorkoutGenerationRequest {
     recentWorkouts?: number // count
     fitnessLevel?: 'beginner' | 'intermediate' | 'advanced'
   }
-  model?: string
+  requestType?: string // e.g., 'WORKOUT_GENERATION'
+  model?: string // Fallback for backward compatibility
 }
 
 interface WorkoutStep {
@@ -286,10 +288,26 @@ app.post('/', async (c) => {
       body.userContext
     )
 
-    // Default model: Gemini 2.5 Flash Lite (fast and cheap for workout generation)
-    const model = body.model || 'google/gemini-2.5-flash-lite'
+    // Determine which model to use
+    let finalModel: string
+    const modelType = body.requestType || RequestType.WORKOUT_GENERATION // Default to WORKOUT_GENERATION
 
-    console.log(`🏃 Generating workout for user ${userId}: "${body.userQuestion}"`)
+    if (Object.values(RequestType).includes(modelType as RequestType)) {
+      const selection = await selectModel(
+        modelType as RequestType,
+        c.env.RATE_LIMITER,
+        userId
+      )
+      finalModel = selection.model.modelId
+      console.log(`🏃 Generating workout with ${selection.model.displayName} for "${body.userQuestion}"`)
+    } else if (body.model) {
+      finalModel = body.model
+      console.log(`🏃 Generating workout with manual model ${finalModel} for "${body.userQuestion}"`)
+    } else {
+      // Default fallback
+      finalModel = 'google/gemini-2.5-flash-lite'
+      console.log(`🏃 Generating workout with default model for "${body.userQuestion}"`)
+    }
 
     // Call OpenRouter with retry logic
     let workoutJSON: AIGeneratedWorkout | null = null
@@ -304,7 +322,7 @@ app.post('/', async (c) => {
           c.env.OPENROUTER_API_KEY,
           systemPrompt,
           userPrompt,
-          model
+          finalModel
         )
 
         console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
@@ -342,6 +360,12 @@ app.post('/', async (c) => {
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
 
+    // Increment quota if needed
+    if (body.requestType && Object.values(RequestType).includes(body.requestType as RequestType)) {
+      const selection = await selectModel(body.requestType as RequestType, c.env.RATE_LIMITER, userId)
+      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    }
+
     // Log to PostHog (optional, async)
     if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
       const posthog = createPostHogClient({
@@ -355,7 +379,7 @@ app.post('/', async (c) => {
             const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
             const outputTokenCount = estimateTokenCount(JSON.stringify(workoutJSON))
             await captureLLMEvent(posthog, userId, traceId, {
-              model,
+              model: finalModel,
               input: userPrompt,
               systemPrompt,
               output: JSON.stringify(workoutJSON),
@@ -379,7 +403,7 @@ app.post('/', async (c) => {
       workout: workoutJSON,
       metadata: {
         generationTimeMs: generationTime,
-        modelUsed: model,
+        modelUsed: finalModel,
         attempts: attempts,
       },
     })

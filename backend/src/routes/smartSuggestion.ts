@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { ChatRequestV2 } from '../types'
 import { estimateTokenCount } from '../utils'
+import { RequestType, selectModel, afterModelUsage } from '../modelRouter'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -108,13 +109,14 @@ OUTPUT: Title + blank line + phases list. User will edit this before generating 
   return { system: systemPrompt, user: userPrompt }
 }
 
-async function callGrokForSuggestion(
+async function callModelForSuggestion(
   apiKey: string,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  model: string
 ): Promise<string> {
   const requestBody = {
-    model: 'x-ai/grok-4-fast', // xAI Grok 4 Fast model
+    model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -185,22 +187,52 @@ app.post('/', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
-    console.log(
-      `✨ Generating smart suggestion for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
-    )
+    // Determine which model to use
+    let finalModel: string
+    const modelType = body.requestType || RequestType.SMART_SUGGESTION // Default to SMART_SUGGESTION
+
+    if (Object.values(RequestType).includes(modelType as RequestType)) {
+      const selection = await selectModel(
+        modelType as RequestType,
+        c.env.RATE_LIMITER,
+        userId
+      )
+      finalModel = selection.model.modelId
+      console.log(
+        `✨ Generating smart suggestion with ${selection.model.displayName} for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
+      )
+    } else if (body.model) {
+      finalModel = body.model
+      console.log(
+        `✨ Generating smart suggestion with manual model ${finalModel} for user ${userId}`
+      )
+    } else {
+      // Default to Grok for suggestions (fast and cheap)
+      finalModel = 'x-ai/grok-4-fast'
+      console.log(
+        `✨ Generating smart suggestion with default model for user ${userId}`
+      )
+    }
 
     // Build prompt (specific to smart suggestion)
     const { system: systemPrompt, user: userPrompt } = buildSmartSuggestionPrompt(body)
 
-    // Call Grok (same model as other endpoints)
-    const suggestion = await callGrokForSuggestion(
+    // Call selected model
+    const suggestion = await callModelForSuggestion(
       c.env.OPENROUTER_API_KEY,
       systemPrompt,
-      userPrompt
+      userPrompt,
+      finalModel
     )
 
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
+
+    // Increment quota if needed
+    if (body.requestType && Object.values(RequestType).includes(body.requestType as RequestType)) {
+      const selection = await selectModel(body.requestType as RequestType, c.env.RATE_LIMITER, userId)
+      await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+    }
 
     console.log(`✅ Smart suggestion generated in ${generationTime}ms (${suggestion.length} chars)`)
 
@@ -217,7 +249,7 @@ app.post('/', async (c) => {
             const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
             const outputTokenCount = estimateTokenCount(suggestion)
             await captureLLMEvent(posthog, userId, traceId, {
-              model: body.model,
+              model: finalModel,
               input: userPrompt,
               systemPrompt,
               output: suggestion,

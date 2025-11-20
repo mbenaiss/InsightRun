@@ -187,13 +187,19 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         // If model not provided, use intelligent routing
         let selectedModel: AIModel
+        let requestType: RequestType?
+
         if let model = model {
             selectedModel = model
+            requestType = nil // Manual model selection, no requestType needed
         } else {
+            // Use ModelRouter to classify complexity, then map to requestType
             selectedModel = await ModelRouter.shared.selectOptimalModel(for: question, mode: mode)
-        }
 
-        print("🎯 WorkoutAIService: Using model: \(selectedModel.displayName)")
+            // Map selected model to requestType for backend
+            requestType = mapModelToRequestType(selectedModel)
+            print("🎯 WorkoutAIService: Using requestType: \(requestType?.rawValue ?? "none") → Backend will select: \(selectedModel.displayName)")
+        }
 
         // Route to appropriate service based on model type
         if selectedModel.isLocal {
@@ -212,7 +218,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             await handleLocalModelInference(systemPrompt: localSystemPrompt, question: question, locale: questionLocale)
         } else {
             // For remote models, backend builds the full prompt from structured data
-            await handleRemoteModelInference(question: question, model: selectedModel, mode: mode)
+            await handleRemoteModelInference(question: question, requestType: requestType, mode: mode)
         }
     }
 
@@ -307,7 +313,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     // MARK: - Remote Model Inference
 
-    private func handleRemoteModelInference(question: String, model: AIModel, mode: AIAssistantMode) async {
+    private func handleRemoteModelInference(question: String, requestType: RequestType?, mode: AIAssistantMode) async {
         do {
             // Show a message while waiting for response
             await MainActor.run {
@@ -315,7 +321,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             }
 
             // Build payload from mode data
-            let payload = await buildChatPayload(question: question, model: model, mode: mode)
+            let payload = await buildChatPayload(question: question, requestType: requestType, mode: mode)
 
             // Use new API v2 with streaming
             let stream = try await backendClient.chatStreamV2(payload: payload)
@@ -386,7 +392,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return supportedLanguages.contains(preferredLanguage) ? preferredLanguage : "en"
     }
 
-    private func buildChatPayload(question: String, model: AIModel, mode: AIAssistantMode) async -> ChatRequestV2 {
+    private func buildChatPayload(question: String, requestType: RequestType?, mode: AIAssistantMode) async -> ChatRequestV2 {
         // Load historical summary if available
         let historicalSummary = await HistoricalSummaryStorage.shared.load()
 
@@ -476,11 +482,31 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         return ChatRequestV2(
             promptType: "workout_coach",
-            model: model.modelId,
+            requestType: requestType?.rawValue,
+            model: nil, // Backend will select model based on requestType
             userQuestion: question,
             language: detectedLanguage,
             data: chatData
         )
+    }
+
+    // MARK: - Helper: Map Model to RequestType
+
+    /// Map AIModel complexity to backend RequestType
+    private func mapModelToRequestType(_ model: AIModel) -> RequestType {
+        switch model {
+        case .foundationModels:
+            // Local model, no requestType needed
+            return .simple
+        case .grok4:
+            return .simple
+        case .claudeHaiku:
+            return .moderate
+        case .claudeSonnet:
+            return .complex
+        case .gpt5:
+            return .complex
+        }
     }
 
     private func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {

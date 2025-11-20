@@ -201,7 +201,7 @@ class BackendAPIClient {
     // MARK: - Historical Analysis (Batch Processing)
 
     /// Analyze a batch of workouts (up to 50)
-    func analyzeBatch(workouts: [WorkoutData], batchIndex: Int, model: String, language: String) async throws -> BatchAnalysisResponse {
+    func analyzeBatch(workouts: [WorkoutData], batchIndex: Int, requestType: String?, model: String?, language: String) async throws -> BatchAnalysisResponse {
         let url = URL(string: "\(baseURL)/api/analyze-history/batch")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -213,6 +213,7 @@ class BackendAPIClient {
         let requestBody = BatchAnalysisRequest(
             workouts: workouts,
             batchIndex: batchIndex,
+            requestType: requestType,
             model: model,
             language: language
         )
@@ -250,7 +251,7 @@ class BackendAPIClient {
     }
 
     /// Consolidate all batch summaries into a final summary
-    func consolidateBatches(batchSummaries: [String], totalWorkouts: Int, profile: HealthProfileData?, model: String, language: String) async throws -> ConsolidationResponse {
+    func consolidateBatches(batchSummaries: [String], totalWorkouts: Int, profile: HealthProfileData?, requestType: String?, model: String?, language: String) async throws -> ConsolidationResponse {
         let url = URL(string: "\(baseURL)/api/analyze-history/consolidate")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -263,6 +264,7 @@ class BackendAPIClient {
             batchSummaries: batchSummaries,
             totalWorkouts: totalWorkouts,
             profile: profile,
+            requestType: requestType,
             model: model,
             language: language
         )
@@ -332,7 +334,7 @@ class BackendAPIClient {
     // MARK: - Workout Generation
 
     /// Generate a custom workout using AI
-    func generateWorkout(userQuestion: String, language: String, userContext: WorkoutGenerationRequest.UserContext?, model: String? = nil) async throws -> WorkoutGenerationResponse {
+    func generateWorkout(userQuestion: String, language: String, userContext: WorkoutGenerationRequest.UserContext?, requestType: String? = nil, model: String? = nil) async throws -> WorkoutGenerationResponse {
         let url = URL(string: "\(baseURL)/api/generate-workout")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -345,6 +347,7 @@ class BackendAPIClient {
             userQuestion: userQuestion,
             language: language,
             userContext: userContext,
+            requestType: requestType,
             model: model
         )
 
@@ -401,7 +404,8 @@ class BackendAPIClient {
 
         let requestBody = ChatRequestV2(
             promptType: "workout_suggestion",
-            model: "x-ai/grok-4-fast",
+            requestType: RequestType.smartSuggestion.rawValue,
+            model: nil, // Backend will select appropriate model
             userQuestion: "Suggest a detailed workout based on my recent training",
             language: language,
             data: chatData

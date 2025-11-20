@@ -2,8 +2,13 @@
 //  ModelRouter.swift
 //  InsightRun
 //
-//  Intelligent model selection based on prompt complexity
-//  Uses LLM classification (Foundation Models or Grok) to route to optimal model
+//  ARCHITECTURE UPDATE (2025-01): Model selection now happens on backend
+//  This file is kept for complexity classification only (free Apple Intelligence or Grok)
+//  The classification result is mapped to RequestType and sent to backend
+//  Backend handles all model selection, quota management, and cost optimization
+//
+//  Previous: iOS selects model → sends to backend
+//  Current:  iOS classifies complexity → maps to RequestType → backend selects model
 //
 
 import Foundation

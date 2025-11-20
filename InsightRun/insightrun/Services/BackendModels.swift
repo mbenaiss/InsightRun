@@ -7,11 +7,26 @@
 
 import Foundation
 
+// MARK: - Request Type Enum
+
+/// Semantic request types that map to specific AI models on the backend
+/// Backend handles all model selection logic based on this type
+enum RequestType: String, Encodable {
+    case simple = "SIMPLE"
+    case moderate = "MODERATE"
+    case complex = "COMPLEX"
+    case workoutGeneration = "WORKOUT_GENERATION"
+    case batchProcessing = "BATCH_PROCESSING"
+    case smartSuggestion = "SMART_SUGGESTION"
+    case classification = "CLASSIFICATION"
+}
+
 // MARK: - Request Models
 
 struct ChatRequestV2: Encodable {
     let promptType: String
-    let model: String
+    let requestType: String?
+    let model: String?
     let userQuestion: String
     let language: String
     let data: ChatDataPayload
@@ -114,7 +129,8 @@ struct RecentWorkoutsData: Encodable {
 struct BatchAnalysisRequest: Encodable {
     let workouts: [WorkoutData]
     let batchIndex: Int
-    let model: String
+    let requestType: String?
+    let model: String?
     let language: String
 }
 
@@ -131,7 +147,8 @@ struct ConsolidationRequest: Encodable {
     let batchSummaries: [String]
     let totalWorkouts: Int
     let profile: HealthProfileData?
-    let model: String
+    let requestType: String?
+    let model: String?
     let language: String
 }
 
@@ -147,6 +164,7 @@ struct WorkoutGenerationRequest: Encodable {
     let userQuestion: String
     let language: String
     let userContext: UserContext?
+    let requestType: String?
     let model: String?
 
     struct UserContext: Encodable {

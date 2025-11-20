@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
+import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { QuotaCheck } from '../quota'
 import type {
@@ -10,7 +11,6 @@ import type {
 } from '../types'
 import { batchAnalysisRequestSchema, consolidateRequestSchema } from '../types'
 import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from '../utils'
-import { RequestType, selectModel, afterModelUsage } from '../modelRouter'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -357,7 +357,13 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
       )
     }
 
-    const { workouts, batchIndex, language, requestType, model: manualModel } = validationResult.data
+    const {
+      workouts,
+      batchIndex,
+      language,
+      requestType,
+      model: manualModel,
+    } = validationResult.data
 
     // Get user ID for quota management
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
@@ -367,11 +373,7 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     const modelType = requestType || RequestType.BATCH_PROCESSING // Default to BATCH_PROCESSING
 
     if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(
-        modelType as RequestType,
-        c.env.RATE_LIMITER,
-        userId
-      )
+      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
       finalModel = selection.model.modelId
       console.log(
         `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, type: ${modelType}, model: ${selection.model.displayName}, language: ${language}`
@@ -507,7 +509,14 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
       )
     }
 
-    const { batchSummaries, totalWorkouts, profile, language, requestType, model: manualModel } = validationResult.data
+    const {
+      batchSummaries,
+      totalWorkouts,
+      profile,
+      language,
+      requestType,
+      model: manualModel,
+    } = validationResult.data
 
     // Get user ID for quota management
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
@@ -517,11 +526,7 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     const modelType = requestType || RequestType.MODERATE // Default to MODERATE for consolidation
 
     if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(
-        modelType as RequestType,
-        c.env.RATE_LIMITER,
-        userId
-      )
+      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
       finalModel = selection.model.modelId
     } else if (manualModel) {
       finalModel = manualModel

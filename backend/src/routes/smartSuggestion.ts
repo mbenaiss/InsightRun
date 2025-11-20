@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
+import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { ChatRequestV2 } from '../types'
 import { estimateTokenCount } from '../utils'
-import { RequestType, selectModel, afterModelUsage } from '../modelRouter'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -192,11 +192,7 @@ app.post('/', async (c) => {
     const modelType = body.requestType || RequestType.SMART_SUGGESTION // Default to SMART_SUGGESTION
 
     if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(
-        modelType as RequestType,
-        c.env.RATE_LIMITER,
-        userId
-      )
+      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
       finalModel = selection.model.modelId
       console.log(
         `✨ Generating smart suggestion with ${selection.model.displayName} for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
@@ -209,9 +205,7 @@ app.post('/', async (c) => {
     } else {
       // Default to Grok for suggestions (fast and cheap)
       finalModel = 'x-ai/grok-4-fast'
-      console.log(
-        `✨ Generating smart suggestion with default model for user ${userId}`
-      )
+      console.log(`✨ Generating smart suggestion with default model for user ${userId}`)
     }
 
     // Build prompt (specific to smart suggestion)
@@ -230,7 +224,11 @@ app.post('/', async (c) => {
 
     // Increment quota if needed
     if (body.requestType && Object.values(RequestType).includes(body.requestType as RequestType)) {
-      const selection = await selectModel(body.requestType as RequestType, c.env.RATE_LIMITER, userId)
+      const selection = await selectModel(
+        body.requestType as RequestType,
+        c.env.RATE_LIMITER,
+        userId
+      )
       await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
     }
 

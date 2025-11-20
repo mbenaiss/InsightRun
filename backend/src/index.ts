@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
+import { afterModelUsage, RequestType, selectModel } from './modelRouter'
 import { captureLLMEvent, createPostHogClient } from './posthog'
 import { buildPrompt } from './prompts'
 import type { QuotaCheck } from './quota'
@@ -11,7 +12,6 @@ import analyzeHistoryRoutes from './routes/analyzeHistory'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
 import type { ChatRequestV2 } from './types'
-import { RequestType, selectModel, afterModelUsage, classifyPromptComplexity } from './modelRouter'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -80,7 +80,13 @@ function validateChatRequest(body: unknown): body is ChatRequest {
 function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
   const req = body as ChatRequestV2
   // Either requestType or model must be provided (requestType takes priority)
-  return !!(req.promptType && (req.requestType || req.model) && req.userQuestion && req.language && req.data)
+  return !!(
+    req.promptType &&
+    (req.requestType || req.model) &&
+    req.userQuestion &&
+    req.language &&
+    req.data
+  )
 }
 
 async function callOpenRouter(
@@ -552,7 +558,8 @@ app.post('/api/chat/v2', async (c) => {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: promptType, requestType or model, userQuestion, language, data',
+          message:
+            'Missing required fields: promptType, requestType or model, userQuestion, language, data',
         },
         400
       )
@@ -577,7 +584,6 @@ app.post('/api/chat/v2', async (c) => {
 
     // Determine which model to use
     let finalModel: string
-    let sonnetQuotaStatus: any
 
     if (requestType) {
       // Use semantic requestType to select model (preferred)
@@ -595,13 +601,8 @@ app.post('/api/chat/v2', async (c) => {
       }
 
       // Select model based on requestType and user quota
-      const selection = await selectModel(
-        requestType as RequestType,
-        c.env.RATE_LIMITER,
-        userId
-      )
+      const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
       finalModel = selection.model.modelId
-      sonnetQuotaStatus = selection.sonnetQuotaStatus
 
       console.log(`✅ Selected model: ${selection.model.displayName} (${finalModel})`)
     } else if (manualModel) {

@@ -165,10 +165,7 @@ export async function checkSonnetQuota(
 /**
  * Increment Sonnet usage counter
  */
-export async function incrementSonnetQuota(
-  kv: KVNamespace,
-  userId: string
-): Promise<void> {
+export async function incrementSonnetQuota(kv: KVNamespace, userId: string): Promise<void> {
   const now = Date.now()
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
   const quotaKey = `${SONNET_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
@@ -188,7 +185,9 @@ export async function incrementSonnetQuota(
     expirationTtl,
   })
 
-  console.log(`💰 ModelRouter: Sonnet usage for ${userId}: ${newUsed}/${SONNET_QUOTA_CONFIG.maxRequestsPerMonth}`)
+  console.log(
+    `💰 ModelRouter: Sonnet usage for ${userId}: ${newUsed}/${SONNET_QUOTA_CONFIG.maxRequestsPerMonth}`
+  )
 }
 
 /**
@@ -279,7 +278,7 @@ Respond with ONLY ONE WORD: SIMPLE, MODERATE, or COMPLEX
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://insightrun.ai',
         'X-Title': 'insightRun.ai',
         'Content-Type': 'application/json',
@@ -289,7 +288,8 @@ Respond with ONLY ONE WORD: SIMPLE, MODERATE, or COMPLEX
         messages: [
           {
             role: 'system',
-            content: 'You are a query complexity classifier. Respond with ONLY one word: SIMPLE, MODERATE, or COMPLEX.',
+            content:
+              'You are a query complexity classifier. Respond with ONLY one word: SIMPLE, MODERATE, or COMPLEX.',
           },
           { role: 'user', content: classificationPrompt },
         ],
@@ -304,7 +304,7 @@ Respond with ONLY ONE WORD: SIMPLE, MODERATE, or COMPLEX
       return RequestType.MODERATE
     }
 
-    const data: any = await response.json()
+    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
     const result = data.choices?.[0]?.message?.content?.trim().toUpperCase() || 'MODERATE'
 
     if (result.includes('SIMPLE')) {

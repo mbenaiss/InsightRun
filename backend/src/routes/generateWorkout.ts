@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
+import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { estimateTokenCount } from '../utils'
-import { RequestType, selectModel, afterModelUsage } from '../modelRouter'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -293,16 +293,16 @@ app.post('/', async (c) => {
     const modelType = body.requestType || RequestType.WORKOUT_GENERATION // Default to WORKOUT_GENERATION
 
     if (Object.values(RequestType).includes(modelType as RequestType)) {
-      const selection = await selectModel(
-        modelType as RequestType,
-        c.env.RATE_LIMITER,
-        userId
-      )
+      const selection = await selectModel(modelType as RequestType, c.env.RATE_LIMITER, userId)
       finalModel = selection.model.modelId
-      console.log(`🏃 Generating workout with ${selection.model.displayName} for "${body.userQuestion}"`)
+      console.log(
+        `🏃 Generating workout with ${selection.model.displayName} for "${body.userQuestion}"`
+      )
     } else if (body.model) {
       finalModel = body.model
-      console.log(`🏃 Generating workout with manual model ${finalModel} for "${body.userQuestion}"`)
+      console.log(
+        `🏃 Generating workout with manual model ${finalModel} for "${body.userQuestion}"`
+      )
     } else {
       // Default fallback
       finalModel = 'google/gemini-2.5-flash-lite'
@@ -362,7 +362,11 @@ app.post('/', async (c) => {
 
     // Increment quota if needed
     if (body.requestType && Object.values(RequestType).includes(body.requestType as RequestType)) {
-      const selection = await selectModel(body.requestType as RequestType, c.env.RATE_LIMITER, userId)
+      const selection = await selectModel(
+        body.requestType as RequestType,
+        c.env.RATE_LIMITER,
+        userId
+      )
       await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
     }
 

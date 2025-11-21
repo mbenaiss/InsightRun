@@ -35,7 +35,6 @@ interface ModelConfig {
   modelId: string
   displayName: string
   description: string
-  costPer1MTokens: number // in USD
   requiresQuota: boolean
 }
 
@@ -44,86 +43,106 @@ interface ModelConfig {
  */
 const MODELS: Record<string, ModelConfig> = {
   GROK_4_FAST: {
-    modelId: 'x-ai/grok-4-fast',
-    displayName: 'Grok 4 Fast',
+    modelId: 'x-ai/grok-4.1-fast',
+    displayName: 'Grok 4.1 Fast',
     description: 'Fast and cheap for simple queries',
-    costPer1MTokens: 0.4,
     requiresQuota: false,
   },
   CLAUDE_HAIKU_4_5: {
     modelId: 'anthropic/claude-haiku-4.5',
     displayName: 'Claude Haiku 4.5',
     description: 'Balanced model for moderate complexity',
-    costPer1MTokens: 15.0,
     requiresQuota: false,
   },
   CLAUDE_SONNET_4_5: {
     modelId: 'anthropic/claude-sonnet-4.5',
     displayName: 'Claude Sonnet 4.5',
+    description: 'Premium model for complex analysis (available but not used)',
+    requiresQuota: true,
+  },
+  GEMINI_3_PRO_PREVIEW: {
+    modelId: 'google/gemini-3-pro-preview',
+    displayName: 'Gemini 3 Pro Preview',
     description: 'Premium model for complex analysis',
-    costPer1MTokens: 34.6,
     requiresQuota: true, // Limited quota for cost control
   },
   GEMINI_FLASH_LITE: {
     modelId: 'google/gemini-2.5-flash-lite',
     displayName: 'Gemini 2.5 Flash Lite',
     description: 'Fast and cost-effective for structured generation',
-    costPer1MTokens: 1.5,
+    requiresQuota: false,
+  },
+  GEMINI_FLASH: {
+    modelId: 'google/gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
+    description: 'Fast and cost-effective for structured generation',
     requiresQuota: false,
   },
 }
 
 /**
- * Sonnet quota configuration
- * Limits Sonnet usage to maintain profitability
+ * Premium model quota configuration
+ * Limits premium model usage to maintain profitability
  */
-export const SONNET_QUOTA_CONFIG = {
-  maxRequestsPerMonth: 10,
-  quotaKeyPrefix: 'sonnet_quota:',
+export const PREMIUM_MODEL_QUOTA_CONFIG = {
+  maxRequestsPerMonth: 20,
+  quotaKeyPrefix: 'premium_quota:',
 }
 
 /**
- * Map request type to appropriate AI model
- * This is the core routing logic - change models here without touching iOS
+ * Centralized mapping: RequestType → Model
+ * This is the SINGLE SOURCE OF TRUTH for model selection
+ * Change models here without touching any other code
  */
-function selectModelForRequestType(requestType: RequestType, hasSonnetQuota: boolean): ModelConfig {
-  switch (requestType) {
-    case RequestType.SIMPLE:
-    case RequestType.SMART_SUGGESTION:
-    case RequestType.CLASSIFICATION:
-      // Cheap and fast for simple queries
-      return MODELS.GROK_4_FAST
+const REQUEST_TYPE_TO_MODEL: Record<RequestType, keyof typeof MODELS> = {
+  [RequestType.SIMPLE]: 'GROK_4_FAST',
+  [RequestType.MODERATE]: 'GROK_4_FAST',
+  [RequestType.COMPLEX]: 'GEMINI_3_PRO_PREVIEW', // Premium model with quota
+  [RequestType.WORKOUT_GENERATION]: 'GROK_4_FAST',
+  [RequestType.BATCH_PROCESSING]: 'GEMINI_FLASH_LITE',
+  [RequestType.SMART_SUGGESTION]: 'GROK_4_FAST',
+  [RequestType.CLASSIFICATION]: 'GEMINI_FLASH',
+}
 
-    case RequestType.MODERATE:
-      // Balanced model for most queries
-      return MODELS.CLAUDE_HAIKU_4_5
+/**
+ * Fallback model when premium quota is exceeded
+ */
+const PREMIUM_MODEL_FALLBACK: keyof typeof MODELS = 'GROK_4_FAST'
 
-    case RequestType.COMPLEX:
-      // Use Sonnet if quota available, fallback to Haiku
-      if (hasSonnetQuota) {
-        return MODELS.CLAUDE_SONNET_4_5
-      } else {
-        console.log('⚠️ ModelRouter: Sonnet quota exceeded, falling back to Haiku')
-        return MODELS.CLAUDE_HAIKU_4_5
-      }
+/**
+ * Select model for request type
+ * Uses centralized mapping and handles quota fallback
+ */
+function selectModelForRequestType(
+  requestType: RequestType,
+  hasPremiumQuota: boolean
+): ModelConfig {
+  // Get model from centralized mapping
+  const modelKey = REQUEST_TYPE_TO_MODEL[requestType]
 
-    case RequestType.WORKOUT_GENERATION:
-    case RequestType.BATCH_PROCESSING:
-      // Gemini is excellent for structured JSON generation
-      return MODELS.GEMINI_FLASH_LITE
-
-    default:
-      // Safe default
-      console.warn(`⚠️ ModelRouter: Unknown request type "${requestType}", defaulting to Haiku`)
-      return MODELS.CLAUDE_HAIKU_4_5
+  if (!modelKey) {
+    console.warn(`⚠️ ModelRouter: Unknown request type "${requestType}", defaulting to Haiku`)
+    return MODELS.CLAUDE_HAIKU_4_5
   }
+
+  const selectedModel = MODELS[modelKey]
+
+  // Handle premium model quota fallback
+  if (selectedModel.requiresQuota && !hasPremiumQuota) {
+    console.log(
+      `⚠️ ModelRouter: Premium model quota exceeded for ${selectedModel.displayName}, falling back to ${MODELS[PREMIUM_MODEL_FALLBACK].displayName}`
+    )
+    return MODELS[PREMIUM_MODEL_FALLBACK]
+  }
+
+  return selectedModel
 }
 
 /**
- * Sonnet Quota Management
+ * Premium Model Quota Management
  */
 
-interface SonnetQuotaStatus {
+interface PremiumModelQuotaStatus {
   used: number
   limit: number
   remaining: number
@@ -132,19 +151,19 @@ interface SonnetQuotaStatus {
 }
 
 /**
- * Check if user has Sonnet quota remaining
+ * Check if user has premium model quota remaining
  */
-export async function checkSonnetQuota(
+export async function checkPremiumModelQuota(
   kv: KVNamespace,
   userId: string
-): Promise<SonnetQuotaStatus> {
+): Promise<PremiumModelQuotaStatus> {
   const now = Date.now()
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
-  const quotaKey = `${SONNET_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
+  const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
 
   const value = await kv.get(quotaKey)
   const used = value ? Number.parseInt(value, 10) : 0
-  const remaining = Math.max(0, SONNET_QUOTA_CONFIG.maxRequestsPerMonth - used)
+  const remaining = Math.max(0, PREMIUM_MODEL_QUOTA_CONFIG.maxRequestsPerMonth - used)
 
   // Calculate reset date (first day of next month)
   const resetDate = new Date(now)
@@ -155,7 +174,7 @@ export async function checkSonnetQuota(
 
   return {
     used,
-    limit: SONNET_QUOTA_CONFIG.maxRequestsPerMonth,
+    limit: PREMIUM_MODEL_QUOTA_CONFIG.maxRequestsPerMonth,
     remaining,
     resetAt,
     hasQuota: remaining > 0,
@@ -163,12 +182,12 @@ export async function checkSonnetQuota(
 }
 
 /**
- * Increment Sonnet usage counter
+ * Increment premium model usage counter
  */
-export async function incrementSonnetQuota(kv: KVNamespace, userId: string): Promise<void> {
+export async function incrementPremiumModelQuota(kv: KVNamespace, userId: string): Promise<void> {
   const now = Date.now()
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
-  const quotaKey = `${SONNET_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
+  const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
 
   const value = await kv.get(quotaKey)
   const used = value ? Number.parseInt(value, 10) : 0
@@ -186,7 +205,7 @@ export async function incrementSonnetQuota(kv: KVNamespace, userId: string): Pro
   })
 
   console.log(
-    `💰 ModelRouter: Sonnet usage for ${userId}: ${newUsed}/${SONNET_QUOTA_CONFIG.maxRequestsPerMonth}`
+    `💰 ModelRouter: Premium model usage for ${userId}: ${newUsed}/${PREMIUM_MODEL_QUOTA_CONFIG.maxRequestsPerMonth}`
   )
 }
 
@@ -198,24 +217,24 @@ export async function selectModel(
   requestType: RequestType,
   kv: KVNamespace,
   userId?: string
-): Promise<{ model: ModelConfig; sonnetQuotaStatus?: SonnetQuotaStatus }> {
-  // Check Sonnet quota if user ID provided
-  let sonnetQuotaStatus: SonnetQuotaStatus | undefined
-  let hasSonnetQuota = false
+): Promise<{ model: ModelConfig; premiumQuotaStatus?: PremiumModelQuotaStatus }> {
+  // Check premium model quota if user ID provided
+  let premiumQuotaStatus: PremiumModelQuotaStatus | undefined
+  let hasPremiumQuota = false
 
   if (userId) {
-    sonnetQuotaStatus = await checkSonnetQuota(kv, userId)
-    hasSonnetQuota = sonnetQuotaStatus.hasQuota
+    premiumQuotaStatus = await checkPremiumModelQuota(kv, userId)
+    hasPremiumQuota = premiumQuotaStatus.hasQuota
   }
 
   // Select appropriate model
-  const model = selectModelForRequestType(requestType, hasSonnetQuota)
+  const model = selectModelForRequestType(requestType, hasPremiumQuota)
 
   console.log(`🎯 ModelRouter: ${requestType} → ${model.displayName} (${model.modelId})`)
 
   return {
     model,
-    sonnetQuotaStatus,
+    premiumQuotaStatus,
   }
 }
 
@@ -227,9 +246,9 @@ export async function afterModelUsage(
   kv: KVNamespace,
   userId?: string
 ): Promise<void> {
-  // Increment Sonnet quota if Sonnet was used
+  // Increment premium model quota if premium model was used
   if (modelConfig.requiresQuota && userId) {
-    await incrementSonnetQuota(kv, userId)
+    await incrementPremiumModelQuota(kv, userId)
   }
 }
 

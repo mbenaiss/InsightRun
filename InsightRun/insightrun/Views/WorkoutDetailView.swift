@@ -645,9 +645,7 @@ struct WorkoutDetailView: View {
             } else if let analysis = analysisViewModel.analysisText {
                 // Analysis available
                 VStack(alignment: .leading, spacing: 12) {
-                    MarkdownText(analysis)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextPrimary)
+                    MarkdownView(analysis)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     HStack {

@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
+import { afterModelUsage, RequestType, selectModel, selectModelFromRequest } from './modelRouter'
 import { captureLLMEvent, createPostHogClient } from './posthog'
 import { buildPrompt } from './prompts'
 import type { QuotaCheck } from './quota'
@@ -28,7 +29,8 @@ type Variables = {
 interface ChatRequest {
   prompt: string
   systemPrompt: string
-  model: string
+  model?: string
+  requestType?: string
 }
 
 interface OpenRouterMessage {
@@ -73,12 +75,20 @@ function validateAppAuth(c: AppContext): boolean {
 
 function validateChatRequest(body: unknown): body is ChatRequest {
   const req = body as ChatRequest
-  return !!(req.prompt && req.systemPrompt && req.model)
+  // Either model or requestType must be provided
+  return !!(req.prompt && req.systemPrompt && (req.model || req.requestType))
 }
 
 function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
   const req = body as ChatRequestV2
-  return !!(req.promptType && req.model && req.userQuestion && req.language && req.data)
+  // Either requestType or model must be provided (requestType takes priority)
+  return !!(
+    req.promptType &&
+    (req.requestType || req.model) &&
+    req.userQuestion &&
+    req.language &&
+    req.data
+  )
 }
 
 async function callOpenRouter(
@@ -243,13 +253,13 @@ app.post('/api/chat', async (c) => {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: prompt, systemPrompt, model',
+          message: 'Missing required fields: prompt, systemPrompt, and (model or requestType)',
         },
         400
       )
     }
 
-    const { prompt, systemPrompt, model } = body
+    const { prompt, systemPrompt, model, requestType } = body
 
     if (prompt.length > MAX_PROMPT_LENGTH) {
       return c.json(
@@ -266,9 +276,20 @@ app.post('/api/chat', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
+    // Select model using requestType or manual model
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.MODERATE
+    )
+
+    console.log(`🎯 /api/chat: Using model ${finalModel} for requestType ${requestType || 'none'}`)
+
     const openRouterResponse = await callOpenRouter(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt
     )
@@ -322,6 +343,11 @@ app.post('/api/chat', async (c) => {
                   data: '[DONE]',
                 })
 
+                // Increment quota if model requires it
+                if (modelConfig) {
+                  await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+                }
+
                 // Capture LLM event with all collected data
                 const latency = (Date.now() - startTime) / 1000
 
@@ -335,7 +361,7 @@ app.post('/api/chat', async (c) => {
                     (async () => {
                       try {
                         await captureLLMEvent(posthog, userId, traceId, {
-                          model,
+                          model: finalModel,
                           input: prompt,
                           systemPrompt,
                           output: fullOutput,
@@ -413,16 +439,29 @@ app.post('/api/chat/stream', async (c) => {
       return c.json({ error: 'Bad Request', message: 'Missing required fields' }, 400)
     }
 
-    const { prompt, systemPrompt, model } = body
+    const { prompt, systemPrompt, model, requestType } = body
 
     // Get user ID from X-User-ID header (from iOS app) or fallback to IP
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
+    // Select model using requestType or manual model
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.MODERATE
+    )
+
+    console.log(
+      `🎯 /api/chat/stream: Using model ${finalModel} for requestType ${requestType || 'none'}`
+    )
+
     const openRouterResponse = await callOpenRouter(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt
     )
@@ -448,6 +487,11 @@ app.post('/api/chat/stream', async (c) => {
           while (true) {
             const { done, value } = await reader.read()
             if (done) {
+              // Increment quota if model requires it
+              if (modelConfig) {
+                await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+              }
+
               // Capture LLM event with all collected data
               const latency = (Date.now() - startTime) / 1000
 
@@ -461,7 +505,7 @@ app.post('/api/chat/stream', async (c) => {
                   (async () => {
                     try {
                       await captureLLMEvent(posthog, userId, traceId, {
-                        model,
+                        model: finalModel,
                         input: prompt,
                         systemPrompt,
                         output: fullOutput,
@@ -550,19 +594,62 @@ app.post('/api/chat/v2', async (c) => {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: promptType, model, userQuestion, language, data',
+          message:
+            'Missing required fields: promptType, requestType or model, userQuestion, language, data',
         },
         400
       )
     }
 
-    const { promptType, model, userQuestion, language, data } = body
+    const { promptType, requestType, model: manualModel, userQuestion, language, data } = body
 
     if (userQuestion.length > MAX_PROMPT_LENGTH) {
       return c.json(
         {
           error: 'Bad Request',
           message: `Question too long (max ${MAX_PROMPT_LENGTH} characters)`,
+        },
+        400
+      )
+    }
+
+    // Get user ID from X-User-ID header (from iOS app) or fallback to IP
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const traceId = crypto.randomUUID()
+
+    // Determine which model to use
+    let finalModel: string
+
+    if (requestType) {
+      // Use semantic requestType to select model (preferred)
+      console.log(`🎯 Using requestType: ${requestType}`)
+
+      // Validate requestType
+      if (!Object.values(RequestType).includes(requestType as RequestType)) {
+        return c.json(
+          {
+            error: 'Bad Request',
+            message: `Invalid requestType. Valid values: ${Object.values(RequestType).join(', ')}`,
+          },
+          400
+        )
+      }
+
+      // Select model based on requestType and user quota
+      const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
+      finalModel = selection.model.modelId
+
+      console.log(`✅ Selected model: ${selection.model.displayName} (${finalModel})`)
+    } else if (manualModel) {
+      // Fallback to manual model (backward compatibility)
+      console.log(`⚠️ Using legacy manual model: ${manualModel}`)
+      finalModel = manualModel
+    } else {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: 'Either requestType or model must be provided',
         },
         400
       )
@@ -582,14 +669,9 @@ app.post('/api/chat/v2', async (c) => {
       )
     }
 
-    // Get user ID from X-User-ID header (from iOS app) or fallback to IP
-    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
-    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-    const traceId = crypto.randomUUID()
-
     const openRouterResponse = await callOpenRouter(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       userQuestion
     )
@@ -646,6 +728,24 @@ app.post('/api/chat/v2', async (c) => {
                 // Capture LLM event with all collected data
                 const latency = (Date.now() - startTime) / 1000
 
+                // Increment quotas if needed (e.g., Sonnet usage)
+                if (requestType) {
+                  c.executionCtx.waitUntil(
+                    (async () => {
+                      try {
+                        const selection = await selectModel(
+                          requestType as RequestType,
+                          c.env.RATE_LIMITER,
+                          userId
+                        )
+                        await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+                      } catch (error) {
+                        console.error('Quota increment error:', error)
+                      }
+                    })()
+                  )
+                }
+
                 if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
                   const posthog = createPostHogClient({
                     apiKey: c.env.POSTHOG_API_KEY,
@@ -656,7 +756,7 @@ app.post('/api/chat/v2', async (c) => {
                     (async () => {
                       try {
                         await captureLLMEvent(posthog, userId, traceId, {
-                          model,
+                          model: finalModel,
                           input: userQuestion,
                           systemPrompt,
                           output: fullOutput,

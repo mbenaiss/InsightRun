@@ -1850,62 +1850,108 @@ struct LocationText: View {
         // Check if task was cancelled before making network request
         guard !Task.isCancelled else { return }
 
-        guard let request = MKReverseGeocodingRequest(location: location) else {
-            locationName = unknownLocation
-            await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
-            return
-        }
-
-        do {
-            let mapItems = try await request.mapItems
-
-            // Check cancellation after network request
-            guard !Task.isCancelled else { return }
-
-            if let mapItem = mapItems.first {
-                // Use addressRepresentations for iOS 26+ (preferred)
-                if let addressRepresentations = mapItem.addressRepresentations {
-                    if let cityName = addressRepresentations.cityName {
-                        locationName = cityName
-                        await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
-                        return
-                    }
-                }
-
-                // Fallback to address fullAddress if addressRepresentations not available
-                if let address = mapItem.address {
-                    // MKAddress only has fullAddress and shortAddress, parse shortAddress for city
-                    if let shortAddress = address.shortAddress {
-                        locationName = shortAddress
-                        await LocationCache.shared.setCachedLocation(shortAddress, for: coordinate)
-                        return
-                    }
-                    // Last resort: use full address
-                    let fullAddress = address.fullAddress
-                    if !fullAddress.isEmpty {
-                        // Try to extract city from full address (first line usually)
-                        let components = fullAddress.components(separatedBy: "\n")
-                        let cityName = components.first ?? unknownLocation
-                        locationName = cityName
-                        await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
-                        return
-                    }
-                }
-
+        if #available(iOS 26, *) {
+            // Use MKReverseGeocodingRequest for iOS 26+
+            guard let request = MKReverseGeocodingRequest(location: location) else {
                 locationName = unknownLocation
                 await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
-            } else {
+                return
+            }
+
+            do {
+                let mapItems = try await request.mapItems
+
+                // Check cancellation after network request
+                guard !Task.isCancelled else { return }
+
+                if let mapItem = mapItems.first {
+                    // Use addressRepresentations for iOS 26+ (preferred)
+                    if let addressRepresentations = mapItem.addressRepresentations {
+                        if let cityName = addressRepresentations.cityName {
+                            locationName = cityName
+                            await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
+                            return
+                        }
+                    }
+
+                    // Fallback to address fullAddress if addressRepresentations not available
+                    if let address = mapItem.address {
+                        // MKAddress only has fullAddress and shortAddress, parse shortAddress for city
+                        if let shortAddress = address.shortAddress {
+                            locationName = shortAddress
+                            await LocationCache.shared.setCachedLocation(shortAddress, for: coordinate)
+                            return
+                        }
+                        // Last resort: use full address
+                        let fullAddress = address.fullAddress
+                        if !fullAddress.isEmpty {
+                            // Try to extract city from full address (first line usually)
+                            let components = fullAddress.components(separatedBy: "\n")
+                            let cityName = components.first ?? unknownLocation
+                            locationName = cityName
+                            await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
+                            return
+                        }
+                    }
+
+                    locationName = unknownLocation
+                    await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+                } else {
+                    locationName = unknownLocation
+                    await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+                }
+            } catch is CancellationError {
+                // Task was cancelled, don't update state or cache
+                return
+            } catch {
+                // Only update on non-cancellation errors
+                guard !Task.isCancelled else { return }
                 locationName = unknownLocation
                 await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
             }
-        } catch is CancellationError {
-            // Task was cancelled, don't update state or cache
-            return
-        } catch {
-            // Only update on non-cancellation errors
-            guard !Task.isCancelled else { return }
-            locationName = unknownLocation
-            await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+        } else {
+            // Fallback to CLGeocoder for iOS 18.6 - 25.x
+            let geocoder = CLGeocoder()
+
+            do {
+                let placemarks = try await geocoder.reverseGeocodeLocation(location)
+
+                // Check cancellation after network request
+                guard !Task.isCancelled else { return }
+
+                if let placemark = placemarks.first {
+                    // Try to get city name from placemark
+                    if let city = placemark.locality {
+                        locationName = city
+                        await LocationCache.shared.setCachedLocation(city, for: coordinate)
+                        return
+                    }
+
+                    // Fallback to sublocality or administrative area
+                    if let sublocality = placemark.subLocality {
+                        locationName = sublocality
+                        await LocationCache.shared.setCachedLocation(sublocality, for: coordinate)
+                        return
+                    }
+
+                    if let administrativeArea = placemark.administrativeArea {
+                        locationName = administrativeArea
+                        await LocationCache.shared.setCachedLocation(administrativeArea, for: coordinate)
+                        return
+                    }
+                }
+
+                locationName = unknownLocation
+                await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+            } catch is CancellationError {
+                // Task was cancelled, don't update state or cache
+                return
+            } catch {
+                // Only update on non-cancellation errors
+                guard !Task.isCancelled else { return }
+                locationName = unknownLocation
+                await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+            }
         }
     }
 }

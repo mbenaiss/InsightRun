@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { ChatRequestV2 } from '../types'
 import { estimateTokenCount } from '../utils'
@@ -108,13 +109,14 @@ OUTPUT: Title + blank line + phases list. User will edit this before generating 
   return { system: systemPrompt, user: userPrompt }
 }
 
-async function callGrokForSuggestion(
+async function callModelForSuggestion(
   apiKey: string,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  model: string
 ): Promise<string> {
   const requestBody = {
-    model: 'x-ai/grok-4-fast', // xAI Grok 4 Fast model
+    model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -159,12 +161,12 @@ app.post('/', async (c) => {
   try {
     const body = (await c.req.json()) as ChatRequestV2
 
-    // Validate request (same as /api/chat/v2)
-    if (!body.promptType || !body.model || !body.language || !body.data) {
+    // Validate request
+    if (!body.promptType || !body.language || !body.data) {
       return c.json(
         {
           error: 'Bad Request',
-          message: 'Missing required fields: promptType, model, language, data',
+          message: 'Missing required fields: promptType, language, data',
         },
         400
       )
@@ -185,22 +187,37 @@ app.post('/', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      body.requestType,
+      body.model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.SMART_SUGGESTION
+    )
+
     console.log(
-      `✨ Generating smart suggestion for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
+      `✨ Generating smart suggestion with ${finalModel} for user ${userId} (${body.data.recentWorkouts.workouts.length} recent workouts)`
     )
 
     // Build prompt (specific to smart suggestion)
     const { system: systemPrompt, user: userPrompt } = buildSmartSuggestionPrompt(body)
 
-    // Call Grok (same model as other endpoints)
-    const suggestion = await callGrokForSuggestion(
+    // Call selected model
+    const suggestion = await callModelForSuggestion(
       c.env.OPENROUTER_API_KEY,
       systemPrompt,
-      userPrompt
+      userPrompt,
+      finalModel
     )
 
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
+
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+    }
 
     console.log(`✅ Smart suggestion generated in ${generationTime}ms (${suggestion.length} chars)`)
 
@@ -217,7 +234,7 @@ app.post('/', async (c) => {
             const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
             const outputTokenCount = estimateTokenCount(suggestion)
             await captureLLMEvent(posthog, userId, traceId, {
-              model: body.model,
+              model: finalModel,
               input: userPrompt,
               systemPrompt,
               output: suggestion,

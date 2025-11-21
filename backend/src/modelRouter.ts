@@ -98,7 +98,7 @@ const REQUEST_TYPE_TO_MODEL: Record<RequestType, keyof typeof MODELS> = {
   [RequestType.SIMPLE]: 'GROK_4_FAST',
   [RequestType.MODERATE]: 'GROK_4_FAST',
   [RequestType.COMPLEX]: 'GEMINI_3_PRO_PREVIEW', // Premium model with quota
-  [RequestType.WORKOUT_GENERATION]: 'GROK_4_FAST',
+  [RequestType.WORKOUT_GENERATION]: 'GEMINI_FLASH',
   [RequestType.BATCH_PROCESSING]: 'GEMINI_FLASH_LITE',
   [RequestType.SMART_SUGGESTION]: 'GROK_4_FAST',
   [RequestType.CLASSIFICATION]: 'GEMINI_FLASH',

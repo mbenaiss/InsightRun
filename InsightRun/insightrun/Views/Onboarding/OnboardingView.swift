@@ -13,8 +13,8 @@ struct OnboardingView: View {
 
     @State private var currentStep = 0
 
-    // Fixed number of onboarding steps (always 3 for stability)
-    private let totalSteps = 3
+    // Fixed number of onboarding steps (now 4: Welcome, HealthKit, Strava, Paywall)
+    private let totalSteps = 4
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,19 +36,27 @@ struct OnboardingView: View {
                 // Step 2: HealthKit Permission
                 HealthKitPermissionStepView(onContinue: {
                     AnalyticsService.shared.trackOnboardingStepCompleted(step: 2, stepName: "healthkit_permission")
-                    // Always show paywall step (handles subscription state internally)
                     withAnimation {
                         currentStep = 2
                     }
                 })
                 .tag(1)
 
-                // Step 3: Paywall (always present for stability)
-                PaywallStepView(onContinue: {
-                    AnalyticsService.shared.trackOnboardingStepCompleted(step: 3, stepName: "paywall")
-                    completeOnboarding()
+                // Step 3: Strava Connection (NEW!)
+                StravaConnectionStepView(onContinue: {
+                    AnalyticsService.shared.trackOnboardingStepCompleted(step: 3, stepName: "strava_connection")
+                    withAnimation {
+                        currentStep = 3
+                    }
                 })
                 .tag(2)
+
+                // Step 4: Paywall (always present for stability)
+                PaywallStepView(onContinue: {
+                    AnalyticsService.shared.trackOnboardingStepCompleted(step: 4, stepName: "paywall")
+                    completeOnboarding()
+                })
+                .tag(3)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut, value: currentStep)

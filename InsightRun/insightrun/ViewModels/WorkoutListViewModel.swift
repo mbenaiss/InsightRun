@@ -16,7 +16,12 @@ class WorkoutListViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var authorizationStatus: AuthStatus = .notDetermined
 
+    // Pagination state
+    @Published var hasMoreWorkouts = false
+    @Published var isLoadingMore = false
+
     private let healthKitManager = HealthKitManager.shared
+    private let pageSize = 100 // Similar to Strava's per_page=200, but conservative for HealthKit
 
     enum AuthStatus {
         case notDetermined
@@ -57,6 +62,8 @@ class WorkoutListViewModel: ObservableObject {
         authorizationStatus = hasAccess ? .authorized : .notDetermined
     }
 
+    /// Load first page of workouts (Lazy Loading - only recent workouts)
+    /// This is called on app launch and loads only the first 100 workouts
     func loadWorkouts() async {
         guard authorizationStatus == .authorized else {
             return
@@ -69,7 +76,11 @@ class WorkoutListViewModel: ObservableObject {
         let isFirstSync = !UserDefaults.standard.bool(forKey: "hasCompletedFirstWorkoutSync")
 
         do {
-            workouts = try await healthKitManager.fetchRunningWorkouts()
+            // LAZY LOADING: Only fetch first page (100 workouts)
+            // This is much faster than loading ALL workouts (which could be 1000+)
+            let result = try await healthKitManager.fetchRunningWorkouts(limit: pageSize)
+            workouts = result.workouts
+            hasMoreWorkouts = result.hasMore
 
             if workouts.isEmpty {
                 errorMessage = "Aucun workout de course trouvé."
@@ -80,6 +91,8 @@ class WorkoutListViewModel: ObservableObject {
                     syncSuccess: true
                 )
                 UserDefaults.standard.set(true, forKey: "hasCompletedFirstWorkoutSync")
+
+                print("✅ Lazy Loading: Loaded \(workouts.count) workouts (hasMore: \(hasMoreWorkouts))")
             }
         } catch {
             errorMessage = "Impossible de charger les workouts: \(error.localizedDescription)"
@@ -94,6 +107,41 @@ class WorkoutListViewModel: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    /// Load next page of workouts (Infinite Scroll)
+    /// This is called when the user scrolls to the bottom of the list
+    func loadMoreWorkouts() async {
+        // Don't load more if already loading or no more workouts
+        guard !isLoadingMore && hasMoreWorkouts else {
+            return
+        }
+
+        isLoadingMore = true
+
+        do {
+            // Get the oldest workout's start date as anchor for pagination
+            guard let oldestWorkout = workouts.last else {
+                isLoadingMore = false
+                return
+            }
+
+            // Fetch next page starting before the oldest workout
+            let result = try await healthKitManager.fetchRunningWorkouts(
+                limit: pageSize,
+                startingBefore: oldestWorkout.startDate
+            )
+
+            // Append new workouts
+            workouts.append(contentsOf: result.workouts)
+            hasMoreWorkouts = result.hasMore
+
+            print("📄 Loaded page: +\(result.workouts.count) workouts (total: \(workouts.count), hasMore: \(hasMoreWorkouts))")
+        } catch {
+            errorMessage = "Impossible de charger plus de workouts: \(error.localizedDescription)"
+        }
+
+        isLoadingMore = false
     }
 
     func refresh() async {

@@ -426,9 +426,50 @@ struct WorkoutListView: View {
                                 WorkoutRowView(workout: workout)
                             }
                             .buttonStyle(.plain)
+                            .onAppear {
+                                // INFINITE SCROLL: Load more when user reaches near the end
+                                // Check if this is one of the last 10 workouts
+                                if workout.id == viewModel.workouts.dropLast(10).last?.id {
+                                    Task {
+                                        await viewModel.loadMoreWorkouts()
+                                    }
+                                }
+                            }
                         }
                         .padding(.horizontal)
                     }
+                }
+
+                // Loading indicator for pagination
+                if viewModel.isLoadingMore {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text(String(localized: "Loading more workouts...", comment: "Pagination loading indicator"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding()
+                }
+
+                // End of list indicator
+                if !viewModel.hasMoreWorkouts && !viewModel.workouts.isEmpty {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.green)
+                            Text(String(localized: "All workouts loaded", comment: "End of list indicator"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding()
                 }
             }
             .padding(.bottom, 20)

@@ -124,6 +124,8 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Fetch Running Workouts
 
+    /// Fetch ALL running workouts (deprecated - use paginated version instead)
+    /// WARNING: This loads all workouts at once. For large histories, use fetchRunningWorkouts(limit:anchor:)
     func fetchRunningWorkouts() async throws -> [WorkoutModel] {
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
@@ -149,6 +151,86 @@ class HealthKitManager: ObservableObject {
 
                 let workoutModels = workouts.map { WorkoutModel(from: $0) }
                 continuation.resume(returning: workoutModels)
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    /// Fetch running workouts with pagination (RECOMMENDED)
+    /// - Parameters:
+    ///   - limit: Number of workouts to fetch (default: 100, similar to Strava's per_page=200 but conservative)
+    ///   - startDate: Optional date to fetch workouts before (for pagination)
+    /// - Returns: Tuple with workouts and the oldest workout date (use for next page)
+    func fetchRunningWorkouts(limit: Int = 100, startingBefore date: Date? = nil) async throws -> (workouts: [WorkoutModel], hasMore: Bool) {
+        let workoutType = HKObjectType.workoutType()
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+
+        // If we have a date, only fetch workouts before that date (for pagination)
+        let predicate: NSPredicate
+        if let beforeDate = date {
+            let datePredicate = HKQuery.predicateForSamples(
+                withStart: nil,
+                end: beforeDate,
+                options: .strictEndDate
+            )
+            predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [runningPredicate, datePredicate])
+        } else {
+            predicate = runningPredicate
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+
+            // Fetch limit + 1 to check if there are more workouts
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: predicate,
+                limit: limit + 1,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: HealthKitError.queryFailed(error))
+                    return
+                }
+
+                guard let workouts = samples as? [HKWorkout] else {
+                    continuation.resume(returning: ([], false))
+                    return
+                }
+
+                // Check if there are more workouts
+                let hasMore = workouts.count > limit
+
+                // Take only the requested limit
+                let limitedWorkouts = hasMore ? Array(workouts.prefix(limit)) : workouts
+                let workoutModels = limitedWorkouts.map { WorkoutModel(from: $0) }
+
+                continuation.resume(returning: (workoutModels, hasMore))
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    /// Get total count of running workouts (for progress tracking during backfill)
+    func getRunningWorkoutsCount() async throws -> Int {
+        let workoutType = HKObjectType.workoutType()
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: runningPredicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: HealthKitError.queryFailed(error))
+                    return
+                }
+
+                continuation.resume(returning: samples?.count ?? 0)
             }
 
             healthStore.execute(query)

@@ -17,18 +17,21 @@ class StravaViewModel: ObservableObject {
     @Published var hasMoreActivities = true
     @Published var errorMessage: String?
     @Published var rateLimits: StravaRateLimits?
+    @Published var cacheStats: CacheStats?
 
     private let apiClient = StravaAPIClient.shared
     private let authService = StravaAuthService.shared
+    private let cache = StravaCache.shared
 
     private var currentPage = 1
     private let initialPageSize = 30 // Fast initial load
     private let backfillPageSize = 200 // For backfill operations
 
-    // MARK: - Initial Load (Lazy Loading - Page 1 only)
+    // MARK: - Initial Load (Lazy Loading with Cache)
 
-    /// Load first page of activities (30 activities - very fast)
-    /// This is called on app launch
+    /// Load activities (cache-first strategy)
+    /// 1. Load from cache instantly (if available)
+    /// 2. Sync incrementally with Strava (only NEW activities)
     func loadRecentActivities() async {
         guard authService.isAuthenticated else {
             errorMessage = "Not authenticated with Strava"
@@ -37,17 +40,70 @@ class StravaViewModel: ObservableObject {
 
         isLoading = true
         errorMessage = nil
-        currentPage = 1
 
         do {
-            print("🏃 Loading recent Strava activities (page 1)...")
+            // STEP 1: Load from cache first (instant display)
+            print("📦 Loading from cache...")
+            let cachedActivities = try cache.fetchActivities(limit: 100, offset: 0)
 
-            // LAZY LOADING: Only fetch page 1 (30 activities)
-            // Much faster than loading ALL history!
-            activities = try await apiClient.fetchActivities(page: 1, perPage: initialPageSize)
+            if !cachedActivities.isEmpty {
+                activities = cachedActivities
+                print("✅ Loaded \(cachedActivities.count) activities from cache")
 
-            // If we got a full page, there's likely more
-            hasMoreActivities = activities.count == initialPageSize
+                // Update cache stats
+                cacheStats = try cache.getCacheStats()
+            }
+
+            // STEP 2: Incremental sync (only NEW activities since last sync)
+            await syncNewActivities()
+        } catch {
+            errorMessage = "Failed to load activities: \(error.localizedDescription)"
+            print("❌ Error: \(error)")
+        }
+
+        isLoading = false
+    }
+
+    /// Incremental sync: Only fetch NEW activities since last cached activity
+    /// This is THE KEY to scaling - avoids re-downloading old activities
+    private func syncNewActivities() async {
+        do {
+            // Get last activity date from cache
+            let lastActivityDate = try cache.getLastActivityDate()
+
+            if let lastDate = lastActivityDate {
+                print("🔄 Syncing activities after \(lastDate)...")
+
+                // Fetch only NEW activities (after last cached date)
+                let newActivities = try await apiClient.fetchActivitiesSince(
+                    after: Int(lastDate.timeIntervalSince1970)
+                )
+
+                if !newActivities.isEmpty {
+                    print("✨ Found \(newActivities.count) new activities")
+
+                    // Save to cache
+                    try cache.saveActivities(newActivities)
+
+                    // Reload from cache to get sorted list
+                    activities = try cache.fetchActivities(limit: 100, offset: 0)
+
+                    // Update stats
+                    cacheStats = try cache.getCacheStats()
+                } else {
+                    print("✅ No new activities - cache up to date")
+                }
+            } else {
+                // No cache - do initial sync
+                print("🆕 No cache found - doing initial sync...")
+
+                activities = try await apiClient.fetchActivities(page: 1, perPage: initialPageSize)
+
+                // Save to cache
+                try cache.saveActivities(activities)
+
+                // If we got a full page, there's likely more
+                hasMoreActivities = activities.count == initialPageSize
 
             rateLimits = apiClient.currentRateLimits
 

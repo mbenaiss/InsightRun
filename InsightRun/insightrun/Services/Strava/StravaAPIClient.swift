@@ -130,6 +130,57 @@ class StravaAPIClient {
         return try await fetchActivities(page: 1, perPage: 30)
     }
 
+    /// Fetch activities since a specific date (INCREMENTAL SYNC)
+    /// This is THE KEY for scaling - only fetch NEW activities
+    /// - Parameter after: Unix timestamp (seconds since epoch)
+    /// - Returns: Only activities created after this date
+    func fetchActivitiesSince(after timestamp: Int) async throws -> [StravaActivity] {
+        let accessToken = try await authService.getValidAccessToken()
+
+        // Build URL with 'after' parameter
+        var components = URLComponents(string: "\(baseURL)/athlete/activities")!
+        components.queryItems = [
+            URLQueryItem(name: "after", value: "\(timestamp)"),
+            URLQueryItem(name: "per_page", value: "200") // Max for efficiency
+        ]
+
+        guard let url = components.url else {
+            throw StravaAPIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30
+
+        print("📡 Strava API: Fetching activities since \(Date(timeIntervalSince1970: TimeInterval(timestamp)))...")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw StravaAPIError.invalidResponse
+        }
+
+        extractRateLimits(from: httpResponse)
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            switch httpResponse.statusCode {
+            case 401:
+                throw StravaAPIError.unauthorized
+            case 429:
+                throw StravaAPIError.rateLimitExceeded
+            default:
+                throw StravaAPIError.unknownError(httpResponse.statusCode)
+            }
+        }
+
+        let activities = try JSONDecoder().decode([StravaActivity].self, from: data)
+
+        print("✅ Incremental sync: Found \(activities.count) new activities")
+
+        return activities
+    }
+
     /// Fetch activity detail by ID
     func fetchActivity(id: Int64) async throws -> StravaDetailedActivity {
         let accessToken = try await authService.getValidAccessToken()

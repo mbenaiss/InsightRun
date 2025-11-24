@@ -97,23 +97,28 @@ class StravaViewModel: ObservableObject {
                 // No cache - do initial sync
                 print("🆕 No cache found - doing initial sync...")
 
-                activities = try await apiClient.fetchActivities(page: 1, perPage: initialPageSize)
+                let newActivities = try await apiClient.fetchActivities(page: 1, perPage: initialPageSize)
 
                 // Save to cache
-                try cache.saveActivities(activities)
+                try cache.saveActivities(newActivities)
+
+                // Reload from cache
+                activities = try cache.fetchActivities(limit: 100, offset: 0)
 
                 // If we got a full page, there's likely more
-                hasMoreActivities = activities.count == initialPageSize
+                hasMoreActivities = newActivities.count == initialPageSize
+
+                // Update stats
+                cacheStats = try cache.getCacheStats()
+            }
 
             rateLimits = apiClient.currentRateLimits
 
-            print("✅ Loaded \(activities.count) activities")
+            print("✅ Synced \(activities.count) activities")
         } catch {
-            errorMessage = "Failed to load activities: \(error.localizedDescription)"
+            errorMessage = "Failed to sync activities: \(error.localizedDescription)"
             print("❌ Error: \(error)")
         }
-
-        isLoading = false
     }
 
     // MARK: - Infinite Scroll (Load More)

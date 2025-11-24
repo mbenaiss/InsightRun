@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showingMedicalSources = false
     @State private var showRefreshSheet = false
+    @ObservedObject private var stravaAuth = StravaAuthService.shared
 
     var body: some View {
         NavigationStack {
@@ -197,6 +198,59 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text(String(localized: "Training Data", comment: "Training data section header"))
+                }
+
+                // Strava Integration Section
+                Section {
+                    if stravaAuth.isAuthenticated {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Color.irSuccess)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(String(localized: "Strava Connected"))
+                                    .font(.headline)
+                                Text(String(localized: "Activities syncing automatically"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+
+                        Button(role: .destructive) {
+                            stravaAuth.logout()
+                        } label: {
+                            Text(String(localized: "Disconnect"))
+                        }
+                    } else {
+                        Button {
+                            Task {
+                                do {
+                                    try await stravaAuth.authenticate()
+                                } catch {
+                                    print("Strava auth error: \(error)")
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "link")
+                                    .foregroundStyle(Color.irPrimaryAccent)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(String(localized: "Connect Strava"))
+                                        .font(.headline)
+                                    Text(String(localized: "Import your activities"))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text(String(localized: "Integrations"))
                 }
 
                 // Debug Section (for testing)

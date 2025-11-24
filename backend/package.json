@@ -1,25 +1,38 @@
 {
   "name": "insightrun-backend",
   "version": "1.0.0",
-  "description": "Backend for InsightRun - Handles Strava OAuth and Webhooks securely",
-  "type": "module",
-  "main": "server.js",
+  "description": "Secure backend for InsightRun iOS - OpenRouter API proxy",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "wrangler dev",
+    "deploy": "bun run db:migrate:remote && wrangler deploy",
+    "tail": "wrangler tail",
+    "check": "biome check .",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "ci": "biome ci .",
+    "db:migrate:create": "wrangler d1 migrations create insightrun-strava-cache",
+    "db:migrate:local": "wrangler d1 migrations apply insightrun-strava-cache --local",
+    "db:migrate:remote": "wrangler d1 migrations apply insightrun-strava-cache --remote",
+    "db:migrate:list": "wrangler d1 migrations list insightrun-strava-cache"
   },
-  "keywords": ["strava", "webhooks", "oauth", "running"],
+  "keywords": [
+    "cloudflare-workers",
+    "hono",
+    "openrouter",
+    "insightrun"
+  ],
   "author": "InsightRun",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "axios": "^1.6.0",
-    "dotenv": "^16.3.1"
+    "hono": "^4.6.15",
+    "posthog-node": "^5.10.2",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "@biomejs/biome": "^2.3.6",
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "wrangler": "^4.44.0"
   }
 }

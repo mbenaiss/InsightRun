@@ -719,7 +719,7 @@ class StatisticsViewModel: ObservableObject {
     }
 
     func loadTestData() {
-        let testWorkouts = (1...45).map { day -> WorkoutModel in
+        let testWorkouts: [WorkoutModel] = (1...45).map { day in
             let calendar = Calendar.current
             let startDate = calendar.date(byAdding: .day, value: -day, to: Date()) ?? Date()
             let distance = Double.random(in: 3000...15000) // 3-15 km
@@ -735,7 +735,12 @@ class StatisticsViewModel: ObservableObject {
                 distance: distance,
                 totalEnergyBurned: distance / 1000 * Double.random(in: 50...80), // 50-80 kcal per km
                 sourceName: "Apple Health",
-                sourceVersion: "1.0"
+                sourceVersion: "1.0",
+                metadata: nil,
+                averageHeartRate: Double.random(in: 130...170),
+                maxHeartRate: Double.random(in: 170...190),
+                elevationGain: Double.random(in: 0...150),
+                hasRoute: false
             )
         }
         self.workouts = testWorkouts

@@ -1966,7 +1966,12 @@ struct LocationText: View {
                 distance: 5000,
                 totalEnergyBurned: 350,
                 sourceName: "Apple Watch",
-                sourceVersion: "10.0"
+                sourceVersion: "10.0",
+                metadata: nil,
+                averageHeartRate: 145,
+                maxHeartRate: 165,
+                elevationGain: 50,
+                hasRoute: false
             )
         )
     }

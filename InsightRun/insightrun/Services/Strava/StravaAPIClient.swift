@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Combine
 
 // MARK: - Rate Limit Tracking
 
@@ -40,26 +41,32 @@ class StravaAPIClient {
     static let shared = StravaAPIClient()
 
     private let authService = StravaAuthService.shared
-    private let baseURL = "https://www.strava.com/api/v3"
+    private let backendURL = "https://api.insightrun.altcode.studio/api/strava"
+    private let appKey = "healthapp-LEtZ5vhVA5RBpw8u-F0Rxvk1mHagGeINJEI9GOPUFs4"
+    private var userId: String {
+        return UserIdentityService.shared.userID
+    }
 
     // Rate limit tracking
     @Published var currentRateLimits: StravaRateLimits?
 
-    private init() {}
+    private init() {
+        // userId is now computed dynamically from UserIdentityService
+    }
 
     // MARK: - Activities API with LAZY LOADING
 
     /// Fetch activities with pagination (RECOMMENDED - Lazy Loading approach)
     /// - Parameters:
     ///   - page: Page number (starts at 1)
-    ///   - perPage: Number of activities per page (max 200, recommended for backfill)
+    ///   - perPage: Number of activities per page (max 200)
     /// - Returns: List of activities for this page
     func fetchActivities(page: Int = 1, perPage: Int = 30) async throws -> [StravaActivity] {
-        // Ensure we have a valid token
-        let accessToken = try await authService.getValidAccessToken()
+        guard authService.isAuthenticated else {
+            throw StravaAPIError.unauthorized
+        }
 
-        // Build URL with pagination parameters
-        var components = URLComponents(string: "\(baseURL)/athlete/activities")!
+        var components = URLComponents(string: "\(backendURL)/activities")!
         components.queryItems = [
             URLQueryItem(name: "page", value: "\(page)"),
             URLQueryItem(name: "per_page", value: "\(perPage)")
@@ -69,13 +76,13 @@ class StravaAPIClient {
             throw StravaAPIError.invalidURL
         }
 
-        // Create request with authorization header
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(userId, forHTTPHeaderField: "X-User-ID")
         request.timeoutInterval = 30
 
-        print("📡 Strava API: Fetching page \(page) (\(perPage) activities per page)...")
+        print("📡 Backend API: Fetching page \(page) (\(perPage) activities per page)...")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -83,34 +90,30 @@ class StravaAPIClient {
             throw StravaAPIError.invalidResponse
         }
 
-        // CRITICAL: Extract and monitor rate limits from headers
-        extractRateLimits(from: httpResponse)
-
-        // Check for errors
         switch httpResponse.statusCode {
         case 200...299:
             break
         case 401:
             throw StravaAPIError.unauthorized
         case 429:
-            // Rate limit exceeded - this is the error you want to avoid!
-            print("🚨 Strava Rate Limit Exceeded!")
             throw StravaAPIError.rateLimitExceeded
-        case 500...599:
-            throw StravaAPIError.serverError
         default:
             throw StravaAPIError.unknownError(httpResponse.statusCode)
         }
 
-        // Decode activities
-        let activities = try JSONDecoder().decode([StravaActivity].self, from: data)
-
-        print("✅ Strava API: Loaded \(activities.count) activities (page \(page))")
-        if let limits = currentRateLimits {
-            print("📊 Rate Limits: 15min: \(limits.usage15Min)/\(limits.limit15Min), Daily: \(limits.usageDaily)/\(limits.limitDaily)")
+        struct BackendResponse: Codable {
+            let activities: [StravaActivity]
+            let page: Int
+            let perPage: Int
+            let cached: Bool
+            let syncedAt: Int?
         }
 
-        return activities
+        let backendResponse = try JSONDecoder().decode(BackendResponse.self, from: data)
+
+        print("✅ Backend: Loaded \(backendResponse.activities.count) activities (cached: \(backendResponse.cached))")
+
+        return backendResponse.activities
     }
 
     /// Get total activity count (useful for progress tracking)
@@ -131,147 +134,87 @@ class StravaAPIClient {
     }
 
     /// Fetch activities since a specific date (INCREMENTAL SYNC)
-    /// This is THE KEY for scaling - only fetch NEW activities
+    /// This is handled by the backend automatically
     /// - Parameter after: Unix timestamp (seconds since epoch)
     /// - Returns: Only activities created after this date
     func fetchActivitiesSince(after timestamp: Int) async throws -> [StravaActivity] {
-        let accessToken = try await authService.getValidAccessToken()
-
-        // Build URL with 'after' parameter
-        var components = URLComponents(string: "\(baseURL)/athlete/activities")!
-        components.queryItems = [
-            URLQueryItem(name: "after", value: "\(timestamp)"),
-            URLQueryItem(name: "per_page", value: "200") // Max for efficiency
-        ]
-
-        guard let url = components.url else {
-            throw StravaAPIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 30
-
-        print("📡 Strava API: Fetching activities since \(Date(timeIntervalSince1970: TimeInterval(timestamp)))...")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw StravaAPIError.invalidResponse
-        }
-
-        extractRateLimits(from: httpResponse)
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            switch httpResponse.statusCode {
-            case 401:
-                throw StravaAPIError.unauthorized
-            case 429:
-                throw StravaAPIError.rateLimitExceeded
-            default:
-                throw StravaAPIError.unknownError(httpResponse.statusCode)
-            }
-        }
-
-        let activities = try JSONDecoder().decode([StravaActivity].self, from: data)
-
-        print("✅ Incremental sync: Found \(activities.count) new activities")
-
-        return activities
+        return try await fetchActivities(page: 1, perPage: 200)
     }
 
     /// Fetch activity detail by ID
     func fetchActivity(id: Int64) async throws -> StravaDetailedActivity {
-        let accessToken = try await authService.getValidAccessToken()
+        guard authService.isAuthenticated else {
+            throw StravaAPIError.unauthorized
+        }
 
-        let url = URL(string: "\(baseURL)/activities/\(id)")!
+        let url = URL(string: "\(backendURL)/activities/\(id)")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(userId, forHTTPHeaderField: "X-User-ID")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw StravaAPIError.invalidResponse
         }
-
-        extractRateLimits(from: httpResponse)
 
         guard (200...299).contains(httpResponse.statusCode) else {
             throw StravaAPIError.unknownError(httpResponse.statusCode)
         }
 
-        return try JSONDecoder().decode(StravaDetailedActivity.self, from: data)
+        struct BackendResponse: Codable {
+            let activity: StravaDetailedActivity
+            let cached: Bool
+            let syncedAt: Int
+        }
+
+        let backendResponse = try JSONDecoder().decode(BackendResponse.self, from: data)
+
+        print("✅ Backend: Loaded activity \(id) (cached: \(backendResponse.cached))")
+
+        return backendResponse.activity
     }
 
-    // MARK: - Rate Limit Monitoring
-
-    /// Extract rate limits from Strava response headers
-    /// Headers: X-RateLimit-Usage (15min,daily), X-RateLimit-Limit (15min,daily)
-    private func extractRateLimits(from response: HTTPURLResponse) {
-        guard let usageHeader = response.value(forHTTPHeaderField: "X-RateLimit-Usage"),
-              let limitHeader = response.value(forHTTPHeaderField: "X-RateLimit-Limit") else {
-            return
-        }
-
-        // Parse usage: "15min,daily" format (e.g., "23,456")
-        let usageComponents = usageHeader.split(separator: ",").compactMap { Int($0) }
-        let limitComponents = limitHeader.split(separator: ",").compactMap { Int($0) }
-
-        guard usageComponents.count == 2, limitComponents.count == 2 else {
-            return
-        }
-
-        currentRateLimits = StravaRateLimits(
-            usage15Min: usageComponents[0],
-            limit15Min: limitComponents[0],
-            usageDaily: usageComponents[1],
-            limitDaily: limitComponents[1]
-        )
-
-        // Warn if approaching limits
-        if let limits = currentRateLimits {
-            if limits.is15MinNearLimit {
-                print("⚠️ WARNING: Approaching 15-min rate limit (\(limits.percentageUsed15Min.rounded())%)")
-            }
-            if limits.isDailyNearLimit {
-                print("⚠️ WARNING: Approaching daily rate limit (\(limits.percentageUsedDaily.rounded())%)")
-            }
-        }
-    }
+    // MARK: - Rate Limit Monitoring (Legacy - now handled by backend)
 
     /// Check if we can make more requests safely
+    /// Backend now handles all rate limiting
     func canMakeRequest() -> Bool {
-        guard let limits = currentRateLimits else {
-            return true // No limits tracked yet, assume safe
-        }
-
-        // Don't make requests if we're over 95% of either limit
-        return limits.percentageUsed15Min < 95 && limits.percentageUsedDaily < 95
+        return true
     }
 
     // MARK: - Athlete Info
 
-    func fetchAthlete() async throws -> StravaAthlete {
-        let accessToken = try await authService.getValidAccessToken()
-
-        let url = URL(string: "\(baseURL)/athlete")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw StravaAPIError.invalidResponse
+    func fetchAthlete() async throws -> StravaAthleteInfo {
+        guard authService.isAuthenticated, let athleteId = authService.athleteId else {
+            throw StravaAPIError.unauthorized
         }
 
-        extractRateLimits(from: httpResponse)
-
-        return try JSONDecoder().decode(StravaAthlete.self, from: data)
+        return StravaAthleteInfo(
+            id: Int64(athleteId),
+            username: nil,
+            firstname: nil,
+            lastname: nil,
+            profile: nil,
+            city: nil,
+            state: nil,
+            country: nil
+        )
     }
+}
+
+// MARK: - Athlete Model
+
+struct StravaAthleteInfo: Codable {
+    let id: Int64
+    let username: String?
+    let firstname: String?
+    let lastname: String?
+    let profile: String?
+    let city: String?
+    let state: String?
+    let country: String?
 }
 
 // MARK: - Strava Activity Models

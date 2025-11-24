@@ -18,6 +18,13 @@ struct WorkoutModel: Identifiable {
     let totalEnergyBurned: Double? // kcal
     let sourceName: String
     let sourceVersion: String?
+    let metadata: [String: Any]?
+
+    // Additional metrics
+    let averageHeartRate: Double?
+    let maxHeartRate: Double?
+    let elevationGain: Double?
+    let hasRoute: Bool
 
     // Computed properties for display
     var durationFormatted: String {
@@ -72,5 +79,17 @@ extension WorkoutModel {
         self.totalEnergyBurned = workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
         self.sourceName = workout.sourceRevision.source.name
         self.sourceVersion = workout.sourceRevision.version
+        self.metadata = workout.metadata
+
+        // Heart rate metrics
+        self.averageHeartRate = workout.statistics(for: HKQuantityType(.heartRate))?.averageQuantity()?.doubleValue(for: .count().unitDivided(by: .minute()))
+        self.maxHeartRate = workout.statistics(for: HKQuantityType(.heartRate))?.maximumQuantity()?.doubleValue(for: .count().unitDivided(by: .minute()))
+
+        // Elevation
+        self.elevationGain = workout.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()?.doubleValue(for: .meter())
+
+        // Route availability - Note: Routes must be queried separately from HealthStore
+        // For now, assume no route data available directly from HKWorkout
+        self.hasRoute = false
     }
 }

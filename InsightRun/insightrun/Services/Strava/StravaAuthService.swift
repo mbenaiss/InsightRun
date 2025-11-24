@@ -9,6 +9,8 @@
 import Foundation
 import AuthenticationServices
 import Security
+import Combine
+import UIKit
 
 /// Secure storage for Strava tokens using Keychain
 class StravaTokenStorage {
@@ -117,6 +119,18 @@ class StravaTokenStorage {
     }
 }
 
+// MARK: - Presentation Context Provider
+
+class WebAuthenticationPresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        // Use modern API to get the key window
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            return windowScene.windows.first { $0.isKeyWindow } ?? windowScene.windows.first ?? ASPresentationAnchor()
+        }
+        return ASPresentationAnchor()
+    }
+}
+
 // MARK: - Strava Auth Service
 
 @MainActor
@@ -127,17 +141,13 @@ class StravaAuthService: ObservableObject {
     @Published var athleteId: Int64?
 
     private let tokenStorage = StravaTokenStorage.shared
+    private let backendClient = StravaBackendClient.shared
+    private let presentationContextProvider = WebAuthenticationPresentationContextProvider()
+    private var currentAuthSession: ASWebAuthenticationSession?
 
-    // Strava OAuth Configuration
-    // TODO: Replace with your actual Client ID and Secret from Strava Developers Portal
-    // WARNING: In production, Client Secret should be on your backend server, NOT in the app!
-    private let clientId = "YOUR_STRAVA_CLIENT_ID"
-    private let clientSecret = "YOUR_STRAVA_CLIENT_SECRET"
+    private let clientId = "139078"
     private let redirectUri = "insightrun://strava-callback"
-
-    // Strava API endpoints
     private let authBaseURL = "https://www.strava.com/oauth"
-    private let apiBaseURL = "https://www.strava.com/api/v3"
 
     private init() {
         // Check if we have valid tokens on init
@@ -171,7 +181,7 @@ class StravaAuthService: ObservableObject {
 
         // Step 2: Open web authentication session
         let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
-            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "insightrun") { callbackURL, error in
+            self.currentAuthSession = ASWebAuthenticationSession(url: url, callbackURLScheme: "insightrun") { callbackURL, error in
                 if let error = error {
                     continuation.resume(throwing: StravaAuthError.authenticationFailed(error.localizedDescription))
                     return
@@ -185,9 +195,12 @@ class StravaAuthService: ObservableObject {
                 continuation.resume(returning: callbackURL)
             }
 
-            session.presentationContextProvider = ASWebAuthenticationPresentationContextProvider()
-            session.start()
+            self.currentAuthSession?.presentationContextProvider = self.presentationContextProvider
+            self.currentAuthSession?.start()
         }
+
+        // Clear auth session reference
+        self.currentAuthSession = nil
 
         // Step 3: Extract authorization code from callback URL
         guard let code = extractCode(from: callbackURL) else {
@@ -203,41 +216,19 @@ class StravaAuthService: ObservableObject {
         print("🎉 Strava authentication successful!")
     }
 
-    /// Exchange authorization code for access token and refresh token
     private func exchangeCodeForToken(code: String) async throws {
-        let url = URL(string: "\(authBaseURL)/token")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let userId = UserIdentityService.shared.userID
+        let tokenResponse = try await backendClient.exchangeCodeForTokens(code: code, userId: userId)
 
-        let body: [String: Any] = [
-            "client_id": clientId,
-            "client_secret": clientSecret,
-            "code": code,
-            "grant_type": "authorization_code"
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw StravaAuthError.tokenExchangeFailed
-        }
-
-        let tokenResponse = try JSONDecoder().decode(StravaTokenResponse.self, from: data)
-
-        // Save tokens securely
         let expiresAt = Date(timeIntervalSince1970: TimeInterval(tokenResponse.expiresAt))
         tokenStorage.saveTokens(
             accessToken: tokenResponse.accessToken,
             refreshToken: tokenResponse.refreshToken,
             expiresAt: expiresAt,
-            athleteId: tokenResponse.athlete.id
+            athleteId: tokenResponse.athlete?.id ?? 0
         )
 
-        athleteId = tokenResponse.athlete.id
+        athleteId = tokenResponse.athlete?.id ?? 0
     }
 
     // MARK: - Token Refresh (THE CRITICAL PART!)
@@ -257,48 +248,27 @@ class StravaAuthService: ObservableObject {
         return accessToken
     }
 
-    /// Refresh access token using refresh token
     private func refreshAccessToken() async throws {
         guard let refreshToken = tokenStorage.getRefreshToken() else {
             throw StravaAuthError.noRefreshToken
         }
 
-        let url = URL(string: "\(authBaseURL)/token")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do {
+            let userId = UserIdentityService.shared.userID
+            let tokenResponse = try await backendClient.refreshToken(refreshToken: refreshToken, userId: userId)
 
-        let body: [String: Any] = [
-            "client_id": clientId,
-            "client_secret": clientSecret,
-            "refresh_token": refreshToken,
-            "grant_type": "refresh_token"
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            // If refresh fails, user needs to re-authenticate
+            let expiresAt = Date(timeIntervalSince1970: TimeInterval(tokenResponse.expiresAt))
+            tokenStorage.saveTokens(
+                accessToken: tokenResponse.accessToken,
+                refreshToken: tokenResponse.refreshToken,
+                expiresAt: expiresAt,
+                athleteId: tokenResponse.athlete?.id ?? 0
+            )
+        } catch {
             tokenStorage.clearTokens()
             isAuthenticated = false
             throw StravaAuthError.refreshFailed
         }
-
-        let tokenResponse = try JSONDecoder().decode(StravaTokenResponse.self, from: data)
-
-        // Save new tokens
-        let expiresAt = Date(timeIntervalSince1970: TimeInterval(tokenResponse.expiresAt))
-        tokenStorage.saveTokens(
-            accessToken: tokenResponse.accessToken,
-            refreshToken: tokenResponse.refreshToken,
-            expiresAt: expiresAt,
-            athleteId: tokenResponse.athlete.id
-        )
-
-        print("✅ Access token refreshed successfully")
     }
 
     // MARK: - Logout
@@ -321,29 +291,6 @@ class StravaAuthService: ObservableObject {
         }
         return code
     }
-}
-
-// MARK: - Models
-
-struct StravaTokenResponse: Codable {
-    let accessToken: String
-    let refreshToken: String
-    let expiresAt: Int64
-    let athlete: StravaAthlete
-
-    enum CodingKeys: String, CodingKey {
-        case accessToken = "access_token"
-        case refreshToken = "refresh_token"
-        case expiresAt = "expires_at"
-        case athlete
-    }
-}
-
-struct StravaAthlete: Codable {
-    let id: Int64
-    let username: String?
-    let firstname: String?
-    let lastname: String?
 }
 
 // MARK: - Errors

@@ -92,15 +92,15 @@ PORT=3000
 
 ### 2. Activer les Webhooks Strava
 
-Une fois le backend déployé (ex: sur Railway), activer les webhooks :
+Une fois le backend déployé, créer une souscription webhook directement via l'API Strava :
 
 ```bash
-# Remplacer par votre vraie URL backend
-curl -X POST http://localhost:3000/api/webhooks/strava/subscribe \
-  -H "Content-Type: application/json" \
-  -d '{
-    "callbackUrl": "https://your-backend.railway.app/api/webhooks/strava"
-  }'
+# Créer une souscription webhook Strava
+curl -X POST https://www.strava.com/api/v3/push_subscriptions \
+  -F client_id=YOUR_STRAVA_CLIENT_ID \
+  -F client_secret=YOUR_STRAVA_CLIENT_SECRET \
+  -F callback_url=https://api.insightrun.altcode.studio/api/strava/webhooks/callback \
+  -F verify_token=YOUR_VERIFY_TOKEN
 ```
 
 Réponse attendue :
@@ -109,7 +109,7 @@ Réponse attendue :
   "id": 123456,
   "resource_state": 2,
   "application_id": 789,
-  "callback_url": "https://your-backend.railway.app/api/webhooks/strava",
+  "callback_url": "https://api.insightrun.altcode.studio/api/strava/webhooks/callback",
   "created_at": "2024-01-15T10:00:00Z",
   "updated_at": "2024-01-15T10:00:00Z"
 }
@@ -118,25 +118,93 @@ Réponse attendue :
 ### 3. Vérifier le Webhook
 
 ```bash
-curl http://localhost:3000/api/webhooks/strava/subscription
+# Lister les souscriptions webhook actives
+curl -G https://www.strava.com/api/v3/push_subscriptions \
+  -d client_id=YOUR_STRAVA_CLIENT_ID \
+  -d client_secret=YOUR_STRAVA_CLIENT_SECRET
 ```
 
 ## 🧪 Test en Local
 
 ```bash
 # Installer les dépendances
-npm install
+bun install
+
+# Appliquer les migrations de base de données (local)
+bun run db:migrate:local
 
 # Lancer le serveur
-npm run dev
+bun run dev
 
 # Tester l'échange de token
-curl -X POST http://localhost:3000/api/strava/exchange-token \
+curl -X POST http://localhost:8787/api/strava/exchange-token \
   -H "Content-Type: application/json" \
+  -H "X-App-Key: healthapp-LEtZ5vhVA5RBpw8u-F0Rxvk1mHagGeINJEI9GOPUFs4" \
   -d '{
     "code": "authorization_code_from_oauth",
     "userId": "user123"
   }'
+```
+
+## 🗄️ Database Migrations
+
+Le backend utilise **Cloudflare D1** (SQLite) pour le cache des activités Strava. Les migrations sont gérées nativement par **Wrangler**.
+
+### Commandes Disponibles
+
+```bash
+# Lister les migrations (appliquées et en attente)
+bun run db:migrate:list
+
+# Appliquer les migrations en LOCAL (dev)
+bun run db:migrate:local
+
+# Appliquer les migrations en PRODUCTION
+bun run db:migrate:remote
+
+# Créer une nouvelle migration
+bun run db:migrate:create "Nom de la migration"
+```
+
+### Workflow
+
+1. **Création d'une migration** :
+   ```bash
+   bun run db:migrate:create "Add user preferences table"
+   # Crée: migrations/000X_Add_user_preferences_table.sql
+   ```
+
+2. **Éditer le fichier SQL généré** :
+   ```sql
+   -- Migration number: 000X
+   CREATE TABLE user_preferences (
+     user_id TEXT PRIMARY KEY,
+     theme TEXT DEFAULT 'light',
+     notifications_enabled BOOLEAN DEFAULT 1
+   );
+   ```
+
+3. **Tester en local** :
+   ```bash
+   bun run db:migrate:local
+   ```
+
+4. **Déployer en production** :
+   ```bash
+   bun run deploy
+   # Les migrations sont automatiquement appliquées avant le déploiement !
+   ```
+
+### Structure
+
+```
+backend/
+├── migrations/                                    # Migrations D1 (Wrangler natif)
+│   └── 0001_Initial_schema_-_Strava_activities_cache.sql
+├── wrangler.toml                                 # Config Cloudflare Workers + D1
+└── src/
+    ├── services/stravaCache.ts                   # Utilise D1
+    └── routes/strava.ts                          # Endpoints utilisant le cache
 ```
 
 ### Tester les Webhooks localement avec ngrok
@@ -147,20 +215,21 @@ Strava a besoin d'une URL publique HTTPS pour les webhooks. En local, utilisez n
 # Installer ngrok
 brew install ngrok  # macOS
 
-# Exposer votre serveur local
-ngrok http 3000
+# Exposer votre serveur local (Cloudflare Workers tourne sur port 8787)
+ngrok http 8787
 ```
 
 ngrok vous donnera une URL : `https://abc123.ngrok.io`
 
-Utilisez cette URL pour créer la subscription :
+Utilisez cette URL pour créer la souscription directement via l'API Strava :
 
 ```bash
-curl -X POST http://localhost:3000/api/webhooks/strava/subscribe \
-  -H "Content-Type: application/json" \
-  -d '{
-    "callbackUrl": "https://abc123.ngrok.io/api/webhooks/strava"
-  }'
+# Créer une souscription webhook avec l'URL ngrok
+curl -X POST https://www.strava.com/api/v3/push_subscriptions \
+  -F client_id=YOUR_STRAVA_CLIENT_ID \
+  -F client_secret=YOUR_STRAVA_CLIENT_SECRET \
+  -F callback_url=https://abc123.ngrok.io/api/strava/webhooks/callback \
+  -F verify_token=YOUR_VERIFY_TOKEN
 ```
 
 ## 📱 Intégration iOS
@@ -297,9 +366,10 @@ Une fois en production, monitorer :
 |---------|----------|-------------|
 | POST | `/api/strava/exchange-token` | Échange code OAuth contre tokens |
 | POST | `/api/strava/refresh-token` | Rafraîchit l'access token |
-| GET | `/api/webhooks/strava` | Vérification webhook Strava |
-| POST | `/api/webhooks/strava` | Réception événements Strava |
-| POST | `/api/push/register` | Enregistre device token iOS |
+| GET | `/api/strava/activities` | Liste des activités (avec pagination) |
+| POST | `/api/strava/sync` | Synchronise toutes les activités |
+| GET | `/api/strava/webhooks/callback` | Vérification webhook Strava |
+| POST | `/api/strava/webhooks/callback` | Réception événements Strava |
 | GET | `/health` | Health check |
 
 ## 🎯 Prochaines Étapes

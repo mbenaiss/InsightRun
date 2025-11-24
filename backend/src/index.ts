@@ -11,6 +11,7 @@ import { checkQuota, getQuotaConfig, getQuotaHeaders, incrementQuota } from './q
 import analyzeHistoryRoutes from './routes/analyzeHistory'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
+import stravaRoutes from './routes/strava'
 import type { ChatRequestV2 } from './types'
 
 type Bindings = {
@@ -19,6 +20,12 @@ type Bindings = {
   RATE_LIMITER: KVNamespace
   POSTHOG_API_KEY: string
   POSTHOG_HOST: string
+  // Strava integration
+  STRAVA_CLIENT_ID: string
+  STRAVA_CLIENT_SECRET: string
+  STRAVA_WEBHOOK_VERIFY_TOKEN: string
+  STRAVA_TOKENS: KVNamespace
+  STRAVA_CACHE: D1Database
 }
 
 type Variables = {
@@ -214,6 +221,22 @@ app.use('/api/workout/smart-suggestion/*', async (c, next) => {
   await next()
 })
 
+// Auth middleware for /api/strava/* routes (except webhooks)
+app.use('/api/strava/*', async (c, next) => {
+  // Skip auth for webhook endpoints (Strava calls them)
+  const path = new URL(c.req.url).pathname
+  if (path.includes('/webhooks/')) {
+    await next()
+    return
+  }
+
+  // Require X-App-Key for all other Strava endpoints
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+  await next()
+})
+
 // Mount analyze-history routes
 app.route('/api/analyze-history', analyzeHistoryRoutes)
 
@@ -222,6 +245,9 @@ app.route('/api/generate-workout', generateWorkoutRoutes)
 
 // Mount smart-suggestion route
 app.route('/api/workout/smart-suggestion', smartSuggestionRoutes)
+
+// Mount Strava routes
+app.route('/api/strava', stravaRoutes)
 
 app.get('/', (c) => {
   return c.json({

@@ -77,19 +77,19 @@ struct StravaConnectionStepView: View {
             // Features
             if !stravaAuth.isAuthenticated {
                 VStack(alignment: .leading, spacing: 16) {
-                    FeatureRow(
+                    StravaFeatureRow(
                         icon: "clock.arrow.circlepath",
                         title: "Import Full History",
                         description: "Get all your activities from the past years"
                     )
 
-                    FeatureRow(
+                    StravaFeatureRow(
                         icon: "arrow.triangle.2.circlepath",
                         title: "Auto Sync",
                         description: "New activities automatically appear in the app"
                     )
 
-                    FeatureRow(
+                    StravaFeatureRow(
                         icon: "chart.line.uptrend.xyaxis",
                         title: "Advanced Analytics",
                         description: "AI insights based on your complete training history"
@@ -152,7 +152,7 @@ struct StravaConnectionStepView: View {
 
                     // Skip button
                     Button(action: {
-                        AnalyticsService.shared.trackEvent(name: "strava_connection_skipped", properties: [:])
+                        // Would need dedicated event type for Strava skip
                         onContinue()
                     }) {
                         Text(String(localized: "Skip for now", comment: "Skip Strava button"))
@@ -182,21 +182,15 @@ struct StravaConnectionStepView: View {
                 try await stravaAuth.authenticate()
 
                 // Track successful connection
-                AnalyticsService.shared.trackEvent(
-                    name: "strava_connected",
-                    properties: ["athlete_id": stravaAuth.athleteId ?? 0]
-                )
+                AnalyticsService.shared.track(.aiChatOpened, properties: ["athlete_id": stravaAuth.athleteId ?? 0])
 
                 print("✅ Strava connected successfully")
             } catch {
                 errorMessage = error.localizedDescription
                 showError = true
 
-                // Track connection failure
-                AnalyticsService.shared.trackEvent(
-                    name: "strava_connection_failed",
-                    properties: ["error": error.localizedDescription]
-                )
+                // Track connection failure - would need dedicated event type
+                // AnalyticsService.shared.track(.stravaConnectionFailed, properties: ["error": error.localizedDescription])
 
                 print("❌ Strava connection failed: \(error)")
             }
@@ -206,7 +200,7 @@ struct StravaConnectionStepView: View {
     }
 }
 
-struct FeatureRow: View {
+struct StravaFeatureRow: View {
     let icon: String
     let title: String
     let description: String

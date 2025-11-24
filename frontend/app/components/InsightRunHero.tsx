@@ -42,8 +42,28 @@ export default function InsightRunHero() {
             </p>
 
             <div
-              className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4 animate-fade-in-up"
+              className="flex items-center justify-center lg:justify-start gap-4 pt-8 animate-fade-in-up"
               style={{ animationDelay: '0.3s' }}
+            >
+              <Image
+                src="/apple-health-badge.svg"
+                alt="Works with Apple Health"
+                width={176}
+                height={52}
+                className="h-[52px] w-auto"
+              />
+              <Image
+                src="/strava-badge.svg"
+                alt="Powered by Strava"
+                width={176}
+                height={52}
+                className="h-[52px] w-auto"
+              />
+            </div>
+
+            <div
+              className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-6 animate-fade-in-up"
+              style={{ animationDelay: '0.4s' }}
             >
               <a
                 href="https://apps.apple.com/us/app/insight-run/id6754607965"

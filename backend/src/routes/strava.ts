@@ -440,7 +440,7 @@ app.get('/activities/:id', async (c: StravaContext) => {
       })
     }
 
-    let userTokensData = await c.env.STRAVA_TOKENS.get(`user:${userId}`, 'json')
+    const userTokensData = await c.env.STRAVA_TOKENS.get(`user:${userId}`, 'json')
     let userTokens = userTokensData as StoredUserTokens | null
 
     if (!userTokens || !userTokens.accessToken) {
@@ -589,7 +589,7 @@ async function syncUserActivities(
   cache: StravaCache,
   force = false
 ): Promise<{ newActivities: number; totalActivities: number }> {
-  let userTokensData = await c.env.STRAVA_TOKENS.get(`user:${userId}`, 'json')
+  const userTokensData = await c.env.STRAVA_TOKENS.get(`user:${userId}`, 'json')
   let userTokens = userTokensData as StoredUserTokens | null
 
   if (!userTokens || !userTokens.accessToken) {

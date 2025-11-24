@@ -29,6 +29,17 @@ class WorkoutDetailViewModel: ObservableObject {
 
         do {
             metrics = try await healthKitManager.fetchWorkoutMetrics(for: workout)
+        } catch let error as HealthKitError {
+            switch error {
+            case .notAvailable:
+                errorMessage = "HealthKit n'est pas disponible sur cet appareil"
+            case .authorizationDenied:
+                errorMessage = "Accès aux données HealthKit refusé. Veuillez autoriser l'accès dans Réglages"
+            case .dataNotAvailable:
+                errorMessage = "Les données de cette séance ne sont plus disponibles"
+            case .queryFailed(let underlyingError):
+                errorMessage = "Erreur lors du chargement: \(underlyingError.localizedDescription)"
+            }
         } catch {
             errorMessage = "Impossible de charger les détails: \(error.localizedDescription)"
         }

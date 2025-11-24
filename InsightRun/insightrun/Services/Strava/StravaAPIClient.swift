@@ -234,6 +234,7 @@ struct StravaActivity: Codable, Identifiable {
     let averageHeartrate: Double?
     let maxHeartrate: Double?
     let calories: Double?
+    let trainer: Bool? // true if activity was done on a treadmill/trainer
 
     // Computed properties for display
     var distanceKm: Double {
@@ -259,7 +260,7 @@ struct StravaActivity: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, distance, type, calories
+        case id, name, distance, type, calories, trainer
         case movingTime = "moving_time"
         case elapsedTime = "elapsed_time"
         case totalElevationGain = "total_elevation_gain"

@@ -319,7 +319,8 @@ extension UnifiedWorkout {
                 averageHeartRate: averageHeartRate,
                 maxHeartRate: maxHeartRate,
                 elevationGain: totalElevationGain,
-                hasRoute: hasRoute
+                hasRoute: hasRoute,
+                isIndoor: stravaActivity.trainer ?? false
             )
         } else {
             // Fallback: generic workout

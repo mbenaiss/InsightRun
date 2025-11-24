@@ -24,6 +24,10 @@ struct WorkoutRowView: View {
         }
     }
 
+    private var workoutIcon: String {
+        workout.isIndoor ? "figure.indoor.run" : "figure.run"
+    }
+
     var body: some View {
         HStack(spacing: 16) {
             // Icon with gradient and source indicator
@@ -32,7 +36,7 @@ struct WorkoutRowView: View {
                     .fill(Color.irPrimaryAccent.opacity(0.2))
                     .frame(width: 56, height: 56)
 
-                Image(systemName: "figure.run")
+                Image(systemName: workoutIcon)
                     .font(.title2)
                     .foregroundStyle(Color.irPrimaryAccent)
             }

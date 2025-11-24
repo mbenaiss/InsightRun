@@ -25,12 +25,13 @@ struct WorkoutModel: Identifiable, Codable {
     let maxHeartRate: Double?
     let elevationGain: Double?
     let hasRoute: Bool
+    let isIndoor: Bool
 
     // Custom coding to handle HKWorkoutActivityType and metadata
     enum CodingKeys: String, CodingKey {
         case id, workoutType, startDate, endDate, duration
         case distance, totalEnergyBurned, sourceName, sourceVersion
-        case averageHeartRate, maxHeartRate, elevationGain, hasRoute
+        case averageHeartRate, maxHeartRate, elevationGain, hasRoute, isIndoor
         case metadataJSON
     }
 
@@ -49,6 +50,7 @@ struct WorkoutModel: Identifiable, Codable {
         try container.encode(maxHeartRate, forKey: .maxHeartRate)
         try container.encode(elevationGain, forKey: .elevationGain)
         try container.encode(hasRoute, forKey: .hasRoute)
+        try container.encode(isIndoor, forKey: .isIndoor)
 
         // Encode metadata as JSON string (simplified, only stores string values)
         if let metadata = metadata {
@@ -75,6 +77,7 @@ struct WorkoutModel: Identifiable, Codable {
         maxHeartRate = try container.decodeIfPresent(Double.self, forKey: .maxHeartRate)
         elevationGain = try container.decodeIfPresent(Double.self, forKey: .elevationGain)
         hasRoute = try container.decode(Bool.self, forKey: .hasRoute)
+        isIndoor = try container.decodeIfPresent(Bool.self, forKey: .isIndoor) ?? false
 
         // Decode metadata from JSON string
         if let metadataStrings = try container.decodeIfPresent([String: String].self, forKey: .metadataJSON) {
@@ -99,7 +102,8 @@ struct WorkoutModel: Identifiable, Codable {
         averageHeartRate: Double?,
         maxHeartRate: Double?,
         elevationGain: Double?,
-        hasRoute: Bool
+        hasRoute: Bool,
+        isIndoor: Bool = false
     ) {
         self.id = id
         self.workoutType = workoutType
@@ -115,6 +119,7 @@ struct WorkoutModel: Identifiable, Codable {
         self.maxHeartRate = maxHeartRate
         self.elevationGain = elevationGain
         self.hasRoute = hasRoute
+        self.isIndoor = isIndoor
     }
 
     // Computed properties for display
@@ -182,5 +187,8 @@ extension WorkoutModel {
         // Route availability - Note: Routes must be queried separately from HealthStore
         // For now, assume no route data available directly from HKWorkout
         self.hasRoute = false
+
+        // Check if workout is indoor (treadmill)
+        self.isIndoor = workout.metadata?[HKMetadataKeyIndoorWorkout] as? Bool ?? false
     }
 }

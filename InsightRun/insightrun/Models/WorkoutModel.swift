@@ -8,7 +8,7 @@
 import Foundation
 import HealthKit
 
-struct WorkoutModel: Identifiable {
+struct WorkoutModel: Identifiable, Codable {
     let id: UUID
     let workoutType: HKWorkoutActivityType
     let startDate: Date
@@ -25,6 +25,97 @@ struct WorkoutModel: Identifiable {
     let maxHeartRate: Double?
     let elevationGain: Double?
     let hasRoute: Bool
+
+    // Custom coding to handle HKWorkoutActivityType and metadata
+    enum CodingKeys: String, CodingKey {
+        case id, workoutType, startDate, endDate, duration
+        case distance, totalEnergyBurned, sourceName, sourceVersion
+        case averageHeartRate, maxHeartRate, elevationGain, hasRoute
+        case metadataJSON
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(workoutType.rawValue, forKey: .workoutType)
+        try container.encode(startDate, forKey: .startDate)
+        try container.encode(endDate, forKey: .endDate)
+        try container.encode(duration, forKey: .duration)
+        try container.encode(distance, forKey: .distance)
+        try container.encode(totalEnergyBurned, forKey: .totalEnergyBurned)
+        try container.encode(sourceName, forKey: .sourceName)
+        try container.encode(sourceVersion, forKey: .sourceVersion)
+        try container.encode(averageHeartRate, forKey: .averageHeartRate)
+        try container.encode(maxHeartRate, forKey: .maxHeartRate)
+        try container.encode(elevationGain, forKey: .elevationGain)
+        try container.encode(hasRoute, forKey: .hasRoute)
+
+        // Encode metadata as JSON string (simplified, only stores string values)
+        if let metadata = metadata {
+            let metadataStrings = metadata.compactMapValues { $0 as? String }
+            if !metadataStrings.isEmpty {
+                try container.encode(metadataStrings, forKey: .metadataJSON)
+            }
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        let rawValue = try container.decode(UInt.self, forKey: .workoutType)
+        workoutType = HKWorkoutActivityType(rawValue: rawValue) ?? .running
+        startDate = try container.decode(Date.self, forKey: .startDate)
+        endDate = try container.decode(Date.self, forKey: .endDate)
+        duration = try container.decode(TimeInterval.self, forKey: .duration)
+        distance = try container.decodeIfPresent(Double.self, forKey: .distance)
+        totalEnergyBurned = try container.decodeIfPresent(Double.self, forKey: .totalEnergyBurned)
+        sourceName = try container.decode(String.self, forKey: .sourceName)
+        sourceVersion = try container.decodeIfPresent(String.self, forKey: .sourceVersion)
+        averageHeartRate = try container.decodeIfPresent(Double.self, forKey: .averageHeartRate)
+        maxHeartRate = try container.decodeIfPresent(Double.self, forKey: .maxHeartRate)
+        elevationGain = try container.decodeIfPresent(Double.self, forKey: .elevationGain)
+        hasRoute = try container.decode(Bool.self, forKey: .hasRoute)
+
+        // Decode metadata from JSON string
+        if let metadataStrings = try container.decodeIfPresent([String: String].self, forKey: .metadataJSON) {
+            metadata = metadataStrings
+        } else {
+            metadata = nil
+        }
+    }
+
+    // Memberwise initializer (explicit since Codable overrides it)
+    init(
+        id: UUID,
+        workoutType: HKWorkoutActivityType,
+        startDate: Date,
+        endDate: Date,
+        duration: TimeInterval,
+        distance: Double?,
+        totalEnergyBurned: Double?,
+        sourceName: String,
+        sourceVersion: String?,
+        metadata: [String: Any]?,
+        averageHeartRate: Double?,
+        maxHeartRate: Double?,
+        elevationGain: Double?,
+        hasRoute: Bool
+    ) {
+        self.id = id
+        self.workoutType = workoutType
+        self.startDate = startDate
+        self.endDate = endDate
+        self.duration = duration
+        self.distance = distance
+        self.totalEnergyBurned = totalEnergyBurned
+        self.sourceName = sourceName
+        self.sourceVersion = sourceVersion
+        self.metadata = metadata
+        self.averageHeartRate = averageHeartRate
+        self.maxHeartRate = maxHeartRate
+        self.elevationGain = elevationGain
+        self.hasRoute = hasRoute
+    }
 
     // Computed properties for display
     var durationFormatted: String {

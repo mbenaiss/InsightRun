@@ -78,125 +78,148 @@ final class CachedStravaActivity {
 class StravaCache {
     static let shared = StravaCache()
 
-    private var modelContainer: ModelContainer
-    private var modelContext: ModelContext
+    private var modelContext: ModelContext?
 
     private init() {
-        let schema = Schema([CachedStravaActivity.self])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        // Context will be injected via setModelContext() from ContentView
+        print("⚠️ StravaCache: Initialized without context (will be set from environment)")
+    }
 
-        do {
-            modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
-            modelContext = ModelContext(modelContainer)
-            print("✅ StravaCache: SwiftData initialized")
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+    // Set the shared ModelContext from the app's unified container
+    func setModelContext(_ context: ModelContext) {
+        self.modelContext = context
+        print("✅ StravaCache: Using shared ModelContext from unified container")
+    }
+
+    // Helper to get context (throws if not initialized)
+    private func getContext() throws -> ModelContext {
+        guard let context = modelContext else {
+            throw NSError(domain: "StravaCache", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "ModelContext not initialized. Call setModelContext() first."
+            ])
         }
+        return context
     }
 
     // MARK: - Save Activities
 
     /// Save activities to cache (upsert - update if exists, insert if new)
     func saveActivities(_ activities: [StravaActivity]) throws {
+        let context = try getContext()
+
         for activity in activities {
             // Check if activity already exists
             let descriptor = FetchDescriptor<CachedStravaActivity>(
                 predicate: #Predicate { $0.id == activity.id }
             )
 
-            let existing = try modelContext.fetch(descriptor).first
+            let existing = try context.fetch(descriptor).first
 
             if let existing = existing {
-                // Update existing
+                // Update ALL fields (not just some) to capture renames, metric corrections, etc.
                 existing.name = activity.name
                 existing.distance = activity.distance
                 existing.movingTime = activity.movingTime
                 existing.elapsedTime = activity.elapsedTime
                 existing.totalElevationGain = activity.totalElevationGain
                 existing.type = activity.type
+                existing.startDate = activity.startDateParsed ?? existing.startDate
+                existing.startDateLocal = activity.startDateLocal
+                existing.averageSpeed = activity.averageSpeed
+                existing.maxSpeed = activity.maxSpeed
+                existing.averageHeartrate = activity.averageHeartrate
+                existing.maxHeartrate = activity.maxHeartrate
+                existing.calories = activity.calories
                 existing.lastSyncedAt = Date()
 
                 print("🔄 Updated cached activity: \(activity.name)")
             } else {
                 // Insert new
                 let cachedActivity = CachedStravaActivity(from: activity)
-                modelContext.insert(cachedActivity)
+                context.insert(cachedActivity)
 
                 print("💾 Cached new activity: \(activity.name)")
             }
         }
 
-        try modelContext.save()
+        try context.save()
     }
 
     // MARK: - Fetch from Cache
 
     /// Fetch all cached activities (sorted by date)
     func fetchAllActivities() throws -> [StravaActivity] {
+        let context = try getContext()
         let descriptor = FetchDescriptor<CachedStravaActivity>(
             sortBy: [SortDescriptor(\.startDate, order: .reverse)]
         )
 
-        let cachedActivities = try modelContext.fetch(descriptor)
+        let cachedActivities = try context.fetch(descriptor)
         return cachedActivities.map { $0.toStravaActivity() }
     }
 
     /// Fetch activities with pagination (for infinite scroll from cache)
     func fetchActivities(limit: Int, offset: Int) throws -> [StravaActivity] {
+        let context = try getContext()
         var descriptor = FetchDescriptor<CachedStravaActivity>(
             sortBy: [SortDescriptor(\.startDate, order: .reverse)]
         )
         descriptor.fetchLimit = limit
         descriptor.fetchOffset = offset
 
-        let cachedActivities = try modelContext.fetch(descriptor)
+        let cachedActivities = try context.fetch(descriptor)
         return cachedActivities.map { $0.toStravaActivity() }
     }
 
     /// Get last synced activity date (for incremental sync)
     func getLastActivityDate() throws -> Date? {
+        let context = try getContext()
         let descriptor = FetchDescriptor<CachedStravaActivity>(
             sortBy: [SortDescriptor(\.startDate, order: .reverse)]
         )
 
-        let lastActivity = try modelContext.fetch(descriptor).first
+        let lastActivity = try context.fetch(descriptor).first
         return lastActivity?.startDate
     }
 
     /// Check if activity exists in cache
     func hasActivity(id: Int64) throws -> Bool {
+        let context = try getContext()
         let descriptor = FetchDescriptor<CachedStravaActivity>(
             predicate: #Predicate { $0.id == id }
         )
 
-        return try !modelContext.fetch(descriptor).isEmpty
+        return try !context.fetch(descriptor).isEmpty
     }
 
     /// Get total count of cached activities
     func getActivityCount() throws -> Int {
+        let context = try getContext()
         let descriptor = FetchDescriptor<CachedStravaActivity>()
-        return try modelContext.fetchCount(descriptor)
+        return try context.fetchCount(descriptor)
     }
 
     // MARK: - Delete
 
     /// Delete specific activity
     func deleteActivity(id: Int64) throws {
+        let context = try getContext()
         let descriptor = FetchDescriptor<CachedStravaActivity>(
             predicate: #Predicate { $0.id == id }
         )
 
-        if let activity = try modelContext.fetch(descriptor).first {
-            modelContext.delete(activity)
-            try modelContext.save()
+        if let activity = try context.fetch(descriptor).first {
+            context.delete(activity)
+            try context.save()
             print("🗑️  Deleted cached activity: \(id)")
         }
     }
 
     /// Clear all cache (use with caution)
     func clearAll() throws {
-        try modelContext.delete(model: CachedStravaActivity.self)
-        try modelContext.save()
+        let context = try getContext()
+        try context.delete(model: CachedStravaActivity.self)
+        try context.save()
         print("🗑️  Cleared all cached activities")
     }
 
@@ -216,11 +239,12 @@ class StravaCache {
     }
 
     private func getOldestActivityDate() throws -> Date? {
+        let context = try getContext()
         let descriptor = FetchDescriptor<CachedStravaActivity>(
             sortBy: [SortDescriptor(\.startDate, order: .forward)]
         )
 
-        let oldestActivity = try modelContext.fetch(descriptor).first
+        let oldestActivity = try context.fetch(descriptor).first
         return oldestActivity?.startDate
     }
 

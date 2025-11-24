@@ -13,12 +13,38 @@ struct InsightRunApp: App {
     @State private var themeManager = ThemeManager()
     @StateObject private var revenueCatManager = RevenueCatManager.shared
 
+    // Unified ModelContainer for all SwiftData models (WorkoutAnalysis + CachedStravaActivity)
+    let sharedModelContainer: ModelContainer
+
     init() {
         // Configure analytics (PostHog) - non-blocking, won't crash if PostHog is unavailable
         AnalyticsService.shared.configure()
 
         // Configure RevenueCat on app launch (synchronous - SDK must be ready before UI loads)
         RevenueCatManager.shared.configure()
+
+        // Configure SwiftData with EXPLICIT persistence (ensures data survives app restarts)
+        do {
+            let schema = Schema([
+                WorkoutAnalysis.self,
+                CachedStravaActivity.self,
+                CachedUnifiedWorkout.self
+            ])
+
+            let modelConfiguration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false  // CRITICAL: Explicitly persist to disk
+            )
+
+            sharedModelContainer = try ModelContainer(
+                for: schema,
+                configurations: [modelConfiguration]
+            )
+
+            print("✅ SwiftData: Unified ModelContainer initialized (persistent storage)")
+        } catch {
+            fatalError("Could not create ModelContainer: \(error)")
+        }
 
         // Track app opened event - non-blocking
         Task { @MainActor in
@@ -33,6 +59,6 @@ struct InsightRunApp: App {
                 .environment(themeManager)
                 .environmentObject(revenueCatManager)
         }
-        .modelContainer(for: [WorkoutAnalysis.self])
+        .modelContainer(sharedModelContainer)  // Use unified persistent container
     }
 }

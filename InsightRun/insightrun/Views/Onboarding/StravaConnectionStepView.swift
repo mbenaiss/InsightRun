@@ -152,7 +152,7 @@ struct StravaConnectionStepView: View {
 
                     // Skip button
                     Button(action: {
-                        // Would need dedicated event type for Strava skip
+                        AnalyticsService.shared.trackStravaConnectionSkipped()
                         onContinue()
                     }) {
                         Text(String(localized: "Skip for now", comment: "Skip Strava button"))
@@ -182,20 +182,41 @@ struct StravaConnectionStepView: View {
                 try await stravaAuth.authenticate()
 
                 // Track successful connection
-                AnalyticsService.shared.track(.aiChatOpened, properties: ["athlete_id": stravaAuth.athleteId ?? 0])
+                AnalyticsService.shared.trackStravaConnectionSuccess(athleteId: stravaAuth.athleteId ?? 0)
 
                 print("✅ Strava connected successfully")
+
+                // Trigger initial sync after successful authentication
+                await triggerInitialSync()
             } catch {
                 errorMessage = error.localizedDescription
                 showError = true
 
-                // Track connection failure - would need dedicated event type
-                // AnalyticsService.shared.track(.stravaConnectionFailed, properties: ["error": error.localizedDescription])
+                // Track connection failure
+                AnalyticsService.shared.trackStravaConnectionFailed(
+                    errorType: String(describing: type(of: error)),
+                    errorMessage: error.localizedDescription
+                )
 
                 print("❌ Strava connection failed: \(error)")
             }
 
             isConnecting = false
+        }
+    }
+
+    private func triggerInitialSync() async {
+        let backendClient = StravaBackendClient.shared
+        let userId = UserIdentityService.shared.userID
+
+        AnalyticsService.shared.trackStravaInitialSyncTriggered()
+
+        do {
+            let syncResponse = try await backendClient.syncActivities(userId: userId, force: false)
+            print("🎉 Initial sync complete: \(syncResponse.newActivities) new activities, \(syncResponse.totalActivities) total")
+        } catch {
+            print("⚠️ Initial sync failed (non-blocking): \(error)")
+            // Don't block authentication success on sync failure
         }
     }
 }

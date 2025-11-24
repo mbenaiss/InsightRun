@@ -145,8 +145,8 @@ class StravaAuthService: ObservableObject {
     private let presentationContextProvider = WebAuthenticationPresentationContextProvider()
     private var currentAuthSession: ASWebAuthenticationSession?
 
-    private let clientId = "139078"
-    private let redirectUri = "insightrun://strava-callback"
+    private let clientId = "147744"
+    private let redirectUri = "insightrun://insightrun.altcode.studio"
     private let authBaseURL = "https://www.strava.com/oauth"
 
     private init() {
@@ -273,7 +273,18 @@ class StravaAuthService: ObservableObject {
 
     // MARK: - Logout
 
-    func logout() {
+    func logout() async {
+        // Call backend cleanup endpoint to delete KV tokens + D1 data
+        do {
+            try await StravaBackendClient.shared.disconnect(
+                userId: UserIdentityService.shared.userID
+            )
+            print("✅ Backend cleanup completed")
+        } catch {
+            print("⚠️ Backend cleanup failed (continuing with local cleanup): \(error)")
+        }
+
+        // Clear local tokens
         tokenStorage.clearTokens()
         isAuthenticated = false
         athleteId = nil

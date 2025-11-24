@@ -21,6 +21,7 @@ class StravaViewModel: ObservableObject {
 
     private let apiClient = StravaAPIClient.shared
     private let authService = StravaAuthService.shared
+    private let backendClient = StravaBackendClient.shared
     private let cache = StravaCache.shared
 
     private var currentPage = 1
@@ -29,9 +30,8 @@ class StravaViewModel: ObservableObject {
 
     // MARK: - Initial Load (Lazy Loading with Cache)
 
-    /// Load activities (cache-first strategy)
-    /// 1. Load from cache instantly (if available)
-    /// 2. Sync incrementally with Strava (only NEW activities)
+    /// Load activities from iOS local cache first, then sync from backend if needed
+    /// Strategy: Cache-first for instant loading, sync in background
     func loadRecentActivities() async {
         guard authService.isAuthenticated else {
             errorMessage = "Not authenticated with Strava"
@@ -42,26 +42,73 @@ class StravaViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            // STEP 1: Load from cache first (instant display)
-            print("📦 Loading from cache...")
-            let cachedActivities = try cache.fetchActivities(limit: 100, offset: 0)
+            // STEP 1: Try to load from LOCAL iOS cache first (INSTANT)
+            print("💾 Loading Strava activities from LOCAL iOS cache...")
+            let cachedActivities = try cache.fetchAllActivities()
 
             if !cachedActivities.isEmpty {
                 activities = cachedActivities
-                print("✅ Loaded \(cachedActivities.count) activities from cache")
+                print("⚡ Loaded \(activities.count) activities from iOS cache (instant)")
+                isLoading = false
 
-                // Update cache stats
-                cacheStats = try cache.getCacheStats()
+                // STEP 2: Sync from backend in background (non-blocking)
+                Task {
+                    await syncFromBackend()
+                }
+                return
             }
 
-            // STEP 2: Incremental sync (only NEW activities since last sync)
-            await syncNewActivities()
+            print("📭 No iOS cache found, loading from backend...")
+
+            // STEP 3: No cache - load from backend D1
+            let userId = UserIdentityService.shared.userID
+            let response = try await backendClient.fetchActivities(
+                userId: userId,
+                limit: 100,
+                offset: 0
+            )
+
+            // Convert and save to iOS cache
+            activities = response.activities.map { $0.toStravaActivity() }
+            try cache.saveActivities(activities)
+
+            print("✅ Loaded \(activities.count) activities from backend and cached")
+            print("📊 Total Strava activities: \(response.total)")
         } catch {
             errorMessage = "Failed to load activities: \(error.localizedDescription)"
             print("❌ Error: \(error)")
         }
 
         isLoading = false
+    }
+
+    /// Sync activities from backend (background, non-blocking)
+    private func syncFromBackend() async {
+        do {
+            print("🔄 Syncing Strava from backend...")
+
+            let userId = UserIdentityService.shared.userID
+            let response = try await backendClient.fetchActivities(
+                userId: userId,
+                limit: 100,
+                offset: 0
+            )
+
+            let newActivities = response.activities.map { $0.toStravaActivity() }
+
+            // Check if data changed
+            if newActivities.count != activities.count {
+                activities = newActivities
+                try cache.saveActivities(activities)
+                print("✅ Background sync: \(activities.count) activities (updated)")
+            } else {
+                // Just refresh cache timestamps
+                try cache.saveActivities(newActivities)
+                print("✅ Background sync: no changes")
+            }
+        } catch {
+            print("⚠️ Background sync failed: \(error)")
+        }
     }
 
     /// Incremental sync: Only fetch NEW activities since last cached activity

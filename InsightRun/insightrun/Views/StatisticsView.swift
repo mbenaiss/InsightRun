@@ -68,6 +68,7 @@ struct StatisticsView: View {
         }
         .task {
             await viewModel.loadWorkouts()
+            AnalyticsService.shared.trackStatisticsViewed()
         }
     }
 
@@ -82,6 +83,8 @@ struct StatisticsView: View {
                             title: period.localizedTitle,
                             isSelected: viewModel.selectedPeriod == period
                         ) {
+                            AnalyticsService.shared.trackStatisticsPeriodChanged(period: String(describing: period))
+
                             withAnimation {
                                 viewModel.selectedPeriod = period
                                 // Set default year if switching to year filter
@@ -103,6 +106,7 @@ struct StatisticsView: View {
                             withAnimation {
                                 viewModel.selectedYear = year
                             }
+                            AnalyticsService.shared.trackStatisticsYearChanged(year: year)
                         }) {
                             HStack {
                                 Text("\(year)")

@@ -47,6 +47,7 @@ struct HealthProfileView: View {
             }
             .task {
                 await viewModel.loadHealthProfile()
+                AnalyticsService.shared.trackHealthProfileViewed()
             }
         }
     }

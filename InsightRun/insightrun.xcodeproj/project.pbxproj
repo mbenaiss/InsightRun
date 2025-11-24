@@ -22,6 +22,7 @@
 		BE65980F2EB29EF800565DAC /* Exceptions for "insightrun" folder in "insightrun" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Info.plist,
 				insightrun.storekit,
 			);
 			target = BE013B572E9E7D83003FB282 /* insightrun */;
@@ -296,6 +297,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = insightrun/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
@@ -310,7 +312,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.2;
+				MARKETING_VERSION = 1.1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -340,6 +342,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = insightrun/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
@@ -354,7 +357,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.2;
+				MARKETING_VERSION = 1.1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

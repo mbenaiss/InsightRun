@@ -40,6 +40,9 @@ struct MedicalSourcesView: View {
                     }
                 }
             }
+            .onAppear {
+                AnalyticsService.shared.trackMedicalSourcesViewed()
+            }
         }
     }
 

@@ -37,7 +37,8 @@ class BackendAPIClient {
         let body: [String: Any] = [
             "prompt": prompt,
             "systemPrompt": systemPrompt,
-            "requestType": RequestType.classification.rawValue
+            "requestType": RequestType.classification.rawValue,
+            "stream": false // Non-streaming for quick classification
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

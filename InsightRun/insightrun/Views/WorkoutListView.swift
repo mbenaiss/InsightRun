@@ -9,7 +9,8 @@
 import SwiftUI
 
 struct WorkoutListView: View {
-    @StateObject private var viewModel = WorkoutListViewModel()
+    @StateObject private var healthKitViewModel = WorkoutListViewModel()
+    @StateObject private var unifiedViewModel = UnifiedWorkoutViewModel()
     @State private var showingAIAssistant = false
     @State private var showInitialPaywall = false
     @State private var isLoadingMetrics = false
@@ -19,6 +20,17 @@ struct WorkoutListView: View {
     @State private var showIndexationSheet = false
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
+
+    // Use unified workouts if available (HealthKit + Strava), fallback to HealthKit only
+    private var viewModel: WorkoutListViewModel { healthKitViewModel }
+    private var displayWorkouts: [WorkoutModel] {
+        // Use unified workouts if loaded, otherwise fall back to HealthKit only
+        if !unifiedViewModel.unifiedWorkouts.isEmpty {
+            return unifiedViewModel.unifiedWorkouts.map { $0.toWorkoutModel() }
+        } else {
+            return healthKitViewModel.workouts
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -67,6 +79,12 @@ struct WorkoutListView: View {
                     // Load workouts on first appear if authorized (regardless of subscription)
                     if viewModel.authorizationStatus == .authorized && viewModel.workouts.isEmpty {
                         await viewModel.loadWorkouts()
+                    }
+                }
+                .task {
+                    // DEBUG: Load unified workouts (HealthKit + Strava)
+                    if viewModel.authorizationStatus == .authorized {
+                        await unifiedViewModel.loadUnifiedWorkouts()
                     }
                 }
                 .onAppear {

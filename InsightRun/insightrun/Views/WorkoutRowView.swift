@@ -11,10 +11,22 @@ import HealthKit
 
 struct WorkoutRowView: View {
     let workout: WorkoutModel
+    @ObservedObject private var stravaAuth = StravaAuthService.shared
+
+    private var sourceInfo: (icon: String, color: Color) {
+        let sourceLower = workout.sourceName.lowercased()
+        if sourceLower.contains("strava") {
+            return ("s.circle.fill", .orange)
+        } else if sourceLower.contains("apple") || sourceLower.contains("watch") || sourceLower.contains("health") {
+            return ("applewatch", .pink)
+        } else {
+            return ("app.badge.checkmark.fill", .blue)
+        }
+    }
 
     var body: some View {
         HStack(spacing: 16) {
-            // Icon with gradient
+            // Icon with gradient and source indicator
             ZStack {
                 Circle()
                     .fill(Color.irPrimaryAccent.opacity(0.2))
@@ -23,6 +35,24 @@ struct WorkoutRowView: View {
                 Image(systemName: "figure.run")
                     .font(.title2)
                     .foregroundStyle(Color.irPrimaryAccent)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // Small source icon overlay - only show if Strava is connected
+                if stravaAuth.isAuthenticated {
+                    Image(systemName: sourceInfo.icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
+                        .padding(4)
+                        .background(sourceInfo.color)
+                        .foregroundStyle(.white)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.irCardBackground, lineWidth: 2)
+                        )
+                        .offset(x: 4, y: 4)
+                }
             }
 
             // Workout info

@@ -38,6 +38,7 @@ interface ChatRequest {
   systemPrompt: string
   model?: string
   requestType?: string
+  stream?: boolean // Optional: default true for backward compatibility
 }
 
 interface OpenRouterMessage {
@@ -66,7 +67,7 @@ interface StreamChunk {
   }
 }
 
-const MAX_PROMPT_LENGTH = 2000
+const MAX_PROMPT_LENGTH = 5000 // Increased to support classification prompts with long user questions
 const MAX_TOKENS = 2000
 const AI_TEMPERATURE = 0.7
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -285,13 +286,13 @@ app.post('/api/chat', async (c) => {
       )
     }
 
-    const { prompt, systemPrompt, model, requestType } = body
+    const { prompt, systemPrompt, model, requestType, stream = true } = body
 
     if (prompt.length > MAX_PROMPT_LENGTH) {
       return c.json(
         {
           error: 'Bad Request',
-          message: `Prompt too long (max ${MAX_PROMPT_LENGTH} characters)`,
+          message: `Prompt too long (${prompt.length} chars, max ${MAX_PROMPT_LENGTH} characters)`,
         },
         400
       )
@@ -311,8 +312,92 @@ app.post('/api/chat', async (c) => {
       RequestType.MODERATE
     )
 
-    console.log(`🎯 /api/chat: Using model ${finalModel} for requestType ${requestType || 'none'}`)
+    // Non-streaming mode (for classification)
+    if (!stream) {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${c.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://insightrun.ai',
+          'X-Title': 'insightRun.ai',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: finalModel,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: requestType === RequestType.CLASSIFICATION ? 10 : MAX_TOKENS,
+          temperature: requestType === RequestType.CLASSIFICATION ? 0.3 : AI_TEMPERATURE,
+          stream: false,
+        }),
+      })
 
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('OpenRouter error:', errorText)
+        return c.json(
+          {
+            error: 'AI Service Error',
+            message: 'Failed to get response from AI service',
+            details: errorText,
+          },
+          500
+        )
+      }
+
+      const data = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>
+        usage?: {
+          prompt_tokens?: number
+          completion_tokens?: number
+          total_tokens?: number
+        }
+      }
+
+      const responseText = data.choices[0]?.message?.content || ''
+
+      // Increment quota if model requires it
+      if (modelConfig) {
+        await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+      }
+
+      // Capture LLM event with all collected data
+      const latency = (Date.now() - startTime) / 1000
+
+      if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+        const posthog = createPostHogClient({
+          apiKey: c.env.POSTHOG_API_KEY,
+          host: c.env.POSTHOG_HOST,
+        })
+
+        c.executionCtx.waitUntil(
+          (async () => {
+            try {
+              await captureLLMEvent(posthog, userId, traceId, {
+                model: finalModel,
+                input: prompt,
+                systemPrompt,
+                output: responseText,
+                inputTokens: data.usage?.prompt_tokens,
+                outputTokens: data.usage?.completion_tokens,
+                latency,
+                cost: data.usage?.total_tokens ? data.usage.total_tokens * 0.000001 : undefined,
+                ip,
+              })
+              await posthog.shutdown()
+            } catch (error) {
+              console.error('PostHog capture error:', error)
+            }
+          })()
+        )
+      }
+
+      return c.json({ response: responseText })
+    }
+
+    // Streaming mode (default, existing behavior)
     const openRouterResponse = await callOpenRouter(
       c.env.OPENROUTER_API_KEY,
       finalModel,

@@ -30,6 +30,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
     private let stravaViewModel = StravaViewModel()
     private let stravaAuthService = StravaAuthService.shared
+    private let unifiedCache = UnifiedWorkoutCache.shared
 
     enum SyncStatus {
         case idle
@@ -42,18 +43,55 @@ class UnifiedWorkoutViewModel: ObservableObject {
     // MARK: - Public Methods
 
     /// Load and merge workouts from both sources
+    /// Strategy: Load from cache first (instant), then sync in background
     func loadUnifiedWorkouts() async {
         isLoading = true
         errorMessage = nil
-        syncStatus = .loadingHealthKit
 
         do {
-            // STEP 1: Load HealthKit workouts
+            // STEP 1: Try to load from cache first (INSTANT)
+            print("💾 Loading from cache...")
+            if let cachedWorkouts = try? unifiedCache.fetchAllWorkouts(), !cachedWorkouts.isEmpty {
+                // Filter cache based on auth status
+                let filteredWorkouts: [UnifiedWorkout]
+                if stravaAuthService.isAuthenticated {
+                    // Show all workouts when authenticated
+                    filteredWorkouts = cachedWorkouts
+                    print("✅ Strava authenticated - showing all \(cachedWorkouts.count) cached workouts")
+                } else {
+                    // Only show HealthKit workouts when not authenticated
+                    filteredWorkouts = cachedWorkouts.filter { $0.source == .healthKit }
+                    print("⚠️ Strava not authenticated - filtering to \(filteredWorkouts.count) HealthKit workouts (was \(cachedWorkouts.count))")
+                }
+
+                if !filteredWorkouts.isEmpty {
+                    unifiedWorkouts = filteredWorkouts
+                    updateStats()
+                    print("⚡ Loaded \(filteredWorkouts.count) workouts from cache (instant)")
+
+                    // Display cached data immediately
+                    isLoading = false
+                    syncStatus = .completed
+
+                    // Then sync in background (non-blocking)
+                    Task {
+                        await syncWorkoutsInBackground()
+                    }
+                    return
+                }
+
+                print("📭 Cache filtered to 0 workouts, loading from sources...")
+            }
+
+            print("📭 No cache found, loading from sources...")
+
+            // STEP 2: Load HealthKit workouts
+            syncStatus = .loadingHealthKit
             print("📱 Loading HealthKit workouts...")
             let healthKitWorkouts = try await loadHealthKitWorkouts()
             print("✅ Loaded \(healthKitWorkouts.count) HealthKit workouts")
 
-            // STEP 2: Load Strava activities (if authenticated)
+            // STEP 3: Load Strava activities (if authenticated)
             syncStatus = .loadingStrava
             var stravaActivities: [StravaActivity] = []
 
@@ -65,15 +103,19 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 print("⚠️ Not authenticated with Strava, skipping")
             }
 
-            // STEP 3: Merge and deduplicate
+            // STEP 4: Merge and deduplicate
             syncStatus = .merging
             print("🔄 Merging workouts...")
             let merged = mergeWorkouts(healthKit: healthKitWorkouts, strava: stravaActivities)
 
-            // STEP 4: Update UI
+            // STEP 5: Update UI
             unifiedWorkouts = merged.sorted { $0.startDate > $1.startDate }
             updateStats()
             syncStatus = .completed
+
+            // STEP 6: Save to cache for next launch
+            try? unifiedCache.saveWorkouts(unifiedWorkouts)
+            print("💾 Saved \(unifiedWorkouts.count) workouts to cache")
 
             print("""
             ✅ Merge complete:
@@ -82,6 +124,36 @@ class UnifiedWorkoutViewModel: ObservableObject {
                - Strava only: \(stravaOnly)
                - Merged: \(mergedCount)
             """)
+
+            // DEBUG: Print source for each workout
+            print("\n📊 DEBUG - Workout sources:")
+            for workout in unifiedWorkouts.prefix(20) {
+                let sourceEmoji: String
+                let sourceText: String
+                switch workout.source {
+                case .healthKit:
+                    sourceEmoji = "📱"
+                    sourceText = "HealthKit"
+                case .strava:
+                    sourceEmoji = "🏃"
+                    sourceText = "Strava"
+                case .merged:
+                    sourceEmoji = "🔗"
+                    sourceText = "Merged"
+                }
+
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+                let dateStr = dateFormatter.string(from: workout.startDate)
+
+                let distance = workout.distance.map { String(format: "%.1f km", $0 / 1000) } ?? "N/A"
+
+                print("\(sourceEmoji) [\(sourceText)] \(dateStr) - \(distance) - \(workout.name)")
+            }
+            if unifiedWorkouts.count > 20 {
+                print("... (\(unifiedWorkouts.count - 20) more workouts)")
+            }
+            print("")
 
         } catch {
             errorMessage = "Failed to load workouts: \(error.localizedDescription)"
@@ -94,6 +166,45 @@ class UnifiedWorkoutViewModel: ObservableObject {
     /// Refresh unified workouts
     func refresh() async {
         await loadUnifiedWorkouts()
+    }
+
+    /// Sync workouts in background after displaying cache
+    /// This ensures cache is always up-to-date without blocking UI
+    private func syncWorkoutsInBackground() async {
+        print("🔄 Background sync started...")
+
+        do {
+            // Load fresh data from sources
+            let healthKitWorkouts = try await loadHealthKitWorkouts()
+
+            var stravaActivities: [StravaActivity] = []
+            if stravaAuthService.isAuthenticated {
+                stravaActivities = try await loadStravaActivities()
+            }
+
+            // Merge
+            let merged = mergeWorkouts(healthKit: healthKitWorkouts, strava: stravaActivities)
+            let sortedMerged = merged.sorted { $0.startDate > $1.startDate }
+
+            // Check if data changed
+            let cacheChanged = sortedMerged.count != unifiedWorkouts.count
+
+            if cacheChanged {
+                // Update UI
+                unifiedWorkouts = sortedMerged
+                updateStats()
+
+                // Update cache
+                try? unifiedCache.saveWorkouts(unifiedWorkouts)
+                print("✅ Background sync complete: \(unifiedWorkouts.count) workouts (updated)")
+            } else {
+                // Just update cache timestamps
+                try? unifiedCache.saveWorkouts(sortedMerged)
+                print("✅ Background sync complete: no changes")
+            }
+        } catch {
+            print("⚠️ Background sync failed: \(error)")
+        }
     }
 
     // MARK: - Private Methods
@@ -118,6 +229,10 @@ class UnifiedWorkoutViewModel: ObservableObject {
         var result: [UnifiedWorkout] = []
         var matchedStravaIDs = Set<Int64>()
 
+        print("🔍 DEBUG - Starting merge:")
+        print("   HealthKit workouts: \(healthKit.count)")
+        print("   Strava activities: \(strava.count)")
+
         // STEP 1: Process HealthKit workouts and find Strava matches
         for hkWorkout in healthKit {
             // Try to find matching Strava activity
@@ -131,7 +246,9 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 result.append(merged)
                 matchedStravaIDs.insert(matchingStrava.id)
 
-                print("🔗 Merged: \(hkWorkout.workoutType) on \(hkWorkout.startDate)")
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "MMM dd HH:mm"
+                print("🔗 Merged: \(dateFormatter.string(from: hkWorkout.startDate)) - HK: \(hkWorkout.sourceName) + Strava: \(matchingStrava.name)")
             } else {
                 // No match - HealthKit only
                 let healthKitOnly = UnifiedWorkout(from: hkWorkout)
@@ -145,9 +262,14 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 let stravaOnly = UnifiedWorkout(from: stravaActivity)
                 result.append(stravaOnly)
 
-                print("🏃 Strava only: \(stravaActivity.name)")
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "MMM dd HH:mm"
+                let dateStr = stravaActivity.startDateParsed.map { dateFormatter.string(from: $0) } ?? "Unknown"
+                print("🏃 Strava only: \(dateStr) - \(stravaActivity.name)")
             }
         }
+
+        print("✅ Merge result: \(result.count) unified workouts (\(matchedStravaIDs.count) merged)")
 
         return result
     }

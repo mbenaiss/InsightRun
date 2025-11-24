@@ -259,7 +259,15 @@ export class StravaCache {
       (timestamp, user_id, endpoint, cache_hit, response_time_ms, rate_limit_15min, rate_limit_daily)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
-      .bind(now, userId, endpoint, cacheHit ? 1 : 0, responseTimeMs, rateLimit15min, rateLimitDaily)
+      .bind(
+        now,
+        userId,
+        endpoint,
+        cacheHit ? 1 : 0,
+        responseTimeMs,
+        rateLimit15min ?? null,
+        rateLimitDaily ?? null
+      )
       .run()
   }
 

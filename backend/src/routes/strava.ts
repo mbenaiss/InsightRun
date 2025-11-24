@@ -223,17 +223,31 @@ app.get('/webhooks/callback', async (c: StravaContext) => {
 
 app.post('/webhooks/callback', async (c: StravaContext) => {
   try {
+    // Verify webhook authenticity (basic check - in production, verify subscription ID)
+    // Note: Strava doesn't send HMAC signatures on webhook POSTs, only on subscription validation
+    // We rely on the subscription setup with verify_token to ensure only valid webhooks reach us
     const event: StravaWebhookEvent = await c.req.json()
 
+    console.log(
+      `[WEBHOOK] Received event: ${event.aspect_type} for ${event.object_type} ${event.object_id}`
+    )
+
     if (event.object_type !== 'activity') {
+      console.log('[WEBHOOK] Ignoring non-activity event')
       return c.text('EVENT_RECEIVED', 200)
+    }
+
+    // Validate event structure
+    if (!event.owner_id || !event.object_id || !event.aspect_type) {
+      console.error('[WEBHOOK] Invalid event structure:', event)
+      return c.json({ error: 'Invalid event structure' }, 400)
     }
 
     c.executionCtx.waitUntil(processWebhookEvent(c, event))
 
     return c.text('EVENT_RECEIVED', 200)
   } catch (error) {
-    console.error('Webhook error:', error)
+    console.error('[WEBHOOK] Error:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
@@ -325,14 +339,35 @@ async function processWebhookEvent(c: StravaContext, event: StravaWebhookEvent) 
         console.error(`❌ Failed to fetch activity ${activityId}: ${response.status}`)
       }
     } else if (aspectType === 'delete') {
+      const cache = new StravaCache(c.env.STRAVA_CACHE)
+
       // Delete activity from cache
-      await c.env.STRAVA_CACHE.prepare(`
+      const deleteResult = await c.env.STRAVA_CACHE.prepare(`
         DELETE FROM strava_activities WHERE id = ? AND user_id = ?
       `)
         .bind(activityId, userId)
         .run()
 
-      console.log(`✅ Webhook: deleted activity ${activityId}`)
+      // Update sync state to decrement totalActivities
+      if (deleteResult.meta.changes > 0) {
+        const syncState = await cache.getSyncState(userId)
+        if (syncState && syncState.totalActivities > 0) {
+          await c.env.STRAVA_CACHE.prepare(`
+            UPDATE strava_sync_state
+            SET total_activities = total_activities - 1,
+                last_synced_at = ?
+            WHERE user_id = ?
+          `)
+            .bind(Date.now(), userId)
+            .run()
+
+          console.log(`✅ Webhook: deleted activity ${activityId}, updated sync state`)
+        } else {
+          console.log(`✅ Webhook: deleted activity ${activityId}`)
+        }
+      } else {
+        console.log(`⚠️ Webhook: activity ${activityId} not found in cache`)
+      }
     }
 
     // Track in PostHog
@@ -369,9 +404,27 @@ app.get('/activities', async (c: StravaContext) => {
       return c.json({ error: 'Missing X-User-ID header' }, 400)
     }
 
-    const page = Number(c.req.query('page')) || 1
-    const perPage = Math.min(Number(c.req.query('per_page')) || 30, 200)
-    const offset = (page - 1) * perPage
+    // Support both pagination styles:
+    // - page/per_page (traditional): ?page=1&per_page=30
+    // - limit/offset (REST standard): ?limit=100&offset=0
+    let limit: number
+    let offset: number
+    let page: number | undefined
+    let perPage: number | undefined
+
+    if (c.req.query('limit') || c.req.query('offset')) {
+      // iOS app style: limit/offset
+      limit = Math.min(Number(c.req.query('limit')) || 100, 200)
+      offset = Number(c.req.query('offset')) || 0
+      page = undefined
+      perPage = undefined
+    } else {
+      // Traditional pagination: page/per_page
+      page = Number(c.req.query('page')) || 1
+      perPage = Math.min(Number(c.req.query('per_page')) || 30, 200)
+      limit = perPage
+      offset = (page - 1) * perPage
+    }
 
     const cache = new StravaCache(c.env.STRAVA_CACHE)
 
@@ -389,19 +442,54 @@ app.get('/activities', async (c: StravaContext) => {
       await syncUserActivities(c, userId, cache)
     }
 
-    const activities = await cache.getActivities(userId, perPage, offset)
+    const activities = await cache.getActivities(userId, limit, offset)
+
+    // Get total count from sync state
+    const syncState = await cache.getSyncState(userId)
+    const totalActivities = syncState?.totalActivities || 0
 
     const responseTime = Date.now() - startTime
 
     await cache.trackApiCall(userId, 'activities', !needsSync, responseTime)
 
-    return c.json({
-      activities: activities.map((a) => a.data),
-      page,
-      perPage,
+    // Build response with appropriate pagination fields
+    const response: Record<string, unknown> = {
+      activities: activities.map((a) => ({
+        id: a.id,
+        user_id: a.userId,
+        athlete_id: a.athleteId,
+        activity_id: a.id,
+        name: a.data.name,
+        type: a.data.type,
+        distance: a.data.distance,
+        moving_time: a.data.moving_time,
+        elapsed_time: a.data.elapsed_time,
+        total_elevation_gain: a.data.total_elevation_gain,
+        start_date: a.data.start_date,
+        start_date_local: a.data.start_date_local,
+        average_speed: a.data.average_speed,
+        max_speed: a.data.max_speed,
+        average_heartrate: a.data.average_heartrate,
+        max_heartrate: a.data.max_heartrate,
+        calories: a.data.calories,
+      })),
       cached: !needsSync,
-      syncedAt: activities[0]?.syncedAt,
-    })
+      syncedAt: syncState?.lastSyncAt,
+    }
+
+    // Include appropriate pagination fields based on request style
+    if (page !== undefined && perPage !== undefined) {
+      // page/per_page style (for StravaAPIClient)
+      response.page = page
+      response.perPage = perPage
+    } else {
+      // limit/offset style (for StravaBackendClient)
+      response.limit = limit
+      response.offset = offset
+      response.total = totalActivities
+    }
+
+    return c.json(response)
   } catch (error) {
     console.error('Activities error:', error)
 
@@ -532,18 +620,22 @@ app.post('/sync', async (c: StravaContext) => {
       return c.json({ error: 'Missing X-User-ID header' }, 400)
     }
 
+    // Read force flag from request body
+    const body = await c.req.json<{ force?: boolean }>()
+    const force = body.force ?? false
+
     const cache = new StravaCache(c.env.STRAVA_CACHE)
 
     await cache.setSyncStatus(userId, 'syncing')
 
-    const result = await syncUserActivities(c, userId, cache, true)
+    const result = await syncUserActivities(c, userId, cache, force)
 
     await cache.setSyncStatus(userId, 'idle')
 
     return c.json({
       success: true,
-      activitiesAdded: result.newActivities,
-      totalActivities: result.totalActivities,
+      new_activities: result.newActivities,
+      total_activities: result.totalActivities,
     })
   } catch (error) {
     console.error('Sync error:', error)
@@ -580,6 +672,46 @@ app.get('/stats', async (c: StravaContext) => {
   } catch (error) {
     console.error('Stats error:', error)
     return c.json({ error: 'Failed to get stats' }, 500)
+  }
+})
+
+app.delete('/disconnect', async (c: StravaContext) => {
+  try {
+    const userId = c.req.header('X-User-ID')
+    if (!userId) {
+      return c.json({ error: 'Missing X-User-ID header' }, 400)
+    }
+
+    console.log(`[DISCONNECT] Starting cleanup for user ${userId}`)
+
+    // Delete KV tokens
+    await c.env.STRAVA_TOKENS.delete(`user:${userId}`)
+    console.log(`[DISCONNECT] Deleted KV tokens for user ${userId}`)
+
+    // Delete D1 activities
+    const deleteResult = await c.env.STRAVA_CACHE.prepare(
+      'DELETE FROM strava_activities WHERE user_id = ?'
+    )
+      .bind(userId)
+      .run()
+
+    console.log(`[DISCONNECT] Deleted ${deleteResult.meta.changes} activities from D1`)
+
+    // Delete D1 sync state
+    await c.env.STRAVA_CACHE.prepare('DELETE FROM strava_sync_state WHERE user_id = ?')
+      .bind(userId)
+      .run()
+
+    console.log(`[DISCONNECT] Deleted sync state for user ${userId}`)
+
+    return c.json({
+      success: true,
+      deletedActivities: deleteResult.meta.changes,
+      message: 'All Strava data deleted successfully',
+    })
+  } catch (error) {
+    console.error('[DISCONNECT] Error:', error)
+    return c.json({ error: 'Failed to disconnect and clean up data' }, 500)
   }
 })
 

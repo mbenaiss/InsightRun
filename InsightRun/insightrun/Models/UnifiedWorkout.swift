@@ -291,3 +291,97 @@ struct DuplicateTolerance {
         distancePercentage: 0.10 // 10%
     )
 }
+
+// MARK: - WorkoutModel Compatibility
+
+extension UnifiedWorkout {
+    /// Convert to WorkoutModel for compatibility with existing views
+    func toWorkoutModel() -> WorkoutModel {
+        // Use HealthKit workout if available, otherwise create from Strava data
+        if let hkWorkout = healthKitWorkout {
+            return hkWorkout
+        } else if let stravaActivity = stravaActivity {
+            // Create a stable UUID from Strava ID using namespace UUID
+            let stableUUID = UUID(uuidString: id) ?? Self.stableUUID(from: stravaActivity.id)
+
+            // Create a WorkoutModel from Strava activity
+            return WorkoutModel(
+                id: stableUUID,
+                workoutType: .running,
+                startDate: startDate,
+                endDate: endDate,
+                duration: duration,
+                distance: distance,
+                totalEnergyBurned: totalEnergyBurned,
+                sourceName: "Strava",
+                sourceVersion: "API",
+                metadata: ["strava_id": String(stravaActivity.id)],
+                averageHeartRate: averageHeartRate,
+                maxHeartRate: maxHeartRate,
+                elevationGain: totalElevationGain,
+                hasRoute: hasRoute
+            )
+        } else {
+            // Fallback: generic workout
+            return WorkoutModel(
+                id: UUID(uuidString: id) ?? UUID(),
+                workoutType: .running,
+                startDate: startDate,
+                endDate: endDate,
+                duration: duration,
+                distance: distance,
+                totalEnergyBurned: totalEnergyBurned,
+                sourceName: source.rawValue,
+                sourceVersion: "Unknown",
+                metadata: nil,
+                averageHeartRate: averageHeartRate,
+                maxHeartRate: maxHeartRate,
+                elevationGain: totalElevationGain,
+                hasRoute: hasRoute
+            )
+        }
+    }
+
+    /// Source name for display (compatible with WorkoutRowView badge logic)
+    var sourceName: String {
+        switch source {
+        case .healthKit:
+            return healthKitWorkout?.sourceName ?? "Apple Watch"
+        case .strava:
+            return "Strava"
+        case .merged:
+            // For merged workouts, indicate both sources
+            return "Strava + \(healthKitWorkout?.sourceName ?? "HealthKit")"
+        }
+    }
+
+    /// Generate a stable UUID from Strava activity ID
+    /// Uses namespace UUID (v5) to ensure same Strava ID always produces same UUID
+    private static func stableUUID(from stravaId: Int64) -> UUID {
+        // Namespace UUID for Strava activities (random but fixed)
+        let namespace = UUID(uuidString: "3F2504E0-4F89-41D3-9A0C-0305E82C3301")!
+
+        // Create deterministic UUID from Strava ID
+        let idString = "strava-\(stravaId)"
+        let data = idString.data(using: .utf8)!
+
+        // Simple hash-based UUID generation
+        let hasher = data.withUnsafeBytes { buffer -> Int in
+            var hash = 0
+            for byte in buffer {
+                hash = (hash &* 31) &+ Int(byte)
+            }
+            return hash
+        }
+
+        // Create UUID from hash (deterministic)
+        let uuidString = String(format: "%08X-%04X-%04X-%04X-%012X",
+                               hasher & 0xFFFFFFFF,
+                               (hasher >> 32) & 0xFFFF,
+                               0x5000 | ((hasher >> 48) & 0x0FFF), // Version 5 (name-based SHA-1)
+                               0x8000 | ((hasher >> 60) & 0x3FFF), // Variant (RFC 4122)
+                               Int64(stravaId))
+
+        return UUID(uuidString: uuidString) ?? namespace
+    }
+}

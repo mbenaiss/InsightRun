@@ -28,7 +28,7 @@ export default function InsightRunFeatures() {
       id: 2,
       title: 'Advanced Tracking',
       description:
-        'Detailed metrics for distance, pace, heart rate, cadence, power, and seamless HealthKit integration.',
+        'Detailed metrics for distance, pace, heart rate, cadence, power, with seamless HealthKit and Strava integration.',
       icon: (
         <svg
           aria-hidden="true"

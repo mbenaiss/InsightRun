@@ -27,24 +27,67 @@ class WorkoutDetailViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
-        do {
-            metrics = try await healthKitManager.fetchWorkoutMetrics(for: workout)
-        } catch let error as HealthKitError {
-            switch error {
-            case .notAvailable:
-                errorMessage = "HealthKit n'est pas disponible sur cet appareil"
-            case .authorizationDenied:
-                errorMessage = "Accès aux données HealthKit refusé. Veuillez autoriser l'accès dans Réglages"
-            case .dataNotAvailable:
-                errorMessage = "Les données de cette séance ne sont plus disponibles"
-            case .queryFailed(let underlyingError):
-                errorMessage = "Erreur lors du chargement: \(underlyingError.localizedDescription)"
+        // Check if workout comes from Strava (not in HealthKit)
+        let isStravaWorkout = workout.sourceName.lowercased().contains("strava") ||
+                              workout.metadata?["strava_id"] != nil
+
+        if isStravaWorkout {
+            // For Strava workouts, create metrics from available WorkoutModel data
+            metrics = createMetricsFromWorkout()
+        } else {
+            // For HealthKit workouts, fetch detailed metrics
+            do {
+                metrics = try await healthKitManager.fetchWorkoutMetrics(for: workout)
+            } catch let error as HealthKitError {
+                switch error {
+                case .notAvailable:
+                    errorMessage = "HealthKit n'est pas disponible sur cet appareil"
+                case .authorizationDenied:
+                    errorMessage = "Accès aux données HealthKit refusé. Veuillez autoriser l'accès dans Réglages"
+                case .dataNotAvailable, .queryFailed:
+                    // Fallback to basic metrics from WorkoutModel
+                    // This can happen for indoor workouts or when detailed data is unavailable
+                    metrics = createMetricsFromWorkout()
+                }
+            } catch {
+                // Fallback to basic metrics for any error
+                metrics = createMetricsFromWorkout()
             }
-        } catch {
-            errorMessage = "Impossible de charger les détails: \(error.localizedDescription)"
         }
 
         isLoading = false
+    }
+
+    /// Create basic WorkoutMetrics from WorkoutModel data (for Strava workouts or fallback)
+    private func createMetricsFromWorkout() -> WorkoutMetrics {
+        return WorkoutMetrics(
+            workout: workout,
+            averageHeartRate: workout.averageHeartRate,
+            minHeartRate: nil,
+            maxHeartRate: workout.maxHeartRate,
+            firstHeartRate: nil,
+            lastHeartRate: nil,
+            heartRateZones: nil,
+            averagePace: workout.averagePace,
+            minPace: nil,
+            maxPace: nil,
+            averageSpeed: workout.averageSpeed,
+            maxSpeed: nil,
+            totalSteps: nil,
+            averageCadence: nil,
+            strideLength: nil,
+            runningPower: nil,
+            firstPower: nil,
+            lastPower: nil,
+            totalElevationAscent: workout.elevationGain,
+            totalElevationDescent: nil,
+            splits: nil,
+            routePoints: nil,
+            groundContactTime: nil,
+            groundContactTimeBalance: nil,
+            verticalOscillation: nil,
+            runningEfficiency: nil
+        )
     }
 
     // MARK: - Formatting Helpers

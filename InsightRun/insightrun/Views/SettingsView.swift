@@ -213,23 +213,29 @@ struct SettingsView: View {
                 // Strava Integration Section
                 Section {
                     if stravaAuth.isAuthenticated {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.irSuccess)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(String(localized: "Strava Connected"))
-                                    .font(.headline)
-                                if let syncResult = lastSyncResult {
-                                    Text(syncResult)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Text(String(localized: "Activities syncing automatically"))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(Color.irSuccess)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(String(localized: "Strava Connected"))
+                                        .font(.headline)
+                                    if let syncResult = lastSyncResult {
+                                        Text(syncResult)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text(String(localized: "Activities syncing automatically"))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
+                                Spacer()
                             }
-                            Spacer()
+
+                            // Powered by Strava logo (per Brand Guidelines)
+                            PoweredByStravaLogo(variant: .orange)
+                                .frame(height: 20)
                         }
 
                         Button {
@@ -267,32 +273,19 @@ struct SettingsView: View {
                             Text(String(localized: "Disconnect"))
                         }
                     } else {
-                        Button {
-                            Task {
-                                do {
-                                    try await stravaAuth.authenticate()
-                                } catch {
-                                    print("Strava auth error: \(error)")
+                        StravaConnectButton(
+                            action: {
+                                Task {
+                                    do {
+                                        try await stravaAuth.authenticate()
+                                    } catch {
+                                        print("Strava auth error: \(error)")
+                                    }
                                 }
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "link")
-                                    .foregroundStyle(Color.irPrimaryAccent)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(String(localized: "Connect Strava"))
-                                        .font(.headline)
-                                    Text(String(localized: "Import your activities"))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .buttonStyle(.plain)
+                            },
+                            isLoading: false,
+                            variant: .orange
+                        )
                     }
                 } header: {
                     Text(String(localized: "Integrations"))

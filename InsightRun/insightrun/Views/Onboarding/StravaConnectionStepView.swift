@@ -79,20 +79,20 @@ struct StravaConnectionStepView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     StravaFeatureRow(
                         icon: "clock.arrow.circlepath",
-                        title: "Import Full History",
-                        description: "Get all your activities from the past years"
+                        title: String(localized: "Import Full History", comment: "Strava feature title"),
+                        description: String(localized: "Get all your activities from the past years", comment: "Strava feature description")
                     )
 
                     StravaFeatureRow(
                         icon: "arrow.triangle.2.circlepath",
-                        title: "Auto Sync",
-                        description: "New activities automatically appear in the app"
+                        title: String(localized: "Auto Sync", comment: "Strava feature title"),
+                        description: String(localized: "New activities automatically appear in the app", comment: "Strava feature description")
                     )
 
                     StravaFeatureRow(
                         icon: "chart.line.uptrend.xyaxis",
-                        title: "Advanced Analytics",
-                        description: "AI insights based on your complete training history"
+                        title: String(localized: "Advanced Analytics", comment: "Strava feature title"),
+                        description: String(localized: "AI insights based on your complete training history", comment: "Strava feature description")
                     )
                 }
                 .padding(.horizontal, 32)
@@ -121,34 +121,14 @@ struct StravaConnectionStepView: View {
                         .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 10, y: 5)
                     }
                 } else {
-                    // Connect with Strava button
-                    Button(action: {
-                        connectStrava()
-                    }) {
-                        HStack {
-                            if isConnecting {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "link")
-                                Text(String(localized: "Connect with Strava", comment: "Connect Strava button"))
-                            }
-                        }
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                colors: [Color.orange, Color.red],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .orange.opacity(0.3), radius: 10, y: 5)
-                    }
-                    .disabled(isConnecting)
+                    // Connect with Strava button (official per Strava Brand Guidelines)
+                    StravaConnectButton(
+                        action: {
+                            connectStrava()
+                        },
+                        isLoading: isConnecting,
+                        variant: .orange
+                    )
 
                     // Skip button
                     Button(action: {

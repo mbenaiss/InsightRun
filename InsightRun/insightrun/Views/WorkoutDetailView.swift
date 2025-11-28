@@ -43,6 +43,24 @@ struct WorkoutDetailView: View {
         ))
     }
 
+    // Extract Strava activity ID from workout metadata or source name
+    private var stravaActivityId: Int64? {
+        // Check if workout comes from Strava (metadata contains strava_id)
+        if let stravaIdString = workout.metadata?["strava_id"] as? String,
+           let stravaId = Int64(stravaIdString) {
+            return stravaId
+        }
+
+        // Check if source name contains "Strava"
+        if workout.sourceName.lowercased().contains("strava") {
+            // For Strava workouts without explicit ID in metadata, we can't link
+            // This would only happen for very old imports
+            return nil
+        }
+
+        return nil
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             GeometryReader { geometry in
@@ -55,6 +73,12 @@ struct WorkoutDetailView: View {
                         } else if let metrics = viewModel.metrics {
                             // Header with date and location
                             headerSection(metrics: metrics)
+
+                            // View on Strava link (if activity comes from Strava)
+                            if let stravaId = stravaActivityId {
+                                ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
+                                    .padding(.horizontal)
+                            }
 
                             // Main metrics grid (2x2)
                             mainMetricsGrid(metrics: metrics)

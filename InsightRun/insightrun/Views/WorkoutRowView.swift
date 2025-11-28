@@ -25,7 +25,7 @@ struct WorkoutRowView: View {
     }
 
     private var workoutIcon: String {
-        workout.isIndoor ? "figure.indoor.run" : "figure.run"
+        workout.isIndoor ? "figure.run.treadmill" : "figure.run"
     }
 
     var body: some View {

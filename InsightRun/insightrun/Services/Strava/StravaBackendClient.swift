@@ -264,7 +264,8 @@ struct BackendActivity: Codable {
             maxSpeed: maxSpeed,
             averageHeartrate: averageHeartrate,
             maxHeartrate: maxHeartrate,
-            calories: calories
+            calories: calories,
+            trainer: nil
         )
     }
 }

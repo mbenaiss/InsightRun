@@ -81,7 +81,8 @@ class CachedUnifiedWorkout {
                 maxSpeed: nil,
                 averageHeartrate: averageHeartRate,
                 maxHeartrate: maxHeartRate,
-                calories: totalEnergyBurned
+                calories: totalEnergyBurned,
+                trainer: nil
             )
             return UnifiedWorkout(from: stravaActivity)
 

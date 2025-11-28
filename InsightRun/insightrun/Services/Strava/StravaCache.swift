@@ -27,6 +27,7 @@ final class CachedStravaActivity {
     var averageHeartrate: Double?
     var maxHeartrate: Double?
     var calories: Double?
+    var trainer: Bool?
 
     // Metadata
     var cachedAt: Date
@@ -47,6 +48,7 @@ final class CachedStravaActivity {
         self.averageHeartrate = activity.averageHeartrate
         self.maxHeartrate = activity.maxHeartrate
         self.calories = activity.calories
+        self.trainer = activity.trainer
         self.cachedAt = Date()
         self.lastSyncedAt = nil
     }
@@ -67,7 +69,8 @@ final class CachedStravaActivity {
             maxSpeed: maxSpeed,
             averageHeartrate: averageHeartrate,
             maxHeartrate: maxHeartrate,
-            calories: calories
+            calories: calories,
+            trainer: trainer
         )
     }
 }

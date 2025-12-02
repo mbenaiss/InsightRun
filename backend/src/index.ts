@@ -3,11 +3,28 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
-import { afterModelUsage, RequestType, selectModel, selectModelFromRequest } from './modelRouter'
+import {
+  afterModelUsage,
+  deleteModel,
+  getCurrentModelConfig,
+  type ModelConfig,
+  RequestType,
+  selectModel,
+  selectModelFromRequest,
+  setModelMapping,
+  upsertModel,
+} from './modelRouter'
 import { captureLLMEvent, createPostHogClient } from './posthog'
 import { buildPrompt } from './prompts'
-import type { QuotaCheck } from './quota'
-import { checkQuota, getQuotaConfig, getQuotaHeaders, incrementQuota } from './quota'
+import type { QuotaCheck, QuotaConfig } from './quota'
+import {
+  checkQuota,
+  getDefaultQuotaConfig,
+  getQuotaConfigFromKV,
+  getQuotaHeaders,
+  incrementQuota,
+  setQuotaConfig,
+} from './quota'
 import analyzeHistoryRoutes from './routes/analyzeHistory'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
@@ -17,6 +34,7 @@ import type { ChatRequestV2 } from './types'
 type Bindings = {
   OPENROUTER_API_KEY: string
   APP_SECRET: string
+  ADMIN_SECRET: string // Admin API authentication
   RATE_LIMITER: KVNamespace
   POSTHOG_API_KEY: string
   POSTHOG_HOST: string
@@ -31,6 +49,7 @@ type Bindings = {
 type Variables = {
   rateLimitKey: string
   quotaCheck: QuotaCheck
+  quotaConfig: QuotaConfig
 }
 
 interface ChatRequest {
@@ -79,6 +98,88 @@ function validateAppAuth(c: AppContext): boolean {
   const appKey = c.req.header('X-App-Key')
   const expectedKey = c.env.APP_SECRET || DEFAULT_APP_SECRET
   return appKey === expectedKey
+}
+
+function validateAdminAuth(c: AppContext): boolean {
+  const adminKey = c.req.header('X-Admin-Key')
+  // Admin secret is required - no default fallback for security
+  if (!c.env.ADMIN_SECRET) {
+    console.error('⚠️ ADMIN_SECRET not configured')
+    return false
+  }
+  return adminKey === c.env.ADMIN_SECRET
+}
+
+// KV keys for admin configuration
+const KV_FEATURE_FLAGS_KEY = 'admin:config:features'
+const KV_BLOCKED_USER_PREFIX = 'admin:blocked:user:'
+const KV_BLOCKED_IP_PREFIX = 'admin:blocked:ip:'
+
+// Default feature flags (only used if KV is empty)
+const DEFAULT_FEATURE_FLAGS: Record<string, boolean> = {
+  strava_enabled: false, // Disabled until Strava API validation
+}
+
+async function getFeatureFlags(kv: KVNamespace): Promise<Record<string, boolean>> {
+  try {
+    const configJson = await kv.get(KV_FEATURE_FLAGS_KEY)
+    if (configJson) {
+      const config = JSON.parse(configJson) as Record<string, boolean>
+      return { ...DEFAULT_FEATURE_FLAGS, ...config }
+    }
+  } catch (error) {
+    console.warn('Failed to read feature flags from KV, using defaults', error)
+  }
+  return DEFAULT_FEATURE_FLAGS
+}
+
+async function setFeatureFlags(kv: KVNamespace, flags: Record<string, boolean>): Promise<void> {
+  const currentFlags = await getFeatureFlags(kv)
+  const newFlags = { ...currentFlags, ...flags }
+  await kv.put(KV_FEATURE_FLAGS_KEY, JSON.stringify(newFlags))
+}
+
+interface BlockedEntity {
+  reason: string
+  blocked_at: number
+  blocked_by: string
+  expires_at: number | null
+}
+
+async function isUserBlocked(kv: KVNamespace, userId: string): Promise<BlockedEntity | null> {
+  try {
+    const blockJson = await kv.get(`${KV_BLOCKED_USER_PREFIX}${userId}`)
+    if (blockJson) {
+      const block = JSON.parse(blockJson) as BlockedEntity
+      // Check if block has expired
+      if (block.expires_at && Date.now() > block.expires_at) {
+        await kv.delete(`${KV_BLOCKED_USER_PREFIX}${userId}`)
+        return null
+      }
+      return block
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to check user block status', error)
+  }
+  return null
+}
+
+async function isIPBlocked(kv: KVNamespace, ip: string): Promise<BlockedEntity | null> {
+  try {
+    const blockJson = await kv.get(`${KV_BLOCKED_IP_PREFIX}${ip}`)
+    if (blockJson) {
+      const block = JSON.parse(blockJson) as BlockedEntity
+      // Check if block has expired
+      if (block.expires_at && Date.now() > block.expires_at) {
+        await kv.delete(`${KV_BLOCKED_IP_PREFIX}${ip}`)
+        return null
+      }
+      return block
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to check IP block status', error)
+  }
+  return null
 }
 
 function validateChatRequest(body: unknown): body is ChatRequest {
@@ -135,13 +236,20 @@ app.use(
   '*',
   cors({
     origin: '*',
-    allowMethods: ['POST', 'GET', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-App-Key', 'X-User-ID'],
+    allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-App-Key', 'X-User-ID', 'X-Admin-Key'],
     maxAge: 86400,
   })
 )
 
 app.use('/api/*', async (c, next) => {
+  // Skip rate limiting and blocking for admin routes (they have their own auth)
+  const path = new URL(c.req.url).pathname
+  if (path.startsWith('/api/admin')) {
+    await next()
+    return
+  }
+
   // Extract user ID and IP from headers
   const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
@@ -150,8 +258,42 @@ app.use('/api/*', async (c, next) => {
 
   c.set('rateLimitKey', rateLimitKey)
 
+  // Check if user or IP is blocked
+  if (userId) {
+    const userBlock = await isUserBlocked(c.env.RATE_LIMITER, userId)
+    if (userBlock) {
+      return c.json(
+        {
+          error: 'Blocked',
+          message: 'Your account has been blocked',
+          reason: userBlock.reason,
+          blocked_at: userBlock.blocked_at,
+          expires_at: userBlock.expires_at,
+        },
+        403
+      )
+    }
+  }
+
+  const ipBlock = await isIPBlocked(c.env.RATE_LIMITER, ip)
+  if (ipBlock) {
+    return c.json(
+      {
+        error: 'Blocked',
+        message: 'Your IP has been blocked',
+        reason: ipBlock.reason,
+        blocked_at: ipBlock.blocked_at,
+        expires_at: ipBlock.expires_at,
+      },
+      403
+    )
+  }
+
+  // Get quota config from KV (or use defaults)
+  const config = await getQuotaConfigFromKV(c.env.RATE_LIMITER)
+  c.set('quotaConfig', config)
+
   // Check both IP and User quotas
-  const config = getQuotaConfig()
   const quotaCheck = await checkQuota(c.env.RATE_LIMITER, ip, userId, config)
 
   // Store quota check for adding headers to response
@@ -936,8 +1078,8 @@ app.get('/api/stats', async (c) => {
   const userId = c.req.header('X-User-ID')
   const ip = c.req.header('CF-Connecting-IP') || 'unknown'
 
-  // Get quota status for both IP and User
-  const config = getQuotaConfig()
+  // Get quota config from KV (dynamic)
+  const config = await getQuotaConfigFromKV(c.env.RATE_LIMITER)
   const quotaCheck = await checkQuota(c.env.RATE_LIMITER, ip, userId, config)
 
   return c.json({
@@ -965,6 +1107,314 @@ app.get('/api/stats', async (c) => {
     allowed: quotaCheck.allowed,
     restrictedBy: quotaCheck.restrictedBy || null,
   })
+})
+
+// ============================================================
+// iOS Configuration Endpoint (Feature Flags)
+// ============================================================
+
+app.get('/api/config', async (c) => {
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+
+  const features = await getFeatureFlags(c.env.RATE_LIMITER)
+
+  // Return all features dynamically - no hardcoded structure
+  return c.json({ features })
+})
+
+// ============================================================
+// Admin API Endpoints
+// ============================================================
+
+// Admin auth middleware
+app.use('/api/admin/*', async (c, next) => {
+  if (!validateAdminAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid admin key' }, 401)
+  }
+  await next()
+})
+
+// Get all admin configuration
+app.get('/api/admin/config', async (c) => {
+  const [features, modelConfig, quotaConfig] = await Promise.all([
+    getFeatureFlags(c.env.RATE_LIMITER),
+    getCurrentModelConfig(c.env.RATE_LIMITER),
+    getQuotaConfigFromKV(c.env.RATE_LIMITER),
+  ])
+
+  return c.json({
+    features,
+    models: {
+      current: modelConfig.mapping,
+      available: modelConfig.models,
+      defaults: modelConfig.defaults,
+    },
+    rate_limits: {
+      current: quotaConfig,
+      defaults: getDefaultQuotaConfig(),
+    },
+  })
+})
+
+// Update model mapping
+app.put('/api/admin/config/models', async (c) => {
+  try {
+    const body = await c.req.json()
+
+    if (!body || typeof body !== 'object') {
+      return c.json({ error: 'Bad Request', message: 'Invalid model mapping' }, 400)
+    }
+
+    await setModelMapping(c.env.RATE_LIMITER, body)
+
+    return c.json({
+      success: true,
+      message: 'Model mapping updated',
+      mapping: body,
+    })
+  } catch (error) {
+    console.error('Error updating model config:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to update model config' }, 500)
+  }
+})
+
+// Add or update a model definition
+app.put('/api/admin/models/:key', async (c) => {
+  try {
+    const key = c.req.param('key')
+    const body = (await c.req.json()) as ModelConfig
+
+    if (!body.modelId || !body.displayName) {
+      return c.json({ error: 'Bad Request', message: 'modelId and displayName are required' }, 400)
+    }
+
+    const config: ModelConfig = {
+      modelId: body.modelId,
+      displayName: body.displayName,
+      description: body.description || '',
+      requiresQuota: body.requiresQuota ?? false,
+    }
+
+    await upsertModel(c.env.RATE_LIMITER, key, config)
+
+    return c.json({
+      success: true,
+      message: `Model ${key} saved`,
+      model: { key, ...config },
+    })
+  } catch (error) {
+    console.error('Error upserting model:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to save model' }, 500)
+  }
+})
+
+// Delete a custom model
+app.delete('/api/admin/models/:key', async (c) => {
+  try {
+    const key = c.req.param('key')
+
+    const deleted = await deleteModel(c.env.RATE_LIMITER, key)
+
+    if (!deleted) {
+      return c.json(
+        { error: 'Bad Request', message: 'Cannot delete default model or model not found' },
+        400
+      )
+    }
+
+    return c.json({
+      success: true,
+      message: `Model ${key} deleted`,
+    })
+  } catch (error) {
+    console.error('Error deleting model:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to delete model' }, 500)
+  }
+})
+
+// Update feature flags
+app.put('/api/admin/config/features', async (c) => {
+  try {
+    const body = await c.req.json()
+
+    if (!body || typeof body !== 'object') {
+      return c.json({ error: 'Bad Request', message: 'Invalid feature flags' }, 400)
+    }
+
+    // Check if this is a full replacement or a partial update
+    const { _replace_all, ...flags } = body
+    if (_replace_all) {
+      // Full replacement - directly set the KV
+      await c.env.RATE_LIMITER.put(KV_FEATURE_FLAGS_KEY, JSON.stringify(flags))
+    } else {
+      // Partial update - merge with existing
+      await setFeatureFlags(c.env.RATE_LIMITER, flags)
+    }
+    const updated = await getFeatureFlags(c.env.RATE_LIMITER)
+
+    return c.json({
+      success: true,
+      message: 'Feature flags updated',
+      features: updated,
+    })
+  } catch (error) {
+    console.error('Error updating feature flags:', error)
+    return c.json(
+      { error: 'Internal Server Error', message: 'Failed to update feature flags' },
+      500
+    )
+  }
+})
+
+// Update rate limits
+app.put('/api/admin/config/rate-limits', async (c) => {
+  try {
+    const body = await c.req.json()
+
+    if (!body || typeof body !== 'object') {
+      return c.json({ error: 'Bad Request', message: 'Invalid rate limits' }, 400)
+    }
+
+    await setQuotaConfig(c.env.RATE_LIMITER, body)
+    const updated = await getQuotaConfigFromKV(c.env.RATE_LIMITER)
+
+    return c.json({
+      success: true,
+      message: 'Rate limits updated',
+      rate_limits: updated,
+    })
+  } catch (error) {
+    console.error('Error updating rate limits:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to update rate limits' }, 500)
+  }
+})
+
+// Block a user
+app.post('/api/admin/users/:userId/block', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const body = await c.req.json()
+
+    const block: BlockedEntity = {
+      reason: body.reason || 'No reason provided',
+      blocked_at: Date.now(),
+      blocked_by: 'admin',
+      expires_at: body.expires_at || null,
+    }
+
+    await c.env.RATE_LIMITER.put(`${KV_BLOCKED_USER_PREFIX}${userId}`, JSON.stringify(block))
+
+    return c.json({
+      success: true,
+      message: `User ${userId} has been blocked`,
+      block,
+    })
+  } catch (error) {
+    console.error('Error blocking user:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to block user' }, 500)
+  }
+})
+
+// Unblock a user
+app.delete('/api/admin/users/:userId/block', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+
+    await c.env.RATE_LIMITER.delete(`${KV_BLOCKED_USER_PREFIX}${userId}`)
+
+    return c.json({
+      success: true,
+      message: `User ${userId} has been unblocked`,
+    })
+  } catch (error) {
+    console.error('Error unblocking user:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to unblock user' }, 500)
+  }
+})
+
+// Block an IP
+app.post('/api/admin/ip/:ip/block', async (c) => {
+  try {
+    const ip = c.req.param('ip')
+    const body = await c.req.json()
+
+    const block: BlockedEntity = {
+      reason: body.reason || 'No reason provided',
+      blocked_at: Date.now(),
+      blocked_by: 'admin',
+      expires_at: body.expires_at || null,
+    }
+
+    await c.env.RATE_LIMITER.put(`${KV_BLOCKED_IP_PREFIX}${ip}`, JSON.stringify(block))
+
+    return c.json({
+      success: true,
+      message: `IP ${ip} has been blocked`,
+      block,
+    })
+  } catch (error) {
+    console.error('Error blocking IP:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to block IP' }, 500)
+  }
+})
+
+// Unblock an IP
+app.delete('/api/admin/ip/:ip/block', async (c) => {
+  try {
+    const ip = c.req.param('ip')
+
+    await c.env.RATE_LIMITER.delete(`${KV_BLOCKED_IP_PREFIX}${ip}`)
+
+    return c.json({
+      success: true,
+      message: `IP ${ip} has been unblocked`,
+    })
+  } catch (error) {
+    console.error('Error unblocking IP:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Failed to unblock IP' }, 500)
+  }
+})
+
+// List all blocked entities (users and IPs)
+app.get('/api/admin/blocked', async (c) => {
+  try {
+    // List blocked users
+    const usersList = await c.env.RATE_LIMITER.list({ prefix: KV_BLOCKED_USER_PREFIX })
+    const ipsList = await c.env.RATE_LIMITER.list({ prefix: KV_BLOCKED_IP_PREFIX })
+
+    const blockedUsers: Array<{ id: string; block: BlockedEntity }> = []
+    const blockedIPs: Array<{ ip: string; block: BlockedEntity }> = []
+
+    for (const key of usersList.keys) {
+      const userId = key.name.replace(KV_BLOCKED_USER_PREFIX, '')
+      const blockJson = await c.env.RATE_LIMITER.get(key.name)
+      if (blockJson) {
+        blockedUsers.push({ id: userId, block: JSON.parse(blockJson) })
+      }
+    }
+
+    for (const key of ipsList.keys) {
+      const ip = key.name.replace(KV_BLOCKED_IP_PREFIX, '')
+      const blockJson = await c.env.RATE_LIMITER.get(key.name)
+      if (blockJson) {
+        blockedIPs.push({ ip, block: JSON.parse(blockJson) })
+      }
+    }
+
+    return c.json({
+      users: blockedUsers,
+      ips: blockedIPs,
+      total: blockedUsers.length + blockedIPs.length,
+    })
+  } catch (error) {
+    console.error('Error listing blocked entities:', error)
+    return c.json(
+      { error: 'Internal Server Error', message: 'Failed to list blocked entities' },
+      500
+    )
+  }
 })
 
 export default app

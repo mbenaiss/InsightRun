@@ -31,7 +31,7 @@ export enum RequestType {
 /**
  * Model configuration
  */
-interface ModelConfig {
+export interface ModelConfig {
   modelId: string
   displayName: string
   description: string
@@ -90,11 +90,10 @@ export const PREMIUM_MODEL_QUOTA_CONFIG = {
 }
 
 /**
- * Centralized mapping: RequestType → Model
- * This is the SINGLE SOURCE OF TRUTH for model selection
- * Change models here without touching any other code
+ * Default mapping: RequestType → Model
+ * Used as fallback when KV config is not available
  */
-const REQUEST_TYPE_TO_MODEL: Record<RequestType, keyof typeof MODELS> = {
+const DEFAULT_MODEL_MAPPING: Record<RequestType, keyof typeof MODELS> = {
   [RequestType.SIMPLE]: 'GROK_4_FAST',
   [RequestType.MODERATE]: 'GROK_4_FAST',
   [RequestType.COMPLEX]: 'GEMINI_3_PRO_PREVIEW', // Premium model with quota
@@ -105,34 +104,166 @@ const REQUEST_TYPE_TO_MODEL: Record<RequestType, keyof typeof MODELS> = {
 }
 
 /**
+ * KV key for admin model configuration
+ */
+const KV_MODEL_CONFIG_KEY = 'admin:config:models'
+
+/**
+ * KV key for custom models (added via admin)
+ */
+const KV_CUSTOM_MODELS_KEY = 'admin:config:custom_models'
+
+/**
+ * Default models (hardcoded fallback)
+ */
+const DEFAULT_MODELS = MODELS
+
+/**
+ * Get custom models from KV
+ */
+async function getCustomModels(kv: KVNamespace): Promise<Record<string, ModelConfig>> {
+  try {
+    const json = await kv.get(KV_CUSTOM_MODELS_KEY)
+    if (json) {
+      return JSON.parse(json) as Record<string, ModelConfig>
+    }
+  } catch (error) {
+    console.warn('⚠️ ModelRouter: Failed to read custom models from KV', error)
+  }
+  return {}
+}
+
+/**
+ * Save custom models to KV
+ */
+async function setCustomModels(
+  kv: KVNamespace,
+  models: Record<string, ModelConfig>
+): Promise<void> {
+  await kv.put(KV_CUSTOM_MODELS_KEY, JSON.stringify(models))
+  console.log('✅ ModelRouter: Updated custom models in KV')
+}
+
+/**
+ * Get all models (default + custom merged)
+ */
+export async function getAllModels(kv: KVNamespace): Promise<Record<string, ModelConfig>> {
+  const customModels = await getCustomModels(kv)
+  return { ...DEFAULT_MODELS, ...customModels }
+}
+
+/**
+ * Add or update a model
+ */
+export async function upsertModel(
+  kv: KVNamespace,
+  key: string,
+  config: ModelConfig
+): Promise<void> {
+  const customModels = await getCustomModels(kv)
+  customModels[key] = config
+  await setCustomModels(kv, customModels)
+  console.log(`✅ ModelRouter: Upserted model ${key}`)
+}
+
+/**
+ * Delete a custom model (cannot delete default models)
+ */
+export async function deleteModel(kv: KVNamespace, key: string): Promise<boolean> {
+  if (key in DEFAULT_MODELS) {
+    console.warn(`⚠️ ModelRouter: Cannot delete default model ${key}`)
+    return false
+  }
+  const customModels = await getCustomModels(kv)
+  if (!(key in customModels)) {
+    console.warn(`⚠️ ModelRouter: Model ${key} not found in custom models`)
+    return false
+  }
+  delete customModels[key]
+  await setCustomModels(kv, customModels)
+  console.log(`✅ ModelRouter: Deleted custom model ${key}`)
+  return true
+}
+
+/**
+ * Get model mapping from KV store or use defaults
+ */
+export async function getModelMapping(kv: KVNamespace): Promise<Record<RequestType, string>> {
+  try {
+    const [configJson, allModels] = await Promise.all([
+      kv.get(KV_MODEL_CONFIG_KEY),
+      getAllModels(kv),
+    ])
+    if (configJson) {
+      const config = JSON.parse(configJson) as Record<string, string>
+      const mapping: Record<string, string> = { ...DEFAULT_MODEL_MAPPING }
+      for (const [requestType, modelKey] of Object.entries(config)) {
+        if (
+          Object.values(RequestType).includes(requestType as RequestType) &&
+          modelKey in allModels
+        ) {
+          mapping[requestType as RequestType] = modelKey
+        }
+      }
+      console.log('📊 ModelRouter: Using KV config')
+      return mapping as Record<RequestType, string>
+    }
+  } catch (error) {
+    console.warn('⚠️ ModelRouter: Failed to read KV config, using defaults', error)
+  }
+  return DEFAULT_MODEL_MAPPING as Record<RequestType, string>
+}
+
+/**
+ * Update model mapping in KV store
+ */
+export async function setModelMapping(
+  kv: KVNamespace,
+  mapping: Record<string, string>
+): Promise<void> {
+  await kv.put(KV_MODEL_CONFIG_KEY, JSON.stringify(mapping))
+  console.log('✅ ModelRouter: Updated model config in KV')
+}
+
+/**
+ * Get available models (for admin UI)
+ */
+export function getAvailableModels(): Record<string, ModelConfig> {
+  return MODELS
+}
+
+/**
  * Fallback model when premium quota is exceeded
  */
 const PREMIUM_MODEL_FALLBACK: keyof typeof MODELS = 'GROK_4_FAST'
 
 /**
  * Select model for request type
- * Uses centralized mapping and handles quota fallback
+ * Uses dynamic mapping from KV and handles quota fallback
  */
 function selectModelForRequestType(
   requestType: RequestType,
-  hasPremiumQuota: boolean
+  hasPremiumQuota: boolean,
+  modelMapping: Record<RequestType, string>,
+  allModels: Record<string, ModelConfig>
 ): ModelConfig {
-  // Get model from centralized mapping
-  const modelKey = REQUEST_TYPE_TO_MODEL[requestType]
+  const modelKey = modelMapping[requestType]
 
-  if (!modelKey) {
-    console.warn(`⚠️ ModelRouter: Unknown request type "${requestType}", defaulting to Haiku`)
+  if (!modelKey || !(modelKey in allModels)) {
+    console.warn(
+      `⚠️ ModelRouter: Unknown request type or model "${requestType}:${modelKey}", defaulting to Haiku`
+    )
     return MODELS.CLAUDE_HAIKU_4_5
   }
 
-  const selectedModel = MODELS[modelKey]
+  const selectedModel = allModels[modelKey]
 
-  // Handle premium model quota fallback
   if (selectedModel.requiresQuota && !hasPremiumQuota) {
+    const fallback = allModels[PREMIUM_MODEL_FALLBACK] || MODELS[PREMIUM_MODEL_FALLBACK]
     console.log(
-      `⚠️ ModelRouter: Premium model quota exceeded for ${selectedModel.displayName}, falling back to ${MODELS[PREMIUM_MODEL_FALLBACK].displayName}`
+      `⚠️ ModelRouter: Premium model quota exceeded for ${selectedModel.displayName}, falling back to ${fallback.displayName}`
     )
-    return MODELS[PREMIUM_MODEL_FALLBACK]
+    return fallback
   }
 
   return selectedModel
@@ -218,7 +349,8 @@ export async function selectModel(
   kv: KVNamespace,
   userId?: string
 ): Promise<{ model: ModelConfig; premiumQuotaStatus?: PremiumModelQuotaStatus }> {
-  // Check premium model quota if user ID provided
+  const [modelMapping, allModels] = await Promise.all([getModelMapping(kv), getAllModels(kv)])
+
   let premiumQuotaStatus: PremiumModelQuotaStatus | undefined
   let hasPremiumQuota = false
 
@@ -227,8 +359,7 @@ export async function selectModel(
     hasPremiumQuota = premiumQuotaStatus.hasQuota
   }
 
-  // Select appropriate model
-  const model = selectModelForRequestType(requestType, hasPremiumQuota)
+  const model = selectModelForRequestType(requestType, hasPremiumQuota, modelMapping, allModels)
 
   console.log(`🎯 ModelRouter: ${requestType} → ${model.displayName} (${model.modelId})`)
 
@@ -266,7 +397,7 @@ export async function selectModelFromRequest(
 ): Promise<{ modelId: string; modelConfig: ModelConfig | null }> {
   const modelType = requestType || defaultRequestType
 
-  // Validate and use requestType
+  // Validate and use requestType (uses dynamic mapping from KV)
   if (Object.values(RequestType).includes(modelType as RequestType)) {
     const selection = await selectModel(modelType as RequestType, kv, userId)
     return {
@@ -284,12 +415,30 @@ export async function selectModelFromRequest(
     }
   }
 
-  // Final fallback to default
+  // Final fallback to default (uses dynamic mapping from KV)
   console.warn(`⚠️ Invalid requestType "${modelType}", using default: ${defaultRequestType}`)
   const selection = await selectModel(defaultRequestType, kv, userId)
   return {
     modelId: selection.model.modelId,
     modelConfig: selection.model,
+  }
+}
+
+/**
+ * Get current model configuration (for admin API)
+ */
+export async function getCurrentModelConfig(kv: KVNamespace): Promise<{
+  mapping: Record<string, string>
+  models: Record<string, ModelConfig>
+  defaults: Record<string, string>
+  defaultModels: Record<string, ModelConfig>
+}> {
+  const [mapping, allModels] = await Promise.all([getModelMapping(kv), getAllModels(kv)])
+  return {
+    mapping: mapping as Record<string, string>,
+    models: allModels,
+    defaults: DEFAULT_MODEL_MAPPING as Record<string, string>,
+    defaultModels: DEFAULT_MODELS,
   }
 }
 

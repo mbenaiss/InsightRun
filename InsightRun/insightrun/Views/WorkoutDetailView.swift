@@ -1951,7 +1951,7 @@ struct TabbedSplitsSection: View {
 
     private var hasIntervals: Bool {
         guard let intervals = intervals else { return false }
-        return !intervals.isEmpty
+        return intervals.count > 1
     }
 
     var body: some View {
@@ -2103,30 +2103,79 @@ struct IntervalRow: View {
         }
     }
 
+    /// Compares actual pace with target pace and returns appropriate color
+    /// Green = faster than target (good), Red = slower than target (missed)
+    private var paceComparisonColor: Color {
+        guard let actualPace = interval.pace,
+              let targetMin = interval.targetPaceMin else {
+            return Color.irTextPrimary
+        }
+        // Lower pace = faster, so actualPace < targetMin means faster than target
+        if actualPace <= targetMin {
+            return .green
+        } else if let targetMax = interval.targetPaceMax, actualPace <= targetMax {
+            return .orange // Within range
+        } else {
+            return .red // Slower than target
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Header with type and duration
-            HStack {
-                // Type indicator with colored bar
-                HStack(spacing: 8) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(intervalColor.gradient)
-                        .frame(width: 4, height: 40)
+        HStack(spacing: 0) {
+            // Left color strip
+            Rectangle()
+                .fill(intervalColor)
+                .frame(width: 5)
+                .frame(maxHeight: .infinity)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
+            VStack(spacing: 10) {
+                // 1. Header: Type, Index, Time
+                HStack {
+                    // Type Icon & Name
+                    HStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(intervalColor.opacity(0.15))
+                                .frame(width: 30, height: 30)
                             Image(systemName: interval.type.icon)
-                                .font(.caption)
+                                .font(.caption.bold())
                                 .foregroundStyle(intervalColor)
-
-                            Text(interval.type.localizedName)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(Color.irTextPrimary)
                         }
 
-                        // Target pace range if available
-                        if let targetPace = interval.targetPaceRangeFormatted {
+                        Text("\(interval.index). \(interval.type.localizedName)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.irTextPrimary)
+                    }
+
+                    Spacer()
+
+                    // Duration
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(interval.durationCompactFormatted)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.irTextPrimary)
+                            .monospacedDigit()
+                    }
+                }
+
+                Divider()
+
+                // 2. Metrics Grid
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 16) {
+                    // Cell 1: Pace
+                    if let targetPace = interval.targetPaceRangeFormatted {
+                        // Target vs Actual
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(String(localized: "Pace", comment: "Pace label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
                             HStack(spacing: 4) {
                                 Image(systemName: "target")
                                     .font(.caption2)
@@ -2135,77 +2184,128 @@ struct IntervalRow: View {
                                     .font(.caption)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
+                            
+                            if let actualPace = interval.paceFormatted {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "speedometer")
+                                        .font(.caption2)
+                                        .foregroundStyle(paceComparisonColor)
+                                    Text(actualPace)
+                                        .font(.callout)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(paceComparisonColor)
+                                        .monospacedDigit()
+                                }
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if let pace = interval.paceFormatted {
+                        // Just Pace
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Pace", comment: "Pace label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            Text(pace)
+                                .font(.callout)
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color.irTextPrimary)
+                                .monospacedDigit()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                         Color.clear
+                    }
+
+                    // Cell 2: Heart Rate
+                    if let hr = interval.averageHeartRate {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Heart Rate", comment: "HR label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "heart.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                Text(String(format: "%.0f", hr))
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .monospacedDigit()
+                                Text("bpm")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Color.clear
+                    }
+
+                    // Cell 3: Distance
+                    if let distance = interval.distanceFormatted {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Distance", comment: "Distance label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "ruler.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.blue)
+                                Text(distance)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .monospacedDigit()
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                         Color.clear
+                    }
+
+                    // Cell 4: Power
+                    if let power = interval.averagePower {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Power", comment: "Power label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "bolt.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                Text(String(format: "%.0f", power))
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .monospacedDigit()
+                                Text("W")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                         Color.clear
                     }
                 }
-
-                Spacer()
-
-                // Duration
-                Text(interval.durationCompactFormatted)
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundStyle(intervalColor)
             }
-
-            // Metrics row
-            HStack(spacing: 16) {
-                // Actual pace
-                if let paceFormatted = interval.paceFormatted {
-                    HStack(spacing: 4) {
-                        Image(systemName: "speedometer")
-                            .font(.caption2)
-                            .foregroundStyle(Color.irTextSecondary)
-                        Text(paceFormatted)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.irTextPrimary)
-                    }
-                }
-
-                // Heart rate
-                if let hr = interval.averageHeartRate {
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.red)
-                        Text(String(format: "%.0f bpm", hr))
-                            .font(.caption)
-                            .foregroundStyle(Color.irTextSecondary)
-                    }
-                }
-
-                // Distance
-                if let distanceFormatted = interval.distanceFormatted {
-                    HStack(spacing: 4) {
-                        Image(systemName: "ruler")
-                            .font(.caption2)
-                            .foregroundStyle(Color.irTextSecondary)
-                        Text(distanceFormatted)
-                            .font(.caption)
-                            .foregroundStyle(Color.irTextSecondary)
-                    }
-                }
-
-                // Power
-                if let power = interval.averagePower {
-                    HStack(spacing: 4) {
-                        Image(systemName: "bolt.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                        Text(String(format: "%.0f W", power))
-                            .font(.caption)
-                            .foregroundStyle(Color.irTextSecondary)
-                    }
-                }
-            }
+            .padding(12)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
-        .background(
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .fill(intervalColor.opacity(0.08))
+                .strokeBorder(Color.irBorder.opacity(0.3), lineWidth: 1)
         )
+        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
     }
 }
 

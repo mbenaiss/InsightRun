@@ -223,9 +223,16 @@ struct WorkoutInterval: Identifiable {
         guard let minPace = targetPaceMin, let maxPace = targetPaceMax else { return nil }
         let minMinutes = Int(minPace)
         let minSeconds = Int((minPace - Double(minMinutes)) * 60)
+
+        // If min == max (threshold), show single value
+        if abs(minPace - maxPace) < 0.01 {
+            return String(format: "%d'%02d\"/km", minMinutes, minSeconds)
+        }
+
+        // Otherwise show range
         let maxMinutes = Int(maxPace)
         let maxSeconds = Int((maxPace - Double(maxMinutes)) * 60)
-        return String(format: "%d'%02d\"-%d'%02d\"/km", maxMinutes, maxSeconds, minMinutes, minSeconds)
+        return String(format: "%d'%02d\"-%d'%02d\"/km", minMinutes, minSeconds, maxMinutes, maxSeconds)
     }
 
     var distanceFormatted: String? {

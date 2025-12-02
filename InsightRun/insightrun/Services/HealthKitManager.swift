@@ -1,4 +1,4 @@
-//
+    //
 //  HealthKitManager.swift
 //  InsightRun
 //
@@ -9,6 +9,7 @@ import Foundation
 import HealthKit
 import CoreLocation
 import Combine
+import WorkoutKit
 
 enum HealthKitError: Error {
     case notAvailable
@@ -615,6 +616,12 @@ class HealthKitManager: ObservableObject {
             return nil
         }
 
+        // Fetch target paces from WorkoutPlan (iOS 17+)
+        var targetPaces: [IntervalTargetPace] = []
+        if #available(iOS 17.0, *) {
+            targetPaces = await fetchTargetPacesFromWorkoutPlan(for: workout)
+        }
+
         var intervals: [WorkoutInterval] = []
 
         for (index, activity) in activities.enumerated() {
@@ -622,11 +629,23 @@ class HealthKitManager: ObservableObject {
             let endDate = activity.endDate ?? workout.endDate
             let duration = activity.duration
 
+            // Debug: print all metadata keys and values
+            print("📋 Activity \(index):")
+            print("   - duration: \(duration)s (\(duration/60.0)min)")
+            print("   - config.activityType: \(activity.workoutConfiguration.activityType.rawValue)")
+            print("   - config.lapLength: \(String(describing: activity.workoutConfiguration.lapLength))")
+            if let metadata = activity.metadata {
+                print("   - metadata keys: \(metadata.keys.sorted())")
+                for (key, value) in metadata.sorted(by: { $0.key < $1.key }) {
+                    print("     • \(key): \(value)")
+                }
+            } else {
+                print("   - metadata: nil")
+            }
+
             // Get interval type from metadata
             let intervalType = determineIntervalTypeFromActivity(activity, index: index, totalActivities: activities.count)
-
-            // Debug log
-            print("📋 Activity \(index): type=\(intervalType.rawValue), start=\(startDate), duration=\(duration)s (\(duration/60.0)min), metadata=\(String(describing: activity.metadata))")
+            print("   - intervalType: \(intervalType.rawValue)")
 
             // Get statistics for this activity
             let heartRateStat = activity.statistics(for: HKQuantityType(.heartRate))
@@ -644,6 +663,12 @@ class HealthKitManager: ObservableObject {
                 pace = (duration / 60.0) / (dist / 1000.0) // min/km
             }
 
+            // Find target pace for this step from WorkoutPlan
+            let targetPace = targetPaces.first { $0.stepIndex == index }
+            if let target = targetPace {
+                print("   - target pace: \(target.paceMinPerKm)-\(target.paceMaxPerKm) min/km")
+            }
+
             let interval = WorkoutInterval(
                 index: index + 1,
                 type: intervalType,
@@ -654,8 +679,8 @@ class HealthKitManager: ObservableObject {
                 pace: pace,
                 averageHeartRate: averageHeartRate,
                 averagePower: averagePower,
-                targetPaceMin: nil,
-                targetPaceMax: nil
+                targetPaceMin: targetPace?.paceMinPerKm,
+                targetPaceMax: targetPace?.paceMaxPerKm
             )
 
             intervals.append(interval)
@@ -767,6 +792,121 @@ class HealthKitManager: ObservableObject {
             return .cooldown
         }
         return .unknown
+    }
+
+    // MARK: - WorkoutPlan Target Pace Extraction
+    // iOS 17+ can access the original workout plan with target paces via WorkoutKit
+
+    /// Target pace information for an interval step
+    private struct IntervalTargetPace {
+        let stepIndex: Int
+        let paceMinPerKm: Double // min/km (lower bound = faster)
+        let paceMaxPerKm: Double // min/km (upper bound = slower)
+    }
+
+    /// Extracts target pace ranges from a workout's WorkoutPlan (iOS 17+)
+    /// Returns an array of target paces indexed by step order
+    @available(iOS 17.0, *)
+    private func fetchTargetPacesFromWorkoutPlan(for workout: HKWorkout) async -> [IntervalTargetPace] {
+        do {
+            guard let workoutPlan = try await workout.workoutPlan else {
+                print("ℹ️ No WorkoutPlan found for workout")
+                return []
+            }
+
+            print("📋 Found WorkoutPlan, extracting target paces...")
+
+            var targets: [IntervalTargetPace] = []
+            var stepIndex = 0
+
+            switch workoutPlan.workout {
+            case .custom(let customWorkout):
+                print("   - Custom workout: \(customWorkout.displayName ?? "unnamed")")
+
+                // Warmup step
+                if let warmup = customWorkout.warmup {
+                    if let targetPace = extractTargetPaceFromAlert(warmup.alert) {
+                        targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
+                        print("   - Warmup target: \(targetPace.min)-\(targetPace.max) min/km")
+                    }
+                    stepIndex += 1
+                }
+
+                // Interval blocks
+                for (blockIndex, block) in customWorkout.blocks.enumerated() {
+                    print("   - Block \(blockIndex): \(block.iterations) iterations, \(block.steps.count) steps")
+                    for iteration in 0..<block.iterations {
+                        for intervalStep in block.steps {
+                            let alertType = intervalStep.step.alert.map { String(describing: type(of: $0)) } ?? "none"
+                            print("   - Step \(stepIndex) (\(intervalStep.purpose), iter \(iteration)): alert type = \(alertType)")
+                            if let targetPace = extractTargetPaceFromAlert(intervalStep.step.alert) {
+                                targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
+                                print("     → target: \(targetPace.min)-\(targetPace.max) min/km")
+                            } else {
+                                print("     → no speed target found")
+                            }
+                            stepIndex += 1
+                        }
+                    }
+                }
+
+                // Cooldown step
+                if let cooldown = customWorkout.cooldown {
+                    if let targetPace = extractTargetPaceFromAlert(cooldown.alert) {
+                        targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
+                        print("   - Cooldown target: \(targetPace.min)-\(targetPace.max) min/km")
+                    }
+                    stepIndex += 1
+                }
+
+            case .goal, .pacer, .swimBikeRun:
+                print("   - Non-custom workout type, no interval targets")
+            @unknown default:
+                print("   - Unknown workout type")
+            }
+
+            return targets
+
+        } catch {
+            print("⚠️ Error fetching WorkoutPlan: \(error)")
+            return []
+        }
+    }
+
+    /// Extracts pace range from a WorkoutAlert (SpeedRangeAlert or SpeedThresholdAlert)
+    /// Returns pace as min/km (lower = faster, higher = slower)
+    @available(iOS 17.0, *)
+    private func extractTargetPaceFromAlert(_ alert: (any WorkoutAlert)?) -> (min: Double, max: Double)? {
+        guard let alert = alert else { return nil }
+
+        // SpeedRangeAlert contains the target speed range (min-max)
+        if let speedAlert = alert as? SpeedRangeAlert {
+            // Convert speed (m/s) to pace (min/km)
+            let lowerSpeedMps = speedAlert.target.lowerBound.converted(to: .metersPerSecond).value
+            let upperSpeedMps = speedAlert.target.upperBound.converted(to: .metersPerSecond).value
+
+            // Pace = 1000 / (speed * 60) = min/km
+            // Faster speed = lower pace, so we swap bounds
+            let paceMax = lowerSpeedMps > 0 ? (1000.0 / (lowerSpeedMps * 60.0)) : 0
+            let paceMin = upperSpeedMps > 0 ? (1000.0 / (upperSpeedMps * 60.0)) : 0
+
+            print("     SpeedRangeAlert: \(lowerSpeedMps)-\(upperSpeedMps) m/s → \(paceMin)-\(paceMax) min/km")
+            return (min: paceMin, max: paceMax)
+        }
+
+        // SpeedThresholdAlert contains a single target speed (threshold)
+        if let thresholdAlert = alert as? SpeedThresholdAlert {
+            // Convert speed (m/s) to pace (min/km)
+            let speedMps = thresholdAlert.target.converted(to: .metersPerSecond).value
+
+            // Single threshold = same min and max pace
+            let pace = speedMps > 0 ? (1000.0 / (speedMps * 60.0)) : 0
+
+            print("     SpeedThresholdAlert: \(speedMps) m/s → \(pace) min/km")
+            return (min: pace, max: pace)
+        }
+
+        return nil
     }
 
     // Legacy segment-based interval detection (kept for reference)

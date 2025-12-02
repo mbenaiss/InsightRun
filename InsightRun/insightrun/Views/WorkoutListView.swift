@@ -20,12 +20,13 @@ struct WorkoutListView: View {
     @State private var showIndexationSheet = false
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
 
-    // Use unified workouts if available (HealthKit + Strava), fallback to HealthKit only
+    // Use unified workouts if Strava is enabled and available (HealthKit + Strava), fallback to HealthKit only
     private var viewModel: WorkoutListViewModel { healthKitViewModel }
     private var displayWorkouts: [WorkoutModel] {
-        // Use unified workouts if loaded, otherwise fall back to HealthKit only
-        if !unifiedViewModel.unifiedWorkouts.isEmpty {
+        // Use unified workouts only if Strava feature is enabled and unified workouts are loaded
+        if remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty {
             return unifiedViewModel.unifiedWorkouts.map { $0.toWorkoutModel() }
         } else {
             return healthKitViewModel.workouts
@@ -82,8 +83,8 @@ struct WorkoutListView: View {
                     }
                 }
                 .task {
-                    // DEBUG: Load unified workouts (HealthKit + Strava)
-                    if viewModel.authorizationStatus == .authorized {
+                    // Load unified workouts (HealthKit + Strava) only if Strava feature is enabled
+                    if viewModel.authorizationStatus == .authorized && remoteConfig.isFeatureEnabled(.strava) {
                         await unifiedViewModel.loadUnifiedWorkouts()
                     }
                 }

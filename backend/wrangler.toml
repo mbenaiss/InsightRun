@@ -26,6 +26,7 @@ preview_database_id = "da736176-419e-4b2a-89fc-780216f8ade4"
 # Secrets (à configurer avec: wrangler secret put <SECRET_NAME>)
 # OPENROUTER_API_KEY - votre clé OpenRouter
 # APP_SECRET - secret pour authentifier l'app iOS
+# ADMIN_SECRET - secret pour authentifier le dashboard admin (générer avec: openssl rand -base64 32)
 # POSTHOG_API_KEY - clé API PostHog pour LLM analytics (format: phc_xxx)
 # POSTHOG_HOST - URL de votre instance PostHog (ex: https://eu.i.posthog.com ou https://us.i.posthog.com)
 #

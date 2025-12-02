@@ -12,6 +12,7 @@ import HealthKit
 struct WorkoutRowView: View {
     let workout: WorkoutModel
     @ObservedObject private var stravaAuth = StravaAuthService.shared
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
 
     private var sourceInfo: (icon: String, color: Color) {
         let sourceLower = workout.sourceName.lowercased()
@@ -41,8 +42,8 @@ struct WorkoutRowView: View {
                     .foregroundStyle(Color.irPrimaryAccent)
             }
             .overlay(alignment: .bottomTrailing) {
-                // Small source icon overlay - only show if Strava is connected
-                if stravaAuth.isAuthenticated {
+                // Small source icon overlay - only show if Strava feature is enabled and connected
+                if remoteConfig.isFeatureEnabled(.strava) && stravaAuth.isAuthenticated {
                     Image(systemName: sourceInfo.icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)

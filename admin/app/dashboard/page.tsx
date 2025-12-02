@@ -59,7 +59,8 @@ export default function DashboardOverview() {
         <div className="relative z-10">
           <h2 className="text-3xl font-bold mb-2">System Overview</h2>
           <p className="text-slate-300 max-w-xl">
-            Welcome back to the InsightRun command center. Monitor system health, manage feature flags, and configure AI models from this central dashboard.
+            Welcome back to the InsightRun command center. Monitor system health, manage feature
+            flags, and configure AI models from this central dashboard.
           </p>
           <div className="mt-6 flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-sm text-emerald-200">
@@ -85,13 +86,18 @@ export default function DashboardOverview() {
             </div>
             <div className="p-2 bg-blue-50 rounded-lg text-blue-600 group-hover:bg-blue-100 transition-colors">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
             </div>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
-            <div 
-              className="bg-blue-500 h-1.5 rounded-full transition-all duration-500" 
+            <div
+              className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
               style={{ width: `${(enabledCount / totalCount) * 100}%` }}
             ></div>
           </div>
@@ -111,7 +117,12 @@ export default function DashboardOverview() {
             </div>
             <div className="p-2 bg-amber-50 rounded-lg text-amber-600 group-hover:bg-amber-100 transition-colors">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
             </div>
           </div>
@@ -132,7 +143,12 @@ export default function DashboardOverview() {
             </div>
             <div className="p-2 bg-purple-50 rounded-lg text-purple-600 group-hover:bg-purple-100 transition-colors">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
               </svg>
             </div>
           </div>
@@ -148,22 +164,32 @@ export default function DashboardOverview() {
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
             <h3 className="font-semibold text-gray-900">System Modules</h3>
-            <Link href="/dashboard/features" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+            <Link
+              href="/dashboard/features"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
               Manage All &rarr;
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-gray-100">
             {Object.entries(features).map(([key, value]) => (
-              <div key={key} className="bg-white p-4 flex items-center justify-between group hover:bg-gray-50 transition-colors">
+              <div
+                key={key}
+                className="bg-white p-4 flex items-center justify-between group hover:bg-gray-50 transition-colors"
+              >
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${value ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                  <div
+                    className={`w-2 h-2 rounded-full ${value ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                  ></div>
                   <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
                     {key.replace(/_/g, ' ').replace('enabled', '')}
                   </span>
                 </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                  value ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
-                }`}>
+                <span
+                  className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    value ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
                   {value ? 'Active' : 'Inactive'}
                 </span>
               </div>
@@ -183,7 +209,12 @@ export default function DashboardOverview() {
             >
               <div className="mt-1 p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                  />
                 </svg>
               </div>
               <div>
@@ -198,7 +229,12 @@ export default function DashboardOverview() {
             >
               <div className="mt-1 p-2 bg-purple-50 text-purple-600 rounded-lg group-hover:bg-purple-100 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                  />
                 </svg>
               </div>
               <div>
@@ -213,7 +249,12 @@ export default function DashboardOverview() {
             >
               <div className="mt-1 p-2 bg-red-50 text-red-600 rounded-lg group-hover:bg-red-100 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                  />
                 </svg>
               </div>
               <div>

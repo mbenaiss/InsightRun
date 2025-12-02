@@ -1,6 +1,19 @@
 // Model routing and selection logic
 // Maps semantic request types to specific AI models
 
+// === CACHE CONFIGURATION ===
+const KV_CACHE_TTL = 60 // Edge cache TTL in seconds
+const MEMORY_CACHE_TTL_MS = 30_000 // In-memory cache TTL (30 seconds)
+
+// Module-level cache (persists within Worker isolate lifetime)
+interface ModelConfigCache {
+  mapping: Record<string, string>
+  allModels: Record<string, ModelConfig>
+  expiresAt: number
+}
+
+let configCache: ModelConfigCache | null = null
+
 /**
  * Request types that describe the semantic intent
  * iOS sends these instead of specific model names
@@ -119,11 +132,78 @@ const KV_CUSTOM_MODELS_KEY = 'admin:config:custom_models'
 const DEFAULT_MODELS = MODELS
 
 /**
- * Get custom models from KV
+ * Invalidate the in-memory cache (call after any config update)
+ */
+function invalidateCache(): void {
+  configCache = null
+}
+
+/**
+ * Get model configuration with multi-level caching
+ * - Level 1: In-memory cache (same isolate, 30s TTL) → ~0ms
+ * - Level 2: KV edge cache (60s TTL) → ~1-2ms
+ * - Level 3: KV origin → ~3-10ms
+ *
+ * This replaces separate getModelMapping() + getAllModels() calls
+ * to avoid duplicate KV reads.
+ */
+async function getModelConfigCached(kv: KVNamespace): Promise<{
+  mapping: Record<string, string>
+  allModels: Record<string, ModelConfig>
+}> {
+  // Level 1: Check in-memory cache
+  if (configCache && Date.now() < configCache.expiresAt) {
+    return { mapping: configCache.mapping, allModels: configCache.allModels }
+  }
+
+  // Level 2 & 3: KV with edge caching (parallel reads - only 2 KV calls)
+  const [mappingJson, customModelsJson] = await Promise.all([
+    kv.get(KV_MODEL_CONFIG_KEY, { cacheTtl: KV_CACHE_TTL }),
+    kv.get(KV_CUSTOM_MODELS_KEY, { cacheTtl: KV_CACHE_TTL }),
+  ])
+
+  // Parse mapping with defaults
+  const mapping: Record<string, string> = { ...(DEFAULT_MODEL_MAPPING as Record<string, string>) }
+  if (mappingJson) {
+    try {
+      const config = JSON.parse(mappingJson) as Record<string, string>
+      for (const [requestType, modelKey] of Object.entries(config)) {
+        if (Object.values(RequestType).includes(requestType as RequestType)) {
+          mapping[requestType] = modelKey
+        }
+      }
+    } catch {
+      console.warn('⚠️ ModelRouter: Failed to parse model mapping')
+    }
+  }
+
+  // Parse custom models and merge with defaults
+  let allModels: Record<string, ModelConfig> = { ...DEFAULT_MODELS }
+  if (customModelsJson) {
+    try {
+      const customModels = JSON.parse(customModelsJson) as Record<string, ModelConfig>
+      allModels = { ...DEFAULT_MODELS, ...customModels }
+    } catch {
+      console.warn('⚠️ ModelRouter: Failed to parse custom models')
+    }
+  }
+
+  // Update in-memory cache
+  configCache = {
+    mapping,
+    allModels,
+    expiresAt: Date.now() + MEMORY_CACHE_TTL_MS,
+  }
+
+  return { mapping, allModels }
+}
+
+/**
+ * Get custom models from KV (uncached - for admin operations)
  */
 async function getCustomModels(kv: KVNamespace): Promise<Record<string, ModelConfig>> {
   try {
-    const json = await kv.get(KV_CUSTOM_MODELS_KEY)
+    const json = await kv.get(KV_CUSTOM_MODELS_KEY, { cacheTtl: KV_CACHE_TTL })
     if (json) {
       return JSON.parse(json) as Record<string, ModelConfig>
     }
@@ -141,6 +221,7 @@ async function setCustomModels(
   models: Record<string, ModelConfig>
 ): Promise<void> {
   await kv.put(KV_CUSTOM_MODELS_KEY, JSON.stringify(models))
+  invalidateCache()
   console.log('✅ ModelRouter: Updated custom models in KV')
 }
 
@@ -148,8 +229,8 @@ async function setCustomModels(
  * Get all models (default + custom merged)
  */
 export async function getAllModels(kv: KVNamespace): Promise<Record<string, ModelConfig>> {
-  const customModels = await getCustomModels(kv)
-  return { ...DEFAULT_MODELS, ...customModels }
+  const { allModels } = await getModelConfigCached(kv)
+  return allModels
 }
 
 /**
@@ -187,31 +268,11 @@ export async function deleteModel(kv: KVNamespace, key: string): Promise<boolean
 
 /**
  * Get model mapping from KV store or use defaults
+ * Now uses the cached version for performance
  */
 export async function getModelMapping(kv: KVNamespace): Promise<Record<RequestType, string>> {
-  try {
-    const [configJson, allModels] = await Promise.all([
-      kv.get(KV_MODEL_CONFIG_KEY),
-      getAllModels(kv),
-    ])
-    if (configJson) {
-      const config = JSON.parse(configJson) as Record<string, string>
-      const mapping: Record<string, string> = { ...DEFAULT_MODEL_MAPPING }
-      for (const [requestType, modelKey] of Object.entries(config)) {
-        if (
-          Object.values(RequestType).includes(requestType as RequestType) &&
-          modelKey in allModels
-        ) {
-          mapping[requestType as RequestType] = modelKey
-        }
-      }
-      console.log('📊 ModelRouter: Using KV config')
-      return mapping as Record<RequestType, string>
-    }
-  } catch (error) {
-    console.warn('⚠️ ModelRouter: Failed to read KV config, using defaults', error)
-  }
-  return DEFAULT_MODEL_MAPPING as Record<RequestType, string>
+  const { mapping } = await getModelConfigCached(kv)
+  return mapping as Record<RequestType, string>
 }
 
 /**
@@ -222,6 +283,7 @@ export async function setModelMapping(
   mapping: Record<string, string>
 ): Promise<void> {
   await kv.put(KV_MODEL_CONFIG_KEY, JSON.stringify(mapping))
+  invalidateCache()
   console.log('✅ ModelRouter: Updated model config in KV')
 }
 
@@ -292,7 +354,8 @@ export async function checkPremiumModelQuota(
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
   const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
 
-  const value = await kv.get(quotaKey)
+  // Short cache TTL for quota (10s) - balances freshness vs performance
+  const value = await kv.get(quotaKey, { cacheTtl: 10 })
   const used = value ? Number.parseInt(value, 10) : 0
   const remaining = Math.max(0, PREMIUM_MODEL_QUOTA_CONFIG.maxRequestsPerMonth - used)
 
@@ -349,7 +412,8 @@ export async function selectModel(
   kv: KVNamespace,
   userId?: string
 ): Promise<{ model: ModelConfig; premiumQuotaStatus?: PremiumModelQuotaStatus }> {
-  const [modelMapping, allModels] = await Promise.all([getModelMapping(kv), getAllModels(kv)])
+  // Single cached call instead of separate getModelMapping + getAllModels (was reading KV 3x, now 2x max)
+  const { mapping: modelMapping, allModels } = await getModelConfigCached(kv)
 
   let premiumQuotaStatus: PremiumModelQuotaStatus | undefined
   let hasPremiumQuota = false
@@ -433,9 +497,10 @@ export async function getCurrentModelConfig(kv: KVNamespace): Promise<{
   defaults: Record<string, string>
   defaultModels: Record<string, ModelConfig>
 }> {
-  const [mapping, allModels] = await Promise.all([getModelMapping(kv), getAllModels(kv)])
+  // Single cached call
+  const { mapping, allModels } = await getModelConfigCached(kv)
   return {
-    mapping: mapping as Record<string, string>,
+    mapping,
     models: allModels,
     defaults: DEFAULT_MODEL_MAPPING as Record<string, string>,
     defaultModels: DEFAULT_MODELS,

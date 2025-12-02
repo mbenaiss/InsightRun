@@ -19,6 +19,7 @@ struct WorkoutDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
 
     init(workout: WorkoutModel) {
         self.workout = workout
@@ -74,8 +75,8 @@ struct WorkoutDetailView: View {
                             // Header with date and location
                             headerSection(metrics: metrics)
 
-                            // View on Strava link (if activity comes from Strava)
-                            if let stravaId = stravaActivityId {
+                            // View on Strava link (if activity comes from Strava and Strava is enabled)
+                            if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
                                 ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
                                     .padding(.horizontal)
                             }

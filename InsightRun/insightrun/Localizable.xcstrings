@@ -8472,6 +8472,9 @@
         }
       }
     },
+    "Your account has been blocked. Please contact support." : {
+      "comment" : "Error message for blocked users\nWorkout generation error"
+    },
     "Your AI Coach is ready! 🎉\nStart asking questions about your training." : {
       "comment" : "Completion message for initial indexation",
       "extractionState" : "manual",

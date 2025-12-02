@@ -356,6 +356,7 @@ class HealthKitManager: ObservableObject {
         async let advancedMetrics = safeAdvancedRunningMetrics(for: workout)
         async let mobilityMetrics = fetchMobilityMetrics(for: workout)
         async let weatherData = extractWeatherData(from: workout)
+        async let intervalsData = fetchWorkoutIntervals(for: workout)
 
         // Await all results (none will throw now)
         let steps = await stepCountData
@@ -371,6 +372,7 @@ class HealthKitManager: ObservableObject {
         let route = await routeData
         let vo2Max = await vo2MaxData
         let advanced = await advancedMetrics
+        let intervals = await intervalsData
 
         // Calculate cadence from steps
         let cadence = calculateCadence(steps: steps, duration: workout.duration)
@@ -408,6 +410,7 @@ class HealthKitManager: ObservableObject {
             totalElevationAscent: finalElevation.ascent,
             totalElevationDescent: finalElevation.descent,
             splits: splits,
+            intervals: intervals,
             routePoints: route,
             groundContactTime: advanced.groundContactTime,
             groundContactTimeBalance: advanced.groundContactTimeBalance,
@@ -595,6 +598,341 @@ class HealthKitManager: ObservableObject {
             print("⚠️ Splits calculation failed: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    // MARK: - Workout Intervals (Activities)
+    // iOS 16+ stores structured workout intervals in workout.workoutActivities
+    // Each HKWorkoutActivity has metadata with the interval type (warmup, work, recovery, etc.)
+
+    private func fetchWorkoutIntervals(for workout: HKWorkout) async -> [WorkoutInterval]? {
+        // iOS 16+ uses workoutActivities for structured intervals
+        let activities = workout.workoutActivities
+
+        print("📊 Workout activities count: \(activities.count)")
+
+        guard !activities.isEmpty else {
+            print("ℹ️ No workout activities (intervals) found")
+            return nil
+        }
+
+        var intervals: [WorkoutInterval] = []
+
+        for (index, activity) in activities.enumerated() {
+            let startDate = activity.startDate
+            let endDate = activity.endDate ?? workout.endDate
+            let duration = activity.duration
+
+            // Get interval type from metadata
+            let intervalType = determineIntervalTypeFromActivity(activity, index: index, totalActivities: activities.count)
+
+            // Debug log
+            print("📋 Activity \(index): type=\(intervalType.rawValue), start=\(startDate), duration=\(duration)s (\(duration/60.0)min), metadata=\(String(describing: activity.metadata))")
+
+            // Get statistics for this activity
+            let heartRateStat = activity.statistics(for: HKQuantityType(.heartRate))
+            let averageHeartRate = heartRateStat?.averageQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+
+            let distanceStat = activity.statistics(for: HKQuantityType(.distanceWalkingRunning))
+            let distance = distanceStat?.sumQuantity()?.doubleValue(for: .meter())
+
+            let powerStat = activity.statistics(for: HKQuantityType(.runningPower))
+            let averagePower = powerStat?.averageQuantity()?.doubleValue(for: .watt())
+
+            // Calculate pace if we have distance
+            var pace: Double?
+            if let dist = distance, dist > 0, duration > 0 {
+                pace = (duration / 60.0) / (dist / 1000.0) // min/km
+            }
+
+            let interval = WorkoutInterval(
+                index: index + 1,
+                type: intervalType,
+                startDate: startDate,
+                endDate: endDate,
+                duration: duration,
+                distance: distance,
+                pace: pace,
+                averageHeartRate: averageHeartRate,
+                averagePower: averagePower,
+                targetPaceMin: nil,
+                targetPaceMax: nil
+            )
+
+            intervals.append(interval)
+        }
+
+        // Classify unknown intervals as work/recovery based on pace
+        if !intervals.isEmpty {
+            classifyIntervalsBasedOnPace(&intervals)
+        }
+
+        return intervals.isEmpty ? nil : intervals
+    }
+
+    private func determineIntervalTypeFromActivity(_ activity: HKWorkoutActivity, index: Int, totalActivities: Int) -> IntervalType {
+        // Check metadata for explicit interval type
+        if let metadata = activity.metadata {
+            // Apple uses HKMetadataKeyWorkoutBrandName or custom keys for interval type
+            if let purposeRaw = metadata[HKMetadataKeyWorkoutBrandName] as? String {
+                return parseIntervalType(from: purposeRaw)
+            }
+
+            // Check for "purpose" or "type" keys
+            for (key, value) in metadata {
+                let keyLower = key.lowercased()
+                if keyLower.contains("purpose") || keyLower.contains("type") || keyLower.contains("goal") {
+                    if let stringValue = value as? String {
+                        return parseIntervalType(from: stringValue)
+                    }
+                }
+            }
+        }
+
+        // Fallback: use position-based heuristics for first/last
+        if index == 0 && totalActivities > 1 {
+            return .warmup
+        } else if index == totalActivities - 1 && totalActivities > 1 {
+            return .cooldown
+        }
+
+        return .unknown
+    }
+
+    /// Analyzes intervals to determine work vs recovery based on pace comparison
+    /// Work intervals have faster pace (lower min/km), recovery has slower pace
+    private func classifyIntervalsBasedOnPace(_ intervals: inout [WorkoutInterval]) {
+        // Skip first (warmup) and last (cooldown) intervals
+        guard intervals.count > 2 else { return }
+
+        let middleIntervals = intervals[1..<(intervals.count - 1)]
+
+        // Get paces of middle intervals (excluding warmup/cooldown)
+        let paces = middleIntervals.compactMap { $0.pace }
+        guard paces.count >= 2 else { return }
+
+        // Calculate median pace to separate work from recovery
+        let sortedPaces = paces.sorted()
+        let medianPace = sortedPaces[sortedPaces.count / 2]
+
+        print("🔍 Classifying intervals - median pace: \(medianPace) min/km")
+
+        // Classify each middle interval
+        for i in 1..<(intervals.count - 1) {
+            if intervals[i].type == .unknown, let pace = intervals[i].pace {
+                // Faster than median = work, slower = recovery
+                if pace < medianPace {
+                    intervals[i] = WorkoutInterval(
+                        index: intervals[i].index,
+                        type: .work,
+                        startDate: intervals[i].startDate,
+                        endDate: intervals[i].endDate,
+                        duration: intervals[i].duration,
+                        distance: intervals[i].distance,
+                        pace: intervals[i].pace,
+                        averageHeartRate: intervals[i].averageHeartRate,
+                        averagePower: intervals[i].averagePower,
+                        targetPaceMin: intervals[i].targetPaceMin,
+                        targetPaceMax: intervals[i].targetPaceMax
+                    )
+                    print("   Interval \(intervals[i].index): pace \(pace) < median \(medianPace) → WORK")
+                } else {
+                    intervals[i] = WorkoutInterval(
+                        index: intervals[i].index,
+                        type: .recovery,
+                        startDate: intervals[i].startDate,
+                        endDate: intervals[i].endDate,
+                        duration: intervals[i].duration,
+                        distance: intervals[i].distance,
+                        pace: intervals[i].pace,
+                        averageHeartRate: intervals[i].averageHeartRate,
+                        averagePower: intervals[i].averagePower,
+                        targetPaceMin: intervals[i].targetPaceMin,
+                        targetPaceMax: intervals[i].targetPaceMax
+                    )
+                    print("   Interval \(intervals[i].index): pace \(pace) >= median \(medianPace) → RECOVERY")
+                }
+            }
+        }
+    }
+
+    private func parseIntervalType(from string: String) -> IntervalType {
+        let lower = string.lowercased()
+        if lower.contains("warmup") || lower.contains("warm-up") || lower.contains("warm up") || lower.contains("échauffement") {
+            return .warmup
+        } else if lower.contains("work") || lower.contains("interval") || lower.contains("fast") || lower.contains("travail") {
+            return .work
+        } else if lower.contains("recovery") || lower.contains("rest") || lower.contains("jog") || lower.contains("récup") {
+            return .recovery
+        } else if lower.contains("cooldown") || lower.contains("cool-down") || lower.contains("cool down") || lower.contains("retour") {
+            return .cooldown
+        }
+        return .unknown
+    }
+
+    // Legacy segment-based interval detection (kept for reference)
+    private func fetchWorkoutIntervalsFromEvents(for workout: HKWorkout) async -> [WorkoutInterval]? {
+        guard let events = workout.workoutEvents, !events.isEmpty else {
+            print("ℹ️ No workout events (intervals) found")
+            return nil
+        }
+
+        // Debug: print ALL event types to understand what's available
+        let eventTypeCounts = Dictionary(grouping: events, by: { $0.type.rawValue })
+        print("📊 Workout event types breakdown:")
+        for (typeRaw, eventsOfType) in eventTypeCounts.sorted(by: { $0.key < $1.key }) {
+            let typeName: String
+            switch HKWorkoutEventType(rawValue: typeRaw) {
+            case .pause: typeName = "pause"
+            case .resume: typeName = "resume"
+            case .lap: typeName = "lap"
+            case .marker: typeName = "marker"
+            case .motionPaused: typeName = "motionPaused"
+            case .motionResumed: typeName = "motionResumed"
+            case .segment: typeName = "segment"
+            case .pauseOrResumeRequest: typeName = "pauseOrResumeRequest"
+            default: typeName = "unknown"
+            }
+            print("   - \(typeName) (type=\(typeRaw)): \(eventsOfType.count) events")
+        }
+
+        // Filter for segment/lap events
+        let segmentEvents = events.filter { event in
+            event.type == .segment || event.type == .lap
+        }
+
+        guard !segmentEvents.isEmpty else {
+            print("ℹ️ No segment/lap events found in workout events")
+            return nil
+        }
+
+        print("✅ Found \(segmentEvents.count) segment/lap events")
+
+        // Debug: print all event types to understand the data
+        for (idx, event) in events.enumerated() {
+            print("📋 Event \(idx): type=\(event.type.rawValue), start=\(event.dateInterval.start), duration=\(event.dateInterval.duration)s, metadata=\(String(describing: event.metadata))")
+        }
+
+        // Filter out overlapping segments (Garmin records km splits as overlapping segments)
+        // Real interval workouts have sequential, non-overlapping segments
+        let sortedEvents = segmentEvents.sorted { $0.dateInterval.start < $1.dateInterval.start }
+        var nonOverlappingEvents: [HKWorkoutEvent] = []
+        var lastEndDate: Date?
+
+        for event in sortedEvents {
+            let eventStart = event.dateInterval.start
+            let eventEnd = event.dateInterval.end
+
+            // Check if this event overlaps with previous events
+            if let lastEnd = lastEndDate {
+                // Allow 5 second tolerance for slight overlaps
+                if eventStart < lastEnd.addingTimeInterval(-5) {
+                    print("⚠️ Skipping overlapping segment: start=\(eventStart), lastEnd=\(lastEnd)")
+                    continue
+                }
+            }
+
+            nonOverlappingEvents.append(event)
+            lastEndDate = eventEnd
+        }
+
+        print("✅ After filtering overlaps: \(nonOverlappingEvents.count) non-overlapping segments")
+
+        // If all segments overlap (like Garmin km splits), return nil
+        // Real interval workouts should have at least 2 non-overlapping segments
+        guard nonOverlappingEvents.count >= 2 else {
+            print("ℹ️ Not enough non-overlapping segments for interval display (likely km splits)")
+            return nil
+        }
+
+        var intervals: [WorkoutInterval] = []
+        var intervalIndex = 1
+
+        for event in nonOverlappingEvents {
+            let startDate = event.dateInterval.start
+            let endDate = event.dateInterval.end
+            let duration = event.dateInterval.duration
+
+            print("🔍 Processing segment \(intervalIndex): start=\(startDate), end=\(endDate), duration=\(duration)s (\(duration/60.0)min)")
+
+            // Determine interval type from metadata
+            let intervalType = determineIntervalType(from: event.metadata, duration: duration, index: intervalIndex, totalEvents: segmentEvents.count)
+
+            // Fetch metrics for this interval
+            let heartRate = await fetchAverageHeartRate(for: workout, startDate: startDate, endDate: endDate)
+            let power = await fetchAveragePower(for: workout, startDate: startDate, endDate: endDate)
+
+            // Calculate distance and pace from metadata or route
+            var distance: Double?
+            var pace: Double?
+            let targetPaceMin: Double? = nil
+            let targetPaceMax: Double? = nil
+
+            if let metadata = event.metadata {
+                // Try to get distance from metadata
+                if let distanceQuantity = metadata[HKMetadataKeyWorkoutBrandName] as? HKQuantity {
+                    distance = distanceQuantity.doubleValue(for: .meter())
+                }
+            }
+
+            // If we have distance, calculate pace
+            if let dist = distance, dist > 0, duration > 0 {
+                pace = (duration / 60.0) / (dist / 1000.0) // min/km
+            }
+
+            let interval = WorkoutInterval(
+                index: intervalIndex,
+                type: intervalType,
+                startDate: startDate,
+                endDate: endDate,
+                duration: duration,
+                distance: distance,
+                pace: pace,
+                averageHeartRate: heartRate,
+                averagePower: power,
+                targetPaceMin: targetPaceMin,
+                targetPaceMax: targetPaceMax
+            )
+
+            intervals.append(interval)
+            intervalIndex += 1
+        }
+
+        return intervals.isEmpty ? nil : intervals
+    }
+
+    private func determineIntervalType(from metadata: [String: Any]?, duration: TimeInterval, index: Int, totalEvents: Int) -> IntervalType {
+        // Check metadata for explicit type
+        if let metadata = metadata {
+            if let typeName = metadata["type"] as? String {
+                switch typeName.lowercased() {
+                case "warmup", "warm-up", "warm up":
+                    return .warmup
+                case "work", "interval", "fast":
+                    return .work
+                case "recovery", "rest", "jog":
+                    return .recovery
+                case "cooldown", "cool-down", "cool down":
+                    return .cooldown
+                default:
+                    break
+                }
+            }
+        }
+
+        // Heuristic: first segment is often warmup, last is often cooldown
+        if index == 1 && duration > 300 { // > 5 minutes
+            return .warmup
+        }
+        if index == totalEvents && duration > 300 { // > 5 minutes
+            return .cooldown
+        }
+
+        // Alternate between work and recovery for middle segments
+        if index > 1 && index < totalEvents {
+            return (index % 2 == 0) ? .work : .recovery
+        }
+
+        return .unknown
     }
 
     // MARK: - Heart Rate

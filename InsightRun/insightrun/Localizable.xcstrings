@@ -1104,6 +1104,23 @@
         }
       }
     },
+    "By km" : {
+      "comment" : "Splits tab: by kilometer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By km"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par km"
+          }
+        }
+      }
+    },
     "Calories" : {
       "comment" : "Calories burned metric",
       "extractionState" : "manual",
@@ -1529,7 +1546,32 @@
       }
     },
     "Cool-down" : {
-      "comment" : "Workout step type: cool-down"
+      "comment" : "Workout step type: cool-down",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retour au calme"
+          }
+        }
+      }
+    },
+    "Cooldown" : {
+      "comment" : "Interval type: cooldown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cooldown"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retour au calme"
+          }
+        }
+      }
     },
     "Cross-training (7 days)" : {
       "comment" : "Section header for cross-training activities over 7 days",
@@ -2866,7 +2908,38 @@
       }
     },
     "Interval" : {
-      "comment" : "Workout step type: interval"
+      "comment" : "Interval type: unknown\nWorkout step type: interval",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interval"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalle"
+          }
+        }
+      }
+    },
+    "Intervals" : {
+      "comment" : "Splits tab: by interval",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervals"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalles"
+          }
+        }
+      }
     },
     "Invalid response from server" : {
       "comment" : "Error message for invalid server responses",
@@ -5004,9 +5077,15 @@
       }
     },
     "Recovery" : {
-      "comment" : "Navigation title for recovery dashboard",
+      "comment" : "Navigation title for recovery dashboard / Interval type: recovery",
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
@@ -7816,7 +7895,32 @@
       }
     },
     "Warm-up" : {
-      "comment" : "Workout step type: warm-up"
+      "comment" : "Workout step type: warm-up",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échauffement"
+          }
+        }
+      }
+    },
+    "Warmup" : {
+      "comment" : "Interval type: warmup",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warmup"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échauffement"
+          }
+        }
+      }
     },
     "We're analyzing your training history to provide personalized insights. This will only happen once." : {
       "comment" : "Description for initial indexation",
@@ -7992,7 +8096,21 @@
       }
     },
     "Work" : {
-      "comment" : "Workout step type: work interval"
+      "comment" : "Interval type: work\nWorkout step type: work interval",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travail"
+          }
+        }
+      }
     },
     "Workout analysis" : {
       "comment" : "Mode description for single workout analysis",

@@ -118,16 +118,12 @@ struct WorkoutDetailView: View {
                                 }
                             }
 
-                            // Splits section (with accordion)
+                            // Splits section (with accordion and tabs for km/intervals)
                             if let splits = metrics.splits, !splits.isEmpty {
-                                AccordionSection(
-                                    title: String(localized: "Splits", comment: "Splits section title"),
-                                    icon: "list.number",
-                                    iconColor: .blue,
-                                    isExpanded: false
-                                ) {
-                                    splitsContent(splits: splits)
-                                }
+                                TabbedSplitsSection(
+                                    splits: splits,
+                                    intervals: metrics.intervals
+                                )
                             }
 
                             sourceSection
@@ -395,53 +391,6 @@ struct WorkoutDetailView: View {
                     metricInfoKey: "metric.vo2_max",
                     currentValue: vo2Max
                 )
-            }
-        }
-    }
-
-    private func splitsContent(splits: [Split]) -> some View {
-        VStack(spacing: 12) {
-            // Best/Worst splits summary
-            if let best = splits.min(by: { $0.pace < $1.pace }),
-               let worst = splits.max(by: { $0.pace < $1.pace }) {
-                HStack(spacing: 20) {
-                    VStack(spacing: 4) {
-                        Text(String(localized: "Best", comment: "Best split label"))
-                            .font(.caption)
-                            .foregroundStyle(Color.irTextSecondary)
-                        Text(best.paceFormatted)
-                            .font(.headline)
-                            .foregroundStyle(Color.irSuccess)
-                        Text("km \(best.kilometer)")
-                            .font(.caption2)
-                            .foregroundStyle(Color.irTextSecondary)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    Divider()
-                        .frame(height: 50)
-
-                    VStack(spacing: 4) {
-                        Text(String(localized: "Slowest", comment: "Slowest split label"))
-                            .font(.caption)
-                            .foregroundStyle(Color.irTextSecondary)
-                        Text(worst.paceFormatted)
-                            .font(.headline)
-                            .foregroundStyle(Color.irWarning)
-                        Text("km \(worst.kilometer)")
-                            .font(.caption2)
-                            .foregroundStyle(Color.irTextSecondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.bottom, 8)
-
-                Divider()
-            }
-
-            // All splits
-            ForEach(splits) { split in
-                SplitRow(split: split)
             }
         }
     }
@@ -1975,6 +1924,288 @@ struct LocationText: View {
                 await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
             }
         }
+    }
+}
+
+// MARK: - Tabbed Splits Section (km vs intervals)
+
+enum SplitsTabSelection: String, CaseIterable {
+    case byKm = "km"
+    case byInterval = "intervals"
+
+    var localizedTitle: String {
+        switch self {
+        case .byKm:
+            return String(localized: "By km", comment: "Splits tab: by kilometer")
+        case .byInterval:
+            return String(localized: "Intervals", comment: "Splits tab: by interval")
+        }
+    }
+}
+
+struct TabbedSplitsSection: View {
+    let splits: [Split]
+    let intervals: [WorkoutInterval]?
+    @State private var isExpanded = false
+    @State private var selectedTab: SplitsTabSelection = .byKm
+
+    private var hasIntervals: Bool {
+        guard let intervals = intervals else { return false }
+        return !intervals.isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header - always visible
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "list.number")
+                        .foregroundStyle(Color.blue.gradient)
+                        .font(.title3)
+
+                    Text(String(localized: "Splits", comment: "Splits section title"))
+                        .font(.headline)
+                        .foregroundStyle(Color.irTextPrimary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding()
+                .background(Color.irCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 20))
+            }
+            .buttonStyle(.plain)
+
+            // Content - collapsible
+            if isExpanded {
+                VStack(spacing: 12) {
+                    // Show tabs only if intervals exist
+                    if hasIntervals {
+                        Picker("", selection: $selectedTab) {
+                            ForEach(SplitsTabSelection.allCases, id: \.self) { tab in
+                                Text(tab.localizedTitle).tag(tab)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    // Content based on selected tab
+                    switch selectedTab {
+                    case .byKm:
+                        SplitsByKmContent(splits: splits)
+                    case .byInterval:
+                        if let intervals = intervals {
+                            IntervalsSplitsContent(intervals: intervals)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.irCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(.top, 4)
+            }
+        }
+    }
+}
+
+// MARK: - Splits by Km Content
+
+struct SplitsByKmContent: View {
+    let splits: [Split]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // Best/Worst splits summary
+            if let best = splits.min(by: { $0.pace < $1.pace }),
+               let worst = splits.max(by: { $0.pace < $1.pace }) {
+                HStack(spacing: 20) {
+                    VStack(spacing: 4) {
+                        Text(String(localized: "Best", comment: "Best split label"))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(best.paceFormatted)
+                            .font(.headline)
+                            .foregroundStyle(Color.irSuccess)
+                        Text("km \(best.kilometer)")
+                            .font(.caption2)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Divider()
+                        .frame(height: 50)
+
+                    VStack(spacing: 4) {
+                        Text(String(localized: "Slowest", comment: "Slowest split label"))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(worst.paceFormatted)
+                            .font(.headline)
+                            .foregroundStyle(Color.irWarning)
+                        Text("km \(worst.kilometer)")
+                            .font(.caption2)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.bottom, 8)
+
+                Divider()
+            }
+
+            // All splits
+            ForEach(splits) { split in
+                SplitRow(split: split)
+            }
+        }
+    }
+}
+
+// MARK: - Intervals Splits Content
+
+struct IntervalsSplitsContent: View {
+    let intervals: [WorkoutInterval]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(intervals) { interval in
+                IntervalRow(interval: interval)
+            }
+        }
+    }
+}
+
+// MARK: - Interval Row Component
+
+struct IntervalRow: View {
+    let interval: WorkoutInterval
+
+    private var intervalColor: Color {
+        switch interval.type {
+        case .warmup:
+            return .yellow
+        case .work:
+            return .orange
+        case .recovery:
+            return .green
+        case .cooldown:
+            return .blue
+        case .unknown:
+            return .gray
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Header with type and duration
+            HStack {
+                // Type indicator with colored bar
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(intervalColor.gradient)
+                        .frame(width: 4, height: 40)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Image(systemName: interval.type.icon)
+                                .font(.caption)
+                                .foregroundStyle(intervalColor)
+
+                            Text(interval.type.localizedName)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.irTextPrimary)
+                        }
+
+                        // Target pace range if available
+                        if let targetPace = interval.targetPaceRangeFormatted {
+                            HStack(spacing: 4) {
+                                Image(systemName: "target")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                                Text(targetPace)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Duration
+                Text(interval.durationCompactFormatted)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(intervalColor)
+            }
+
+            // Metrics row
+            HStack(spacing: 16) {
+                // Actual pace
+                if let paceFormatted = interval.paceFormatted {
+                    HStack(spacing: 4) {
+                        Image(systemName: "speedometer")
+                            .font(.caption2)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(paceFormatted)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.irTextPrimary)
+                    }
+                }
+
+                // Heart rate
+                if let hr = interval.averageHeartRate {
+                    HStack(spacing: 4) {
+                        Image(systemName: "heart.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                        Text(String(format: "%.0f bpm", hr))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                }
+
+                // Distance
+                if let distanceFormatted = interval.distanceFormatted {
+                    HStack(spacing: 4) {
+                        Image(systemName: "ruler")
+                            .font(.caption2)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(distanceFormatted)
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                }
+
+                // Power
+                if let power = interval.averagePower {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                        Text(String(format: "%.0f W", power))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(intervalColor.opacity(0.08))
+        )
     }
 }
 

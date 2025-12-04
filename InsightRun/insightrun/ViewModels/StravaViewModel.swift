@@ -44,21 +44,26 @@ class StravaViewModel: ObservableObject {
         do {
             // STEP 1: Try to load from LOCAL iOS cache first (INSTANT)
             print("💾 Loading Strava activities from LOCAL iOS cache...")
-            let cachedActivities = try cache.fetchAllActivities()
+            do {
+                let cachedActivities = try cache.fetchAllActivities()
 
-            if !cachedActivities.isEmpty {
-                activities = cachedActivities
-                print("⚡ Loaded \(activities.count) activities from iOS cache (instant)")
-                isLoading = false
+                if !cachedActivities.isEmpty {
+                    activities = cachedActivities
+                    print("⚡ Loaded \(activities.count) activities from iOS cache (instant)")
+                    isLoading = false
 
-                // STEP 2: Sync from backend in background (non-blocking)
-                Task {
-                    await syncFromBackend()
+                    // STEP 2: Sync from backend in background (non-blocking)
+                    Task {
+                        await syncFromBackend()
+                    }
+                    return
                 }
-                return
-            }
 
-            print("📭 No iOS cache found, loading from backend...")
+                print("📭 No iOS cache found, loading from backend...")
+            } catch {
+                // Cache failed (e.g., corrupted database) - continue to backend loading
+                print("⚠️ iOS cache failed: \(error.localizedDescription), loading from backend...")
+            }
 
             // STEP 3: No cache - load from backend D1
             let userId = UserIdentityService.shared.userID
@@ -68,11 +73,15 @@ class StravaViewModel: ObservableObject {
                 offset: 0
             )
 
-            // Convert and save to iOS cache
+            // Convert and save to iOS cache (cache save is non-blocking)
             activities = response.activities.map { $0.toStravaActivity() }
-            try cache.saveActivities(activities)
-
-            print("✅ Loaded \(activities.count) activities from backend and cached")
+            do {
+                try cache.saveActivities(activities)
+                print("✅ Loaded \(activities.count) activities from backend and cached")
+            } catch {
+                print("⚠️ Cache save failed (will work without cache): \(error.localizedDescription)")
+                print("✅ Loaded \(activities.count) activities from backend (cache unavailable)")
+            }
             print("📊 Total Strava activities: \(response.total)")
         } catch {
             errorMessage = "Failed to load activities: \(error.localizedDescription)"
@@ -99,11 +108,11 @@ class StravaViewModel: ObservableObject {
             // Check if data changed
             if newActivities.count != activities.count {
                 activities = newActivities
-                try cache.saveActivities(activities)
+                try? cache.saveActivities(activities)
                 print("✅ Background sync: \(activities.count) activities (updated)")
             } else {
                 // Just refresh cache timestamps
-                try cache.saveActivities(newActivities)
+                try? cache.saveActivities(newActivities)
                 print("✅ Background sync: no changes")
             }
         } catch {

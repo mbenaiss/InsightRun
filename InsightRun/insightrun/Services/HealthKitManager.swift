@@ -103,6 +103,9 @@ class HealthKitManager: ObservableObject {
         do {
             try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
 
+            // Mark that user has completed the authorization flow
+            hasCompletedHealthKitSetup = true
+
             // Track permission granted (user allowed access)
             AnalyticsService.shared.trackHealthKitPermissionGranted()
         } catch {
@@ -112,15 +115,38 @@ class HealthKitManager: ObservableObject {
         }
     }
 
-    /// Check if we can access HealthKit data by attempting a simple query
-    /// This is more reliable than checking authorizationStatus for read permissions
+    /// Check if we can access HealthKit data
+    /// Returns true only if user has completed the authorization flow
     func checkDataAccess() async -> Bool {
+        // If already marked as setup, verify we can query
+        if hasCompletedHealthKitSetup {
+            do {
+                _ = try await fetchRunningWorkouts()
+                return true
+            } catch {
+                return false
+            }
+        }
+
+        // Migration: Check if existing user has workout data (means they authorized before)
         do {
-            _ = try await fetchRunningWorkouts()
-            return true
+            let workouts = try await fetchRunningWorkouts()
+            if !workouts.isEmpty {
+                // User has workout data, so they authorized before - set the flag
+                hasCompletedHealthKitSetup = true
+                return true
+            }
+            // No workouts and no flag = new user who hasn't authorized
+            return false
         } catch {
             return false
         }
+    }
+
+    /// Track if user has completed HealthKit authorization flow
+    var hasCompletedHealthKitSetup: Bool {
+        get { UserDefaults.standard.bool(forKey: "hasCompletedHealthKitSetup") }
+        set { UserDefaults.standard.set(newValue, forKey: "hasCompletedHealthKitSetup") }
     }
 
     // MARK: - Fetch Running Workouts

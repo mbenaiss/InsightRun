@@ -1001,6 +1001,9 @@
         }
       }
     },
+    "Avg HR" : {
+      "comment" : "Average heart rate metric"
+    },
     "Avg Pace" : {
       "comment" : "Average pace metric",
       "extractionState" : "manual",
@@ -1250,13 +1253,46 @@
         }
       }
     },
+    "Connect at least one data source to see your running workouts." : {
+      "comment" : "Data source connection description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez au moins une source de données pour voir vos entraînements."
+          }
+        }
+      }
+    },
+    "Connect HealthKit" : {
+      "comment" : "HealthKit permission button",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecter HealthKit"
+          }
+        }
+      }
+    },
     "Connect Strava" : {
-      "comment" : "Strava onboarding title",
+      "comment" : "Strava connection button\nStrava onboarding title",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connecter Strava"
+          }
+        }
+      }
+    },
+    "Connect Your Data" : {
+      "comment" : "Data source connection title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez vos données"
           }
         }
       }
@@ -1928,6 +1964,17 @@
         }
       }
     },
+    "Elevation" : {
+      "comment" : "Elevation chart title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé"
+          }
+        }
+      }
+    },
     "Elite" : {
       "comment" : "Pace range: Elite\nSpeed range: Elite\nEfficiency range: Elite",
       "extractionState" : "manual",
@@ -2285,6 +2332,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Le service FoundationModels n'est pas disponible"
+          }
+        }
+      }
+    },
+    "gain" : {
+      "comment" : "Elevation gain label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gain"
           }
         }
       }
@@ -3161,6 +3219,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Course la plus longue"
+          }
+        }
+      }
+    },
+    "loss" : {
+      "comment" : "Elevation loss label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "perte"
           }
         }
       }
@@ -4616,6 +4685,17 @@
         }
       }
     },
+    "No elevation data available" : {
+      "comment" : "Empty elevation chart message",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée de dénivelé disponible"
+          }
+        }
+      }
+    },
     "No heart rate data available" : {
       "comment" : "Empty HR chart message",
       "extractionState" : "manual",
@@ -5360,6 +5440,9 @@
           }
         }
       }
+    },
+    "Review & Accept" : {
+      "comment" : "Consent review button"
     },
     "Route" : {
       "comment" : "Route map section title",

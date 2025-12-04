@@ -49,6 +49,7 @@ struct UnifiedWorkout: Identifiable {
 
     // Performance metrics (prefer Strava if available, fallback to HealthKit)
     let averageSpeed: Double? // m/s
+    let maxSpeed: Double? // m/s (from Strava)
     let averagePace: Double? // min/km
     let averageHeartRate: Double? // bpm
     let maxHeartRate: Double? // bpm
@@ -154,6 +155,7 @@ struct UnifiedWorkout: Identifiable {
         self.distance = healthKitWorkout.distance
         self.totalEnergyBurned = healthKitWorkout.totalEnergyBurned
         self.averageSpeed = healthKitWorkout.averageSpeed
+        self.maxSpeed = nil // HealthKit doesn't provide max speed directly
         self.averagePace = healthKitWorkout.averagePace
         self.averageHeartRate = healthKitWorkout.averageHeartRate
         self.maxHeartRate = healthKitWorkout.maxHeartRate
@@ -178,6 +180,7 @@ struct UnifiedWorkout: Identifiable {
         self.distance = stravaActivity.distance
         self.totalEnergyBurned = stravaActivity.calories
         self.averageSpeed = stravaActivity.averageSpeed
+        self.maxSpeed = stravaActivity.maxSpeed
         self.averagePace = stravaActivity.averagePace
         self.averageHeartRate = stravaActivity.averageHeartrate
         self.maxHeartRate = stravaActivity.maxHeartrate
@@ -212,6 +215,7 @@ struct UnifiedWorkout: Identifiable {
 
         // Speed: Prefer Strava (GPS-based)
         self.averageSpeed = stravaActivity.averageSpeed ?? healthKitWorkout.averageSpeed
+        self.maxSpeed = stravaActivity.maxSpeed // Only available from Strava
 
         // Pace: Recalculate from best speed
         if let speed = self.averageSpeed, speed > 0 {
@@ -304,7 +308,18 @@ extension UnifiedWorkout {
             // Create a stable UUID from Strava ID using namespace UUID
             let stableUUID = UUID(uuidString: id) ?? Self.stableUUID(from: stravaActivity.id)
 
-            // Create a WorkoutModel from Strava activity
+            // Create a WorkoutModel from Strava activity with all available metrics
+            var metadata: [String: Any] = [
+                "strava_id": String(stravaActivity.id),
+                "strava_name": stravaActivity.name
+            ]
+            if let maxSpeed = maxSpeed {
+                metadata["max_speed"] = maxSpeed
+            }
+            if let avgSpeed = averageSpeed {
+                metadata["average_speed"] = avgSpeed
+            }
+
             return WorkoutModel(
                 id: stableUUID,
                 workoutType: .running,
@@ -315,7 +330,7 @@ extension UnifiedWorkout {
                 totalEnergyBurned: totalEnergyBurned,
                 sourceName: "Strava",
                 sourceVersion: "API",
-                metadata: ["strava_id": String(stravaActivity.id)],
+                metadata: metadata,
                 averageHeartRate: averageHeartRate,
                 maxHeartRate: maxHeartRate,
                 elevationGain: totalElevationGain,

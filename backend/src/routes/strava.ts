@@ -517,7 +517,11 @@ app.get('/activities/:id', async (c: StravaContext) => {
 
     const cachedActivity = await cache.getActivity(userId, activityId)
 
-    if (cachedActivity) {
+    // Check if cached activity has detailed data (splits_metric)
+    // If not, we need to fetch from Strava API to get full details
+    const hasDetailedData = cachedActivity?.data && 'splits_metric' in cachedActivity.data
+
+    if (cachedActivity && hasDetailedData) {
       const responseTime = Date.now() - startTime
       await cache.trackApiCall(userId, `activity/${activityId}`, true, responseTime)
 

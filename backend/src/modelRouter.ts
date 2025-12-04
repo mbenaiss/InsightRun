@@ -354,8 +354,8 @@ export async function checkPremiumModelQuota(
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
   const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
 
-  // Short cache TTL for quota (10s) - balances freshness vs performance
-  const value = await kv.get(quotaKey, { cacheTtl: 10 })
+  // Short cache TTL for quota (30s minimum for Cloudflare KV)
+  const value = await kv.get(quotaKey, { cacheTtl: 30 })
   const used = value ? Number.parseInt(value, 10) : 0
   const remaining = Math.max(0, PREMIUM_MODEL_QUOTA_CONFIG.maxRequestsPerMonth - used)
 

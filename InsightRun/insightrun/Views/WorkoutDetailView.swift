@@ -19,6 +19,7 @@ struct WorkoutDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
 
     init(workout: WorkoutModel) {
         self.workout = workout
@@ -74,8 +75,8 @@ struct WorkoutDetailView: View {
                             // Header with date and location
                             headerSection(metrics: metrics)
 
-                            // View on Strava link (if activity comes from Strava)
-                            if let stravaId = stravaActivityId {
+                            // View on Strava link (if activity comes from Strava and Strava is enabled)
+                            if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
                                 ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
                                     .padding(.horizontal)
                             }
@@ -266,12 +267,12 @@ struct WorkoutDetailView: View {
                 )
             }
 
-            if let calories = workout.totalEnergyBurned {
+            if let avgHR = metrics.averageHeartRate {
                 CompactMetricCard(
-                    icon: "flame.fill",
-                    label: String(localized: "Calories", comment: "Calories burned metric"),
-                    value: String(format: "%.0f", calories),
-                    color: .orange
+                    icon: "heart.fill",
+                    label: String(localized: "Avg HR", comment: "Average heart rate metric"),
+                    value: viewModel.formatHeartRate(avgHR),
+                    color: .red
                 )
             }
         }
@@ -514,6 +515,7 @@ struct WorkoutDetailView: View {
     // MARK: - AI Analysis Section
 
     @State private var showSubscriptionPaywall = false
+    @State private var showConsentSheet = false
 
     private var aiAnalysisSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -591,29 +593,57 @@ struct WorkoutDetailView: View {
                 .padding(.vertical, 20)
 
             } else if let error = analysisViewModel.error {
-                // Error state
+                // Error state - check if it's a consent error
+                let isConsentError = error.lowercased().contains("consent")
+
                 VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
+                    Image(systemName: isConsentError ? "hand.raised.fill" : "exclamationmark.triangle")
                         .font(.title2)
-                        .foregroundStyle(Color.irWarning)
+                        .foregroundStyle(isConsentError ? Color.irPrimaryAccent : Color.irWarning)
 
                     Text(error)
                         .font(.subheadline)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
-                    Button {
-                        Task {
-                            await analysisViewModel.generateAnalysis()
+                    if isConsentError {
+                        // Show consent button
+                        Button {
+                            showConsentSheet = true
+                        } label: {
+                            Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
+                                .font(.subheadline)
                         }
-                    } label: {
-                        Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
-                            .font(.subheadline)
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        // Show retry button
+                        Button {
+                            Task {
+                                await analysisViewModel.generateAnalysis()
+                            }
+                        } label: {
+                            Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
+                .sheet(isPresented: $showConsentSheet) {
+                    AIConsentSheet(
+                        onConsent: {
+                            showConsentSheet = false
+                            // Retry analysis after consent
+                            Task {
+                                await analysisViewModel.generateAnalysis()
+                            }
+                        },
+                        onDecline: {
+                            showConsentSheet = false
+                        }
+                    )
+                }
 
             } else if let analysis = analysisViewModel.analysisText {
                 // Analysis available
@@ -1191,6 +1221,18 @@ struct SwipeableChartsView: View {
     let metrics: WorkoutMetrics
     @State private var selectedPage = 0
 
+    private var hasElevationData: Bool {
+        guard let splits = metrics.splits else { return false }
+        return splits.contains { $0.elevationGain != nil || $0.elevationLoss != nil }
+    }
+
+    private var chartCount: Int {
+        var count = 2 // HR + Pace always
+        if metrics.runningPower != nil { count += 1 }
+        if hasElevationData { count += 1 }
+        return count
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             TabView(selection: $selectedPage) {
@@ -1202,10 +1244,16 @@ struct SwipeableChartsView: View {
                 InteractivePaceChart(metrics: metrics)
                     .tag(1)
 
+                // Elevation Chart (if available)
+                if hasElevationData {
+                    InteractiveElevationChart(metrics: metrics)
+                        .tag(2)
+                }
+
                 // Power Chart (if available)
                 if metrics.runningPower != nil {
                     InteractivePowerChart(metrics: metrics)
-                        .tag(2)
+                        .tag(hasElevationData ? 3 : 2)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -1214,7 +1262,7 @@ struct SwipeableChartsView: View {
 
             // Custom page indicator dots
             HStack(spacing: 8) {
-                ForEach(0..<(metrics.runningPower != nil ? 3 : 2), id: \.self) { index in
+                ForEach(0..<chartCount, id: \.self) { index in
                     Circle()
                         .fill(selectedPage == index ? Color.irTextPrimary : Color.irTextSecondary.opacity(0.3))
                         .frame(width: 8, height: 8)
@@ -1712,6 +1760,185 @@ struct InteractivePowerChart: View {
                                 y: .value("Power", data.value)
                             )
                             .foregroundStyle(.orange)
+                            .symbolSize(200)
+                        }
+                    }
+                }
+                .chartXSelection(value: $selectedKm)
+                .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
+                .chartYScale(domain: .automatic)
+                .chartXAxis {
+                    AxisMarks { value in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let km = value.as(Double.self) {
+                                Text(String(format: "%.0f", km))
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading) { _ in
+                        AxisGridLine()
+                        AxisValueLabel()
+                    }
+                }
+                .frame(height: 240)
+            }
+        }
+        .padding()
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+// MARK: - Interactive Elevation Chart
+
+struct InteractiveElevationChart: View {
+    let metrics: WorkoutMetrics
+    @State private var selectedKm: Double?
+
+    var elevationData: [(km: Double, value: Double)] {
+        guard let splits = metrics.splits else { return [] }
+
+        // Calculate cumulative elevation profile
+        var cumulativeElevation = 0.0
+        var cumulativeDistance = 0.0
+        var data: [(km: Double, value: Double)] = [(km: 0.0, value: 0.0)]
+
+        for split in splits {
+            cumulativeDistance += split.distance / 1000.0
+
+            // Add elevation gain, subtract elevation loss
+            if let gain = split.elevationGain {
+                cumulativeElevation += gain
+            }
+            if let loss = split.elevationLoss {
+                cumulativeElevation -= loss
+            }
+
+            data.append((km: cumulativeDistance, value: cumulativeElevation))
+        }
+
+        return data
+    }
+
+    var selectedData: (km: Double, value: Double)? {
+        guard let km = selectedKm else { return nil }
+        return elevationData.min(by: { abs($0.km - km) < abs($1.km - km) })
+    }
+
+    var totalGain: Double {
+        metrics.splits?.compactMap { $0.elevationGain }.reduce(0, +) ?? 0
+    }
+
+    var totalLoss: Double {
+        metrics.splits?.compactMap { $0.elevationLoss }.reduce(0, +) ?? 0
+    }
+
+    var displayData: (value: Double, label: String)? {
+        if let selected = selectedData {
+            return (value: selected.value, label: String(format: "km %.1f", selected.km))
+        }
+        return nil
+    }
+
+    var showTotals: Bool {
+        selectedData == nil && (totalGain > 0 || totalLoss > 0)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "Elevation", comment: "Elevation chart title"))
+                        .font(.headline)
+                        .foregroundStyle(Color.irTextPrimary)
+
+                    if let data = displayData {
+                        Text(String(format: "%+.0f m", data.value))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.green)
+                        Text(data.label)
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                    } else if showTotals {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(format: "+%.0f m", totalGain))
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.green)
+                                Text(String(localized: "gain", comment: "Elevation gain label"))
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                            if totalLoss > 0 {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(String(format: "-%.0f m", totalLoss))
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.blue)
+                                    Text(String(localized: "loss", comment: "Elevation loss label"))
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.irTextSecondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "mountain.2.fill")
+                    .font(.title2)
+                    .foregroundStyle(.green.gradient)
+            }
+
+            if elevationData.count < 2 {
+                VStack(spacing: 12) {
+                    Image(systemName: "mountain.2")
+                        .font(.largeTitle)
+                        .foregroundStyle(Color.irTextSecondary)
+                    Text(String(localized: "No elevation data available", comment: "Empty elevation chart message"))
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(height: 240)
+                .frame(maxWidth: .infinity)
+            } else {
+                Chart {
+                    ForEach(elevationData, id: \.km) { data in
+                        AreaMark(
+                            x: .value("Km", data.km),
+                            y: .value("Elevation", data.value)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.green.opacity(0.4), .green.opacity(0.1)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .interpolationMethod(.catmullRom)
+
+                        LineMark(
+                            x: .value("Km", data.km),
+                            y: .value("Elevation", data.value)
+                        )
+                        .foregroundStyle(.green.gradient)
+                        .lineStyle(StrokeStyle(lineWidth: 3))
+                        .interpolationMethod(.catmullRom)
+
+                        if let selectedData = selectedData, selectedData.km == data.km {
+                            PointMark(
+                                x: .value("Km", data.km),
+                                y: .value("Elevation", data.value)
+                            )
+                            .foregroundStyle(.green)
                             .symbolSize(200)
                         }
                     }

@@ -33,6 +33,61 @@ const DEFAULT_QUOTA_CONFIG: QuotaConfig = {
 }
 
 /**
+ * KV key for admin rate limit configuration
+ */
+const KV_RATE_LIMIT_CONFIG_KEY = 'admin:config:rate_limits'
+
+/**
+ * Get rate limit configuration from KV store or use defaults
+ */
+export async function getQuotaConfigFromKV(kv: KVNamespace): Promise<QuotaConfig> {
+  try {
+    const configJson = await kv.get(KV_RATE_LIMIT_CONFIG_KEY)
+    if (configJson) {
+      const config = JSON.parse(configJson) as Partial<QuotaConfig>
+      // Merge with defaults and validate
+      const result: QuotaConfig = {
+        ipLimit:
+          typeof config.ipLimit === 'number' && config.ipLimit > 0
+            ? config.ipLimit
+            : DEFAULT_QUOTA_CONFIG.ipLimit,
+        ipWindow:
+          typeof config.ipWindow === 'number' && config.ipWindow > 0
+            ? config.ipWindow
+            : DEFAULT_QUOTA_CONFIG.ipWindow,
+        userLimit:
+          typeof config.userLimit === 'number' && config.userLimit > 0
+            ? config.userLimit
+            : DEFAULT_QUOTA_CONFIG.userLimit,
+        userWindow:
+          typeof config.userWindow === 'number' && config.userWindow > 0
+            ? config.userWindow
+            : DEFAULT_QUOTA_CONFIG.userWindow,
+      }
+      console.log('📊 Quota: Using KV config')
+      return result
+    }
+  } catch (error) {
+    console.warn('⚠️ Quota: Failed to read KV config, using defaults', error)
+  }
+  return DEFAULT_QUOTA_CONFIG
+}
+
+/**
+ * Update rate limit configuration in KV store
+ */
+export async function setQuotaConfig(kv: KVNamespace, config: Partial<QuotaConfig>): Promise<void> {
+  // Merge with current defaults to ensure all fields are present
+  const currentConfig = await getQuotaConfigFromKV(kv)
+  const newConfig: QuotaConfig = {
+    ...currentConfig,
+    ...config,
+  }
+  await kv.put(KV_RATE_LIMIT_CONFIG_KEY, JSON.stringify(newConfig))
+  console.log('✅ Quota: Updated rate limit config in KV')
+}
+
+/**
  * Get current quota status from KV store
  */
 async function getQuotaStatus(
@@ -147,8 +202,16 @@ export function getQuotaHeaders(quotaCheck: QuotaCheck): Record<string, string> 
 }
 
 /**
- * Get quota configuration (can be extended to support env variables)
+ * Get quota configuration (synchronous, returns defaults)
+ * Use getQuotaConfigFromKV for dynamic config from KV
  */
 export function getQuotaConfig(): QuotaConfig {
   return DEFAULT_QUOTA_CONFIG
+}
+
+/**
+ * Get default quota config (for admin UI comparison)
+ */
+export function getDefaultQuotaConfig(): QuotaConfig {
+  return { ...DEFAULT_QUOTA_CONFIG }
 }

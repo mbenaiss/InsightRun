@@ -85,11 +85,16 @@ class UnifiedWorkoutViewModel: ObservableObject {
 
             print("📭 No cache found, loading from sources...")
 
-            // STEP 2: Load HealthKit workouts
+            // STEP 2: Load HealthKit workouts (non-fatal - continue if fails)
             syncStatus = .loadingHealthKit
             print("📱 Loading HealthKit workouts...")
-            let healthKitWorkouts = try await loadHealthKitWorkouts()
-            print("✅ Loaded \(healthKitWorkouts.count) HealthKit workouts")
+            var healthKitWorkouts: [WorkoutModel] = []
+            do {
+                healthKitWorkouts = try await loadHealthKitWorkouts()
+                print("✅ Loaded \(healthKitWorkouts.count) HealthKit workouts")
+            } catch {
+                print("⚠️ HealthKit loading failed (continuing with Strava only): \(error.localizedDescription)")
+            }
 
             // STEP 3: Load Strava activities (if authenticated)
             syncStatus = .loadingStrava
@@ -173,37 +178,42 @@ class UnifiedWorkoutViewModel: ObservableObject {
     private func syncWorkoutsInBackground() async {
         print("🔄 Background sync started...")
 
+        // Load fresh data from sources (non-fatal for HealthKit)
+        var healthKitWorkouts: [WorkoutModel] = []
         do {
-            // Load fresh data from sources
-            let healthKitWorkouts = try await loadHealthKitWorkouts()
-
-            var stravaActivities: [StravaActivity] = []
-            if stravaAuthService.isAuthenticated {
-                stravaActivities = try await loadStravaActivities()
-            }
-
-            // Merge
-            let merged = mergeWorkouts(healthKit: healthKitWorkouts, strava: stravaActivities)
-            let sortedMerged = merged.sorted { $0.startDate > $1.startDate }
-
-            // Check if data changed
-            let cacheChanged = sortedMerged.count != unifiedWorkouts.count
-
-            if cacheChanged {
-                // Update UI
-                unifiedWorkouts = sortedMerged
-                updateStats()
-
-                // Update cache
-                try? unifiedCache.saveWorkouts(unifiedWorkouts)
-                print("✅ Background sync complete: \(unifiedWorkouts.count) workouts (updated)")
-            } else {
-                // Just update cache timestamps
-                try? unifiedCache.saveWorkouts(sortedMerged)
-                print("✅ Background sync complete: no changes")
-            }
+            healthKitWorkouts = try await loadHealthKitWorkouts()
         } catch {
-            print("⚠️ Background sync failed: \(error)")
+            print("⚠️ Background HealthKit sync failed: \(error.localizedDescription)")
+        }
+
+        var stravaActivities: [StravaActivity] = []
+        if stravaAuthService.isAuthenticated {
+            do {
+                stravaActivities = try await loadStravaActivities()
+            } catch {
+                print("⚠️ Background Strava sync failed: \(error.localizedDescription)")
+            }
+        }
+
+        // Merge
+        let merged = mergeWorkouts(healthKit: healthKitWorkouts, strava: stravaActivities)
+        let sortedMerged = merged.sorted { $0.startDate > $1.startDate }
+
+        // Check if data changed
+        let cacheChanged = sortedMerged.count != unifiedWorkouts.count
+
+        if cacheChanged {
+            // Update UI
+            unifiedWorkouts = sortedMerged
+            updateStats()
+
+            // Update cache
+            try? unifiedCache.saveWorkouts(unifiedWorkouts)
+            print("✅ Background sync complete: \(unifiedWorkouts.count) workouts (updated)")
+        } else {
+            // Just update cache timestamps
+            try? unifiedCache.saveWorkouts(sortedMerged)
+            print("✅ Background sync complete: no changes")
         }
     }
 

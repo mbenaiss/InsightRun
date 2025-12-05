@@ -9,18 +9,71 @@
 import SwiftUI
 import HealthKit
 
+// MARK: - Strava Icon (Official Strava brand logo)
+struct StravaIconView: View {
+    var size: CGFloat = 14
+    var color: Color = .white
+
+    var body: some View {
+        Canvas { context, canvasSize in
+            let scale = canvasSize.width / 64.0
+
+            // Back chevron (lighter)
+            var backPath = Path()
+            backPath.move(to: CGPoint(x: 41.03 * scale, y: 47.852 * scale))
+            backPath.addLine(to: CGPoint(x: 35.458 * scale, y: 36.876 * scale))
+            backPath.addLine(to: CGPoint(x: 27.286 * scale, y: 36.876 * scale))
+            backPath.addLine(to: CGPoint(x: 41.03 * scale, y: 64 * scale))
+            backPath.addLine(to: CGPoint(x: 54.766 * scale, y: 36.876 * scale))
+            backPath.addLine(to: CGPoint(x: 46.586 * scale, y: 36.876 * scale))
+            backPath.closeSubpath()
+            context.fill(backPath, with: .color(color.opacity(0.6)))
+
+            // Front chevron (main)
+            var frontPath = Path()
+            frontPath.move(to: CGPoint(x: 27.898 * scale, y: 21.944 * scale))
+            frontPath.addLine(to: CGPoint(x: 35.462 * scale, y: 36.872 * scale))
+            frontPath.addLine(to: CGPoint(x: 46.586 * scale, y: 36.872 * scale))
+            frontPath.addLine(to: CGPoint(x: 27.898 * scale, y: 0 * scale))
+            frontPath.addLine(to: CGPoint(x: 9.234 * scale, y: 36.876 * scale))
+            frontPath.addLine(to: CGPoint(x: 20.35 * scale, y: 36.876 * scale))
+            frontPath.closeSubpath()
+            context.fill(frontPath, with: .color(color))
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 struct WorkoutRowView: View {
     let workout: WorkoutModel
     @ObservedObject private var stravaAuth = StravaAuthService.shared
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
 
-    private var sourceInfo: (icon: String, color: Color) {
+    // Strava orange color from brand guidelines
+    private let stravaOrange = Color(hex: "FC5200")
+
+    private enum WorkoutSource {
+        case strava
+        case apple
+        case other
+    }
+
+    private var workoutSource: WorkoutSource {
         let sourceLower = workout.sourceName.lowercased()
         if sourceLower.contains("strava") {
-            return ("s.circle.fill", .orange)
+            return .strava
         } else if sourceLower.contains("apple") || sourceLower.contains("watch") || sourceLower.contains("health") {
-            return ("applewatch", .pink)
+            return .apple
         } else {
-            return ("app.badge.checkmark.fill", .blue)
+            return .other
+        }
+    }
+
+    private var sourceColor: Color {
+        switch workoutSource {
+        case .strava: return stravaOrange
+        case .apple: return .pink
+        case .other: return .blue
         }
     }
 
@@ -41,21 +94,30 @@ struct WorkoutRowView: View {
                     .foregroundStyle(Color.irPrimaryAccent)
             }
             .overlay(alignment: .bottomTrailing) {
-                // Small source icon overlay - only show if Strava is connected
-                if stravaAuth.isAuthenticated {
-                    Image(systemName: sourceInfo.icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 14, height: 14)
-                        .padding(4)
-                        .background(sourceInfo.color)
-                        .foregroundStyle(.white)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.irCardBackground, lineWidth: 2)
-                        )
-                        .offset(x: 4, y: 4)
+                // Small source icon overlay - only show if Strava feature is enabled and connected
+                if remoteConfig.isFeatureEnabled(.strava) && stravaAuth.isAuthenticated {
+                    Group {
+                        if workoutSource == .strava {
+                            // Custom Strava icon
+                            StravaIconView(size: 12)
+                                .padding(5)
+                        } else {
+                            // SF Symbol for other sources
+                            Image(systemName: workoutSource == .apple ? "applewatch" : "app.badge.checkmark.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 12, height: 12)
+                                .foregroundStyle(.white)
+                                .padding(5)
+                        }
+                    }
+                    .background(sourceColor)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.irCardBackground, lineWidth: 2)
+                    )
+                    .offset(x: 4, y: 4)
                 }
             }
 

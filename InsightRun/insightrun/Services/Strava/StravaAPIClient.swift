@@ -287,12 +287,142 @@ struct StravaDetailedActivity: Codable {
     let photos: StravaPhotos?
     let map: StravaMap?
 
+    // Detailed metrics
+    let averageSpeed: Double?
+    let maxSpeed: Double?
+    let averageHeartrate: Double?
+    let maxHeartrate: Double?
+    let averageCadence: Double?
+    let deviceName: String?
+    let gearId: String?
+
+    // Splits per kilometer
+    let splitsMetric: [StravaSplit]?
+
+    // Best efforts (1km, 5km, 10km, etc.)
+    let bestEfforts: [StravaBestEffort]?
+
+    // Laps (manual or auto-laps)
+    let laps: [StravaLap]?
+
     enum CodingKeys: String, CodingKey {
-        case id, name, distance, type, calories, description, photos, map
+        case id, name, distance, type, calories, description, photos, map, laps
         case movingTime = "moving_time"
         case elapsedTime = "elapsed_time"
         case totalElevationGain = "total_elevation_gain"
         case startDate = "start_date"
+        case averageSpeed = "average_speed"
+        case maxSpeed = "max_speed"
+        case averageHeartrate = "average_heartrate"
+        case maxHeartrate = "max_heartrate"
+        case averageCadence = "average_cadence"
+        case deviceName = "device_name"
+        case gearId = "gear_id"
+        case splitsMetric = "splits_metric"
+        case bestEfforts = "best_efforts"
+    }
+}
+
+// MARK: - Strava Split (per km)
+struct StravaSplit: Codable, Identifiable {
+    var id: Int { split }
+    let split: Int // km number (1, 2, 3...)
+    let distance: Double // meters
+    let elapsedTime: Int // seconds
+    let movingTime: Int // seconds
+    let elevationDifference: Double? // meters
+    let averageSpeed: Double? // m/s
+    let averageHeartrate: Double? // bpm
+    let paceZone: Int? // 0-4
+
+    enum CodingKeys: String, CodingKey {
+        case split, distance
+        case elapsedTime = "elapsed_time"
+        case movingTime = "moving_time"
+        case elevationDifference = "elevation_difference"
+        case averageSpeed = "average_speed"
+        case averageHeartrate = "average_heartrate"
+        case paceZone = "pace_zone"
+    }
+
+    // Computed: pace in min/km
+    var pace: Double? {
+        guard let speed = averageSpeed, speed > 0 else { return nil }
+        return (1000.0 / speed) / 60.0
+    }
+}
+
+// MARK: - Strava Best Effort
+struct StravaBestEffort: Codable, Identifiable {
+    let id: Int64
+    let name: String // "1k", "1 mile", "5k", "10k", etc.
+    let distance: Double // meters
+    let movingTime: Int // seconds
+    let elapsedTime: Int // seconds
+    let startIndex: Int
+    let endIndex: Int
+    let prRank: Int? // Personal record rank (1 = PR, 2 = 2nd best, etc.)
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, distance
+        case movingTime = "moving_time"
+        case elapsedTime = "elapsed_time"
+        case startIndex = "start_index"
+        case endIndex = "end_index"
+        case prRank = "pr_rank"
+    }
+
+    // Computed: pace in min/km
+    var pace: Double {
+        guard distance > 0 else { return 0 }
+        let minutes = Double(movingTime) / 60.0
+        let km = distance / 1000.0
+        return minutes / km
+    }
+
+    // Formatted time
+    var timeFormatted: String {
+        let hours = movingTime / 3600
+        let minutes = (movingTime % 3600) / 60
+        let seconds = movingTime % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+}
+
+// MARK: - Strava Lap
+struct StravaLap: Codable, Identifiable {
+    let id: Int64
+    let name: String
+    let lapIndex: Int
+    let distance: Double // meters
+    let movingTime: Int // seconds
+    let elapsedTime: Int // seconds
+    let totalElevationGain: Double?
+    let averageSpeed: Double? // m/s
+    let maxSpeed: Double? // m/s
+    let averageHeartrate: Double?
+    let maxHeartrate: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, distance
+        case lapIndex = "lap_index"
+        case movingTime = "moving_time"
+        case elapsedTime = "elapsed_time"
+        case totalElevationGain = "total_elevation_gain"
+        case averageSpeed = "average_speed"
+        case maxSpeed = "max_speed"
+        case averageHeartrate = "average_heartrate"
+        case maxHeartrate = "max_heartrate"
+    }
+
+    // Computed: pace in min/km
+    var pace: Double? {
+        guard let speed = averageSpeed, speed > 0 else { return nil }
+        return (1000.0 / speed) / 60.0
     }
 }
 

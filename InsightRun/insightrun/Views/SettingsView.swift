@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showingMedicalSources = false
     @State private var showRefreshSheet = false
     @ObservedObject private var stravaAuth = StravaAuthService.shared
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
     @State private var isSyncing = false
     @State private var lastSyncResult: String?
 
@@ -210,85 +211,87 @@ struct SettingsView: View {
                     Text(String(localized: "Training Data", comment: "Training data section header"))
                 }
 
-                // Strava Integration Section
-                Section {
-                    if stravaAuth.isAuthenticated {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(Color.irSuccess)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(String(localized: "Strava Connected"))
-                                        .font(.headline)
-                                    if let syncResult = lastSyncResult {
-                                        Text(syncResult)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                // Strava Integration Section (conditionally shown based on feature flag)
+                if remoteConfig.isFeatureEnabled(.strava) {
+                    Section {
+                        if stravaAuth.isAuthenticated {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.irSuccess)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(String(localized: "Strava Connected"))
+                                            .font(.headline)
+                                        if let syncResult = lastSyncResult {
+                                            Text(syncResult)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text(String(localized: "Activities syncing automatically"))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+
+                                // Powered by Strava logo (per Brand Guidelines)
+                                PoweredByStravaLogo(variant: .orange)
+                                    .frame(height: 20)
+                            }
+
+                            Button {
+                                syncStravaActivities()
+                            } label: {
+                                HStack {
+                                    if isSyncing {
+                                        ProgressView()
+                                            .controlSize(.small)
                                     } else {
-                                        Text(String(localized: "Activities syncing automatically"))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                        Image(systemName: "arrow.clockwise")
                                     }
+                                    Text(String(localized: "Sync Now"))
                                 }
-                                Spacer()
                             }
+                            .disabled(isSyncing)
 
-                            // Powered by Strava logo (per Brand Guidelines)
-                            PoweredByStravaLogo(variant: .orange)
-                                .frame(height: 20)
-                        }
-
-                        Button {
-                            syncStravaActivities()
-                        } label: {
-                            HStack {
-                                if isSyncing {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Image(systemName: "arrow.clockwise")
-                                }
-                                Text(String(localized: "Sync Now"))
-                            }
-                        }
-                        .disabled(isSyncing)
-
-                        Button(role: .destructive) {
-                            Task {
-                                // Clear Strava cache
-                                try? StravaCache.shared.clearAll()
-                                print("🗑️  Cleared Strava cache")
-
-                                // Clear Strava-related unified workouts (strava-only + merged)
-                                try? UnifiedWorkoutCache.shared.clearStravaWorkouts()
-                                print("🗑️  Cleared Strava unified workouts")
-
-                                // Logout (calls backend cleanup + clears local tokens)
-                                await stravaAuth.logout()
-
-                                // Track disconnection
-                                AnalyticsService.shared.trackStravaDisconnected()
-                            }
-                        } label: {
-                            Text(String(localized: "Disconnect"))
-                        }
-                    } else {
-                        StravaConnectButton(
-                            action: {
+                            Button(role: .destructive) {
                                 Task {
-                                    do {
-                                        try await stravaAuth.authenticate()
-                                    } catch {
-                                        print("Strava auth error: \(error)")
-                                    }
+                                    // Clear Strava cache
+                                    try? StravaCache.shared.clearAll()
+                                    print("🗑️  Cleared Strava cache")
+
+                                    // Clear Strava-related unified workouts (strava-only + merged)
+                                    try? UnifiedWorkoutCache.shared.clearStravaWorkouts()
+                                    print("🗑️  Cleared Strava unified workouts")
+
+                                    // Logout (calls backend cleanup + clears local tokens)
+                                    await stravaAuth.logout()
+
+                                    // Track disconnection
+                                    AnalyticsService.shared.trackStravaDisconnected()
                                 }
-                            },
-                            isLoading: false,
-                            variant: .orange
-                        )
+                            } label: {
+                                Text(String(localized: "Disconnect"))
+                            }
+                        } else {
+                            StravaConnectButton(
+                                action: {
+                                    Task {
+                                        do {
+                                            try await stravaAuth.authenticate()
+                                        } catch {
+                                            print("Strava auth error: \(error)")
+                                        }
+                                    }
+                                },
+                                isLoading: false,
+                                variant: .orange
+                            )
+                        }
+                    } header: {
+                        Text(String(localized: "Integrations"))
                     }
-                } header: {
-                    Text(String(localized: "Integrations"))
                 }
 
                 // Debug Section (for testing)

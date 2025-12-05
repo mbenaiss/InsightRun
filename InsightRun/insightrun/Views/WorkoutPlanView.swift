@@ -313,6 +313,8 @@ class WorkoutPlanViewModel: ObservableObject {
         switch error {
         case .unauthorized:
             self.error = String(localized: "Authentication error", comment: "Workout generation error")
+        case .blocked:
+            self.error = String(localized: "Your account has been blocked. Please contact support.", comment: "Workout generation error")
         case .rateLimitExceeded:
             self.error = String(localized: "Too many requests. Please try again later.", comment: "Workout generation error")
         case .serverError:

@@ -20,15 +20,42 @@ struct WorkoutListView: View {
     @State private var showIndexationSheet = false
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
+    @ObservedObject private var stravaAuth = StravaAuthService.shared
 
-    // Use unified workouts if available (HealthKit + Strava), fallback to HealthKit only
+    // Use unified workouts if Strava is enabled and available (HealthKit + Strava), fallback to HealthKit only
     private var viewModel: WorkoutListViewModel { healthKitViewModel }
+
+    // Check if Strava-only mode is available (Strava enabled + authenticated, but HealthKit not authorized)
+    private var isStravaOnlyMode: Bool {
+        remoteConfig.isFeatureEnabled(.strava) &&
+        stravaAuth.isAuthenticated &&
+        viewModel.authorizationStatus != .authorized
+    }
+
+    // Check if we can show workouts (either HealthKit authorized OR Strava-only mode)
+    private var canShowWorkouts: Bool {
+        viewModel.authorizationStatus == .authorized || isStravaOnlyMode
+    }
+
     private var displayWorkouts: [WorkoutModel] {
-        // Use unified workouts if loaded, otherwise fall back to HealthKit only
-        if !unifiedViewModel.unifiedWorkouts.isEmpty {
+        // Use unified workouts only if Strava feature is enabled and unified workouts are loaded
+        if remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty {
             return unifiedViewModel.unifiedWorkouts.map { $0.toWorkoutModel() }
         } else {
             return healthKitViewModel.workouts
+        }
+    }
+
+    // Grouped workouts for display (unified when Strava enabled, HealthKit otherwise)
+    private var displayGroupedWorkouts: [(String, [WorkoutModel])] {
+        if remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty {
+            // Convert unified grouped workouts to WorkoutModel
+            return unifiedViewModel.groupedWorkouts.map { (title, unifiedWorkouts) in
+                (title, unifiedWorkouts.map { $0.toWorkoutModel() })
+            }
+        } else {
+            return healthKitViewModel.groupedWorkouts
         }
     }
 
@@ -36,18 +63,31 @@ struct WorkoutListView: View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 Group {
-                    switch viewModel.authorizationStatus {
-                    case .notDetermined:
-                        authorizationView
-                    case .denied:
-                        deniedView
-                    case .authorized:
-                        if viewModel.isLoading && viewModel.workouts.isEmpty {
+                    // Support 3 modes: HealthKit only, Strava only, or Both
+                    if canShowWorkouts {
+                        // Mode: HealthKit authorized OR Strava-only mode
+                        let hasWorkouts = !viewModel.workouts.isEmpty ||
+                            (remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty)
+                        let isLoading = viewModel.isLoading ||
+                            (remoteConfig.isFeatureEnabled(.strava) && unifiedViewModel.isLoading)
+
+                        if isLoading && !hasWorkouts {
                             loadingView
-                        } else if viewModel.workouts.isEmpty {
+                        } else if !hasWorkouts {
                             emptyView
                         } else {
                             workoutList
+                        }
+                    } else {
+                        // No data source available - show appropriate view
+                        switch viewModel.authorizationStatus {
+                        case .notDetermined:
+                            authorizationView
+                        case .denied:
+                            deniedView
+                        case .authorized:
+                            // Should not reach here (canShowWorkouts would be true)
+                            emptyView
                         }
                     }
                 }
@@ -76,21 +116,24 @@ struct WorkoutListView: View {
                     }
                 }
                 .task {
-                    // Load workouts on first appear if authorized (regardless of subscription)
+                    // Load HealthKit workouts on first appear if authorized
                     if viewModel.authorizationStatus == .authorized && viewModel.workouts.isEmpty {
                         await viewModel.loadWorkouts()
                     }
                 }
                 .task {
-                    // DEBUG: Load unified workouts (HealthKit + Strava)
-                    if viewModel.authorizationStatus == .authorized {
+                    // Load unified workouts when Strava is enabled (works in all 3 modes)
+                    // - HealthKit only: unified will contain only HealthKit data
+                    // - Strava only: unified will contain only Strava data
+                    // - Both: unified will merge HealthKit + Strava
+                    if remoteConfig.isFeatureEnabled(.strava) && (canShowWorkouts || stravaAuth.isAuthenticated) {
                         await unifiedViewModel.loadUnifiedWorkouts()
                     }
                 }
                 .onAppear {
-                    // Track workout list viewed when authorized
-                    if viewModel.authorizationStatus == .authorized {
-                        AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: viewModel.workouts.count)
+                    // Track workout list viewed when data available
+                    if canShowWorkouts {
+                        AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
 
                         // Check if indexation banner should be shown
                         if revenueCatManager.hasAIAccess {
@@ -101,8 +144,8 @@ struct WorkoutListView: View {
                 }
 
                 // Floating AI Button - Only for users with AI access (subscribers or TestFlight), only on list view
-                if viewModel.authorizationStatus == .authorized &&
-                   !viewModel.workouts.isEmpty &&
+                if canShowWorkouts &&
+                   !displayWorkouts.isEmpty &&
                    revenueCatManager.hasAIAccess {
                     Button(action: {
                         Task {
@@ -161,7 +204,8 @@ struct WorkoutListView: View {
         isLoadingMetrics = true
 
         // Get last 10 workouts for AI context (much faster than loading entire year)
-        let last10 = Array(viewModel.workouts.prefix(10))
+        // Use displayWorkouts to support all 3 modes (HealthKit only, Strava only, Both)
+        let last10 = Array(displayWorkouts.prefix(10))
         currentYearWorkouts = last10
 
         print("📊 WorkoutListView: Loading metrics for last \(last10.count) workouts for AI context")
@@ -204,36 +248,63 @@ struct WorkoutListView: View {
                     .frame(width: 120, height: 120)
                     .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
 
-                Image(systemName: "heart.text.square.fill")
+                Image(systemName: "figure.run.circle.fill")
                     .font(.system(size: 50))
-                    .foregroundStyle(.red.gradient)
+                    .foregroundStyle(.blue.gradient)
             }
 
             VStack(spacing: 12) {
-                Text(String(localized: "Health Data Access", comment: "HealthKit permission request title"))
+                Text(String(localized: "Connect Your Data", comment: "Data source connection title"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text(String(localized: "This app needs access to your running workouts from HealthKit to display your history.", comment: "HealthKit permission request description"))
+                Text(String(localized: "Connect at least one data source to see your running workouts.", comment: "Data source connection description"))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
 
-            Button {
-                Task {
-                    await viewModel.requestAuthorization()
-                }
-            } label: {
-                Text(String(localized: "Grant Access", comment: "HealthKit permission button"))
+            VStack(spacing: 16) {
+                // HealthKit button (red with HealthKit icon)
+                Button {
+                    Task {
+                        await viewModel.requestAuthorization()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "heart.text.square.fill")
+                        Text(String(localized: "Connect HealthKit", comment: "HealthKit permission button"))
+                    }
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.irPrimaryAccent.gradient)
+                    .background(Color.red.gradient)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 10, y: 5)
+                    .shadow(color: Color.red.opacity(0.3), radius: 10, y: 5)
+                }
+
+                // Strava button (only if feature enabled)
+                if remoteConfig.isFeatureEnabled(.strava) {
+                    Button {
+                        Task {
+                            try? await stravaAuth.authenticate()
+                        }
+                    } label: {
+                        HStack {
+                            StravaIconView(size: 20, color: .white)
+                            Text(String(localized: "Connect Strava", comment: "Strava connection button"))
+                        }
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hex: "FC5200").gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: Color(hex: "FC5200").opacity(0.3), radius: 10, y: 5)
+                    }
+                }
             }
             .padding(.horizontal, 32)
             .padding(.top, 16)
@@ -431,7 +502,7 @@ struct WorkoutListView: View {
                 }
 
                 // Grouped workout list by month
-                ForEach(viewModel.groupedWorkouts, id: \.0) { groupTitle, groupWorkouts in
+                ForEach(displayGroupedWorkouts, id: \.0) { groupTitle, groupWorkouts in
                     VStack(alignment: .leading, spacing: 12) {
                         // Month header with stats
                         monthHeaderView(title: groupTitle, workouts: groupWorkouts)
@@ -446,10 +517,12 @@ struct WorkoutListView: View {
                             .buttonStyle(.plain)
                             .onAppear {
                                 // INFINITE SCROLL: Load more when user reaches near the end
-                                // Check if this is one of the last 10 workouts
-                                if workout.id == viewModel.workouts.dropLast(10).last?.id {
-                                    Task {
-                                        await viewModel.loadMoreWorkouts()
+                                // Only for HealthKit workouts (unified workouts load all at once)
+                                if !remoteConfig.isFeatureEnabled(.strava) || unifiedViewModel.unifiedWorkouts.isEmpty {
+                                    if workout.id == viewModel.workouts.dropLast(10).last?.id {
+                                        Task {
+                                            await viewModel.loadMoreWorkouts()
+                                        }
                                     }
                                 }
                             }
@@ -474,7 +547,7 @@ struct WorkoutListView: View {
                 }
 
                 // End of list indicator
-                if !viewModel.hasMoreWorkouts && !viewModel.workouts.isEmpty {
+                if !viewModel.hasMoreWorkouts && !displayWorkouts.isEmpty {
                     HStack {
                         Spacer()
                         VStack(spacing: 8) {
@@ -494,6 +567,10 @@ struct WorkoutListView: View {
         }
         .refreshable {
             await viewModel.refresh()
+            // Also refresh unified workouts when Strava is enabled
+            if remoteConfig.isFeatureEnabled(.strava) {
+                await unifiedViewModel.refresh()
+            }
         }
     }
 

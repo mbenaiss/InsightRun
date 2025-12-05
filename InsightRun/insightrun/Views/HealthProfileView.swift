@@ -47,6 +47,7 @@ struct HealthProfileView: View {
             }
             .task {
                 await viewModel.loadHealthProfile()
+                AnalyticsService.shared.trackHealthProfileViewed()
             }
         }
     }
@@ -59,7 +60,7 @@ struct HealthProfileView: View {
                 .scaleEffect(1.5)
             Text(String(localized: "Loading...", comment: "Loading indicator text"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, 100)
@@ -71,16 +72,17 @@ struct HealthProfileView: View {
         VStack(spacing: 24) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 80))
-                .foregroundStyle(.orange.gradient)
+                .foregroundStyle(Color.irWarning.gradient)
 
             VStack(spacing: 12) {
                 Text(String(localized: "Error", comment: "Error state title"))
                     .font(.title2)
                     .fontWeight(.semibold)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Text(message)
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -102,22 +104,23 @@ struct HealthProfileView: View {
         VStack(spacing: 24) {
             Image(systemName: "person.circle.fill")
                 .font(.system(size: 80))
-                .foregroundStyle(.blue.gradient)
+                .foregroundStyle(Color.irPrimaryAccent.gradient)
 
             VStack(spacing: 12) {
                 Text(String(localized: "No Data", comment: "Empty state title when no health data available"))
                     .font(.title2)
                     .fontWeight(.semibold)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "Health data is not available.", comment: "Empty state message for health data"))
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
                 Text(String(localized: "Tip: Enable permissions in Settings → Privacy → Health → Insight Run", comment: "Tip about enabling HealthKit permissions"))
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .padding(.top, 8)
@@ -162,6 +165,7 @@ struct HealthProfileView: View {
         VStack(alignment: .leading, spacing: 16) {
             Label(String(localized: "Information", comment: "Section header for user information"), systemImage: "person.fill")
                 .font(.headline)
+                .foregroundStyle(Color.irTextPrimary)
 
             VStack(spacing: 12) {
                 InfoRow(label: String(localized: "Age", comment: "Label for age"), value: profile.formattedAge)
@@ -169,7 +173,7 @@ struct HealthProfileView: View {
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -187,6 +191,7 @@ struct HealthProfileView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Label(String(localized: "Body Metrics", comment: "Section header for body composition metrics"), systemImage: "figure.stand")
                     .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                     if hasBodyMass {
@@ -221,7 +226,7 @@ struct HealthProfileView: View {
                 }
             }
             .padding(20)
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
         }
@@ -240,6 +245,7 @@ struct HealthProfileView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Label(String(localized: "Vital Signs", comment: "Section header for vital signs"), systemImage: "heart.text.square.fill")
                     .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 VStack(spacing: 12) {
                     if hasSpO2 {
@@ -274,7 +280,7 @@ struct HealthProfileView: View {
                 }
             }
             .padding(20)
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
         }
@@ -286,6 +292,7 @@ struct HealthProfileView: View {
         VStack(alignment: .leading, spacing: 16) {
             Label(String(localized: "Daily Activity", comment: "Section header for daily activity metrics"), systemImage: "figure.run")
                 .font(.headline)
+                .foregroundStyle(Color.irTextPrimary)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 MetricCard(
@@ -313,7 +320,7 @@ struct HealthProfileView: View {
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -324,6 +331,7 @@ struct HealthProfileView: View {
         VStack(alignment: .leading, spacing: 16) {
             Label(String(localized: "Cross-training (7 days)", comment: "Section header for cross-training activities over 7 days"), systemImage: "figure.mixed.cardio")
                 .font(.headline)
+                .foregroundStyle(Color.irTextPrimary)
 
             VStack(spacing: 12) {
                 HealthMetricRow(
@@ -342,7 +350,7 @@ struct HealthProfileView: View {
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
@@ -358,14 +366,14 @@ struct InfoRow: View {
         HStack {
             Text(label)
                 .font(.body)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
             Text(value)
                 .font(.body)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
     }
 }
@@ -388,7 +396,7 @@ struct HealthMetricRowWithDate: View {
 
             Text(title)
                 .font(.body)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
@@ -396,12 +404,12 @@ struct HealthMetricRowWithDate: View {
                 Text(value)
                     .font(.body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 if let dateString = dateString {
                     Text(dateString)
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
         }
@@ -433,24 +441,24 @@ struct MetricCard: View {
 
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
 
             VStack(spacing: 4) {
                 Text(value)
                     .font(.title3)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 if let dateString = dateString {
                     Text(dateString)
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(.quaternary.opacity(0.5))
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

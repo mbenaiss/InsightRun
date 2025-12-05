@@ -343,6 +343,148 @@ final class AnalyticsService {
     func trackSubscriptionRenewed() {
         track(.subscriptionRenewed)
     }
+
+    // MARK: - Strava Integration Events
+
+    func trackStravaConnectionSuccess(athleteId: Int64) {
+        track(.stravaConnectionSuccess, properties: [
+            "athlete_id": athleteId
+        ])
+    }
+
+    func trackStravaConnectionFailed(errorType: String, errorMessage: String) {
+        track(.stravaConnectionFailed, properties: [
+            "error_type": errorType,
+            "error_message": errorMessage
+        ])
+    }
+
+    func trackStravaConnectionSkipped() {
+        track(.stravaConnectionSkipped)
+    }
+
+    func trackStravaSyncStarted(initiatedBy: String) {
+        track(.stravaSyncStarted, properties: [
+            "initiated_by": initiatedBy
+        ])
+    }
+
+    func trackStravaSyncCompleted(newActivitiesCount: Int, totalActivitiesCount: Int) {
+        track(.stravaSyncCompleted, properties: [
+            "new_activities": newActivitiesCount,
+            "total_activities": totalActivitiesCount
+        ])
+    }
+
+    func trackStravaSyncFailed(errorType: String, errorMessage: String) {
+        track(.stravaSyncFailed, properties: [
+            "error_type": errorType,
+            "error_message": errorMessage
+        ])
+    }
+
+    func trackStravaDisconnected() {
+        track(.stravaDisconnected)
+    }
+
+    func trackStravaInitialSyncTriggered() {
+        track(.stravaInitialSyncTriggered)
+    }
+
+    // MARK: - Smart Suggestion Events
+
+    func trackSmartSuggestionRequested() {
+        track(.smartSuggestionRequested)
+    }
+
+    func trackSmartSuggestionGenerated(suggestionLength: Int, generationTimeMs: Int) {
+        track(.smartSuggestionGenerated, properties: [
+            "suggestion_length": suggestionLength,
+            "generation_time_ms": generationTimeMs
+        ])
+    }
+
+    func trackSmartSuggestionFailed(errorType: String, errorMessage: String) {
+        track(.smartSuggestionFailed, properties: [
+            "error_type": errorType,
+            "error_message": errorMessage
+        ])
+    }
+
+    func trackSmartSuggestionApplied() {
+        track(.smartSuggestionApplied)
+    }
+
+    // MARK: - Workout Editing Events
+
+    func trackWorkoutEditingStarted(workoutName: String) {
+        track(.workoutEditingStarted, properties: [
+            "workout_name": workoutName
+        ])
+    }
+
+    func trackWorkoutEditingCancelled() {
+        track(.workoutEditingCancelled)
+    }
+
+    func trackWorkoutEditingSaved(workoutName: String, stepsCount: Int) {
+        track(.workoutEditingSaved, properties: [
+            "workout_name": workoutName,
+            "steps_count": stepsCount
+        ])
+    }
+
+    func trackWorkoutStepEdited(stepIndex: Int, fieldChanged: String) {
+        track(.workoutStepEdited, properties: [
+            "step_index": stepIndex,
+            "field_changed": fieldChanged
+        ])
+    }
+
+    // MARK: - Statistics Events
+
+    func trackStatisticsViewed() {
+        track(.statisticsViewed)
+    }
+
+    func trackStatisticsPeriodChanged(period: String) {
+        track(.statisticsPeriodChanged, properties: [
+            "period": period
+        ])
+    }
+
+    func trackStatisticsYearChanged(year: Int) {
+        track(.statisticsYearChanged, properties: [
+            "year": year
+        ])
+    }
+
+    // MARK: - Settings Events
+
+    func trackSettingsAppearanceChanged(oldTheme: String, newTheme: String) {
+        track(.settingsAppearanceChanged, properties: [
+            "old_theme": oldTheme,
+            "new_theme": newTheme
+        ])
+    }
+
+    func trackSettingsMedicalSourcesViewed() {
+        track(.settingsMedicalSourcesViewed)
+    }
+
+    func trackSettingsRefreshDataClicked() {
+        track(.settingsRefreshDataClicked)
+    }
+
+    // MARK: - Health Profile Events
+
+    func trackHealthProfileViewed() {
+        track(.healthProfileViewed)
+    }
+
+    func trackMedicalSourcesViewed() {
+        track(.medicalSourcesViewed)
+    }
 }
 
 // MARK: - Analytics Event Enum
@@ -397,13 +539,49 @@ enum AnalyticsEvent: String {
     // Workout Generation
     case workoutGenerationRequested = "workout_generation_requested"
     case workoutGenerated = "workout_generated"
+    case workoutGenerationFailed = "workout_generation_failed"
+    case workoutExported = "workout_exported"
+    case workoutExportFailed = "workout_export_failed"
 
     // AI Consent (Apple 5.1.2(i) compliance)
     case aiConsentGranted = "ai_consent_granted"
     case aiConsentRevoked = "ai_consent_revoked"
-    case workoutGenerationFailed = "workout_generation_failed"
-    case workoutExported = "workout_exported"
-    case workoutExportFailed = "workout_export_failed"
+
+    // Strava Integration
+    case stravaConnectionSuccess = "strava_connection_success"
+    case stravaConnectionFailed = "strava_connection_failed"
+    case stravaConnectionSkipped = "strava_connection_skipped"
+    case stravaSyncStarted = "strava_sync_started"
+    case stravaSyncCompleted = "strava_sync_completed"
+    case stravaSyncFailed = "strava_sync_failed"
+    case stravaDisconnected = "strava_disconnected"
+    case stravaInitialSyncTriggered = "strava_initial_sync_triggered"
+
+    // Smart Suggestion
+    case smartSuggestionRequested = "smart_suggestion_requested"
+    case smartSuggestionGenerated = "smart_suggestion_generated"
+    case smartSuggestionFailed = "smart_suggestion_failed"
+    case smartSuggestionApplied = "smart_suggestion_applied"
+
+    // Workout Editing
+    case workoutEditingStarted = "workout_editing_started"
+    case workoutEditingCancelled = "workout_editing_cancelled"
+    case workoutEditingSaved = "workout_editing_saved"
+    case workoutStepEdited = "workout_step_edited"
+
+    // Statistics
+    case statisticsViewed = "statistics_viewed"
+    case statisticsPeriodChanged = "statistics_period_changed"
+    case statisticsYearChanged = "statistics_year_changed"
+
+    // Settings
+    case settingsAppearanceChanged = "settings_appearance_changed"
+    case settingsMedicalSourcesViewed = "settings_medical_sources_viewed"
+    case settingsRefreshDataClicked = "settings_refresh_data_clicked"
+
+    // Health Profile
+    case healthProfileViewed = "health_profile_viewed"
+    case medicalSourcesViewed = "medical_sources_viewed"
 }
 
 // MARK: - Supporting Types

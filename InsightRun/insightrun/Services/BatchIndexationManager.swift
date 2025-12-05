@@ -99,7 +99,7 @@ class BatchIndexationManager: ObservableObject {
 
             // Step 2: Calculate batches
             totalBatches = Int(ceil(Double(workoutsToProcess.count) / Double(BatchIndexationConfig.batchSize)))
-            print("📊 BatchIndexationManager: Will process \(totalBatches) batches with Grok, consolidation with Haiku")
+            print("📊 BatchIndexationManager: Will process \(totalBatches) batches, then consolidate")
 
             // Track indexation started
             AnalyticsService.shared.trackIndexationStarted(
@@ -108,8 +108,8 @@ class BatchIndexationManager: ObservableObject {
             )
 
             var batchSummaries: [String] = []
-            let batchModel = "google/gemini-2.5-flash-lite" // Gemini Flash Lite for batch processing (cost-effective)
-            let consolidationModel = "anthropic/claude-haiku-4.5" // Haiku for final consolidation
+            let batchRequestType = RequestType.batchProcessing.rawValue // Backend selects optimal model
+            let consolidationRequestType = RequestType.moderate.rawValue // Backend selects optimal model
             let language = Locale.current.language.languageCode?.identifier ?? "en"
 
             // Step 3: Process batches
@@ -120,7 +120,7 @@ class BatchIndexationManager: ObservableObject {
                 }
 
                 currentBatch = batchIndex + 1
-                print("📊 BatchIndexationManager: Processing batch \(currentBatch)/\(totalBatches)...")
+                print("📊 BatchIndexationManager: Processing batch \(currentBatch)/\(totalBatches) with requestType: \(batchRequestType)...")
 
                 let startIndex = batchIndex * BatchIndexationConfig.batchSize
                 let endIndex = min(startIndex + BatchIndexationConfig.batchSize, workoutsToProcess.count)
@@ -129,11 +129,12 @@ class BatchIndexationManager: ObservableObject {
                 // Convert batch workouts to WorkoutData
                 let batchData = try await processBatch(batchWorkouts)
 
-                // Send batch to backend for analysis (using Grok fast)
+                // Send batch to backend for analysis
                 let batchResponse = try await backendClient.analyzeBatch(
                     workouts: batchData,
                     batchIndex: batchIndex,
-                    model: batchModel,
+                    requestType: batchRequestType,
+                    model: nil, // Backend will select model
                     language: language
                 )
 
@@ -168,7 +169,7 @@ class BatchIndexationManager: ObservableObject {
             try await consolidateAndSave(
                 batchSummaries: batchSummaries,
                 totalWorkouts: workoutsToProcess.count,
-                model: consolidationModel,
+                requestType: consolidationRequestType,
                 language: language
             )
 
@@ -290,7 +291,7 @@ class BatchIndexationManager: ObservableObject {
     }
 
     /// Consolidate all batch summaries and save final summary
-    private func consolidateAndSave(batchSummaries: [String], totalWorkouts: Int, model: String, language: String) async throws {
+    private func consolidateAndSave(batchSummaries: [String], totalWorkouts: Int, requestType: String, language: String) async throws {
         guard !batchSummaries.isEmpty else {
             throw IndexationError.noWorkoutsToConsolidate
         }
@@ -324,13 +325,14 @@ class BatchIndexationManager: ObservableObject {
         state = .loading(progress: progress)
 
         // Call backend for consolidation
-        print("📊 BatchIndexationManager: Consolidating \(batchSummaries.count) batch summaries with \(model)...")
+        print("📊 BatchIndexationManager: Consolidating \(batchSummaries.count) batch summaries with requestType: \(requestType)...")
 
         let response = try await backendClient.consolidateBatches(
             batchSummaries: batchSummaries,
             totalWorkouts: totalWorkouts,
             profile: profileData,
-            model: model,
+            requestType: requestType,
+            model: nil, // Backend will select model
             language: language
         )
 

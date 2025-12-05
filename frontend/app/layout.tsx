@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { PostHogProvider } from './providers/PostHogProvider'
+import { ThemeProvider } from './providers/ThemeProvider'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -34,9 +35,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased bg-white`}>
-        <PostHogProvider>{children}</PostHogProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} antialiased bg-background`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <PostHogProvider>{children}</PostHogProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

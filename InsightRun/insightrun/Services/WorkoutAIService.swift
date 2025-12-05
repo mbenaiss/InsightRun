@@ -7,40 +7,8 @@
 
 import Foundation
 import Combine
-import FoundationModels
 import NaturalLanguage
 import HealthKit
-
-enum AIModel: String, CaseIterable, Sendable {
-    case foundationModels = "local/apple-foundation-model"
-    case claudeHaiku = "anthropic/claude-haiku-4.5"
-    case claudeSonnet = "anthropic/claude-sonnet-4.5"
-    case gpt5 = "openai/gpt-5"
-    case grok4 = "x-ai/grok-4-fast"
-
-    nonisolated var displayName: String {
-        switch self {
-        case .foundationModels:
-            return "Apple Intelligence (Local)"
-        case .claudeHaiku:
-            return "Claude Haiku 4.5"
-        case .claudeSonnet:
-            return "Claude Sonnet 4.5"
-        case .gpt5:
-            return "GPT-5"
-        case .grok4:
-            return "Grok 4 Fast"
-        }
-    }
-
-    nonisolated var modelId: String {
-        return self.rawValue
-    }
-
-    nonisolated var isLocal: Bool {
-        return self == .foundationModels
-    }
-}
 
 class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     @Published var isStreaming = false
@@ -60,15 +28,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     // Store the last question for retry
     private var lastQuestion: String?
     private var lastMode: AIAssistantMode?
-    private var lastModel: AIModel?
-
-    @MainActor
-    private var foundationModelsService: FoundationModelsService? {
-        if #available(iOS 26.0, *) {
-            return FoundationModelsService.shared
-        }
-        return nil
-    }
 
     override init() {
         super.init()
@@ -161,7 +120,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return Locale(identifier: languageCode)
     }
 
-    func askQuestion(question: String, mode: AIAssistantMode, model: AIModel? = nil) async {
+    func askQuestion(question: String, mode: AIAssistantMode) async {
         // Check AI consent (Apple 5.1.2(i) compliance)
         guard await MainActor.run(body: { ConsentService.shared.hasConsentedToAIDataSharing }) else {
             await MainActor.run {
@@ -176,7 +135,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         // Store for retry
         lastQuestion = question
         lastMode = mode
-        lastModel = model
 
         await MainActor.run {
             self.isStreaming = true
@@ -185,129 +143,17 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             self.suggestedQuestions = []
         }
 
-        // If model not provided, use intelligent routing
-        let selectedModel: AIModel
-        if let model = model {
-            selectedModel = model
-        } else {
-            selectedModel = await ModelRouter.shared.selectOptimalModel(for: question, mode: mode)
-        }
+        // Use ModelRouter to classify complexity and get RequestType
+        let requestType = await ModelRouter.shared.selectRequestType(for: question, mode: mode)
+        print("🎯 WorkoutAIService: Using requestType: \(requestType.rawValue) → Backend will select appropriate model")
 
-        print("🎯 WorkoutAIService: Using model: \(selectedModel.displayName)")
-
-        // Route to appropriate service based on model type
-        if selectedModel.isLocal {
-            // For local models, use simplified prompt
-            // Note: Local models don't have access to structured data context like remote models
-            let localSystemPrompt = """
-            You are an expert AI running coach specializing in data-driven performance optimization, injury prevention, and personalized training.
-
-            Analyze the user's question and provide actionable insights.
-            Be data-driven, concise, actionable, and use markdown formatting.
-            Respond in the user's language.
-            """
-
-            // Detect locale once and cache it
-            let questionLocale = detectLocale(from: question)
-            await handleLocalModelInference(systemPrompt: localSystemPrompt, question: question, locale: questionLocale)
-        } else {
-            // For remote models, backend builds the full prompt from structured data
-            await handleRemoteModelInference(question: question, model: selectedModel, mode: mode)
-        }
-    }
-
-    // MARK: - Local Model Inference
-
-    private func handleLocalModelInference(systemPrompt: String, question: String, locale: Locale) async {
-        // Check iOS version
-        guard #available(iOS 26.0, *) else {
-            await MainActor.run {
-                self.error = String(localized: "Apple Intelligence requires iOS 26 or later", comment: "Error message when Apple Intelligence is not available (iOS version)")
-                self.isStreaming = false
-            }
-            return
-        }
-
-        guard let service = await foundationModelsService else {
-            await MainActor.run {
-                self.error = String(localized: "FoundationModels service is not available", comment: "Error message when FoundationModels service cannot be initialized")
-                self.isStreaming = false
-            }
-            return
-        }
-
-        // Check model availability
-        await service.checkAvailability()
-
-        guard await service.isAvailable else {
-            let errorMsg: String
-            if let availability = await service.availability {
-                switch availability {
-                case .unavailable(.deviceNotEligible):
-                    errorMsg = String(localized: "This device does not support Apple Intelligence", comment: "Error message when device is not eligible for Apple Intelligence")
-                case .unavailable(.appleIntelligenceNotEnabled):
-                    errorMsg = String(localized: "Enable Apple Intelligence in Settings", comment: "Error message when Apple Intelligence is not enabled")
-                case .unavailable(.modelNotReady):
-                    errorMsg = String(localized: "Model is downloading, please try again later", comment: "Error message when model is still downloading")
-                default:
-                    errorMsg = String(localized: "Model is not available", comment: "Error message when model is not available")
-                }
-            } else {
-                errorMsg = String(localized: "Unable to check model availability", comment: "Error message when unable to check model availability")
-            }
-
-            await MainActor.run {
-                self.error = errorMsg
-                self.isStreaming = false
-            }
-            return
-        }
-
-        do {
-            // Show a message while the model is thinking (before first token)
-            await MainActor.run {
-                self.streamedResponse = String(localized: "🧠 Generating response...", comment: "Message while local model is generating response")
-            }
-
-            let stream = try await service.generate(prompt: question, systemPrompt: systemPrompt, locale: locale)
-
-            // Stream chunks as they arrive
-            for await chunk in stream {
-                await MainActor.run {
-                    // Clear "thinking" message on first chunk
-                    if self.streamedResponse == String(localized: "🧠 Generating response...", comment: "Message while local model is generating response") {
-                        self.streamedResponse = ""
-                    }
-
-                    // Append chunk to streamed response
-                    self.streamedResponse += chunk
-                }
-            }
-
-            await MainActor.run {
-                self.isStreaming = false
-                if !self.streamedResponse.isEmpty {
-                    self.lastResponse = self.streamedResponse
-                    self.generateContextualSuggestions()
-                }
-            }
-
-        } catch {
-            print("❌ WorkoutAIService: FoundationModels error: \(error)")
-
-            let errorMessage = "❌ Erreur: \(error.localizedDescription)"
-
-            await MainActor.run {
-                self.error = errorMessage
-                self.isStreaming = false
-                self.streamedResponse = ""  // Clear any "thinking" message
-            }
-        }
+        // Backend builds the full prompt from structured data and selects the model
+        await handleRemoteModelInference(question: question, requestType: requestType, mode: mode)
     }
 
     // MARK: - Remote Model Inference
 
-    private func handleRemoteModelInference(question: String, model: AIModel, mode: AIAssistantMode) async {
+    private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode) async {
         do {
             // Show a message while waiting for response
             await MainActor.run {
@@ -315,7 +161,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             }
 
             // Build payload from mode data
-            let payload = await buildChatPayload(question: question, model: model, mode: mode)
+            let payload = await buildChatPayload(question: question, requestType: requestType, mode: mode)
 
             // Use new API v2 with streaming
             let stream = try await backendClient.chatStreamV2(payload: payload)
@@ -348,6 +194,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             switch error {
             case .unauthorized:
                 errorMessage = String(localized: "Authentication error with server", comment: "Error message for authentication failures")
+            case .blocked:
+                errorMessage = String(localized: "Your account has been blocked. Please contact support.", comment: "Error message for blocked users")
             case .rateLimitExceeded:
                 errorMessage = String(localized: "Too many requests. Try again in a few minutes.", comment: "Error message for rate limit exceeded")
             case .serverError:
@@ -386,7 +234,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return supportedLanguages.contains(preferredLanguage) ? preferredLanguage : "en"
     }
 
-    private func buildChatPayload(question: String, model: AIModel, mode: AIAssistantMode) async -> ChatRequestV2 {
+    private func buildChatPayload(question: String, requestType: RequestType, mode: AIAssistantMode) async -> ChatRequestV2 {
         // Load historical summary if available
         let historicalSummary = await HistoricalSummaryStorage.shared.load()
 
@@ -476,7 +324,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         return ChatRequestV2(
             promptType: "workout_coach",
-            model: model.modelId,
+            requestType: requestType.rawValue,
+            model: nil, // Backend will select model based on requestType
             userQuestion: question,
             language: detectedLanguage,
             data: chatData

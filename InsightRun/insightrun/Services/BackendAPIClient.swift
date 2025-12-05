@@ -12,7 +12,7 @@ class BackendAPIClient {
     static let shared = BackendAPIClient()
 
     // Backend API endpoint
-    private let baseURL = "https://insightrun-backend.mbenaissa.workers.dev"
+    private let baseURL = "https://api.insightrun.altcode.studio"
 
     // App identifier key
     // Note: This is safe to hardcode as it's just an app identifier (like a User-Agent).
@@ -24,7 +24,8 @@ class BackendAPIClient {
 
     // MARK: - Chat (Non-streaming)
 
-    func chat(prompt: String, systemPrompt: String, model: String) async throws -> String {
+    /// Simple classification using RequestType (no hardcoded model)
+    func classify(prompt: String, systemPrompt: String) async throws -> String {
         let url = URL(string: "\(baseURL)/api/chat")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -36,21 +37,20 @@ class BackendAPIClient {
         let body: [String: Any] = [
             "prompt": prompt,
             "systemPrompt": systemPrompt,
-            "model": model
+            "requestType": RequestType.classification.rawValue,
+            "stream": false // Non-streaming for quick classification
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        // Vérifier le status code
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BackendError.invalidResponse
         }
 
         switch httpResponse.statusCode {
         case 200...299:
-            // Success
             break
         case 401:
             throw BackendError.unauthorized
@@ -62,72 +62,12 @@ class BackendAPIClient {
             throw BackendError.unknownError(httpResponse.statusCode)
         }
 
-        // Parser la réponse
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let responseText = json["response"] as? String else {
             throw BackendError.invalidResponse
         }
 
         return responseText
-    }
-
-    // MARK: - Chat (Streaming)
-
-    func chatStream(prompt: String, systemPrompt: String, model: String) async throws -> AsyncStream<String> {
-        let url = URL(string: "\(baseURL)/api/chat")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
-        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60
-
-        let body: [String: Any] = [
-            "prompt": prompt,
-            "systemPrompt": systemPrompt,
-            "model": model
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        return AsyncStream { continuation in
-            Task {
-                do {
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
-
-                    guard let httpResponse = response as? HTTPURLResponse,
-                          (200...299).contains(httpResponse.statusCode) else {
-                        continuation.finish()
-                        return
-                    }
-
-                    for try await line in bytes.lines {
-                        // Parse SSE format: data: {...}
-                        if line.hasPrefix("data: ") {
-                            let jsonString = String(line.dropFirst(6))
-
-                            if jsonString == "[DONE]" {
-                                continuation.finish()
-                                return
-                            }
-
-                            // Parse simplified format: {"content": "..."}
-                            if let jsonData = jsonString.data(using: .utf8),
-                               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                               let content = json["content"] as? String {
-                                continuation.yield(content)
-                            }
-                        }
-                    }
-
-                    continuation.finish()
-
-                } catch {
-                    print("❌ BackendAPIClient streaming error: \(error)")
-                    continuation.finish()
-                }
-            }
-        }
     }
 
     // MARK: - Chat V2 (Streaming with JSON data)
@@ -201,7 +141,7 @@ class BackendAPIClient {
     // MARK: - Historical Analysis (Batch Processing)
 
     /// Analyze a batch of workouts (up to 50)
-    func analyzeBatch(workouts: [WorkoutData], batchIndex: Int, model: String, language: String) async throws -> BatchAnalysisResponse {
+    func analyzeBatch(workouts: [WorkoutData], batchIndex: Int, requestType: String?, model: String?, language: String) async throws -> BatchAnalysisResponse {
         let url = URL(string: "\(baseURL)/api/analyze-history/batch")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -213,6 +153,7 @@ class BackendAPIClient {
         let requestBody = BatchAnalysisRequest(
             workouts: workouts,
             batchIndex: batchIndex,
+            requestType: requestType,
             model: model,
             language: language
         )
@@ -250,7 +191,7 @@ class BackendAPIClient {
     }
 
     /// Consolidate all batch summaries into a final summary
-    func consolidateBatches(batchSummaries: [String], totalWorkouts: Int, profile: HealthProfileData?, model: String, language: String) async throws -> ConsolidationResponse {
+    func consolidateBatches(batchSummaries: [String], totalWorkouts: Int, profile: HealthProfileData?, requestType: String?, model: String?, language: String) async throws -> ConsolidationResponse {
         let url = URL(string: "\(baseURL)/api/analyze-history/consolidate")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -263,6 +204,7 @@ class BackendAPIClient {
             batchSummaries: batchSummaries,
             totalWorkouts: totalWorkouts,
             profile: profile,
+            requestType: requestType,
             model: model,
             language: language
         )
@@ -332,7 +274,7 @@ class BackendAPIClient {
     // MARK: - Workout Generation
 
     /// Generate a custom workout using AI
-    func generateWorkout(userQuestion: String, language: String, userContext: WorkoutGenerationRequest.UserContext?, model: String? = nil) async throws -> WorkoutGenerationResponse {
+    func generateWorkout(userQuestion: String, language: String, userContext: WorkoutGenerationRequest.UserContext?, requestType: String? = nil, model: String? = nil) async throws -> WorkoutGenerationResponse {
         let url = URL(string: "\(baseURL)/api/generate-workout")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -345,6 +287,7 @@ class BackendAPIClient {
             userQuestion: userQuestion,
             language: language,
             userContext: userContext,
+            requestType: requestType,
             model: model
         )
 
@@ -401,7 +344,8 @@ class BackendAPIClient {
 
         let requestBody = ChatRequestV2(
             promptType: "workout_suggestion",
-            model: "x-ai/grok-4-fast",
+            requestType: RequestType.smartSuggestion.rawValue,
+            model: nil, // Backend will select appropriate model
             userQuestion: "Suggest a detailed workout based on my recent training",
             language: language,
             data: chatData
@@ -439,6 +383,47 @@ class BackendAPIClient {
         return suggestionResponse
     }
 
+    // MARK: - Remote Configuration
+
+    /// Fetch remote configuration (feature flags, version info, maintenance mode)
+    /// Used by RemoteConfigService for offline-first feature management
+    func getConfig() async throws -> RemoteConfig {
+        let url = URL(string: "\(baseURL)/api/config")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.timeoutInterval = 10 // Short timeout for config fetch
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 403:
+            throw BackendError.blocked
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let config = try decoder.decode(RemoteConfig.self, from: data)
+
+        print("✅ BackendAPIClient: Fetched remote config")
+
+        return config
+    }
+
     // MARK: - Configuration
 
     func setBaseURL(_ url: String) {
@@ -468,6 +453,7 @@ struct RateLimitStats {
 
 enum BackendError: LocalizedError {
     case unauthorized
+    case blocked
     case rateLimitExceeded
     case serverError
     case invalidResponse
@@ -477,6 +463,8 @@ enum BackendError: LocalizedError {
         switch self {
         case .unauthorized:
             return "Unauthorized - Invalid app key"
+        case .blocked:
+            return "Your account has been blocked. Please contact support."
         case .rateLimitExceeded:
             return "Rate limit exceeded. Please try again later."
         case .serverError:

@@ -98,7 +98,7 @@ struct HistoricalIndexationSheet: View {
             // Animated icon
             ZStack {
                 Circle()
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.irCardBackground)
                     .frame(width: 100, height: 100)
                     .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
 
@@ -118,7 +118,7 @@ struct HistoricalIndexationSheet: View {
             Text(String(localized: "Analyzing workouts...", comment: "Loading title during indexation"))
                 .font(.title3)
                 .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .foregroundColor(Color.irTextPrimary)
 
             // Progress bar
             VStack(spacing: 12) {
@@ -131,14 +131,14 @@ struct HistoricalIndexationSheet: View {
                 HStack {
                     Text(statusText)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
 
                     Spacer()
 
                     if case .loading = manager.state, manager.totalBatches > 0 {
                         Text("\(manager.currentBatch) / \(manager.totalBatches)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.irTextSecondary)
                     }
                 }
             }
@@ -156,7 +156,7 @@ struct HistoricalIndexationSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        Color.red.opacity(0.9)
+                        Color.irError.opacity(0.9)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
@@ -186,11 +186,11 @@ struct HistoricalIndexationSheet: View {
                 Text(String(localized: "Profile Updated!", comment: "Success title after indexation"))
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(.primary)
+                    .foregroundColor(Color.irTextPrimary)
 
                 Text(String(localized: "Your athletic profile has been successfully updated with your latest workouts.", comment: "Success message after indexation"))
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -239,12 +239,12 @@ struct HistoricalIndexationSheet: View {
                 Text(String(localized: "Update Failed", comment: "Error title when indexation fails"))
                     .font(.title3)
                     .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+                    .foregroundColor(Color.irTextPrimary)
 
                 if case .failed(let errorMessage) = manager.state {
                     Text(errorMessage)
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                 }
@@ -302,10 +302,10 @@ struct HistoricalIndexationSheet: View {
                     Text(String(localized: "Cancel", comment: "Cancel button after indexation failure"))
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(.ultraThinMaterial)
+                        .background(Color.irCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }

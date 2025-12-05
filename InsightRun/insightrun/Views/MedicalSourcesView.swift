@@ -26,7 +26,7 @@ struct MedicalSourcesView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.irBackgroundApp)
             .navigationTitle(String(localized: "Medical Sources", comment: "Medical sources view title"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -39,6 +39,9 @@ struct MedicalSourcesView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+            .onAppear {
+                AnalyticsService.shared.trackMedicalSourcesViewed()
             }
         }
     }
@@ -54,12 +57,12 @@ struct MedicalSourcesView: View {
 
                 Text(String(localized: "Medical Disclaimer", comment: "Medical disclaimer section title"))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
             }
 
             Text(MedicalSourcesDatabase.disclaimer)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
         }
         .padding(16)
@@ -76,7 +79,7 @@ struct MedicalSourcesView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(String(localized: "Filter by Category", comment: "Category picker label"))
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -100,12 +103,12 @@ struct MedicalSourcesView: View {
             Text(category.localizedTitle)
                 .font(.subheadline)
                 .fontWeight(isSelected ? .semibold : .regular)
-                .foregroundStyle(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? .white : Color.irTextPrimary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? AnyShapeStyle(Color.blue.gradient) : AnyShapeStyle(Color(.systemGray5)))
+                        .fill(isSelected ? AnyShapeStyle(Color.irPrimaryAccent.gradient) : AnyShapeStyle(Color.irSurface))
                 )
         }
         .buttonStyle(.plain)
@@ -117,7 +120,7 @@ struct MedicalSourcesView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(String(format: String(localized: "%d Scientific Sources", comment: "Number of sources label"), MedicalSourcesDatabase.sources(for: selectedCategory).count))
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             ForEach(MedicalSourcesDatabase.sources(for: selectedCategory)) { source in
                 SourceCard(source: source)
@@ -148,7 +151,7 @@ struct SourceCard: View {
 
                 Text(source.journal)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(1)
 
                 Spacer()
@@ -157,13 +160,13 @@ struct SourceCard: View {
             // Title
             Text(source.title)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
                 .lineSpacing(2)
 
             // Authors
             Text(source.authors)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .italic()
 
             Divider()
@@ -172,7 +175,7 @@ struct SourceCard: View {
             // Summary
             Text(source.summary)
                 .font(.subheadline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
                 .lineSpacing(4)
 
             // Link button
@@ -186,12 +189,12 @@ struct SourceCard: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.irPrimaryAccent)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(.blue.opacity(0.1))
+                            .fill(Color.irPrimaryAccent.opacity(0.1))
                     )
                 }
             }
@@ -199,14 +202,14 @@ struct SourceCard: View {
             // Citation
             Text(source.citation)
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 .padding(.top, 4)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
+                .fill(Color.irCardBackground)
                 .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
     }

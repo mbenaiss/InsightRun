@@ -19,6 +19,7 @@ struct WorkoutDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
 
     init(workout: WorkoutModel) {
         self.workout = workout
@@ -43,6 +44,24 @@ struct WorkoutDetailView: View {
         ))
     }
 
+    // Extract Strava activity ID from workout metadata or source name
+    private var stravaActivityId: Int64? {
+        // Check if workout comes from Strava (metadata contains strava_id)
+        if let stravaIdString = workout.metadata?["strava_id"] as? String,
+           let stravaId = Int64(stravaIdString) {
+            return stravaId
+        }
+
+        // Check if source name contains "Strava"
+        if workout.sourceName.lowercased().contains("strava") {
+            // For Strava workouts without explicit ID in metadata, we can't link
+            // This would only happen for very old imports
+            return nil
+        }
+
+        return nil
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             GeometryReader { geometry in
@@ -55,6 +74,12 @@ struct WorkoutDetailView: View {
                         } else if let metrics = viewModel.metrics {
                             // Header with date and location
                             headerSection(metrics: metrics)
+
+                            // View on Strava link (if activity comes from Strava and Strava is enabled)
+                            if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
+                                ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
+                                    .padding(.horizontal)
+                            }
 
                             // Main metrics grid (2x2)
                             mainMetricsGrid(metrics: metrics)
@@ -94,16 +119,12 @@ struct WorkoutDetailView: View {
                                 }
                             }
 
-                            // Splits section (with accordion)
+                            // Splits section (with accordion and tabs for km/intervals)
                             if let splits = metrics.splits, !splits.isEmpty {
-                                AccordionSection(
-                                    title: String(localized: "Splits", comment: "Splits section title"),
-                                    icon: "list.number",
-                                    iconColor: .blue,
-                                    isExpanded: false
-                                ) {
-                                    splitsContent(splits: splits)
-                                }
+                                TabbedSplitsSection(
+                                    splits: splits,
+                                    intervals: metrics.intervals
+                                )
                             }
 
                             sourceSection
@@ -173,7 +194,7 @@ struct WorkoutDetailView: View {
             Text(workout.startDate, style: .date)
                 .font(.title3)
                 .fontWeight(.semibold)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
@@ -182,7 +203,7 @@ struct WorkoutDetailView: View {
                let firstPoint = routePoints.first {
                 LocationText(coordinate: firstPoint.coordinate)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -195,18 +216,18 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "map.fill")
-                    .foregroundStyle(.green.gradient)
+                    .foregroundStyle(Color.irSuccess.gradient)
                     .font(.headline)
 
                 Text(String(localized: "Route", comment: "Route map section title"))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
 
                 Text(String(format: String(localized: "%lld GPS points", comment: "GPS points count"), routePoints.count))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
 
             RouteMapView(routePoints: routePoints)
@@ -214,9 +235,9 @@ struct WorkoutDetailView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
     }
 
     // MARK: - Main Metrics Grid
@@ -246,12 +267,12 @@ struct WorkoutDetailView: View {
                 )
             }
 
-            if let calories = workout.totalEnergyBurned {
+            if let avgHR = metrics.averageHeartRate {
                 CompactMetricCard(
-                    icon: "flame.fill",
-                    label: String(localized: "Calories", comment: "Calories burned metric"),
-                    value: String(format: "%.0f", calories),
-                    color: .orange
+                    icon: "heart.fill",
+                    label: String(localized: "Avg HR", comment: "Average heart rate metric"),
+                    value: viewModel.formatHeartRate(avgHR),
+                    color: .red
                 )
             }
         }
@@ -280,7 +301,7 @@ struct WorkoutDetailView: View {
             ProgressView()
             Text(String(localized: "Loading data...", comment: "Loading indicator"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(40)
@@ -292,11 +313,11 @@ struct WorkoutDetailView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.irWarning)
 
             Text(error)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -371,53 +392,6 @@ struct WorkoutDetailView: View {
                     metricInfoKey: "metric.vo2_max",
                     currentValue: vo2Max
                 )
-            }
-        }
-    }
-
-    private func splitsContent(splits: [Split]) -> some View {
-        VStack(spacing: 12) {
-            // Best/Worst splits summary
-            if let best = splits.min(by: { $0.pace < $1.pace }),
-               let worst = splits.max(by: { $0.pace < $1.pace }) {
-                HStack(spacing: 20) {
-                    VStack(spacing: 4) {
-                        Text(String(localized: "Best", comment: "Best split label"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(best.paceFormatted)
-                            .font(.headline)
-                            .foregroundStyle(.green)
-                        Text("km \(best.kilometer)")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    Divider()
-                        .frame(height: 50)
-
-                    VStack(spacing: 4) {
-                        Text(String(localized: "Slowest", comment: "Slowest split label"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(worst.paceFormatted)
-                            .font(.headline)
-                            .foregroundStyle(.orange)
-                        Text("km \(worst.kilometer)")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.bottom, 8)
-
-                Divider()
-            }
-
-            // All splits
-            ForEach(splits) { split in
-                SplitRow(split: split)
             }
         }
     }
@@ -541,6 +515,7 @@ struct WorkoutDetailView: View {
     // MARK: - AI Analysis Section
 
     @State private var showSubscriptionPaywall = false
+    @State private var showConsentSheet = false
 
     private var aiAnalysisSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -557,7 +532,7 @@ struct WorkoutDetailView: View {
 
                 Text(String(localized: "AI Analysis", comment: "AI analysis section title"))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
             }
 
             // Check AI access first (subscription or TestFlight)
@@ -576,7 +551,7 @@ struct WorkoutDetailView: View {
 
                     Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
                     Button {
@@ -612,49 +587,75 @@ struct WorkoutDetailView: View {
                         .controlSize(.small)
                     Text(String(localized: "Analyzing...", comment: "AI analysis loading indicator"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 20)
 
             } else if let error = analysisViewModel.error {
-                // Error state
+                // Error state - check if it's a consent error
+                let isConsentError = error.lowercased().contains("consent")
+
                 VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
+                    Image(systemName: isConsentError ? "hand.raised.fill" : "exclamationmark.triangle")
                         .font(.title2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(isConsentError ? Color.irPrimaryAccent : Color.irWarning)
 
                     Text(error)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
-                    Button {
-                        Task {
-                            await analysisViewModel.generateAnalysis()
+                    if isConsentError {
+                        // Show consent button
+                        Button {
+                            showConsentSheet = true
+                        } label: {
+                            Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
+                                .font(.subheadline)
                         }
-                    } label: {
-                        Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
-                            .font(.subheadline)
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        // Show retry button
+                        Button {
+                            Task {
+                                await analysisViewModel.generateAnalysis()
+                            }
+                        } label: {
+                            Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
+                .sheet(isPresented: $showConsentSheet) {
+                    AIConsentSheet(
+                        onConsent: {
+                            showConsentSheet = false
+                            // Retry analysis after consent
+                            Task {
+                                await analysisViewModel.generateAnalysis()
+                            }
+                        },
+                        onDecline: {
+                            showConsentSheet = false
+                        }
+                    )
+                }
 
             } else if let analysis = analysisViewModel.analysisText {
                 // Analysis available
                 VStack(alignment: .leading, spacing: 12) {
-                    MarkdownText(analysis)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
+                    MarkdownView(analysis)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     HStack {
                         if let analyzedAt = analysisViewModel.analyzedAt {
                             Text(analyzedAt, style: .relative)
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
 
                         Spacer()
@@ -668,7 +669,7 @@ struct WorkoutDetailView: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
-                        .tint(.blue)
+                        .tint(Color.irPrimaryAccent)
                     }
                 }
 
@@ -677,7 +678,7 @@ struct WorkoutDetailView: View {
                 VStack(spacing: 12) {
                     Text(String(localized: "Get detailed analysis of your performance", comment: "AI analysis prompt"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
                     Button {
@@ -690,16 +691,16 @@ struct WorkoutDetailView: View {
                             .fontWeight(.medium)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.blue)
+                    .tint(Color.irPrimaryAccent)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
         .sheet(isPresented: $showSubscriptionPaywall) {
             SubscriptionPaywallView(isInitialFlow: false)
                 .environmentObject(revenueCatManager)
@@ -712,16 +713,16 @@ struct WorkoutDetailView: View {
         VStack(spacing: 8) {
             HStack {
                 Image(systemName: "info.circle")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 Text(String(localized: "workout.detail.source") + " \(workout.sourceName)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 if let version = workout.sourceVersion {
                     Text("v\(version)")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
         }
@@ -788,7 +789,7 @@ struct MetricInfoSheet: View {
                         Text(metricInfo.title)
                             .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.irTextPrimary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
@@ -827,7 +828,7 @@ struct MetricInfoSheet: View {
 
                                 Text(String(localized: "metric.info.recommended", comment: "Recommended values"))
                                     .font(.headline)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Color.irTextPrimary)
 
                                 Spacer()
                             }
@@ -843,8 +844,8 @@ struct MetricInfoSheet: View {
                         }
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(.systemBackground))
-                                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                                .fill(Color.irCardBackground)
+                                .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 2)
                         )
                     } else {
                         // Fallback to text card when no visual range available
@@ -860,7 +861,7 @@ struct MetricInfoSheet: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(String(localized: "These recommendations are based on published scientific research.", comment: "Metric info medical disclaimer"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                             .lineSpacing(4)
 
                         Button {
@@ -873,12 +874,12 @@ struct MetricInfoSheet: View {
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.irPrimaryAccent)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .fill(.blue.opacity(0.1))
+                                    .fill(Color.irPrimaryAccent.opacity(0.1))
                             )
                         }
                     }
@@ -886,14 +887,14 @@ struct MetricInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                            .fill(Color.irCardBackground)
+                            .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 2)
                     )
                 }
                 .padding()
                 .padding(.bottom, 20)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.irBackgroundApp)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -903,7 +904,7 @@ struct MetricInfoSheet: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
@@ -940,7 +941,7 @@ struct InfoCard: View {
 
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
             }
@@ -948,7 +949,7 @@ struct InfoCard: View {
             // Content
             Text(content)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -956,8 +957,8 @@ struct InfoCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                .fill(Color.irCardBackground)
+                .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 2)
         )
     }
 }
@@ -990,16 +991,16 @@ struct MetricsCard<Content: View>: View {
 
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
             }
 
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 10, y: 5)
     }
 }
 
@@ -1022,13 +1023,13 @@ struct MetricRow: View {
 
             Text(label)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
 
             Text(value)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
 
             if let metricInfoKey = metricInfoKey {
                 Button {
@@ -1036,7 +1037,7 @@ struct MetricRow: View {
                 } label: {
                     Image(systemName: "info.circle")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .buttonStyle(.plain)
                 .sheet(isPresented: $showingInfo) {
@@ -1057,14 +1058,14 @@ struct SplitRow: View {
                 Text("km \(split.kilometer)")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 // Show actual distance if different from 1000m
                 let distanceKm = split.distance / 1000.0
                 if abs(distanceKm - 1.0) > 0.01 {
                     Text(String(format: "%.2f km", distanceKm))
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
             .frame(width: 60, alignment: .leading)
@@ -1072,7 +1073,7 @@ struct SplitRow: View {
             // Pace - 1/3
             Text(split.paceFormatted)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             // Heart Rate - 1/3
@@ -1083,7 +1084,7 @@ struct SplitRow: View {
                         .foregroundStyle(.red)
                     Text(String(format: "%.0f bpm", hr))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -1151,17 +1152,17 @@ struct AccordionSection<Content: View>: View {
 
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     Spacer()
 
                     Image(systemName: "chevron.down")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding()
-                .background(.ultraThinMaterial)
+                .background(Color.irCardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 20))
             }
             .buttonStyle(.plain)
@@ -1170,7 +1171,7 @@ struct AccordionSection<Content: View>: View {
             if isExpanded {
                 content
                     .padding()
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(.top, 4)
             }
@@ -1195,22 +1196,22 @@ struct CompactMetricCard: View {
             VStack(spacing: 4) {
                 Text(value)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
                 Text(label)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 100)
         .padding(.vertical, 14)
         .padding(.horizontal, 10)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
     }
 }
 
@@ -1219,6 +1220,18 @@ struct CompactMetricCard: View {
 struct SwipeableChartsView: View {
     let metrics: WorkoutMetrics
     @State private var selectedPage = 0
+
+    private var hasElevationData: Bool {
+        guard let splits = metrics.splits else { return false }
+        return splits.contains { $0.elevationGain != nil || $0.elevationLoss != nil }
+    }
+
+    private var chartCount: Int {
+        var count = 2 // HR + Pace always
+        if metrics.runningPower != nil { count += 1 }
+        if hasElevationData { count += 1 }
+        return count
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -1231,10 +1244,16 @@ struct SwipeableChartsView: View {
                 InteractivePaceChart(metrics: metrics)
                     .tag(1)
 
+                // Elevation Chart (if available)
+                if hasElevationData {
+                    InteractiveElevationChart(metrics: metrics)
+                        .tag(2)
+                }
+
                 // Power Chart (if available)
                 if metrics.runningPower != nil {
                     InteractivePowerChart(metrics: metrics)
-                        .tag(2)
+                        .tag(hasElevationData ? 3 : 2)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -1243,9 +1262,9 @@ struct SwipeableChartsView: View {
 
             // Custom page indicator dots
             HStack(spacing: 8) {
-                ForEach(0..<(metrics.runningPower != nil ? 3 : 2), id: \.self) { index in
+                ForEach(0..<chartCount, id: \.self) { index in
                     Circle()
-                        .fill(selectedPage == index ? Color.primary : Color.secondary.opacity(0.3))
+                        .fill(selectedPage == index ? Color.irTextPrimary : Color.irTextSecondary.opacity(0.3))
                         .frame(width: 8, height: 8)
                         .animation(.easeInOut, value: selectedPage)
                 }
@@ -1312,7 +1331,7 @@ struct InteractiveHeartRateChart: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "Heart Rate", comment: "Heart rate chart title"))
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
                         Text("\(Int(data.value)) bpm")
@@ -1321,7 +1340,7 @@ struct InteractiveHeartRateChart: View {
                             .foregroundStyle(.red)
                         Text(data.label)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minHeartRate, let max = maxHeartRate {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1331,7 +1350,7 @@ struct InteractiveHeartRateChart: View {
                                     .foregroundStyle(.red)
                                 Text(String(localized: "min", comment: "Minimum label"))
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(Int(max)) bpm")
@@ -1340,13 +1359,13 @@ struct InteractiveHeartRateChart: View {
                                     .foregroundStyle(.red)
                                 Text(String(localized: "max", comment: "Maximum label"))
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     } else {
                         Text(String(localized: "No data available", comment: "Empty state message"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
 
@@ -1362,10 +1381,10 @@ struct InteractiveHeartRateChart: View {
                 VStack(spacing: 12) {
                     Image(systemName: "heart.slash")
                         .font(.largeTitle)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Text(String(localized: "No heart rate data available", comment: "Empty HR chart message"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(height: 240)
@@ -1422,7 +1441,7 @@ struct InteractiveHeartRateChart: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
@@ -1503,7 +1522,7 @@ struct InteractivePaceChart: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "workout.detail.pace"))
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
                         Text(formatPace(data.value))
@@ -1512,7 +1531,7 @@ struct InteractivePaceChart: View {
                             .foregroundStyle(.green)
                         Text(data.label)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minPace, let max = maxPace {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1522,7 +1541,7 @@ struct InteractivePaceChart: View {
                                     .foregroundStyle(.green)
                                 Text("min")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(formatPace(max))
@@ -1531,7 +1550,7 @@ struct InteractivePaceChart: View {
                                     .foregroundStyle(.green)
                                 Text("max")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     }
@@ -1594,7 +1613,7 @@ struct InteractivePaceChart: View {
             .frame(height: 240)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
@@ -1663,7 +1682,7 @@ struct InteractivePowerChart: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "workout.detail.power"))
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
                         Text("\(Int(data.value)) W")
@@ -1672,7 +1691,7 @@ struct InteractivePowerChart: View {
                             .foregroundStyle(.orange)
                         Text(data.label)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minPower, let max = maxPower {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1682,7 +1701,7 @@ struct InteractivePowerChart: View {
                                     .foregroundStyle(.orange)
                                 Text("min")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(Int(max)) W")
@@ -1691,7 +1710,7 @@ struct InteractivePowerChart: View {
                                     .foregroundStyle(.orange)
                                 Text("max")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     }
@@ -1709,10 +1728,10 @@ struct InteractivePowerChart: View {
                 VStack(spacing: 12) {
                     Image(systemName: "bolt.slash")
                         .font(.largeTitle)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Text(String(localized: "workout.detail.no_power_data"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(height: 240)
@@ -1769,7 +1788,186 @@ struct InteractivePowerChart: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+// MARK: - Interactive Elevation Chart
+
+struct InteractiveElevationChart: View {
+    let metrics: WorkoutMetrics
+    @State private var selectedKm: Double?
+
+    var elevationData: [(km: Double, value: Double)] {
+        guard let splits = metrics.splits else { return [] }
+
+        // Calculate cumulative elevation profile
+        var cumulativeElevation = 0.0
+        var cumulativeDistance = 0.0
+        var data: [(km: Double, value: Double)] = [(km: 0.0, value: 0.0)]
+
+        for split in splits {
+            cumulativeDistance += split.distance / 1000.0
+
+            // Add elevation gain, subtract elevation loss
+            if let gain = split.elevationGain {
+                cumulativeElevation += gain
+            }
+            if let loss = split.elevationLoss {
+                cumulativeElevation -= loss
+            }
+
+            data.append((km: cumulativeDistance, value: cumulativeElevation))
+        }
+
+        return data
+    }
+
+    var selectedData: (km: Double, value: Double)? {
+        guard let km = selectedKm else { return nil }
+        return elevationData.min(by: { abs($0.km - km) < abs($1.km - km) })
+    }
+
+    var totalGain: Double {
+        metrics.splits?.compactMap { $0.elevationGain }.reduce(0, +) ?? 0
+    }
+
+    var totalLoss: Double {
+        metrics.splits?.compactMap { $0.elevationLoss }.reduce(0, +) ?? 0
+    }
+
+    var displayData: (value: Double, label: String)? {
+        if let selected = selectedData {
+            return (value: selected.value, label: String(format: "km %.1f", selected.km))
+        }
+        return nil
+    }
+
+    var showTotals: Bool {
+        selectedData == nil && (totalGain > 0 || totalLoss > 0)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "Elevation", comment: "Elevation chart title"))
+                        .font(.headline)
+                        .foregroundStyle(Color.irTextPrimary)
+
+                    if let data = displayData {
+                        Text(String(format: "%+.0f m", data.value))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.green)
+                        Text(data.label)
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                    } else if showTotals {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(format: "+%.0f m", totalGain))
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.green)
+                                Text(String(localized: "gain", comment: "Elevation gain label"))
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                            if totalLoss > 0 {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(String(format: "-%.0f m", totalLoss))
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.blue)
+                                    Text(String(localized: "loss", comment: "Elevation loss label"))
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.irTextSecondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "mountain.2.fill")
+                    .font(.title2)
+                    .foregroundStyle(.green.gradient)
+            }
+
+            if elevationData.count < 2 {
+                VStack(spacing: 12) {
+                    Image(systemName: "mountain.2")
+                        .font(.largeTitle)
+                        .foregroundStyle(Color.irTextSecondary)
+                    Text(String(localized: "No elevation data available", comment: "Empty elevation chart message"))
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(height: 240)
+                .frame(maxWidth: .infinity)
+            } else {
+                Chart {
+                    ForEach(elevationData, id: \.km) { data in
+                        AreaMark(
+                            x: .value("Km", data.km),
+                            y: .value("Elevation", data.value)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.green.opacity(0.4), .green.opacity(0.1)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .interpolationMethod(.catmullRom)
+
+                        LineMark(
+                            x: .value("Km", data.km),
+                            y: .value("Elevation", data.value)
+                        )
+                        .foregroundStyle(.green.gradient)
+                        .lineStyle(StrokeStyle(lineWidth: 3))
+                        .interpolationMethod(.catmullRom)
+
+                        if let selectedData = selectedData, selectedData.km == data.km {
+                            PointMark(
+                                x: .value("Km", data.km),
+                                y: .value("Elevation", data.value)
+                            )
+                            .foregroundStyle(.green)
+                            .symbolSize(200)
+                        }
+                    }
+                }
+                .chartXSelection(value: $selectedKm)
+                .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
+                .chartYScale(domain: .automatic)
+                .chartXAxis {
+                    AxisMarks { value in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let km = value.as(Double.self) {
+                                Text(String(format: "%.0f", km))
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading) { _ in
+                        AxisGridLine()
+                        AxisValueLabel()
+                    }
+                }
+                .frame(height: 240)
+            }
+        }
+        .padding()
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
@@ -1850,63 +2048,491 @@ struct LocationText: View {
         // Check if task was cancelled before making network request
         guard !Task.isCancelled else { return }
 
-        guard let request = MKReverseGeocodingRequest(location: location) else {
-            locationName = unknownLocation
-            await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
-            return
-        }
-
-        do {
-            let mapItems = try await request.mapItems
-
-            // Check cancellation after network request
-            guard !Task.isCancelled else { return }
-
-            if let mapItem = mapItems.first {
-                // Use addressRepresentations for iOS 26+ (preferred)
-                if let addressRepresentations = mapItem.addressRepresentations {
-                    if let cityName = addressRepresentations.cityName {
-                        locationName = cityName
-                        await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
-                        return
-                    }
-                }
-
-                // Fallback to address fullAddress if addressRepresentations not available
-                if let address = mapItem.address {
-                    // MKAddress only has fullAddress and shortAddress, parse shortAddress for city
-                    if let shortAddress = address.shortAddress {
-                        locationName = shortAddress
-                        await LocationCache.shared.setCachedLocation(shortAddress, for: coordinate)
-                        return
-                    }
-                    // Last resort: use full address
-                    let fullAddress = address.fullAddress
-                    if !fullAddress.isEmpty {
-                        // Try to extract city from full address (first line usually)
-                        let components = fullAddress.components(separatedBy: "\n")
-                        let cityName = components.first ?? unknownLocation
-                        locationName = cityName
-                        await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
-                        return
-                    }
-                }
-
+        if #available(iOS 26, *) {
+            // Use MKReverseGeocodingRequest for iOS 26+
+            guard let request = MKReverseGeocodingRequest(location: location) else {
                 locationName = unknownLocation
                 await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
-            } else {
+                return
+            }
+
+            do {
+                let mapItems = try await request.mapItems
+
+                // Check cancellation after network request
+                guard !Task.isCancelled else { return }
+
+                if let mapItem = mapItems.first {
+                    // Use addressRepresentations for iOS 26+ (preferred)
+                    if let addressRepresentations = mapItem.addressRepresentations {
+                        if let cityName = addressRepresentations.cityName {
+                            locationName = cityName
+                            await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
+                            return
+                        }
+                    }
+
+                    // Fallback to address fullAddress if addressRepresentations not available
+                    if let address = mapItem.address {
+                        // MKAddress only has fullAddress and shortAddress, parse shortAddress for city
+                        if let shortAddress = address.shortAddress {
+                            locationName = shortAddress
+                            await LocationCache.shared.setCachedLocation(shortAddress, for: coordinate)
+                            return
+                        }
+                        // Last resort: use full address
+                        let fullAddress = address.fullAddress
+                        if !fullAddress.isEmpty {
+                            // Try to extract city from full address (first line usually)
+                            let components = fullAddress.components(separatedBy: "\n")
+                            let cityName = components.first ?? unknownLocation
+                            locationName = cityName
+                            await LocationCache.shared.setCachedLocation(cityName, for: coordinate)
+                            return
+                        }
+                    }
+
+                    locationName = unknownLocation
+                    await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+                } else {
+                    locationName = unknownLocation
+                    await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+                }
+            } catch is CancellationError {
+                // Task was cancelled, don't update state or cache
+                return
+            } catch {
+                // Only update on non-cancellation errors
+                guard !Task.isCancelled else { return }
                 locationName = unknownLocation
                 await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
             }
-        } catch is CancellationError {
-            // Task was cancelled, don't update state or cache
-            return
-        } catch {
-            // Only update on non-cancellation errors
-            guard !Task.isCancelled else { return }
-            locationName = unknownLocation
-            await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+        } else {
+            // Fallback to CLGeocoder for iOS 18.6 - 25.x
+            let geocoder = CLGeocoder()
+
+            do {
+                let placemarks = try await geocoder.reverseGeocodeLocation(location)
+
+                // Check cancellation after network request
+                guard !Task.isCancelled else { return }
+
+                if let placemark = placemarks.first {
+                    // Try to get city name from placemark
+                    if let city = placemark.locality {
+                        locationName = city
+                        await LocationCache.shared.setCachedLocation(city, for: coordinate)
+                        return
+                    }
+
+                    // Fallback to sublocality or administrative area
+                    if let sublocality = placemark.subLocality {
+                        locationName = sublocality
+                        await LocationCache.shared.setCachedLocation(sublocality, for: coordinate)
+                        return
+                    }
+
+                    if let administrativeArea = placemark.administrativeArea {
+                        locationName = administrativeArea
+                        await LocationCache.shared.setCachedLocation(administrativeArea, for: coordinate)
+                        return
+                    }
+                }
+
+                locationName = unknownLocation
+                await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+            } catch is CancellationError {
+                // Task was cancelled, don't update state or cache
+                return
+            } catch {
+                // Only update on non-cancellation errors
+                guard !Task.isCancelled else { return }
+                locationName = unknownLocation
+                await LocationCache.shared.setCachedLocation(unknownLocation, for: coordinate)
+            }
         }
+    }
+}
+
+// MARK: - Tabbed Splits Section (km vs intervals)
+
+enum SplitsTabSelection: String, CaseIterable {
+    case byKm = "km"
+    case byInterval = "intervals"
+
+    var localizedTitle: String {
+        switch self {
+        case .byKm:
+            return String(localized: "By km", comment: "Splits tab: by kilometer")
+        case .byInterval:
+            return String(localized: "Intervals", comment: "Splits tab: by interval")
+        }
+    }
+}
+
+struct TabbedSplitsSection: View {
+    let splits: [Split]
+    let intervals: [WorkoutInterval]?
+    @State private var isExpanded = false
+    @State private var selectedTab: SplitsTabSelection = .byKm
+
+    private var hasIntervals: Bool {
+        guard let intervals = intervals else { return false }
+        return intervals.count > 1
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header - always visible
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "list.number")
+                        .foregroundStyle(Color.blue.gradient)
+                        .font(.title3)
+
+                    Text(String(localized: "Splits", comment: "Splits section title"))
+                        .font(.headline)
+                        .foregroundStyle(Color.irTextPrimary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding()
+                .background(Color.irCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 20))
+            }
+            .buttonStyle(.plain)
+
+            // Content - collapsible
+            if isExpanded {
+                VStack(spacing: 12) {
+                    // Show tabs only if intervals exist
+                    if hasIntervals {
+                        Picker("", selection: $selectedTab) {
+                            ForEach(SplitsTabSelection.allCases, id: \.self) { tab in
+                                Text(tab.localizedTitle).tag(tab)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    // Content based on selected tab
+                    switch selectedTab {
+                    case .byKm:
+                        SplitsByKmContent(splits: splits)
+                    case .byInterval:
+                        if let intervals = intervals {
+                            IntervalsSplitsContent(intervals: intervals)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.irCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(.top, 4)
+            }
+        }
+    }
+}
+
+// MARK: - Splits by Km Content
+
+struct SplitsByKmContent: View {
+    let splits: [Split]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // Best/Worst splits summary
+            if let best = splits.min(by: { $0.pace < $1.pace }),
+               let worst = splits.max(by: { $0.pace < $1.pace }) {
+                HStack(spacing: 20) {
+                    VStack(spacing: 4) {
+                        Text(String(localized: "Best", comment: "Best split label"))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(best.paceFormatted)
+                            .font(.headline)
+                            .foregroundStyle(Color.irSuccess)
+                        Text("km \(best.kilometer)")
+                            .font(.caption2)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Divider()
+                        .frame(height: 50)
+
+                    VStack(spacing: 4) {
+                        Text(String(localized: "Slowest", comment: "Slowest split label"))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(worst.paceFormatted)
+                            .font(.headline)
+                            .foregroundStyle(Color.irWarning)
+                        Text("km \(worst.kilometer)")
+                            .font(.caption2)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.bottom, 8)
+
+                Divider()
+            }
+
+            // All splits
+            ForEach(splits) { split in
+                SplitRow(split: split)
+            }
+        }
+    }
+}
+
+// MARK: - Intervals Splits Content
+
+struct IntervalsSplitsContent: View {
+    let intervals: [WorkoutInterval]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(intervals) { interval in
+                IntervalRow(interval: interval)
+            }
+        }
+    }
+}
+
+// MARK: - Interval Row Component
+
+struct IntervalRow: View {
+    let interval: WorkoutInterval
+
+    private var intervalColor: Color {
+        switch interval.type {
+        case .warmup:
+            return .yellow
+        case .work:
+            return .orange
+        case .recovery:
+            return .green
+        case .cooldown:
+            return .blue
+        case .unknown:
+            return .gray
+        }
+    }
+
+    /// Compares actual pace with target pace and returns appropriate color
+    /// Green = faster than target (good), Red = slower than target (missed)
+    private var paceComparisonColor: Color {
+        guard let actualPace = interval.pace,
+              let targetMin = interval.targetPaceMin else {
+            return Color.irTextPrimary
+        }
+        // Lower pace = faster, so actualPace < targetMin means faster than target
+        if actualPace <= targetMin {
+            return .green
+        } else if let targetMax = interval.targetPaceMax, actualPace <= targetMax {
+            return .orange // Within range
+        } else {
+            return .red // Slower than target
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left color strip
+            Rectangle()
+                .fill(intervalColor)
+                .frame(width: 5)
+                .frame(maxHeight: .infinity)
+
+            VStack(spacing: 10) {
+                // 1. Header: Type, Index, Time
+                HStack {
+                    // Type Icon & Name
+                    HStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(intervalColor.opacity(0.15))
+                                .frame(width: 30, height: 30)
+                            Image(systemName: interval.type.icon)
+                                .font(.caption.bold())
+                                .foregroundStyle(intervalColor)
+                        }
+
+                        Text("\(interval.index). \(interval.type.localizedName)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.irTextPrimary)
+                    }
+
+                    Spacer()
+
+                    // Duration
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(interval.durationCompactFormatted)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.irTextPrimary)
+                            .monospacedDigit()
+                    }
+                }
+
+                Divider()
+
+                // 2. Metrics Grid
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 16) {
+                    // Cell 1: Pace
+                    if let targetPace = interval.targetPaceRangeFormatted {
+                        // Target vs Actual
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(String(localized: "Pace", comment: "Pace label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "target")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                                Text(targetPace)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                            
+                            if let actualPace = interval.paceFormatted {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "speedometer")
+                                        .font(.caption2)
+                                        .foregroundStyle(paceComparisonColor)
+                                    Text(actualPace)
+                                        .font(.callout)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(paceComparisonColor)
+                                        .monospacedDigit()
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if let pace = interval.paceFormatted {
+                        // Just Pace
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Pace", comment: "Pace label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            Text(pace)
+                                .font(.callout)
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color.irTextPrimary)
+                                .monospacedDigit()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                         Color.clear
+                    }
+
+                    // Cell 2: Heart Rate
+                    if let hr = interval.averageHeartRate {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Heart Rate", comment: "HR label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "heart.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                Text(String(format: "%.0f", hr))
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .monospacedDigit()
+                                Text("bpm")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Color.clear
+                    }
+
+                    // Cell 3: Distance
+                    if let distance = interval.distanceFormatted {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Distance", comment: "Distance label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "ruler.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.blue)
+                                Text(distance)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .monospacedDigit()
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                         Color.clear
+                    }
+
+                    // Cell 4: Power
+                    if let power = interval.averagePower {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "Power", comment: "Power label"))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                                .textCase(.uppercase)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "bolt.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                Text(String(format: "%.0f", power))
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .monospacedDigit()
+                                Text("W")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.irTextSecondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                         Color.clear
+                    }
+                }
+            }
+            .padding(12)
+        }
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.irBorder.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
     }
 }
 
@@ -1922,7 +2548,12 @@ struct LocationText: View {
                 distance: 5000,
                 totalEnergyBurned: 350,
                 sourceName: "Apple Watch",
-                sourceVersion: "10.0"
+                sourceVersion: "10.0",
+                metadata: nil,
+                averageHeartRate: 145,
+                maxHeartRate: 165,
+                elevationGain: 50,
+                hasRoute: false
             )
         )
     }

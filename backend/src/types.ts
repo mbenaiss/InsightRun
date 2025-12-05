@@ -135,7 +135,8 @@ export interface ChatDataPayload {
 
 export interface ChatRequestV2 {
   promptType: 'workout_coach'
-  model: string
+  requestType?: string // Optional: 'SIMPLE', 'MODERATE', 'COMPLEX' - if not provided, backend will classify
+  model?: string // Optional: for backward compatibility or manual override
   userQuestion: string
   language: string // e.g., "fr", "en", "es", "de"
   data: ChatDataPayload
@@ -146,7 +147,8 @@ export const batchAnalysisRequestSchema = z.object({
   workouts: z.array(workoutDataSchema).min(1).max(50),
   batchIndex: z.number().int().min(0),
   language: z.string().min(2).max(5),
-  model: z.string().min(1),
+  requestType: z.string().optional(), // e.g., 'BATCH_PROCESSING'
+  model: z.string().optional(), // Fallback for backward compatibility
 })
 
 // Zod schema for ConsolidateRequest validation
@@ -155,14 +157,16 @@ export const consolidateRequestSchema = z.object({
   totalWorkouts: z.number().int().min(1),
   profile: healthProfileDataSchema.optional(),
   language: z.string().min(2).max(5),
-  model: z.string().min(1),
+  requestType: z.string().optional(), // e.g., 'MODERATE'
+  model: z.string().optional(), // Fallback for backward compatibility
 })
 
 export interface BatchAnalysisRequest {
   workouts: WorkoutData[]
   batchIndex: number
   language: string
-  model: string
+  requestType?: string
+  model?: string
 }
 
 export interface BatchAnalysisResponse {
@@ -177,7 +181,8 @@ export interface ConsolidateRequest {
   totalWorkouts: number
   profile?: HealthProfileData
   language: string
-  model: string
+  requestType?: string
+  model?: string
 }
 
 export interface ConsolidateResponse {

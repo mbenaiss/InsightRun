@@ -34,11 +34,11 @@ struct IndexationBannerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "Update Athletic Profile", comment: "Banner title for profile update"))
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(Color.irTextPrimary)
 
                     Text(String(localized: "Sync your recent workouts for better AI insights", comment: "Banner description for profile update"))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .lineLimit(2)
                 }
 
@@ -59,10 +59,10 @@ struct IndexationBannerView: View {
                     Text(String(localized: "Later", comment: "Dismiss banner button"))
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(.ultraThinMaterial)
+                        .background(Color.irCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
 
@@ -89,7 +89,7 @@ struct IndexationBannerView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
     }

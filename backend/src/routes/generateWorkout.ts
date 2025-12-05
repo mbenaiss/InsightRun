@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { estimateTokenCount } from '../utils'
 
@@ -23,7 +24,8 @@ interface WorkoutGenerationRequest {
     recentWorkouts?: number // count
     fitnessLevel?: 'beginner' | 'intermediate' | 'advanced'
   }
-  model?: string
+  requestType?: string // e.g., 'WORKOUT_GENERATION'
+  model?: string // Fallback for backward compatibility
 }
 
 interface WorkoutStep {
@@ -286,10 +288,16 @@ app.post('/', async (c) => {
       body.userContext
     )
 
-    // Default model: Gemini 2.5 Flash Lite (fast and cheap for workout generation)
-    const model = body.model || 'google/gemini-2.5-flash-lite'
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      body.requestType,
+      body.model,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.WORKOUT_GENERATION
+    )
 
-    console.log(`🏃 Generating workout for user ${userId}: "${body.userQuestion}"`)
+    console.log(`🏃 Generating workout with ${finalModel} for "${body.userQuestion}"`)
 
     // Call OpenRouter with retry logic
     let workoutJSON: AIGeneratedWorkout | null = null
@@ -304,7 +312,7 @@ app.post('/', async (c) => {
           c.env.OPENROUTER_API_KEY,
           systemPrompt,
           userPrompt,
-          model
+          finalModel
         )
 
         console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
@@ -342,6 +350,11 @@ app.post('/', async (c) => {
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
 
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+    }
+
     // Log to PostHog (optional, async)
     if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
       const posthog = createPostHogClient({
@@ -355,7 +368,7 @@ app.post('/', async (c) => {
             const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
             const outputTokenCount = estimateTokenCount(JSON.stringify(workoutJSON))
             await captureLLMEvent(posthog, userId, traceId, {
-              model,
+              model: finalModel,
               input: userPrompt,
               systemPrompt,
               output: JSON.stringify(workoutJSON),
@@ -379,7 +392,7 @@ app.post('/', async (c) => {
       workout: workoutJSON,
       metadata: {
         generationTimeMs: generationTime,
-        modelUsed: model,
+        modelUsed: finalModel,
         attempts: attempts,
       },
     })

@@ -16,6 +16,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      admin: ${{ steps.filter.outputs.admin }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +30,8 @@ jobs:
               - 'frontend/**'
             backend:
               - 'backend/**'
+            admin:
+              - 'admin/**'
 
   # Deploy frontend preview to Cloudflare Workers
   preview_frontend:
@@ -172,10 +175,80 @@ jobs:
           echo "✅ Preview URL: $PREVIEW_URL"
           echo "📝 Alias: $ALIAS"
 
+  # Deploy admin preview to Cloudflare Workers
+  preview_admin:
+    name: Deploy Admin Preview
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+    outputs:
+      url: ${{ steps.extract-url.outputs.url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run linter
+        run: bun run lint
+
+      - name: Generate preview alias
+        id: generate-alias
+        run: |
+          # Generate valid preview alias from branch name
+          BRANCH_NAME="${{ github.head_ref }}"
+          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | sed 's/-*$//' | cut -c1-30)
+          if ! [[ $ALIAS =~ ^[a-z] ]]; then
+            ALIAS="pr-$ALIAS"
+          fi
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+          echo "Generated alias: $ALIAS"
+
+      - name: Build for Cloudflare Workers
+        run: bun run pages:build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          NEXT_PUBLIC_API_URL: https://api.insightrun.altcode.studio
+          NEXT_PUBLIC_ENV: preview
+
+      - name: Deploy to Cloudflare Workers (Preview)
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: versions upload --preview-alias ${{ steps.generate-alias.outputs.alias }}
+          workingDirectory: admin
+        env:
+          NODE_ENV: preview
+
+      - name: Extract deployment URL and status
+        id: extract-url
+        run: |
+          ALIAS="${{ steps.generate-alias.outputs.alias }}"
+          PREVIEW_URL="https://${ALIAS}-insightrun-admin.mbenaissa.workers.dev"
+
+          echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "status=READY" >> $GITHUB_OUTPUT
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+
+          echo "✅ Preview URL: $PREVIEW_URL"
+          echo "📝 Alias: $ALIAS"
+
   # Comment on PR with preview URLs
   comment:
     name: Comment Preview URLs
-    needs: [changes, preview_frontend, preview_backend]
+    needs: [changes, preview_frontend, preview_backend, preview_admin]
     if: always() && needs.changes.result == 'success'
     runs-on: ubuntu-latest
     permissions:
@@ -202,7 +275,7 @@ jobs:
           # Check if any deployments exist
           HAS_DEPLOYMENTS=false
 
-          if [ "${{ needs.changes.outputs.frontend }}" == "true" ] || [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
+          if [ "${{ needs.changes.outputs.frontend }}" == "true" ] || [ "${{ needs.changes.outputs.backend }}" == "true" ] || [ "${{ needs.changes.outputs.admin }}" == "true" ]; then
             HAS_DEPLOYMENTS=true
 
             # Create table header
@@ -231,11 +304,22 @@ jobs:
               fi
             fi
 
+            # Admin row
+            if [ "${{ needs.changes.outputs.admin }}" == "true" ]; then
+              if [ "${{ needs.preview_admin.result }}" == "success" ]; then
+                ADMIN_URL="${{ needs.preview_admin.outputs.url }}"
+                ADMIN_ALIAS="${{ needs.preview_admin.outputs.alias }}"
+                echo "| 🔧 Admin | [$ADMIN_URL]($ADMIN_URL) | ✅ READY | \`$ADMIN_ALIAS\` |" >> comment.md
+              else
+                echo "| 🔧 Admin | - | ❌ ERROR | - |" >> comment.md
+              fi
+            fi
+
             echo "" >> comment.md
           fi
 
           if [ "$HAS_DEPLOYMENTS" == "false" ]; then
-            echo "ℹ️ No frontend or backend changes detected in this PR." >> comment.md
+            echo "ℹ️ No frontend, backend, or admin changes detected in this PR." >> comment.md
             echo "" >> comment.md
           fi
 

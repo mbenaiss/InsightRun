@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
+import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { QuotaCheck } from '../quota'
 import type {
@@ -356,10 +357,28 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
       )
     }
 
-    const { workouts, batchIndex, language, model } = validationResult.data
+    const {
+      workouts,
+      batchIndex,
+      language,
+      requestType,
+      model: manualModel,
+    } = validationResult.data
+
+    // Get user ID for quota management
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      manualModel,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.BATCH_PROCESSING
+    )
 
     console.log(
-      `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, model: ${model}, language: ${language}`
+      `📦 Batch analysis requested: batch ${batchIndex}, ${workouts.length} workouts, model: ${finalModel}, language: ${language}`
     )
 
     // Build batch analysis prompt
@@ -369,12 +388,17 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     // Call OpenRouter with batch timeout
     let summary = await callOpenRouterNonStreaming(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt,
       MAX_BATCH_TOKENS,
       BATCH_TIMEOUT
     )
+
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+    }
 
     // Validate and truncate if needed
     const tokenCount = validateTokenCount(summary, MAX_BATCH_TOKENS, 'Batch summary')
@@ -409,7 +433,7 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
           try {
             const inputTokenCount = estimateTokenCount(prompt)
             await captureLLMEvent(posthog, userId, traceId, {
-              model,
+              model: finalModel,
               input: `Batch analysis: ${workouts.length} workouts (${inputTokenCount} tokens)`,
               systemPrompt,
               output: summary,
@@ -474,13 +498,32 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
       )
     }
 
-    const { batchSummaries, totalWorkouts, profile, language, model } = validationResult.data
+    const {
+      batchSummaries,
+      totalWorkouts,
+      profile,
+      language,
+      requestType,
+      model: manualModel,
+    } = validationResult.data
+
+    // Get user ID for quota management
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+
+    // Select model using helper
+    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
+      requestType,
+      manualModel,
+      c.env.RATE_LIMITER,
+      userId,
+      RequestType.MODERATE
+    )
 
     const profileInfo = profile
       ? `with profile (age: ${profile.age || 'N/A'}, sex: ${profile.sex || 'N/A'})`
       : 'no profile'
     console.log(
-      `🔄 Consolidation requested: ${batchSummaries.length} batches, ${totalWorkouts} workouts, ${profileInfo}, model: ${model}, language: ${language}`
+      `🔄 Consolidation requested: ${batchSummaries.length} batches, ${totalWorkouts} workouts, ${profileInfo}, model: ${finalModel}, language: ${language}`
     )
 
     // Build consolidation prompt with optional profile context
@@ -490,12 +533,17 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     // Call OpenRouter with consolidation timeout
     let summary = await callOpenRouterNonStreaming(
       c.env.OPENROUTER_API_KEY,
-      model,
+      finalModel,
       systemPrompt,
       prompt,
       MAX_CONSOLIDATE_TOKENS,
       CONSOLIDATE_TIMEOUT
     )
+
+    // Increment quota if model requires it
+    if (modelConfig) {
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+    }
 
     // Validate and truncate if needed
     const tokenCount = validateTokenCount(summary, MAX_CONSOLIDATE_TOKENS, 'Consolidated summary')
@@ -530,7 +578,7 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
           try {
             const inputTokenCount = estimateTokenCount(prompt)
             await captureLLMEvent(posthog, userId, traceId, {
-              model,
+              model: finalModel,
               input: `Consolidation: ${batchSummaries.length} batches (${inputTokenCount} tokens)`,
               systemPrompt,
               output: summary,

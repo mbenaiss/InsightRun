@@ -60,12 +60,12 @@ class WorkoutPlanViewModel: ObservableObject {
             // Get user language
             let language = Locale.current.language.languageCode?.identifier ?? "en"
 
-            // Call backend (instructions are in backend system prompt)
+            // Call backend (backend selects optimal model based on requestType)
             let response = try await backendClient.generateWorkout(
                 userQuestion: promptText,
                 language: language,
                 userContext: userContext,
-                model: nil // Use default (Gemini Flash)
+                model: nil // Backend selects optimal model
             )
 
             // Convert backend response to AIGeneratedWorkout
@@ -313,6 +313,8 @@ class WorkoutPlanViewModel: ObservableObject {
         switch error {
         case .unauthorized:
             self.error = String(localized: "Authentication error", comment: "Workout generation error")
+        case .blocked:
+            self.error = String(localized: "Your account has been blocked. Please contact support.", comment: "Workout generation error")
         case .rateLimitExceeded:
             self.error = String(localized: "Too many requests. Please try again later.", comment: "Workout generation error")
         case .serverError:
@@ -331,13 +333,27 @@ class WorkoutPlanViewModel: ObservableObject {
 
     // MARK: - Smart Suggestion
 
+    private var smartSuggestionTask: Task<Void, Never>?
+
+    func cancelSmartSuggestion() {
+        smartSuggestionTask?.cancel()
+        smartSuggestionTask = nil
+        isGeneratingSmartSuggestion = false
+        smartSuggestionError = nil
+        print("✅ Smart suggestion cancelled")
+    }
+
     func generateSmartSuggestion() async {
         isGeneratingSmartSuggestion = true
         smartSuggestionError = nil
 
+        let startTime = Date()
+        AnalyticsService.shared.trackSmartSuggestionRequested()
+
         do {
             // 1. Load last 15 workouts with metrics for better analysis
             let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 15)
+            try Task.checkCancellation()
 
             // 2. Load metrics in parallel
             var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
@@ -360,6 +376,7 @@ class WorkoutPlanViewModel: ObservableObject {
                     }
                 }
             }
+            try Task.checkCancellation()
 
             // 3. Build enriched ChatRequestV2 payload with additional context
             let historicalSummary = HistoricalSummaryStorage.shared.load()
@@ -375,6 +392,7 @@ class WorkoutPlanViewModel: ObservableObject {
 
             // Get VO2 Max for fitness level assessment
             _ = await healthKitManager.fetchLatestVO2Max()
+            try Task.checkCancellation()
 
             let recentWorkoutsData = RecentWorkoutsData(
                 workouts: recentWorkouts.map { workout in
@@ -396,16 +414,37 @@ class WorkoutPlanViewModel: ObservableObject {
                 historicalSummary: historicalSummary?.summary,
                 language: language
             )
+            try Task.checkCancellation()
 
             // 5. Fill the prompt text field with the suggestion
             promptText = response.suggestion
 
+            // Track successful generation
+            let generationTime = Int(Date().timeIntervalSince(startTime) * 1000)
+            AnalyticsService.shared.trackSmartSuggestionGenerated(
+                suggestionLength: response.suggestion.count,
+                generationTimeMs: generationTime
+            )
+            AnalyticsService.shared.trackSmartSuggestionApplied()
+
+        } catch is CancellationError {
+            print("✅ Smart suggestion cancelled by user")
         } catch let backendError as BackendError {
             smartSuggestionError = backendError.localizedDescription
             print("❌ Smart suggestion error: \(backendError)")
+
+            AnalyticsService.shared.trackSmartSuggestionFailed(
+                errorType: "BackendError",
+                errorMessage: backendError.localizedDescription
+            )
         } catch {
             smartSuggestionError = error.localizedDescription
             print("❌ Smart suggestion error: \(error)")
+
+            AnalyticsService.shared.trackSmartSuggestionFailed(
+                errorType: String(describing: type(of: error)),
+                errorMessage: error.localizedDescription
+            )
         }
 
         isGeneratingSmartSuggestion = false
@@ -566,7 +605,7 @@ struct WorkoutPlanView: View {
             // Icon with gradient
             ZStack {
                 Circle()
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.irCardBackground)
                     .frame(width: 100, height: 100)
                     .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
 
@@ -662,6 +701,9 @@ struct WorkoutPlanView: View {
         editedWorkoutName = workout.name
         editedSteps = workout.steps
 
+        // Track editing started
+        AnalyticsService.shared.trackWorkoutEditingStarted(workoutName: workout.name)
+
         // Enable editing
         withAnimation {
             isEditing = true
@@ -675,6 +717,9 @@ struct WorkoutPlanView: View {
             workout.steps = backupSteps
             viewModel.generatedWorkout = workout
         }
+
+        // Track editing cancelled
+        AnalyticsService.shared.trackWorkoutEditingCancelled()
 
         // Clear temporary state
         editedWorkoutName = ""
@@ -702,6 +747,12 @@ struct WorkoutPlanView: View {
         // Update viewModel with edited workout
         viewModel.generatedWorkout = workout
 
+        // Track editing saved
+        AnalyticsService.shared.trackWorkoutEditingSaved(
+            workoutName: editedWorkoutName,
+            stepsCount: editedSteps.count
+        )
+
         // Clear temporary state
         editedWorkoutName = ""
         editedSteps = []
@@ -725,7 +776,7 @@ struct WorkoutPlanView: View {
             // Header Icon
             ZStack {
                 Circle()
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.irCardBackground)
                     .frame(width: 100, height: 100)
                     .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
 
@@ -749,7 +800,7 @@ struct WorkoutPlanView: View {
 
                 Text(String(localized: "Describe your workout and let AI create a personalized plan", comment: "Workout generator subtitle"))
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -765,7 +816,7 @@ struct WorkoutPlanView: View {
                         isTextFieldFocused = false
                     }
                     .padding()
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .lineLimit(3...6)
             }
@@ -775,7 +826,7 @@ struct WorkoutPlanView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(String(localized: "Or try these", comment: "Sample prompts label"))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .textCase(.uppercase)
 
                     // AI-Powered Smart Suggestion (NEW)
@@ -801,11 +852,11 @@ struct WorkoutPlanView: View {
                                     .scaleEffect(0.7)
                                 Text(String(localized: "Generating suggestion...", comment: "AI suggestion loading"))
                                     .font(.subheadline)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(Color.irTextPrimary)
                             } else {
                                 Text(String(localized: "Suggest a workout based on my history", comment: "AI suggestion prompt"))
                                     .font(.subheadline)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(Color.irTextPrimary)
                             }
 
                             Spacer()
@@ -813,7 +864,7 @@ struct WorkoutPlanView: View {
                             if !viewModel.isGeneratingSmartSuggestion {
                                 Image(systemName: "arrow.up.right")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.irTextSecondary)
                             }
                         }
                         .padding(12)
@@ -827,7 +878,7 @@ struct WorkoutPlanView: View {
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
-                            .overlay(.ultraThinMaterial)
+                            .overlay(Color.irCardBackground)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
@@ -849,11 +900,11 @@ struct WorkoutPlanView: View {
                     if let error = viewModel.smartSuggestionError {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
+                                .foregroundColor(Color.irWarning)
                                 .font(.caption)
                             Text(error)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.irTextSecondary)
                         }
                         .padding(.horizontal, 12)
                     }
@@ -867,17 +918,17 @@ struct WorkoutPlanView: View {
                             HStack {
                                 Image(systemName: "lightbulb.fill")
                                     .font(.caption)
-                                    .foregroundColor(.yellow)
+                                    .foregroundColor(Color.irWarning)
                                 Text(sample)
                                     .font(.subheadline)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(Color.irTextPrimary)
                                 Spacer()
                                 Image(systemName: "arrow.up.right")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.irTextSecondary)
                             }
                             .padding(12)
-                            .background(.ultraThinMaterial)
+                            .background(Color.irCardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -921,6 +972,27 @@ struct WorkoutPlanView: View {
                 .shadow(color: viewModel.promptText.isEmpty ? .clear : .blue.opacity(0.4), radius: 8, y: 4)
             }
             .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
+
+            // Cancel Button (only visible during smart suggestion generation)
+            if viewModel.isGeneratingSmartSuggestion {
+                Button(action: {
+                    viewModel.cancelSmartSuggestion()
+                }) {
+                    Text(String(localized: "Cancel", comment: "Cancel smart suggestion button"))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.irCardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
     }
 
@@ -939,7 +1011,7 @@ struct WorkoutPlanView: View {
                         .lineLimit(2)
                         .padding(.horizontal)
                         .padding(8)
-                        .background(Color(.systemGray6))
+                        .background(Color.irCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else {
                     Text(workout.name)
@@ -952,7 +1024,7 @@ struct WorkoutPlanView: View {
 
                 Text(workout.description)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
 
@@ -969,7 +1041,7 @@ struct WorkoutPlanView: View {
                 .padding(.top, 4)
             }
             .padding()
-            .background(.ultraThinMaterial)
+            .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .padding(.bottom, 16)
 
@@ -1043,14 +1115,14 @@ struct WorkoutPlanView: View {
     private func errorView(_ error: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.orange)
+                .foregroundColor(Color.irError)
             Text(error)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.irTextSecondary)
             Spacer()
         }
         .padding()
-        .background(Color.orange.opacity(0.1))
+        .background(Color.irError.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -1071,7 +1143,7 @@ struct StatBadge: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -1106,7 +1178,7 @@ struct WorkoutVisualization: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -1182,7 +1254,7 @@ struct WorkoutStepRow: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1306,20 +1378,20 @@ struct EditableWorkoutStepRow: View {
                         HStack(spacing: 2) {
                             Text("\(durationMinutes):\(String(format: "%02d", durationSeconds))")
                                 .font(.caption)
-                                .foregroundColor(.primary)
+                                .foregroundColor(Color.irTextPrimary)
                             Image(systemName: "chevron.right")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.irTextSecondary)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(.systemGray5))
+                        .background(Color.irCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                 } else {
                     Text(goalText(step.goal))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                 }
             }
 
@@ -1329,7 +1401,7 @@ struct EditableWorkoutStepRow: View {
                 HStack(spacing: 4) {
                     Image(systemName: "speedometer")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
 
                     if isEditing {
                         Button(action: {
@@ -1338,23 +1410,23 @@ struct EditableWorkoutStepRow: View {
                             HStack(spacing: 2) {
                                 Text("\(paceMinutes):\(String(format: "%02d", paceSeconds))")
                                     .font(.subheadline)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(Color.irTextPrimary)
                                 Text(String(localized: "/km", comment: "Pace unit suffix"))
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.irTextSecondary)
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.irTextSecondary)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color(.systemGray5))
+                            .background(Color.irCardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                     } else {
                         Text(step.paceFormatted ?? "-")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.irTextSecondary)
                     }
                 }
 
@@ -1363,10 +1435,10 @@ struct EditableWorkoutStepRow: View {
                     HStack(spacing: 4) {
                         Image(systemName: "figure.run")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.irTextSecondary)
                         Text(distance)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.irTextSecondary)
                     }
                 }
 
@@ -1375,10 +1447,10 @@ struct EditableWorkoutStepRow: View {
                     HStack(spacing: 4) {
                         Image(systemName: "heart.fill")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.irTextSecondary)
                         Text("\(String(localized: "Zone", comment: "Heart rate zone prefix")) \(hrZone)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.irTextSecondary)
                     }
                 }
             }
@@ -1387,16 +1459,16 @@ struct EditableWorkoutStepRow: View {
             if let instructions = step.instructions {
                 Text(instructions)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.irTextSecondary)
                     .italic()
             }
         }
         .padding()
         .background {
             if isEditing {
-                Color(.systemGray6)
+                Color.irCardBackground
             } else {
-                Color.clear.background(.ultraThinMaterial)
+                Color.clear.background(Color.irCardBackground)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1524,7 +1596,7 @@ struct PacePickerView: View {
 
                     Text(String(localized: "/km", comment: "Pace unit suffix"))
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .padding(.leading, 8)
                 }
                 .padding()
@@ -1565,7 +1637,7 @@ struct DurationPickerView: View {
 
                     Text(String(localized: "min", comment: "Minutes abbreviation"))
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
 
                     // Seconds picker
                     Picker("", selection: $seconds) {
@@ -1579,7 +1651,7 @@ struct DurationPickerView: View {
 
                     Text(String(localized: "sec", comment: "Seconds abbreviation"))
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .padding(.trailing, 8)
                 }
                 .padding()
@@ -1618,7 +1690,7 @@ struct WorkoutFeatureRow: View {
 
             Text(text)
                 .font(.subheadline)
-                .foregroundColor(.primary)
+                .foregroundColor(Color.irTextPrimary)
 
             Spacer()
         }
@@ -1663,11 +1735,11 @@ struct WorkoutExportSuccessView: View {
                     Text(String(localized: "Export Successful!", comment: "Success title after workout export"))
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(Color.irTextPrimary)
 
                     Text(String(localized: "Your workout has been exported successfully. Open the Fitness app to see it.", comment: "Success message after workout export"))
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                 }

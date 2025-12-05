@@ -186,12 +186,11 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // Get analysis prompt in user's language
         let question = getAnalysisPrompt()
 
-        // Use Grok-4-fast for automatic analysis (always use Grok to keep costs low)
+        // ModelRouter will automatically select appropriate model based on request complexity
         // Backend builds context from structured workout data
         await aiService.askQuestion(
             question: question,
-            mode: .singleWorkout(workout, metrics),
-            model: .grok4
+            mode: .singleWorkout(workout, metrics)
         )
 
         // Wait for streaming to complete by observing isStreaming
@@ -213,13 +212,13 @@ class WorkoutAnalysisViewModel: ObservableObject {
         }
 
         print("✅ WorkoutAnalysisViewModel: Streaming complete, saving to SwiftData (\(finalAnalysis.count) chars)")
+        print("🔍 WorkoutAnalysisViewModel: Saving with workoutId: \(workout.id)")
 
         // Save to SwiftData
         let analysis = WorkoutAnalysis(
             workoutId: workout.id,
             analysisText: finalAnalysis,
-            analyzedAt: Date(),
-            model: "grok-4-fast"
+            analyzedAt: Date()
         )
 
         modelContext.insert(analysis)
@@ -227,7 +226,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         do {
             try modelContext.save()
             analyzedAt = analysis.analyzedAt
-            print("✅ WorkoutAnalysisViewModel: Saved to SwiftData")
+            print("✅ WorkoutAnalysisViewModel: Saved to SwiftData with ID: \(analysis.workoutId)")
 
         } catch {
             self.error = "Erreur lors de la sauvegarde: \(error.localizedDescription)"
@@ -240,6 +239,8 @@ class WorkoutAnalysisViewModel: ObservableObject {
     /// Fetch cached analysis from SwiftData
     private func fetchCachedAnalysis() -> WorkoutAnalysis? {
         let workoutId = workout.id
+        print("🔍 WorkoutAnalysisViewModel: Looking for cached analysis with workoutId: \(workoutId)")
+
         let descriptor = FetchDescriptor<WorkoutAnalysis>(
             predicate: #Predicate<WorkoutAnalysis> { analysis in
                 analysis.workoutId == workoutId
@@ -248,6 +249,12 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         do {
             let results = try modelContext.fetch(descriptor)
+            print("🔍 WorkoutAnalysisViewModel: Found \(results.count) cached analyses")
+
+            if results.count > 0 {
+                print("🔍 WorkoutAnalysisViewModel: Cached analysis IDs: \(results.map { $0.workoutId })")
+            }
+
             return results.first
         } catch {
             print("⚠️ WorkoutAnalysisViewModel: Failed to fetch cached analysis: \(error)")

@@ -44,24 +44,66 @@ struct StravaIconView: View {
     }
 }
 
+// MARK: - Suunto Icon (Triangle from Suunto logo)
+struct SuuntoIconView: View {
+    var size: CGFloat = 14
+    var color: Color = .white
+
+    var body: some View {
+        Canvas { context, canvasSize in
+            let scale = canvasSize.width / 24.0
+            let centerX = canvasSize.width / 2
+            let padding = 3.0 * scale
+
+            // Triangle pointing up (simplified Suunto logo)
+            var trianglePath = Path()
+            trianglePath.move(to: CGPoint(x: centerX, y: padding)) // Top
+            trianglePath.addLine(to: CGPoint(x: canvasSize.width - padding, y: canvasSize.height - padding)) // Bottom right
+            trianglePath.addLine(to: CGPoint(x: padding, y: canvasSize.height - padding)) // Bottom left
+            trianglePath.closeSubpath()
+            context.fill(trianglePath, with: .color(color))
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 struct WorkoutRowView: View {
     let workout: WorkoutModel
-    @ObservedObject private var stravaAuth = StravaAuthService.shared
-    @ObservedObject private var remoteConfig = RemoteConfigService.shared
-
-    // Strava orange color from brand guidelines
-    private let stravaOrange = Color(hex: "FC5200")
 
     private enum WorkoutSource {
         case strava
         case apple
+        case suunto
+        case garmin
+        case polar
+        case coros
         case other
+
+        var color: Color {
+            switch self {
+            case .strava: return Color(hex: "FC5200") // Strava orange
+            case .apple: return .pink
+            case .suunto: return Color(hex: "E84545") // Suunto red
+            case .garmin: return Color(hex: "007CC3") // Garmin blue
+            case .polar: return Color(hex: "D32F2F") // Polar red
+            case .coros: return Color(hex: "FF6B00") // Coros orange
+            case .other: return .blue
+            }
+        }
     }
 
     private var workoutSource: WorkoutSource {
         let sourceLower = workout.sourceName.lowercased()
         if sourceLower.contains("strava") {
             return .strava
+        } else if sourceLower.contains("suunto") {
+            return .suunto
+        } else if sourceLower.contains("garmin") {
+            return .garmin
+        } else if sourceLower.contains("polar") {
+            return .polar
+        } else if sourceLower.contains("coros") {
+            return .coros
         } else if sourceLower.contains("apple") || sourceLower.contains("watch") || sourceLower.contains("health") {
             return .apple
         } else {
@@ -69,16 +111,32 @@ struct WorkoutRowView: View {
         }
     }
 
-    private var sourceColor: Color {
-        switch workoutSource {
-        case .strava: return stravaOrange
-        case .apple: return .pink
-        case .other: return .blue
-        }
-    }
-
     private var workoutIcon: String {
         workout.isIndoor ? "figure.run.treadmill" : "figure.run"
+    }
+
+    @ViewBuilder
+    private var sourceIconView: some View {
+        switch workoutSource {
+        case .strava:
+            StravaIconView(size: 12)
+                .padding(5)
+        case .suunto:
+            SuuntoIconView(size: 12)
+                .padding(5)
+        case .apple:
+            Image(systemName: "applewatch")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 12, height: 12)
+                .foregroundStyle(.white)
+                .padding(5)
+        default:
+            Text(String(workout.sourceName.prefix(1)).uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(5)
+        }
     }
 
     var body: some View {
@@ -94,31 +152,15 @@ struct WorkoutRowView: View {
                     .foregroundStyle(Color.irPrimaryAccent)
             }
             .overlay(alignment: .bottomTrailing) {
-                // Small source icon overlay - only show if Strava feature is enabled and connected
-                if remoteConfig.isFeatureEnabled(.strava) && stravaAuth.isAuthenticated {
-                    Group {
-                        if workoutSource == .strava {
-                            // Custom Strava icon
-                            StravaIconView(size: 12)
-                                .padding(5)
-                        } else {
-                            // SF Symbol for other sources
-                            Image(systemName: workoutSource == .apple ? "applewatch" : "app.badge.checkmark.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 12, height: 12)
-                                .foregroundStyle(.white)
-                                .padding(5)
-                        }
-                    }
-                    .background(sourceColor)
+                // Source icon overlay - always show to identify workout origin
+                sourceIconView
+                    .background(workoutSource.color)
                     .clipShape(Circle())
                     .overlay(
                         Circle()
                             .stroke(Color.irCardBackground, lineWidth: 2)
                     )
                     .offset(x: 4, y: 4)
-                }
             }
 
             // Workout info

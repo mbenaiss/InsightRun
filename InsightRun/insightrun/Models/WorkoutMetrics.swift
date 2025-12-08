@@ -40,6 +40,9 @@ struct WorkoutMetrics {
     // Splits (per kilometer)
     var splits: [Split]?
 
+    // Intervals (workout segments like warmup, work, recovery)
+    var intervals: [WorkoutInterval]?
+
     // Route data
     var routePoints: [RoutePoint]?
 
@@ -111,6 +114,134 @@ struct RoutePoint: Identifiable {
     let horizontalAccuracy: Double? // meters
     let verticalAccuracy: Double? // meters
     let speed: Double? // m/s
+}
+
+// MARK: - Workout Interval (Lap/Segment)
+
+enum IntervalType: String {
+    case warmup = "warmup"
+    case work = "work"
+    case recovery = "recovery"
+    case cooldown = "cooldown"
+    case unknown = "unknown"
+
+    var localizedName: String {
+        switch self {
+        case .warmup:
+            return String(localized: "Warmup", comment: "Interval type: warmup")
+        case .work:
+            return String(localized: "Work", comment: "Interval type: work")
+        case .recovery:
+            return String(localized: "Recovery", comment: "Interval type: recovery")
+        case .cooldown:
+            return String(localized: "Cooldown", comment: "Interval type: cooldown")
+        case .unknown:
+            return String(localized: "Interval", comment: "Interval type: unknown")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .warmup:
+            return "figure.walk"
+        case .work:
+            return "flame.fill"
+        case .recovery:
+            return "arrow.down.heart"
+        case .cooldown:
+            return "wind"
+        case .unknown:
+            return "timer"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .warmup:
+            return "yellow"
+        case .work:
+            return "orange"
+        case .recovery:
+            return "green"
+        case .cooldown:
+            return "blue"
+        case .unknown:
+            return "gray"
+        }
+    }
+}
+
+struct WorkoutInterval: Identifiable {
+    let id = UUID()
+    let index: Int // 1, 2, 3, etc.
+    let type: IntervalType
+    let startDate: Date
+    let endDate: Date
+    let duration: TimeInterval // seconds
+    let distance: Double? // meters
+    let pace: Double? // min/km
+    let averageHeartRate: Double?
+    let averagePower: Double? // watts
+    let targetPaceMin: Double? // min/km (target pace range minimum)
+    let targetPaceMax: Double? // min/km (target pace range maximum)
+
+    var durationFormatted: String {
+        let totalSeconds = Int(duration)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        if minutes >= 60 {
+            let hours = minutes / 60
+            let remainingMinutes = minutes % 60
+            return String(format: "%dh %02dm %02ds", hours, remainingMinutes, seconds)
+        }
+        return String(format: "%dm %02ds", minutes, seconds)
+    }
+
+    var durationCompactFormatted: String {
+        let totalSeconds = Int(duration)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        if minutes >= 60 {
+            let hours = minutes / 60
+            let remainingMinutes = minutes % 60
+            return String(format: "%dh %02dm", hours, remainingMinutes)
+        }
+        if seconds == 0 {
+            return String(format: "%d mn", minutes)
+        }
+        return String(format: "%d mn %02d s", minutes, seconds)
+    }
+
+    var paceFormatted: String? {
+        guard let pace = pace else { return nil }
+        let minutes = Int(pace)
+        let seconds = Int((pace - Double(minutes)) * 60)
+        return String(format: "%d'%02d\"/km", minutes, seconds)
+    }
+
+    var targetPaceRangeFormatted: String? {
+        guard let minPace = targetPaceMin, let maxPace = targetPaceMax else { return nil }
+        let minMinutes = Int(minPace)
+        let minSeconds = Int((minPace - Double(minMinutes)) * 60)
+
+        // If min == max (threshold), show single value
+        if abs(minPace - maxPace) < 0.01 {
+            return String(format: "%d'%02d\"/km", minMinutes, minSeconds)
+        }
+
+        // Otherwise show range
+        let maxMinutes = Int(maxPace)
+        let maxSeconds = Int((maxPace - Double(maxMinutes)) * 60)
+        return String(format: "%d'%02d\"-%d'%02d\"/km", minMinutes, minSeconds, maxMinutes, maxSeconds)
+    }
+
+    var distanceFormatted: String? {
+        guard let distance = distance else { return nil }
+        if distance >= 1000 {
+            return String(format: "%.2f km", distance / 1000)
+        }
+        return String(format: "%.0f m", distance)
+    }
 }
 
 extension WorkoutMetrics {

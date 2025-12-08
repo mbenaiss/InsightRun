@@ -13,6 +13,10 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showingMedicalSources = false
     @State private var showRefreshSheet = false
+    @ObservedObject private var stravaAuth = StravaAuthService.shared
+    @ObservedObject private var remoteConfig = RemoteConfigService.shared
+    @State private var isSyncing = false
+    @State private var lastSyncResult: String?
 
     var body: some View {
         NavigationStack {
@@ -97,6 +101,12 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .onChange(of: themeManager.selectedTheme) { oldValue, newValue in
+                        AnalyticsService.shared.trackSettingsAppearanceChanged(
+                            oldTheme: oldValue.rawValue,
+                            newTheme: newValue.rawValue
+                        )
+                    }
                 } header: {
                     Text(String(localized: "Appearance"))
                 } footer: {
@@ -107,6 +117,7 @@ struct SettingsView: View {
                 Section {
                     Button {
                         showingMedicalSources = true
+                        AnalyticsService.shared.trackSettingsMedicalSourcesViewed()
                     } label: {
                         HStack {
                             Image(systemName: "book.closed.fill")
@@ -163,6 +174,7 @@ struct SettingsView: View {
                         // Refresh button
                         Button {
                             showRefreshSheet = true
+                            AnalyticsService.shared.trackSettingsRefreshDataClicked()
                         } label: {
                             HStack {
                                 Image(systemName: "arrow.clockwise")
@@ -197,6 +209,89 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text(String(localized: "Training Data", comment: "Training data section header"))
+                }
+
+                // Strava Integration Section (conditionally shown based on feature flag)
+                if remoteConfig.isFeatureEnabled(.strava) {
+                    Section {
+                        if stravaAuth.isAuthenticated {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.irSuccess)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(String(localized: "Strava Connected"))
+                                            .font(.headline)
+                                        if let syncResult = lastSyncResult {
+                                            Text(syncResult)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text(String(localized: "Activities syncing automatically"))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+
+                                // Powered by Strava logo (per Brand Guidelines)
+                                PoweredByStravaLogo(variant: .orange)
+                                    .frame(height: 20)
+                            }
+
+                            Button {
+                                syncStravaActivities()
+                            } label: {
+                                HStack {
+                                    if isSyncing {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "arrow.clockwise")
+                                    }
+                                    Text(String(localized: "Sync Now"))
+                                }
+                            }
+                            .disabled(isSyncing)
+
+                            Button(role: .destructive) {
+                                Task {
+                                    // Clear Strava cache
+                                    try? StravaCache.shared.clearAll()
+                                    print("🗑️  Cleared Strava cache")
+
+                                    // Clear Strava-related unified workouts (strava-only + merged)
+                                    try? UnifiedWorkoutCache.shared.clearStravaWorkouts()
+                                    print("🗑️  Cleared Strava unified workouts")
+
+                                    // Logout (calls backend cleanup + clears local tokens)
+                                    await stravaAuth.logout()
+
+                                    // Track disconnection
+                                    AnalyticsService.shared.trackStravaDisconnected()
+                                }
+                            } label: {
+                                Text(String(localized: "Disconnect"))
+                            }
+                        } else {
+                            StravaConnectButton(
+                                action: {
+                                    Task {
+                                        do {
+                                            try await stravaAuth.authenticate()
+                                        } catch {
+                                            print("Strava auth error: \(error)")
+                                        }
+                                    }
+                                },
+                                isLoading: false,
+                                variant: .orange
+                            )
+                        }
+                    } header: {
+                        Text(String(localized: "Integrations"))
+                    }
                 }
 
                 // Debug Section (for testing)
@@ -299,6 +394,39 @@ struct SettingsView: View {
     }
 
     // MARK: - Helper Methods
+
+    private func syncStravaActivities() {
+        isSyncing = true
+        lastSyncResult = nil
+
+        Task {
+            let backendClient = StravaBackendClient.shared
+            let userId = UserIdentityService.shared.userID
+
+            AnalyticsService.shared.trackStravaSyncStarted(initiatedBy: "manual")
+
+            do {
+                let syncResponse = try await backendClient.syncActivities(userId: userId, force: false)
+                lastSyncResult = String(localized: "\(syncResponse.newActivities) new activities synced")
+                print("✅ Manual sync complete: \(syncResponse.newActivities) new, \(syncResponse.totalActivities) total")
+
+                AnalyticsService.shared.trackStravaSyncCompleted(
+                    newActivitiesCount: syncResponse.newActivities,
+                    totalActivitiesCount: syncResponse.totalActivities
+                )
+            } catch {
+                lastSyncResult = String(localized: "Sync failed: \(error.localizedDescription)")
+                print("❌ Manual sync failed: \(error)")
+
+                AnalyticsService.shared.trackStravaSyncFailed(
+                    errorType: String(describing: type(of: error)),
+                    errorMessage: error.localizedDescription
+                )
+            }
+
+            isSyncing = false
+        }
+    }
 
     /// Format date for display in settings
     private func formatDate(_ date: Date) -> String {

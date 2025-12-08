@@ -194,6 +194,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             switch error {
             case .unauthorized:
                 errorMessage = String(localized: "Authentication error with server", comment: "Error message for authentication failures")
+            case .blocked:
+                errorMessage = String(localized: "Your account has been blocked. Please contact support.", comment: "Error message for blocked users")
             case .rateLimitExceeded:
                 errorMessage = String(localized: "Too many requests. Try again in a few minutes.", comment: "Error message for rate limit exceeded")
             case .serverError:

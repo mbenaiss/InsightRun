@@ -313,6 +313,8 @@ class WorkoutPlanViewModel: ObservableObject {
         switch error {
         case .unauthorized:
             self.error = String(localized: "Authentication error", comment: "Workout generation error")
+        case .blocked:
+            self.error = String(localized: "Your account has been blocked. Please contact support.", comment: "Workout generation error")
         case .rateLimitExceeded:
             self.error = String(localized: "Too many requests. Please try again later.", comment: "Workout generation error")
         case .serverError:
@@ -331,13 +333,27 @@ class WorkoutPlanViewModel: ObservableObject {
 
     // MARK: - Smart Suggestion
 
+    private var smartSuggestionTask: Task<Void, Never>?
+
+    func cancelSmartSuggestion() {
+        smartSuggestionTask?.cancel()
+        smartSuggestionTask = nil
+        isGeneratingSmartSuggestion = false
+        smartSuggestionError = nil
+        print("✅ Smart suggestion cancelled")
+    }
+
     func generateSmartSuggestion() async {
         isGeneratingSmartSuggestion = true
         smartSuggestionError = nil
 
+        let startTime = Date()
+        AnalyticsService.shared.trackSmartSuggestionRequested()
+
         do {
             // 1. Load last 15 workouts with metrics for better analysis
             let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 15)
+            try Task.checkCancellation()
 
             // 2. Load metrics in parallel
             var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
@@ -360,6 +376,7 @@ class WorkoutPlanViewModel: ObservableObject {
                     }
                 }
             }
+            try Task.checkCancellation()
 
             // 3. Build enriched ChatRequestV2 payload with additional context
             let historicalSummary = HistoricalSummaryStorage.shared.load()
@@ -375,6 +392,7 @@ class WorkoutPlanViewModel: ObservableObject {
 
             // Get VO2 Max for fitness level assessment
             _ = await healthKitManager.fetchLatestVO2Max()
+            try Task.checkCancellation()
 
             let recentWorkoutsData = RecentWorkoutsData(
                 workouts: recentWorkouts.map { workout in
@@ -396,16 +414,37 @@ class WorkoutPlanViewModel: ObservableObject {
                 historicalSummary: historicalSummary?.summary,
                 language: language
             )
+            try Task.checkCancellation()
 
             // 5. Fill the prompt text field with the suggestion
             promptText = response.suggestion
 
+            // Track successful generation
+            let generationTime = Int(Date().timeIntervalSince(startTime) * 1000)
+            AnalyticsService.shared.trackSmartSuggestionGenerated(
+                suggestionLength: response.suggestion.count,
+                generationTimeMs: generationTime
+            )
+            AnalyticsService.shared.trackSmartSuggestionApplied()
+
+        } catch is CancellationError {
+            print("✅ Smart suggestion cancelled by user")
         } catch let backendError as BackendError {
             smartSuggestionError = backendError.localizedDescription
             print("❌ Smart suggestion error: \(backendError)")
+
+            AnalyticsService.shared.trackSmartSuggestionFailed(
+                errorType: "BackendError",
+                errorMessage: backendError.localizedDescription
+            )
         } catch {
             smartSuggestionError = error.localizedDescription
             print("❌ Smart suggestion error: \(error)")
+
+            AnalyticsService.shared.trackSmartSuggestionFailed(
+                errorType: String(describing: type(of: error)),
+                errorMessage: error.localizedDescription
+            )
         }
 
         isGeneratingSmartSuggestion = false
@@ -662,6 +701,9 @@ struct WorkoutPlanView: View {
         editedWorkoutName = workout.name
         editedSteps = workout.steps
 
+        // Track editing started
+        AnalyticsService.shared.trackWorkoutEditingStarted(workoutName: workout.name)
+
         // Enable editing
         withAnimation {
             isEditing = true
@@ -675,6 +717,9 @@ struct WorkoutPlanView: View {
             workout.steps = backupSteps
             viewModel.generatedWorkout = workout
         }
+
+        // Track editing cancelled
+        AnalyticsService.shared.trackWorkoutEditingCancelled()
 
         // Clear temporary state
         editedWorkoutName = ""
@@ -701,6 +746,12 @@ struct WorkoutPlanView: View {
 
         // Update viewModel with edited workout
         viewModel.generatedWorkout = workout
+
+        // Track editing saved
+        AnalyticsService.shared.trackWorkoutEditingSaved(
+            workoutName: editedWorkoutName,
+            stepsCount: editedSteps.count
+        )
 
         // Clear temporary state
         editedWorkoutName = ""
@@ -921,6 +972,27 @@ struct WorkoutPlanView: View {
                 .shadow(color: viewModel.promptText.isEmpty ? .clear : .blue.opacity(0.4), radius: 8, y: 4)
             }
             .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
+
+            // Cancel Button (only visible during smart suggestion generation)
+            if viewModel.isGeneratingSmartSuggestion {
+                Button(action: {
+                    viewModel.cancelSmartSuggestion()
+                }) {
+                    Text(String(localized: "Cancel", comment: "Cancel smart suggestion button"))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.irCardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
     }
 

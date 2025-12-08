@@ -37,7 +37,8 @@ class BackendAPIClient {
         let body: [String: Any] = [
             "prompt": prompt,
             "systemPrompt": systemPrompt,
-            "requestType": RequestType.classification.rawValue
+            "requestType": RequestType.classification.rawValue,
+            "stream": false // Non-streaming for quick classification
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -382,6 +383,47 @@ class BackendAPIClient {
         return suggestionResponse
     }
 
+    // MARK: - Remote Configuration
+
+    /// Fetch remote configuration (feature flags, version info, maintenance mode)
+    /// Used by RemoteConfigService for offline-first feature management
+    func getConfig() async throws -> RemoteConfig {
+        let url = URL(string: "\(baseURL)/api/config")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.timeoutInterval = 10 // Short timeout for config fetch
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 403:
+            throw BackendError.blocked
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let config = try decoder.decode(RemoteConfig.self, from: data)
+
+        print("✅ BackendAPIClient: Fetched remote config")
+
+        return config
+    }
+
     // MARK: - Configuration
 
     func setBaseURL(_ url: String) {
@@ -411,6 +453,7 @@ struct RateLimitStats {
 
 enum BackendError: LocalizedError {
     case unauthorized
+    case blocked
     case rateLimitExceeded
     case serverError
     case invalidResponse
@@ -420,6 +463,8 @@ enum BackendError: LocalizedError {
         switch self {
         case .unauthorized:
             return "Unauthorized - Invalid app key"
+        case .blocked:
+            return "Your account has been blocked. Please contact support."
         case .rateLimitExceeded:
             return "Rate limit exceeded. Please try again later."
         case .serverError:

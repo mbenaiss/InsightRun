@@ -1,0 +1,6 @@
+<svg width="135" height="40" viewBox="0 0 135 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="135" height="40" rx="5" fill="#FC4C02"/>
+  <path d="M6.731 0 2 9.125h2.788L6.73 5.497l1.93 3.628h2.766zm4.694 9.125-1.372 2.756L8.66 9.125H6.547L10.053 16l3.484-6.875z" fill="white" transform="translate(15, 8) scale(1.5)"/>
+  <text x="45" y="15" font-family="Arial, sans-serif" font-size="8" font-weight="400" fill="white">Powered by</text>
+  <text x="45" y="27" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="white">STRAVA</text>
+</svg>

@@ -5,10 +5,12 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     @StateObject private var onboardingManager = OnboardingManager.shared
     @State private var selectedTab = 0
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -49,6 +51,14 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()
+        }
+        .onAppear {
+            // Inject shared ModelContext into cache singletons
+            // This ensures all caches use the unified persistent container
+            Task { @MainActor in
+                StravaCache.shared.setModelContext(modelContext)
+                UnifiedWorkoutCache.shared.setModelContext(modelContext)
+            }
         }
     }
 }

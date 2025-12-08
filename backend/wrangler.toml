@@ -2,13 +2,7 @@ name = "insightrun-backend"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
-
-# Account ID (à remplacer après avoir créé ton compte Cloudflare)
-# account_id = "YOUR_ACCOUNT_ID"
-
-# Workers AI binding (optionnel pour le futur)
-# [ai]
-# binding = "AI"
+preview_urls = true
 
 # KV namespace pour rate limiting (gratuit jusqu'à 100k opérations/jour)
 [[kv_namespaces]]
@@ -16,21 +10,35 @@ binding = "RATE_LIMITER"
 id = "68e04932b0fb470990644cc6ce45aaff"
 preview_id = "0a94bdf7fe8d4184947affb84f2e5a9b"
 
+# KV namespace pour Strava tokens (stockage des tokens utilisateur)
+[[kv_namespaces]]
+binding = "STRAVA_TOKENS"
+id = "5d56c2eb6ca044eaad63a7e62d62898a"
+preview_id = "6fa7e76cf01b477cabd39b3a03da8ca3"
+
+# D1 database pour Strava activities cache (gratuit jusqu'à 5M reads/day)
+[[d1_databases]]
+binding = "STRAVA_CACHE"
+database_name = "insightrun-strava-cache"
+database_id = "93c67d05-2724-49d4-a988-6d2c8812dffb"
+preview_database_id = "da736176-419e-4b2a-89fc-780216f8ade4"
+
 # Secrets (à configurer avec: wrangler secret put <SECRET_NAME>)
 # OPENROUTER_API_KEY - votre clé OpenRouter
 # APP_SECRET - secret pour authentifier l'app iOS
+# ADMIN_SECRET - secret pour authentifier le dashboard admin (générer avec: openssl rand -base64 32)
 # POSTHOG_API_KEY - clé API PostHog pour LLM analytics (format: phc_xxx)
 # POSTHOG_HOST - URL de votre instance PostHog (ex: https://eu.i.posthog.com ou https://us.i.posthog.com)
+#
+# Strava Secrets:
+# STRAVA_CLIENT_ID - Client ID de votre app Strava (ex: 123456)
+# STRAVA_CLIENT_SECRET - Client Secret de votre app Strava (TRÈS SECRET!)
+# STRAVA_WEBHOOK_VERIFY_TOKEN - Token de vérification pour webhooks (string aléatoire, ex: INSIGHTRUN_STRAVA_2024)
 
 # Observability - Logs configuration
-# enabled = true pour avoir les logs dans le dashboard Cloudflare
 [observability]
 [observability.logs]
 enabled = true
 head_sampling_rate = 1
 invocation_logs = true
 persist = true
-
-# Preview URLs - Enabled for automatic version preview generation
-# Preview URLs follow the format: <ALIAS>-insightrun-backend.<subdomain>.workers.dev
-preview_urls = true

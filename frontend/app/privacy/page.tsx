@@ -43,6 +43,14 @@ export default function PrivacyPolicy() {
               <li>Resting and walking heart rate</li>
               <li>Respiratory rate</li>
             </ul>
+            <p className="text-gray-700 mt-4 mb-4">
+              When you connect your Strava account (optional):
+            </p>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>Activity data (workouts, routes, performance metrics)</li>
+              <li>Profile information (athlete name, avatar)</li>
+              <li>Activity statistics and achievements</li>
+            </ul>
           </section>
 
           <section className="mb-8">
@@ -122,6 +130,12 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
+                <strong>Strava</strong> - Optional integration to synchronize your activities and
+                access detailed workout data. When connected, we access only the data you authorize
+                through Strava's OAuth flow. All Strava data handling complies with Strava's API
+                Agreement and Brand Guidelines.
+              </li>
+              <li>
                 <strong>Third-party AI services</strong> - Used to provide AI-powered coaching and
                 analysis. Only anonymized workout metrics are sent.
               </li>
@@ -151,6 +165,10 @@ export default function PrivacyPolicy() {
                 Health data remains in Apple HealthKit and is governed by Apple's privacy policy
               </li>
               <li>
+                Strava data is synchronized periodically and cached locally on your device. You can
+                disconnect your Strava account at any time.
+              </li>
+              <li>
                 App preferences and settings are stored locally on your device using iOS's
                 UserDefaults (not backed up to our servers)
               </li>
@@ -169,6 +187,10 @@ export default function PrivacyPolicy() {
             <p className="text-gray-700 mb-4">You have complete control over your data:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>You can delete all app data by uninstalling Insight Run from your device</li>
+              <li>
+                You can disconnect your Strava account at any time from the app settings, which will
+                remove all cached Strava data
+              </li>
               <li>
                 Your HealthKit data remains in the Health app and is not affected by uninstalling
                 Insight Run

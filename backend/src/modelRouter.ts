@@ -1,6 +1,19 @@
 // Model routing and selection logic
 // Maps semantic request types to specific AI models
 
+// === CACHE CONFIGURATION ===
+const KV_CACHE_TTL = 60 // Edge cache TTL in seconds
+const MEMORY_CACHE_TTL_MS = 30_000 // In-memory cache TTL (30 seconds)
+
+// Module-level cache (persists within Worker isolate lifetime)
+interface ModelConfigCache {
+  mapping: Record<string, string>
+  allModels: Record<string, ModelConfig>
+  expiresAt: number
+}
+
+let configCache: ModelConfigCache | null = null
+
 /**
  * Request types that describe the semantic intent
  * iOS sends these instead of specific model names
@@ -31,7 +44,7 @@ export enum RequestType {
 /**
  * Model configuration
  */
-interface ModelConfig {
+export interface ModelConfig {
   modelId: string
   displayName: string
   description: string
@@ -90,11 +103,10 @@ export const PREMIUM_MODEL_QUOTA_CONFIG = {
 }
 
 /**
- * Centralized mapping: RequestType → Model
- * This is the SINGLE SOURCE OF TRUTH for model selection
- * Change models here without touching any other code
+ * Default mapping: RequestType → Model
+ * Used as fallback when KV config is not available
  */
-const REQUEST_TYPE_TO_MODEL: Record<RequestType, keyof typeof MODELS> = {
+const DEFAULT_MODEL_MAPPING: Record<RequestType, keyof typeof MODELS> = {
   [RequestType.SIMPLE]: 'GROK_4_FAST',
   [RequestType.MODERATE]: 'GROK_4_FAST',
   [RequestType.COMPLEX]: 'GEMINI_3_PRO_PREVIEW', // Premium model with quota
@@ -105,34 +117,215 @@ const REQUEST_TYPE_TO_MODEL: Record<RequestType, keyof typeof MODELS> = {
 }
 
 /**
+ * KV key for admin model configuration
+ */
+const KV_MODEL_CONFIG_KEY = 'admin:config:models'
+
+/**
+ * KV key for custom models (added via admin)
+ */
+const KV_CUSTOM_MODELS_KEY = 'admin:config:custom_models'
+
+/**
+ * Default models (hardcoded fallback)
+ */
+const DEFAULT_MODELS = MODELS
+
+/**
+ * Invalidate the in-memory cache (call after any config update)
+ */
+function invalidateCache(): void {
+  configCache = null
+}
+
+/**
+ * Get model configuration with multi-level caching
+ * - Level 1: In-memory cache (same isolate, 30s TTL) → ~0ms
+ * - Level 2: KV edge cache (60s TTL) → ~1-2ms
+ * - Level 3: KV origin → ~3-10ms
+ *
+ * This replaces separate getModelMapping() + getAllModels() calls
+ * to avoid duplicate KV reads.
+ */
+async function getModelConfigCached(kv: KVNamespace): Promise<{
+  mapping: Record<string, string>
+  allModels: Record<string, ModelConfig>
+}> {
+  // Level 1: Check in-memory cache
+  if (configCache && Date.now() < configCache.expiresAt) {
+    return { mapping: configCache.mapping, allModels: configCache.allModels }
+  }
+
+  // Level 2 & 3: KV with edge caching (parallel reads - only 2 KV calls)
+  const [mappingJson, customModelsJson] = await Promise.all([
+    kv.get(KV_MODEL_CONFIG_KEY, { cacheTtl: KV_CACHE_TTL }),
+    kv.get(KV_CUSTOM_MODELS_KEY, { cacheTtl: KV_CACHE_TTL }),
+  ])
+
+  // Parse mapping with defaults
+  const mapping: Record<string, string> = { ...(DEFAULT_MODEL_MAPPING as Record<string, string>) }
+  if (mappingJson) {
+    try {
+      const config = JSON.parse(mappingJson) as Record<string, string>
+      for (const [requestType, modelKey] of Object.entries(config)) {
+        if (Object.values(RequestType).includes(requestType as RequestType)) {
+          mapping[requestType] = modelKey
+        }
+      }
+    } catch {
+      console.warn('⚠️ ModelRouter: Failed to parse model mapping')
+    }
+  }
+
+  // Parse custom models and merge with defaults
+  let allModels: Record<string, ModelConfig> = { ...DEFAULT_MODELS }
+  if (customModelsJson) {
+    try {
+      const customModels = JSON.parse(customModelsJson) as Record<string, ModelConfig>
+      allModels = { ...DEFAULT_MODELS, ...customModels }
+    } catch {
+      console.warn('⚠️ ModelRouter: Failed to parse custom models')
+    }
+  }
+
+  // Update in-memory cache
+  configCache = {
+    mapping,
+    allModels,
+    expiresAt: Date.now() + MEMORY_CACHE_TTL_MS,
+  }
+
+  return { mapping, allModels }
+}
+
+/**
+ * Get custom models from KV (uncached - for admin operations)
+ */
+async function getCustomModels(kv: KVNamespace): Promise<Record<string, ModelConfig>> {
+  try {
+    const json = await kv.get(KV_CUSTOM_MODELS_KEY, { cacheTtl: KV_CACHE_TTL })
+    if (json) {
+      return JSON.parse(json) as Record<string, ModelConfig>
+    }
+  } catch (error) {
+    console.warn('⚠️ ModelRouter: Failed to read custom models from KV', error)
+  }
+  return {}
+}
+
+/**
+ * Save custom models to KV
+ */
+async function setCustomModels(
+  kv: KVNamespace,
+  models: Record<string, ModelConfig>
+): Promise<void> {
+  await kv.put(KV_CUSTOM_MODELS_KEY, JSON.stringify(models))
+  invalidateCache()
+  console.log('✅ ModelRouter: Updated custom models in KV')
+}
+
+/**
+ * Get all models (default + custom merged)
+ */
+export async function getAllModels(kv: KVNamespace): Promise<Record<string, ModelConfig>> {
+  const { allModels } = await getModelConfigCached(kv)
+  return allModels
+}
+
+/**
+ * Add or update a model
+ */
+export async function upsertModel(
+  kv: KVNamespace,
+  key: string,
+  config: ModelConfig
+): Promise<void> {
+  const customModels = await getCustomModels(kv)
+  customModels[key] = config
+  await setCustomModels(kv, customModels)
+  console.log(`✅ ModelRouter: Upserted model ${key}`)
+}
+
+/**
+ * Delete a custom model (cannot delete default models)
+ */
+export async function deleteModel(kv: KVNamespace, key: string): Promise<boolean> {
+  if (key in DEFAULT_MODELS) {
+    console.warn(`⚠️ ModelRouter: Cannot delete default model ${key}`)
+    return false
+  }
+  const customModels = await getCustomModels(kv)
+  if (!(key in customModels)) {
+    console.warn(`⚠️ ModelRouter: Model ${key} not found in custom models`)
+    return false
+  }
+  delete customModels[key]
+  await setCustomModels(kv, customModels)
+  console.log(`✅ ModelRouter: Deleted custom model ${key}`)
+  return true
+}
+
+/**
+ * Get model mapping from KV store or use defaults
+ * Now uses the cached version for performance
+ */
+export async function getModelMapping(kv: KVNamespace): Promise<Record<RequestType, string>> {
+  const { mapping } = await getModelConfigCached(kv)
+  return mapping as Record<RequestType, string>
+}
+
+/**
+ * Update model mapping in KV store
+ */
+export async function setModelMapping(
+  kv: KVNamespace,
+  mapping: Record<string, string>
+): Promise<void> {
+  await kv.put(KV_MODEL_CONFIG_KEY, JSON.stringify(mapping))
+  invalidateCache()
+  console.log('✅ ModelRouter: Updated model config in KV')
+}
+
+/**
+ * Get available models (for admin UI)
+ */
+export function getAvailableModels(): Record<string, ModelConfig> {
+  return MODELS
+}
+
+/**
  * Fallback model when premium quota is exceeded
  */
 const PREMIUM_MODEL_FALLBACK: keyof typeof MODELS = 'GROK_4_FAST'
 
 /**
  * Select model for request type
- * Uses centralized mapping and handles quota fallback
+ * Uses dynamic mapping from KV and handles quota fallback
  */
 function selectModelForRequestType(
   requestType: RequestType,
-  hasPremiumQuota: boolean
+  hasPremiumQuota: boolean,
+  modelMapping: Record<RequestType, string>,
+  allModels: Record<string, ModelConfig>
 ): ModelConfig {
-  // Get model from centralized mapping
-  const modelKey = REQUEST_TYPE_TO_MODEL[requestType]
+  const modelKey = modelMapping[requestType]
 
-  if (!modelKey) {
-    console.warn(`⚠️ ModelRouter: Unknown request type "${requestType}", defaulting to Haiku`)
+  if (!modelKey || !(modelKey in allModels)) {
+    console.warn(
+      `⚠️ ModelRouter: Unknown request type or model "${requestType}:${modelKey}", defaulting to Haiku`
+    )
     return MODELS.CLAUDE_HAIKU_4_5
   }
 
-  const selectedModel = MODELS[modelKey]
+  const selectedModel = allModels[modelKey]
 
-  // Handle premium model quota fallback
   if (selectedModel.requiresQuota && !hasPremiumQuota) {
+    const fallback = allModels[PREMIUM_MODEL_FALLBACK] || MODELS[PREMIUM_MODEL_FALLBACK]
     console.log(
-      `⚠️ ModelRouter: Premium model quota exceeded for ${selectedModel.displayName}, falling back to ${MODELS[PREMIUM_MODEL_FALLBACK].displayName}`
+      `⚠️ ModelRouter: Premium model quota exceeded for ${selectedModel.displayName}, falling back to ${fallback.displayName}`
     )
-    return MODELS[PREMIUM_MODEL_FALLBACK]
+    return fallback
   }
 
   return selectedModel
@@ -161,7 +354,8 @@ export async function checkPremiumModelQuota(
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
   const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
 
-  const value = await kv.get(quotaKey)
+  // Short cache TTL for quota (30s minimum for Cloudflare KV)
+  const value = await kv.get(quotaKey, { cacheTtl: 30 })
   const used = value ? Number.parseInt(value, 10) : 0
   const remaining = Math.max(0, PREMIUM_MODEL_QUOTA_CONFIG.maxRequestsPerMonth - used)
 
@@ -218,7 +412,9 @@ export async function selectModel(
   kv: KVNamespace,
   userId?: string
 ): Promise<{ model: ModelConfig; premiumQuotaStatus?: PremiumModelQuotaStatus }> {
-  // Check premium model quota if user ID provided
+  // Single cached call instead of separate getModelMapping + getAllModels (was reading KV 3x, now 2x max)
+  const { mapping: modelMapping, allModels } = await getModelConfigCached(kv)
+
   let premiumQuotaStatus: PremiumModelQuotaStatus | undefined
   let hasPremiumQuota = false
 
@@ -227,8 +423,7 @@ export async function selectModel(
     hasPremiumQuota = premiumQuotaStatus.hasQuota
   }
 
-  // Select appropriate model
-  const model = selectModelForRequestType(requestType, hasPremiumQuota)
+  const model = selectModelForRequestType(requestType, hasPremiumQuota, modelMapping, allModels)
 
   console.log(`🎯 ModelRouter: ${requestType} → ${model.displayName} (${model.modelId})`)
 
@@ -266,7 +461,7 @@ export async function selectModelFromRequest(
 ): Promise<{ modelId: string; modelConfig: ModelConfig | null }> {
   const modelType = requestType || defaultRequestType
 
-  // Validate and use requestType
+  // Validate and use requestType (uses dynamic mapping from KV)
   if (Object.values(RequestType).includes(modelType as RequestType)) {
     const selection = await selectModel(modelType as RequestType, kv, userId)
     return {
@@ -284,12 +479,31 @@ export async function selectModelFromRequest(
     }
   }
 
-  // Final fallback to default
+  // Final fallback to default (uses dynamic mapping from KV)
   console.warn(`⚠️ Invalid requestType "${modelType}", using default: ${defaultRequestType}`)
   const selection = await selectModel(defaultRequestType, kv, userId)
   return {
     modelId: selection.model.modelId,
     modelConfig: selection.model,
+  }
+}
+
+/**
+ * Get current model configuration (for admin API)
+ */
+export async function getCurrentModelConfig(kv: KVNamespace): Promise<{
+  mapping: Record<string, string>
+  models: Record<string, ModelConfig>
+  defaults: Record<string, string>
+  defaultModels: Record<string, ModelConfig>
+}> {
+  // Single cached call
+  const { mapping, allModels } = await getModelConfigCached(kv)
+  return {
+    mapping,
+    models: allModels,
+    defaults: DEFAULT_MODEL_MAPPING as Record<string, string>,
+    defaultModels: DEFAULT_MODELS,
   }
 }
 
@@ -301,94 +515,4 @@ export function isValidRequestType(requestType: unknown): requestType is Request
     typeof requestType === 'string' &&
     Object.values(RequestType).includes(requestType as RequestType)
   )
-}
-
-/**
- * Classify prompt complexity using Grok
- * Returns a RequestType enum value
- */
-export async function classifyPromptComplexity(
-  apiKey: string,
-  prompt: string,
-  contextDescription: string
-): Promise<RequestType> {
-  const classificationPrompt = `
-Classify this running/fitness user question into ONE of three complexity levels:
-
-**SIMPLE** - Basic queries that need quick factual answers:
-- Statistics and metrics (pace, distance, time, calories, heart rate)
-- Simple comparisons (was this workout better than last?)
-- Motivational questions
-- Basic data retrieval and clarifications
-
-**MODERATE** - Questions requiring analysis and personalized advice:
-- Training plan creation or adjustment
-- Recovery recommendations based on metrics
-- Nutrition and hydration advice
-- Performance trend analysis over multiple workouts
-- Race strategy suggestions
-- Technique improvement tips
-
-**COMPLEX** - Critical health/medical questions requiring expert analysis:
-- Injury risk assessment or pain analysis
-- HRV interpretation and overtraining detection
-- Biomechanical issues (asymmetry, ground contact time)
-- Performance prediction using ML models
-- Medical contraindications or health concerns
-- Advanced physiological analysis
-
-Context: ${contextDescription}
-
-User Question: "${prompt}"
-
-Respond with ONLY ONE WORD: SIMPLE, MODERATE, or COMPLEX
-`.trim()
-
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://insightrun.ai',
-        'X-Title': 'insightRun.ai',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODELS.GROK_4_FAST.modelId,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a query complexity classifier. Respond with ONLY one word: SIMPLE, MODERATE, or COMPLEX.',
-          },
-          { role: 'user', content: classificationPrompt },
-        ],
-        max_tokens: 10,
-        temperature: 0.3,
-        stream: false,
-      }),
-    })
-
-    if (!response.ok) {
-      console.error('❌ Classification failed, defaulting to MODERATE')
-      return RequestType.MODERATE
-    }
-
-    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
-    const result = data.choices?.[0]?.message?.content?.trim().toUpperCase() || 'MODERATE'
-
-    if (result.includes('SIMPLE')) {
-      console.log('✅ Classified as SIMPLE')
-      return RequestType.SIMPLE
-    } else if (result.includes('COMPLEX')) {
-      console.log('✅ Classified as COMPLEX')
-      return RequestType.COMPLEX
-    } else {
-      console.log('✅ Classified as MODERATE')
-      return RequestType.MODERATE
-    }
-  } catch (error) {
-    console.error('❌ Classification error:', error)
-    return RequestType.MODERATE // Safe default
-  }
 }

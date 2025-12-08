@@ -56,6 +56,7 @@ export default function TermsPage() {
               <li>Workout tracking and performance metrics</li>
               <li>AI-generated training recommendations</li>
               <li>Integration with Apple HealthKit</li>
+              <li>Integration with Strava for activity synchronization</li>
               <li>Progress tracking and visualization</li>
             </ul>
             <p className="text-gray-700">
@@ -156,6 +157,7 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
               <li>Apple HealthKit</li>
+              <li>Strava API for activity synchronization</li>
               <li>AI processing services</li>
               <li>Cloud infrastructure services</li>
               <li>Analytics services</li>

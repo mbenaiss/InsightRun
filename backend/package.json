@@ -5,13 +5,17 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "bun run db:migrate:remote && wrangler deploy",
     "tail": "wrangler tail",
     "check": "biome check .",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
-    "ci": "biome ci ."
+    "ci": "biome ci .",
+    "db:migrate:create": "wrangler d1 migrations create insightrun-strava-cache",
+    "db:migrate:local": "wrangler d1 migrations apply insightrun-strava-cache --local",
+    "db:migrate:remote": "wrangler d1 migrations apply insightrun-strava-cache --remote",
+    "db:migrate:list": "wrangler d1 migrations list insightrun-strava-cache"
   },
   "keywords": [
     "cloudflare-workers",

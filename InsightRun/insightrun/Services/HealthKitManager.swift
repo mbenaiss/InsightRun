@@ -1,4 +1,4 @@
-//
+    //
 //  HealthKitManager.swift
 //  InsightRun
 //
@@ -9,6 +9,7 @@ import Foundation
 import HealthKit
 import CoreLocation
 import Combine
+import WorkoutKit
 
 enum HealthKitError: Error {
     case notAvailable
@@ -102,6 +103,9 @@ class HealthKitManager: ObservableObject {
         do {
             try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
 
+            // Mark that user has completed the authorization flow
+            hasCompletedHealthKitSetup = true
+
             // Track permission granted (user allowed access)
             AnalyticsService.shared.trackHealthKitPermissionGranted()
         } catch {
@@ -111,19 +115,44 @@ class HealthKitManager: ObservableObject {
         }
     }
 
-    /// Check if we can access HealthKit data by attempting a simple query
-    /// This is more reliable than checking authorizationStatus for read permissions
+    /// Check if we can access HealthKit data
+    /// Returns true only if user has completed the authorization flow
     func checkDataAccess() async -> Bool {
+        // If already marked as setup, verify we can query
+        if hasCompletedHealthKitSetup {
+            do {
+                _ = try await fetchRunningWorkouts()
+                return true
+            } catch {
+                return false
+            }
+        }
+
+        // Migration: Check if existing user has workout data (means they authorized before)
         do {
-            _ = try await fetchRunningWorkouts()
-            return true
+            let workouts = try await fetchRunningWorkouts()
+            if !workouts.isEmpty {
+                // User has workout data, so they authorized before - set the flag
+                hasCompletedHealthKitSetup = true
+                return true
+            }
+            // No workouts and no flag = new user who hasn't authorized
+            return false
         } catch {
             return false
         }
     }
 
+    /// Track if user has completed HealthKit authorization flow
+    var hasCompletedHealthKitSetup: Bool {
+        get { UserDefaults.standard.bool(forKey: "hasCompletedHealthKitSetup") }
+        set { UserDefaults.standard.set(newValue, forKey: "hasCompletedHealthKitSetup") }
+    }
+
     // MARK: - Fetch Running Workouts
 
+    /// Fetch ALL running workouts (deprecated - use paginated version instead)
+    /// WARNING: This loads all workouts at once. For large histories, use fetchRunningWorkouts(limit:anchor:)
     func fetchRunningWorkouts() async throws -> [WorkoutModel] {
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
@@ -149,6 +178,86 @@ class HealthKitManager: ObservableObject {
 
                 let workoutModels = workouts.map { WorkoutModel(from: $0) }
                 continuation.resume(returning: workoutModels)
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    /// Fetch running workouts with pagination (RECOMMENDED)
+    /// - Parameters:
+    ///   - limit: Number of workouts to fetch (default: 100, similar to Strava's per_page=200 but conservative)
+    ///   - startDate: Optional date to fetch workouts before (for pagination)
+    /// - Returns: Tuple with workouts and the oldest workout date (use for next page)
+    func fetchRunningWorkouts(limit: Int = 100, startingBefore date: Date? = nil) async throws -> (workouts: [WorkoutModel], hasMore: Bool) {
+        let workoutType = HKObjectType.workoutType()
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+
+        // If we have a date, only fetch workouts before that date (for pagination)
+        let predicate: NSPredicate
+        if let beforeDate = date {
+            let datePredicate = HKQuery.predicateForSamples(
+                withStart: nil,
+                end: beforeDate,
+                options: .strictEndDate
+            )
+            predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [runningPredicate, datePredicate])
+        } else {
+            predicate = runningPredicate
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+
+            // Fetch limit + 1 to check if there are more workouts
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: predicate,
+                limit: limit + 1,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: HealthKitError.queryFailed(error))
+                    return
+                }
+
+                guard let workouts = samples as? [HKWorkout] else {
+                    continuation.resume(returning: ([], false))
+                    return
+                }
+
+                // Check if there are more workouts
+                let hasMore = workouts.count > limit
+
+                // Take only the requested limit
+                let limitedWorkouts = hasMore ? Array(workouts.prefix(limit)) : workouts
+                let workoutModels = limitedWorkouts.map { WorkoutModel(from: $0) }
+
+                continuation.resume(returning: (workoutModels, hasMore))
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    /// Get total count of running workouts (for progress tracking during backfill)
+    func getRunningWorkoutsCount() async throws -> Int {
+        let workoutType = HKObjectType.workoutType()
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: runningPredicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: HealthKitError.queryFailed(error))
+                    return
+                }
+
+                continuation.resume(returning: samples?.count ?? 0)
             }
 
             healthStore.execute(query)
@@ -238,35 +347,59 @@ class HealthKitManager: ObservableObject {
     // MARK: - Fetch Workout Details
 
     func fetchWorkoutMetrics(for workoutModel: WorkoutModel) async throws -> WorkoutMetrics {
-        // Find the original HKWorkout
-        guard let workout = try await findWorkout(with: workoutModel.id) else {
+        // Find the original HKWorkout by UUID first
+        var workout = try await findWorkout(with: workoutModel.id)
+
+        // Fallback: search by date if UUID doesn't match (common with cached workouts)
+        if workout == nil {
+            print("⚠️ Workout not found by UUID, trying date fallback...")
+            workout = try await findWorkoutByDate(
+                startDate: workoutModel.startDate,
+                duration: workoutModel.duration
+            )
+        }
+
+        guard let workout = workout else {
+            print("❌ Workout not found by UUID or date")
             throw HealthKitError.dataNotAvailable
         }
 
-        // Fetch all metrics in parallel
-        async let heartRateData = fetchHeartRateData(for: workout)
+        print("✅ Found workout: \(workout.uuid) (duration: \(workout.duration)s)")
+
+        // Fetch all metrics in parallel with graceful error handling
+        // Each query returns nil/default on error instead of failing the entire operation
+        // This is critical for indoor workouts where GPS/route data is unavailable
+
+        async let heartRateData = safeHeartRateData(for: workout)
         async let firstLastHR = fetchFirstLastHeartRate(for: workout)
-        async let paceData = fetchPaceData(for: workout)
+        async let paceData = safePaceData(for: workout)
         async let stepCountData = fetchStepCount(for: workout)
-        async let strideLengthData = fetchStrideLength(for: workout)
-        async let powerData = fetchRunningPower(for: workout)
+        async let strideLengthData = safeStrideLength(for: workout)
+        async let powerData = safeRunningPower(for: workout)
         async let firstLastPower = fetchFirstLastPower(for: workout)
-        async let elevationData = fetchElevation(for: workout)
-        async let routeData = fetchRoute(for: workout)
-        async let vo2MaxData = fetchVO2Max(around: workoutModel.startDate)
-        async let advancedMetrics = fetchAdvancedRunningMetrics(for: workout)
+        async let elevationData = safeElevation(for: workout)
+        async let routeData = safeRoute(for: workout)
+        async let vo2MaxData = safeVO2Max(around: workoutModel.startDate)
+        async let advancedMetrics = safeAdvancedRunningMetrics(for: workout)
         async let mobilityMetrics = fetchMobilityMetrics(for: workout)
         async let weatherData = extractWeatherData(from: workout)
+        async let intervalsData = fetchWorkoutIntervals(for: workout)
 
+        // Await all results (none will throw now)
         let steps = await stepCountData
         let weather = await weatherData
         let mobility = await mobilityMetrics
         let hrFirstLast = await firstLastHR
         let powerFirstLast = await firstLastPower
-        let (hr, pace, stride, power, elevation, route, vo2Max, advanced) = try await (
-            heartRateData, paceData, strideLengthData, powerData,
-            elevationData, routeData, vo2MaxData, advancedMetrics
-        )
+        let hr = await heartRateData
+        let pace = await paceData
+        let stride = await strideLengthData
+        let power = await powerData
+        let elevation = await elevationData
+        let route = await routeData
+        let vo2Max = await vo2MaxData
+        let advanced = await advancedMetrics
+        let intervals = await intervalsData
 
         // Calculate cadence from steps
         let cadence = calculateCadence(steps: steps, duration: workout.duration)
@@ -279,8 +412,8 @@ class HealthKitManager: ObservableObject {
             finalElevation = elevation
         }
 
-        // Calculate splits
-        let splits = try await calculateSplits(for: workout, routePoints: route)
+        // Calculate splits (safe version)
+        let splits = await safeSplits(for: workout, routePoints: route)
 
         return WorkoutMetrics(
             workout: workoutModel,
@@ -304,6 +437,7 @@ class HealthKitManager: ObservableObject {
             totalElevationAscent: finalElevation.ascent,
             totalElevationDescent: finalElevation.descent,
             splits: splits,
+            intervals: intervals,
             routePoints: route,
             groundContactTime: advanced.groundContactTime,
             groundContactTimeBalance: advanced.groundContactTimeBalance,
@@ -323,7 +457,7 @@ class HealthKitManager: ObservableObject {
         )
     }
 
-    // MARK: - Helper: Find Workout by UUID
+    // MARK: - Helper: Find Workout by UUID or Date
 
     private func findWorkout(with uuid: UUID) async throws -> HKWorkout? {
         let workoutType = HKObjectType.workoutType()
@@ -348,6 +482,625 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    /// Fallback search: find workout by date range when UUID doesn't match
+    /// This handles cases where cached workouts have different UUIDs than HealthKit
+    private func findWorkoutByDate(startDate: Date, duration: TimeInterval) async throws -> HKWorkout? {
+        let workoutType = HKObjectType.workoutType()
+
+        // Search within a 1-minute window of the start date
+        let startWindow = startDate.addingTimeInterval(-30)
+        let endWindow = startDate.addingTimeInterval(30)
+
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: startWindow,
+            end: endWindow,
+            options: .strictStartDate
+        )
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [datePredicate, runningPredicate])
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: predicate,
+                limit: 10,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: HealthKitError.queryFailed(error))
+                    return
+                }
+
+                guard let workouts = samples as? [HKWorkout], !workouts.isEmpty else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                // Find the workout with the closest matching duration
+                let targetDuration = duration
+                let bestMatch = workouts.min(by: { workout1, workout2 in
+                    abs(workout1.duration - targetDuration) < abs(workout2.duration - targetDuration)
+                })
+
+                continuation.resume(returning: bestMatch)
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    // MARK: - Safe Wrappers (Non-throwing)
+    // These wrappers catch errors and return defaults, ensuring partial data is still available
+    // Critical for indoor workouts where GPS/route data doesn't exist
+
+    private func safeHeartRateData(for workout: HKWorkout) async -> (
+        average: Double?, min: Double?, max: Double?, zones: HeartRateZones?
+    ) {
+        do {
+            return try await fetchHeartRateData(for: workout)
+        } catch {
+            print("⚠️ Heart rate fetch failed: \(error.localizedDescription)")
+            return (nil, nil, nil, nil)
+        }
+    }
+
+
+    private func safePaceData(for workout: HKWorkout) async -> (
+        average: Double?, min: Double?, max: Double?, maxSpeed: Double?
+    ) {
+        do {
+            return try await fetchPaceData(for: workout)
+        } catch {
+            print("⚠️ Pace data fetch failed: \(error.localizedDescription)")
+            // Fall back to calculated pace from workout totals
+            let avgPace = workout.duration > 0 && workout.totalDistance != nil
+                ? (workout.duration / 60.0) / (workout.totalDistance!.doubleValue(for: .meter()) / 1000.0)
+                : nil
+            return (avgPace, nil, nil, nil)
+        }
+    }
+
+    private func safeStrideLength(for workout: HKWorkout) async -> Double? {
+        do {
+            return try await fetchStrideLength(for: workout)
+        } catch {
+            print("⚠️ Stride length fetch failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func safeRunningPower(for workout: HKWorkout) async -> Double? {
+        do {
+            return try await fetchRunningPower(for: workout)
+        } catch {
+            print("⚠️ Running power fetch failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+
+    private func safeElevation(for workout: HKWorkout) async -> (ascent: Double?, descent: Double?) {
+        do {
+            return try await fetchElevation(for: workout)
+        } catch {
+            print("⚠️ Elevation fetch failed: \(error.localizedDescription)")
+            return (nil, nil)
+        }
+    }
+
+    private func safeRoute(for workout: HKWorkout) async -> [RoutePoint]? {
+        do {
+            return try await fetchRoute(for: workout)
+        } catch {
+            print("⚠️ Route fetch failed (expected for indoor workouts): \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func safeVO2Max(around date: Date) async -> Double? {
+        do {
+            return try await fetchVO2Max(around: date)
+        } catch {
+            print("⚠️ VO2Max fetch failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func safeAdvancedRunningMetrics(for workout: HKWorkout) async -> (
+        groundContactTime: Double?, groundContactTimeBalance: Double?,
+        verticalOscillation: Double?, efficiency: Double?
+    ) {
+        do {
+            return try await fetchAdvancedRunningMetrics(for: workout)
+        } catch {
+            print("⚠️ Advanced metrics fetch failed: \(error.localizedDescription)")
+            return (nil, nil, nil, nil)
+        }
+    }
+
+    private func safeSplits(for workout: HKWorkout, routePoints: [RoutePoint]?) async -> [Split]? {
+        do {
+            return try await calculateSplits(for: workout, routePoints: routePoints)
+        } catch {
+            print("⚠️ Splits calculation failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    // MARK: - Workout Intervals (Activities)
+    // iOS 16+ stores structured workout intervals in workout.workoutActivities
+    // Each HKWorkoutActivity has metadata with the interval type (warmup, work, recovery, etc.)
+
+    private func fetchWorkoutIntervals(for workout: HKWorkout) async -> [WorkoutInterval]? {
+        // iOS 16+ uses workoutActivities for structured intervals
+        let activities = workout.workoutActivities
+
+        print("📊 Workout activities count: \(activities.count)")
+
+        guard !activities.isEmpty else {
+            print("ℹ️ No workout activities (intervals) found")
+            return nil
+        }
+
+        // Fetch target paces from WorkoutPlan (iOS 17+)
+        var targetPaces: [IntervalTargetPace] = []
+        if #available(iOS 17.0, *) {
+            targetPaces = await fetchTargetPacesFromWorkoutPlan(for: workout)
+        }
+
+        var intervals: [WorkoutInterval] = []
+
+        for (index, activity) in activities.enumerated() {
+            let startDate = activity.startDate
+            let endDate = activity.endDate ?? workout.endDate
+            let duration = activity.duration
+
+            // Debug: print all metadata keys and values
+            print("📋 Activity \(index):")
+            print("   - duration: \(duration)s (\(duration/60.0)min)")
+            print("   - config.activityType: \(activity.workoutConfiguration.activityType.rawValue)")
+            print("   - config.lapLength: \(String(describing: activity.workoutConfiguration.lapLength))")
+            if let metadata = activity.metadata {
+                print("   - metadata keys: \(metadata.keys.sorted())")
+                for (key, value) in metadata.sorted(by: { $0.key < $1.key }) {
+                    print("     • \(key): \(value)")
+                }
+            } else {
+                print("   - metadata: nil")
+            }
+
+            // Get interval type from metadata
+            let intervalType = determineIntervalTypeFromActivity(activity, index: index, totalActivities: activities.count)
+            print("   - intervalType: \(intervalType.rawValue)")
+
+            // Get statistics for this activity
+            let heartRateStat = activity.statistics(for: HKQuantityType(.heartRate))
+            let averageHeartRate = heartRateStat?.averageQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+
+            let distanceStat = activity.statistics(for: HKQuantityType(.distanceWalkingRunning))
+            let distance = distanceStat?.sumQuantity()?.doubleValue(for: .meter())
+
+            let powerStat = activity.statistics(for: HKQuantityType(.runningPower))
+            let averagePower = powerStat?.averageQuantity()?.doubleValue(for: .watt())
+
+            // Calculate pace if we have distance
+            var pace: Double?
+            if let dist = distance, dist > 0, duration > 0 {
+                pace = (duration / 60.0) / (dist / 1000.0) // min/km
+            }
+
+            // Find target pace for this step from WorkoutPlan
+            let targetPace = targetPaces.first { $0.stepIndex == index }
+            if let target = targetPace {
+                print("   - target pace: \(target.paceMinPerKm)-\(target.paceMaxPerKm) min/km")
+            }
+
+            let interval = WorkoutInterval(
+                index: index + 1,
+                type: intervalType,
+                startDate: startDate,
+                endDate: endDate,
+                duration: duration,
+                distance: distance,
+                pace: pace,
+                averageHeartRate: averageHeartRate,
+                averagePower: averagePower,
+                targetPaceMin: targetPace?.paceMinPerKm,
+                targetPaceMax: targetPace?.paceMaxPerKm
+            )
+
+            intervals.append(interval)
+        }
+
+        // Classify unknown intervals as work/recovery based on pace
+        if !intervals.isEmpty {
+            classifyIntervalsBasedOnPace(&intervals)
+        }
+
+        return intervals.isEmpty ? nil : intervals
+    }
+
+    private func determineIntervalTypeFromActivity(_ activity: HKWorkoutActivity, index: Int, totalActivities: Int) -> IntervalType {
+        // Check metadata for explicit interval type
+        if let metadata = activity.metadata {
+            // Apple uses HKMetadataKeyWorkoutBrandName or custom keys for interval type
+            if let purposeRaw = metadata[HKMetadataKeyWorkoutBrandName] as? String {
+                return parseIntervalType(from: purposeRaw)
+            }
+
+            // Check for "purpose" or "type" keys
+            for (key, value) in metadata {
+                let keyLower = key.lowercased()
+                if keyLower.contains("purpose") || keyLower.contains("type") || keyLower.contains("goal") {
+                    if let stringValue = value as? String {
+                        return parseIntervalType(from: stringValue)
+                    }
+                }
+            }
+        }
+
+        // Fallback: use position-based heuristics for first/last
+        if index == 0 && totalActivities > 1 {
+            return .warmup
+        } else if index == totalActivities - 1 && totalActivities > 1 {
+            return .cooldown
+        }
+
+        return .unknown
+    }
+
+    /// Analyzes intervals to determine work vs recovery based on pace comparison
+    /// Work intervals have faster pace (lower min/km), recovery has slower pace
+    private func classifyIntervalsBasedOnPace(_ intervals: inout [WorkoutInterval]) {
+        // Skip first (warmup) and last (cooldown) intervals
+        guard intervals.count > 2 else { return }
+
+        let middleIntervals = intervals[1..<(intervals.count - 1)]
+
+        // Get paces of middle intervals (excluding warmup/cooldown)
+        let paces = middleIntervals.compactMap { $0.pace }
+        guard paces.count >= 2 else { return }
+
+        // Calculate median pace to separate work from recovery
+        let sortedPaces = paces.sorted()
+        let medianPace = sortedPaces[sortedPaces.count / 2]
+
+        print("🔍 Classifying intervals - median pace: \(medianPace) min/km")
+
+        // Classify each middle interval
+        for i in 1..<(intervals.count - 1) {
+            if intervals[i].type == .unknown, let pace = intervals[i].pace {
+                // Faster than median = work, slower = recovery
+                if pace < medianPace {
+                    intervals[i] = WorkoutInterval(
+                        index: intervals[i].index,
+                        type: .work,
+                        startDate: intervals[i].startDate,
+                        endDate: intervals[i].endDate,
+                        duration: intervals[i].duration,
+                        distance: intervals[i].distance,
+                        pace: intervals[i].pace,
+                        averageHeartRate: intervals[i].averageHeartRate,
+                        averagePower: intervals[i].averagePower,
+                        targetPaceMin: intervals[i].targetPaceMin,
+                        targetPaceMax: intervals[i].targetPaceMax
+                    )
+                    print("   Interval \(intervals[i].index): pace \(pace) < median \(medianPace) → WORK")
+                } else {
+                    intervals[i] = WorkoutInterval(
+                        index: intervals[i].index,
+                        type: .recovery,
+                        startDate: intervals[i].startDate,
+                        endDate: intervals[i].endDate,
+                        duration: intervals[i].duration,
+                        distance: intervals[i].distance,
+                        pace: intervals[i].pace,
+                        averageHeartRate: intervals[i].averageHeartRate,
+                        averagePower: intervals[i].averagePower,
+                        targetPaceMin: intervals[i].targetPaceMin,
+                        targetPaceMax: intervals[i].targetPaceMax
+                    )
+                    print("   Interval \(intervals[i].index): pace \(pace) >= median \(medianPace) → RECOVERY")
+                }
+            }
+        }
+    }
+
+    private func parseIntervalType(from string: String) -> IntervalType {
+        let lower = string.lowercased()
+        if lower.contains("warmup") || lower.contains("warm-up") || lower.contains("warm up") || lower.contains("échauffement") {
+            return .warmup
+        } else if lower.contains("work") || lower.contains("interval") || lower.contains("fast") || lower.contains("travail") {
+            return .work
+        } else if lower.contains("recovery") || lower.contains("rest") || lower.contains("jog") || lower.contains("récup") {
+            return .recovery
+        } else if lower.contains("cooldown") || lower.contains("cool-down") || lower.contains("cool down") || lower.contains("retour") {
+            return .cooldown
+        }
+        return .unknown
+    }
+
+    // MARK: - WorkoutPlan Target Pace Extraction
+    // iOS 17+ can access the original workout plan with target paces via WorkoutKit
+
+    /// Target pace information for an interval step
+    private struct IntervalTargetPace {
+        let stepIndex: Int
+        let paceMinPerKm: Double // min/km (lower bound = faster)
+        let paceMaxPerKm: Double // min/km (upper bound = slower)
+    }
+
+    /// Extracts target pace ranges from a workout's WorkoutPlan (iOS 17+)
+    /// Returns an array of target paces indexed by step order
+    @available(iOS 17.0, *)
+    private func fetchTargetPacesFromWorkoutPlan(for workout: HKWorkout) async -> [IntervalTargetPace] {
+        do {
+            guard let workoutPlan = try await workout.workoutPlan else {
+                print("ℹ️ No WorkoutPlan found for workout")
+                return []
+            }
+
+            print("📋 Found WorkoutPlan, extracting target paces...")
+
+            var targets: [IntervalTargetPace] = []
+            var stepIndex = 0
+
+            switch workoutPlan.workout {
+            case .custom(let customWorkout):
+                print("   - Custom workout: \(customWorkout.displayName ?? "unnamed")")
+
+                // Warmup step
+                if let warmup = customWorkout.warmup {
+                    if let targetPace = extractTargetPaceFromAlert(warmup.alert) {
+                        targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
+                        print("   - Warmup target: \(targetPace.min)-\(targetPace.max) min/km")
+                    }
+                    stepIndex += 1
+                }
+
+                // Interval blocks
+                for (blockIndex, block) in customWorkout.blocks.enumerated() {
+                    print("   - Block \(blockIndex): \(block.iterations) iterations, \(block.steps.count) steps")
+                    for iteration in 0..<block.iterations {
+                        for intervalStep in block.steps {
+                            let alertType = intervalStep.step.alert.map { String(describing: type(of: $0)) } ?? "none"
+                            print("   - Step \(stepIndex) (\(intervalStep.purpose), iter \(iteration)): alert type = \(alertType)")
+                            if let targetPace = extractTargetPaceFromAlert(intervalStep.step.alert) {
+                                targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
+                                print("     → target: \(targetPace.min)-\(targetPace.max) min/km")
+                            } else {
+                                print("     → no speed target found")
+                            }
+                            stepIndex += 1
+                        }
+                    }
+                }
+
+                // Cooldown step
+                if let cooldown = customWorkout.cooldown {
+                    if let targetPace = extractTargetPaceFromAlert(cooldown.alert) {
+                        targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
+                        print("   - Cooldown target: \(targetPace.min)-\(targetPace.max) min/km")
+                    }
+                    stepIndex += 1
+                }
+
+            case .goal, .pacer, .swimBikeRun:
+                print("   - Non-custom workout type, no interval targets")
+            @unknown default:
+                print("   - Unknown workout type")
+            }
+
+            return targets
+
+        } catch {
+            print("⚠️ Error fetching WorkoutPlan: \(error)")
+            return []
+        }
+    }
+
+    /// Extracts pace range from a WorkoutAlert (SpeedRangeAlert or SpeedThresholdAlert)
+    /// Returns pace as min/km (lower = faster, higher = slower)
+    @available(iOS 17.0, *)
+    private func extractTargetPaceFromAlert(_ alert: (any WorkoutAlert)?) -> (min: Double, max: Double)? {
+        guard let alert = alert else { return nil }
+
+        // SpeedRangeAlert contains the target speed range (min-max)
+        if let speedAlert = alert as? SpeedRangeAlert {
+            // Convert speed (m/s) to pace (min/km)
+            let lowerSpeedMps = speedAlert.target.lowerBound.converted(to: .metersPerSecond).value
+            let upperSpeedMps = speedAlert.target.upperBound.converted(to: .metersPerSecond).value
+
+            // Pace = 1000 / (speed * 60) = min/km
+            // Faster speed = lower pace, so we swap bounds
+            let paceMax = lowerSpeedMps > 0 ? (1000.0 / (lowerSpeedMps * 60.0)) : 0
+            let paceMin = upperSpeedMps > 0 ? (1000.0 / (upperSpeedMps * 60.0)) : 0
+
+            print("     SpeedRangeAlert: \(lowerSpeedMps)-\(upperSpeedMps) m/s → \(paceMin)-\(paceMax) min/km")
+            return (min: paceMin, max: paceMax)
+        }
+
+        // SpeedThresholdAlert contains a single target speed (threshold)
+        if let thresholdAlert = alert as? SpeedThresholdAlert {
+            // Convert speed (m/s) to pace (min/km)
+            let speedMps = thresholdAlert.target.converted(to: .metersPerSecond).value
+
+            // Single threshold = same min and max pace
+            let pace = speedMps > 0 ? (1000.0 / (speedMps * 60.0)) : 0
+
+            print("     SpeedThresholdAlert: \(speedMps) m/s → \(pace) min/km")
+            return (min: pace, max: pace)
+        }
+
+        return nil
+    }
+
+    // Legacy segment-based interval detection (kept for reference)
+    private func fetchWorkoutIntervalsFromEvents(for workout: HKWorkout) async -> [WorkoutInterval]? {
+        guard let events = workout.workoutEvents, !events.isEmpty else {
+            print("ℹ️ No workout events (intervals) found")
+            return nil
+        }
+
+        // Debug: print ALL event types to understand what's available
+        let eventTypeCounts = Dictionary(grouping: events, by: { $0.type.rawValue })
+        print("📊 Workout event types breakdown:")
+        for (typeRaw, eventsOfType) in eventTypeCounts.sorted(by: { $0.key < $1.key }) {
+            let typeName: String
+            switch HKWorkoutEventType(rawValue: typeRaw) {
+            case .pause: typeName = "pause"
+            case .resume: typeName = "resume"
+            case .lap: typeName = "lap"
+            case .marker: typeName = "marker"
+            case .motionPaused: typeName = "motionPaused"
+            case .motionResumed: typeName = "motionResumed"
+            case .segment: typeName = "segment"
+            case .pauseOrResumeRequest: typeName = "pauseOrResumeRequest"
+            default: typeName = "unknown"
+            }
+            print("   - \(typeName) (type=\(typeRaw)): \(eventsOfType.count) events")
+        }
+
+        // Filter for segment/lap events
+        let segmentEvents = events.filter { event in
+            event.type == .segment || event.type == .lap
+        }
+
+        guard !segmentEvents.isEmpty else {
+            print("ℹ️ No segment/lap events found in workout events")
+            return nil
+        }
+
+        print("✅ Found \(segmentEvents.count) segment/lap events")
+
+        // Debug: print all event types to understand the data
+        for (idx, event) in events.enumerated() {
+            print("📋 Event \(idx): type=\(event.type.rawValue), start=\(event.dateInterval.start), duration=\(event.dateInterval.duration)s, metadata=\(String(describing: event.metadata))")
+        }
+
+        // Filter out overlapping segments (Garmin records km splits as overlapping segments)
+        // Real interval workouts have sequential, non-overlapping segments
+        let sortedEvents = segmentEvents.sorted { $0.dateInterval.start < $1.dateInterval.start }
+        var nonOverlappingEvents: [HKWorkoutEvent] = []
+        var lastEndDate: Date?
+
+        for event in sortedEvents {
+            let eventStart = event.dateInterval.start
+            let eventEnd = event.dateInterval.end
+
+            // Check if this event overlaps with previous events
+            if let lastEnd = lastEndDate {
+                // Allow 5 second tolerance for slight overlaps
+                if eventStart < lastEnd.addingTimeInterval(-5) {
+                    print("⚠️ Skipping overlapping segment: start=\(eventStart), lastEnd=\(lastEnd)")
+                    continue
+                }
+            }
+
+            nonOverlappingEvents.append(event)
+            lastEndDate = eventEnd
+        }
+
+        print("✅ After filtering overlaps: \(nonOverlappingEvents.count) non-overlapping segments")
+
+        // If all segments overlap (like Garmin km splits), return nil
+        // Real interval workouts should have at least 2 non-overlapping segments
+        guard nonOverlappingEvents.count >= 2 else {
+            print("ℹ️ Not enough non-overlapping segments for interval display (likely km splits)")
+            return nil
+        }
+
+        var intervals: [WorkoutInterval] = []
+        var intervalIndex = 1
+
+        for event in nonOverlappingEvents {
+            let startDate = event.dateInterval.start
+            let endDate = event.dateInterval.end
+            let duration = event.dateInterval.duration
+
+            print("🔍 Processing segment \(intervalIndex): start=\(startDate), end=\(endDate), duration=\(duration)s (\(duration/60.0)min)")
+
+            // Determine interval type from metadata
+            let intervalType = determineIntervalType(from: event.metadata, duration: duration, index: intervalIndex, totalEvents: segmentEvents.count)
+
+            // Fetch metrics for this interval
+            let heartRate = await fetchAverageHeartRate(for: workout, startDate: startDate, endDate: endDate)
+            let power = await fetchAveragePower(for: workout, startDate: startDate, endDate: endDate)
+
+            // Calculate distance and pace from metadata or route
+            var distance: Double?
+            var pace: Double?
+            let targetPaceMin: Double? = nil
+            let targetPaceMax: Double? = nil
+
+            if let metadata = event.metadata {
+                // Try to get distance from metadata
+                if let distanceQuantity = metadata[HKMetadataKeyWorkoutBrandName] as? HKQuantity {
+                    distance = distanceQuantity.doubleValue(for: .meter())
+                }
+            }
+
+            // If we have distance, calculate pace
+            if let dist = distance, dist > 0, duration > 0 {
+                pace = (duration / 60.0) / (dist / 1000.0) // min/km
+            }
+
+            let interval = WorkoutInterval(
+                index: intervalIndex,
+                type: intervalType,
+                startDate: startDate,
+                endDate: endDate,
+                duration: duration,
+                distance: distance,
+                pace: pace,
+                averageHeartRate: heartRate,
+                averagePower: power,
+                targetPaceMin: targetPaceMin,
+                targetPaceMax: targetPaceMax
+            )
+
+            intervals.append(interval)
+            intervalIndex += 1
+        }
+
+        return intervals.isEmpty ? nil : intervals
+    }
+
+    private func determineIntervalType(from metadata: [String: Any]?, duration: TimeInterval, index: Int, totalEvents: Int) -> IntervalType {
+        // Check metadata for explicit type
+        if let metadata = metadata {
+            if let typeName = metadata["type"] as? String {
+                switch typeName.lowercased() {
+                case "warmup", "warm-up", "warm up":
+                    return .warmup
+                case "work", "interval", "fast":
+                    return .work
+                case "recovery", "rest", "jog":
+                    return .recovery
+                case "cooldown", "cool-down", "cool down":
+                    return .cooldown
+                default:
+                    break
+                }
+            }
+        }
+
+        // Heuristic: first segment is often warmup, last is often cooldown
+        if index == 1 && duration > 300 { // > 5 minutes
+            return .warmup
+        }
+        if index == totalEvents && duration > 300 { // > 5 minutes
+            return .cooldown
+        }
+
+        // Alternate between work and recovery for middle segments
+        if index > 1 && index < totalEvents {
+            return (index % 2 == 0) ? .work : .recovery
+        }
+
+        return .unknown
+    }
+
     // MARK: - Heart Rate
 
     private func fetchHeartRateData(for workout: HKWorkout) async throws -> (
@@ -357,16 +1110,70 @@ class HealthKitManager: ObservableObject {
             return (nil, nil, nil, nil)
         }
 
-        let predicate = HKQuery.predicateForSamples(
-            withStart: workout.startDate,
-            end: workout.endDate,
-            options: .strictStartDate
+        // Extend time window slightly to catch samples recorded near workout boundaries
+        let startDate = workout.startDate.addingTimeInterval(-60) // 1 min before
+        let endDate = workout.endDate.addingTimeInterval(60) // 1 min after
+
+        print("🔍 Fetching HR for workout: \(workout.startDate) - \(workout.endDate)")
+
+        // Try workout-associated samples first (most accurate)
+        let workoutPredicate = HKQuery.predicateForObjects(from: workout)
+
+        let hrFromWorkout: (average: Double?, min: Double?, max: Double?) = try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: heartRateType,
+                predicate: workoutPredicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                if let error = error {
+                    print("⚠️ HR workout query error: \(error.localizedDescription)")
+                    continuation.resume(returning: (nil, nil, nil))
+                    return
+                }
+
+                guard let hrSamples = samples as? [HKQuantitySample], !hrSamples.isEmpty else {
+                    print("⚠️ No HR samples directly associated with workout")
+                    continuation.resume(returning: (nil, nil, nil))
+                    return
+                }
+
+                let unit = HKUnit.count().unitDivided(by: .minute())
+                let values = hrSamples.map { $0.quantity.doubleValue(for: unit) }
+                let avg = values.reduce(0, +) / Double(values.count)
+                let minVal = values.min()
+                let maxVal = values.max()
+
+                print("✅ Found \(hrSamples.count) HR samples from workout association")
+                continuation.resume(returning: (avg, minVal, maxVal))
+            }
+
+            healthStore.execute(query)
+        }
+
+        // If workout association worked, use those results
+        if hrFromWorkout.average != nil {
+            let zones: HeartRateZones? = hrFromWorkout.max.map { maxHR in
+                HeartRateZones(
+                    zone1: nil, zone2: nil, zone3: nil, zone4: nil, zone5: nil,
+                    maxHeartRate: maxHR
+                )
+            }
+            return (hrFromWorkout.average, hrFromWorkout.min, hrFromWorkout.max, zones)
+        }
+
+        // Fallback: time-based query with extended window
+        print("🔄 Falling back to time-based HR query...")
+        let timePredicate = HKQuery.predicateForSamples(
+            withStart: startDate,
+            end: endDate,
+            options: [] // No strict options - more flexible matching
         )
 
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKStatisticsQuery(
                 quantityType: heartRateType,
-                quantitySamplePredicate: predicate,
+                quantitySamplePredicate: timePredicate,
                 options: [.discreteAverage, .discreteMin, .discreteMax]
             ) { _, statistics, error in
                 if let error = error {
@@ -378,15 +1185,11 @@ class HealthKitManager: ObservableObject {
                 let min = statistics?.minimumQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
                 let max = statistics?.maximumQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
 
-                // Calculate zones if we have max HR
+                print("📊 Time-based HR result: avg=\(average ?? -1), min=\(min ?? -1), max=\(max ?? -1)")
+
                 let zones: HeartRateZones? = max.map { maxHR in
-                    // Simplified zone calculation - ideally use user's actual max HR
                     HeartRateZones(
-                        zone1: nil, // Would need detailed sample analysis
-                        zone2: nil,
-                        zone3: nil,
-                        zone4: nil,
-                        zone5: nil,
+                        zone1: nil, zone2: nil, zone3: nil, zone4: nil, zone5: nil,
                         maxHeartRate: maxHR
                     )
                 }
@@ -877,24 +1680,37 @@ class HealthKitManager: ObservableObject {
             return await calculateSplitsFromRoute(routePoints: routePoints, totalDuration: workout.duration, workout: workout)
         }
 
-        // Otherwise, calculate approximate splits
+        // Otherwise, calculate approximate splits (for indoor workouts without GPS)
         let kilometers = Int(distance / 1000.0)
         guard kilometers > 0 else { return nil }
 
         let averagePacePerKm = (workout.duration / 60.0) / (distance / 1000.0)
+        let timePerKm = averagePacePerKm * 60.0 // seconds per km
 
-        return (1...kilometers).map { km in
-            Split(
+        // Build splits with HR data for each km
+        var splits: [Split] = []
+        for km in 1...kilometers {
+            // Calculate time range for this km
+            let splitStartTime = workout.startDate.addingTimeInterval(Double(km - 1) * timePerKm)
+            let splitEndTime = workout.startDate.addingTimeInterval(Double(km) * timePerKm)
+
+            // Fetch average HR for this split time range
+            let heartRate = await fetchAverageHeartRate(for: workout, startDate: splitStartTime, endDate: splitEndTime)
+            let power = await fetchAveragePower(for: workout, startDate: splitStartTime, endDate: splitEndTime)
+
+            splits.append(Split(
                 kilometer: km,
                 distance: 1000.0,
-                time: averagePacePerKm * 60.0,
+                time: timePerKm,
                 pace: averagePacePerKm,
-                averageHeartRate: nil,
-                averagePower: nil,
+                averageHeartRate: heartRate,
+                averagePower: power,
                 elevationGain: nil,
                 elevationLoss: nil
-            )
+            ))
         }
+
+        return splits
     }
 
     private func calculateSplitsFromRoute(routePoints: [RoutePoint], totalDuration: TimeInterval, workout: HKWorkout) async -> [Split] {

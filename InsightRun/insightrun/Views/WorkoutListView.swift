@@ -39,17 +39,17 @@ struct WorkoutListView: View {
     }
 
     private var displayWorkouts: [WorkoutModel] {
-        // Use unified workouts only if Strava feature is enabled and unified workouts are loaded
-        if remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty {
+        // Use unified workouts if available (includes Strava and/or Suunto merge)
+        if !unifiedViewModel.unifiedWorkouts.isEmpty {
             return unifiedViewModel.unifiedWorkouts.map { $0.toWorkoutModel() }
         } else {
             return healthKitViewModel.workouts
         }
     }
 
-    // Grouped workouts for display (unified when Strava enabled, HealthKit otherwise)
+    // Grouped workouts for display (unified includes Strava and Suunto merge)
     private var displayGroupedWorkouts: [(String, [WorkoutModel])] {
-        if remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty {
+        if !unifiedViewModel.unifiedWorkouts.isEmpty {
             // Convert unified grouped workouts to WorkoutModel
             return unifiedViewModel.groupedWorkouts.map { (title, unifiedWorkouts) in
                 (title, unifiedWorkouts.map { $0.toWorkoutModel() })
@@ -122,11 +122,10 @@ struct WorkoutListView: View {
                     }
                 }
                 .task {
-                    // Load unified workouts when Strava is enabled (works in all 3 modes)
-                    // - HealthKit only: unified will contain only HealthKit data
-                    // - Strava only: unified will contain only Strava data
-                    // - Both: unified will merge HealthKit + Strava
-                    if remoteConfig.isFeatureEnabled(.strava) && (canShowWorkouts || stravaAuth.isAuthenticated) {
+                    // Load unified workouts to merge HealthKit with Strava and/or Suunto data
+                    // - HealthKit only: unified will contain HealthKit + Suunto merge
+                    // - Strava enabled: unified will also merge Strava data
+                    if canShowWorkouts || stravaAuth.isAuthenticated {
                         await unifiedViewModel.loadUnifiedWorkouts()
                     }
                 }

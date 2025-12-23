@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showingMedicalSources = false
     @State private var showRefreshSheet = false
+    @State private var showSuuntoImport = false
     @ObservedObject private var stravaAuth = StravaAuthService.shared
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
     @State private var isSyncing = false
@@ -294,6 +295,61 @@ struct SettingsView: View {
                     }
                 }
 
+                // Suunto Import Section
+                Section {
+                    Button {
+                        showSuuntoImport = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "square.and.arrow.down.fill")
+                                .foregroundStyle(.orange)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(String(localized: "Import Suunto Workout"))
+                                    .font(.body)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                Text(String(localized: "Import JSON files from Suunto app"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    if let count = try? SuuntoImportService.shared.getCachedWorkoutCount(), count > 0 {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Color.irSuccess)
+                            Text("\(count) " + String(localized: "workouts imported"))
+                                .font(.subheadline)
+                            Spacer()
+                        }
+
+                        Button(role: .destructive) {
+                            Task {
+                                do {
+                                    try SuuntoImportService.shared.clearAllCache()
+                                    print("🗑️ Cleared Suunto cache")
+                                } catch {
+                                    print("❌ Failed to clear Suunto cache: \(error)")
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "trash")
+                                Text(String(localized: "Clear Suunto Cache"))
+                            }
+                        }
+                    }
+                } header: {
+                    Text(String(localized: "Suunto"))
+                } footer: {
+                    Text(String(localized: "Import workout files exported from the Suunto app to enrich your data with advanced metrics like running power, cadence, and ground contact time."))
+                }
+
                 // Debug Section (for testing)
                 #if DEBUG
                 Section {
@@ -388,6 +444,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showRefreshSheet) {
                 HistoricalIndexationSheet()
+            }
+            .sheet(isPresented: $showSuuntoImport) {
+                SuuntoImportView()
             }
         }
         .preferredColorScheme(themeManager.selectedTheme.colorScheme)

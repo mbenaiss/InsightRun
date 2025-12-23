@@ -28,6 +28,7 @@ extension HKWorkoutActivityType {
 enum WorkoutSource: String, Codable {
     case healthKit = "HealthKit"
     case strava = "Strava"
+    case suunto = "Suunto"
     case merged = "Merged" // When data comes from both sources
 }
 
@@ -39,6 +40,7 @@ struct UnifiedWorkout: Identifiable {
     var source: WorkoutSource
     var healthKitWorkout: WorkoutModel?
     var stravaActivity: StravaActivity?
+    var suuntoActivity: SuuntoActivity?
 
     // Merged data (best from both sources)
     let startDate: Date
@@ -147,6 +149,7 @@ struct UnifiedWorkout: Identifiable {
         self.source = .healthKit
         self.healthKitWorkout = healthKitWorkout
         self.stravaActivity = nil
+        self.suuntoActivity = nil
 
         // Copy HealthKit data
         self.startDate = healthKitWorkout.startDate
@@ -172,6 +175,7 @@ struct UnifiedWorkout: Identifiable {
         self.source = .strava
         self.healthKitWorkout = nil
         self.stravaActivity = stravaActivity
+        self.suuntoActivity = nil
 
         // Copy Strava data
         self.startDate = stravaActivity.startDateParsed ?? Date()
@@ -191,6 +195,79 @@ struct UnifiedWorkout: Identifiable {
         self.notes = nil
     }
 
+    /// Create from Suunto only
+    init(from suuntoActivity: SuuntoActivity) {
+        self.id = suuntoActivity.id
+        self.source = .suunto
+        self.healthKitWorkout = nil
+        self.stravaActivity = nil
+        self.suuntoActivity = suuntoActivity
+
+        // Copy Suunto data
+        self.startDate = suuntoActivity.startDate
+        self.endDate = suuntoActivity.endDate
+        self.duration = suuntoActivity.duration
+        self.distance = suuntoActivity.distance
+        self.totalEnergyBurned = suuntoActivity.calories
+        self.averageSpeed = suuntoActivity.averageSpeed
+        self.maxSpeed = suuntoActivity.maxSpeed
+        self.averagePace = suuntoActivity.averagePace
+        self.averageHeartRate = suuntoActivity.averageHeartRate
+        self.maxHeartRate = suuntoActivity.maxHeartRate
+        self.totalElevationGain = suuntoActivity.elevationGain
+        self.hasRoute = suuntoActivity.hasRoute
+        self.routePolyline = nil
+        self.name = suuntoActivity.activityType
+        self.notes = nil
+    }
+
+    /// Create merged workout from HealthKit and Suunto
+    /// Suunto provides enhanced metrics that HealthKit may not have
+    init(merging healthKitWorkout: WorkoutModel, with suuntoActivity: SuuntoActivity) {
+        self.id = healthKitWorkout.id.uuidString
+        self.source = .merged
+        self.healthKitWorkout = healthKitWorkout
+        self.stravaActivity = nil
+        self.suuntoActivity = suuntoActivity
+
+        // Dates: Use HealthKit (more accurate on iOS)
+        self.startDate = healthKitWorkout.startDate
+        self.endDate = healthKitWorkout.endDate
+        self.duration = healthKitWorkout.duration
+
+        // Distance: Prefer Suunto (GPS-based from watch)
+        self.distance = suuntoActivity.distance > 0 ? suuntoActivity.distance : healthKitWorkout.distance
+
+        // Calories: Prefer Suunto (includes device sensors)
+        self.totalEnergyBurned = suuntoActivity.calories > 0 ? suuntoActivity.calories : healthKitWorkout.totalEnergyBurned
+
+        // Speed: Prefer Suunto
+        self.averageSpeed = suuntoActivity.averageSpeed ?? healthKitWorkout.averageSpeed
+        self.maxSpeed = suuntoActivity.maxSpeed
+
+        // Pace
+        if let speed = self.averageSpeed, speed > 0 {
+            self.averagePace = (1000.0 / speed) / 60.0
+        } else {
+            self.averagePace = healthKitWorkout.averagePace
+        }
+
+        // Heart Rate: Prefer Suunto (from Suunto watch)
+        self.averageHeartRate = suuntoActivity.averageHeartRate ?? healthKitWorkout.averageHeartRate
+        self.maxHeartRate = suuntoActivity.maxHeartRate ?? healthKitWorkout.maxHeartRate
+
+        // Elevation: Prefer Suunto
+        self.totalElevationGain = suuntoActivity.elevationGain > 0 ? suuntoActivity.elevationGain : healthKitWorkout.elevationGain
+
+        // Route
+        self.hasRoute = healthKitWorkout.hasRoute || suuntoActivity.hasRoute
+        self.routePolyline = nil
+
+        // Name
+        self.name = healthKitWorkout.workoutType.name
+        self.notes = healthKitWorkout.metadata?["notes"] as? String
+    }
+
     /// Create merged workout from both sources
     /// Takes the best data from each source
     init(merging healthKitWorkout: WorkoutModel, with stravaActivity: StravaActivity) {
@@ -199,6 +276,7 @@ struct UnifiedWorkout: Identifiable {
         self.source = .merged
         self.healthKitWorkout = healthKitWorkout
         self.stravaActivity = stravaActivity
+        self.suuntoActivity = nil
 
         // Dates: Use HealthKit (more accurate on iOS)
         self.startDate = healthKitWorkout.startDate
@@ -303,6 +381,56 @@ extension UnifiedWorkout {
     func toWorkoutModel() -> WorkoutModel {
         // Use HealthKit workout if available, otherwise create from Strava data
         if let hkWorkout = healthKitWorkout {
+            // If we have Suunto data, enrich the WorkoutModel with it
+            if let suunto = suuntoActivity {
+                var metadata = hkWorkout.metadata ?? [:]
+                metadata["suunto_device"] = suunto.deviceName
+                metadata["suunto_avg_hr"] = suunto.averageHeartRate
+                metadata["suunto_max_hr"] = suunto.maxHeartRate
+                metadata["suunto_cadence"] = suunto.averageCadence
+                metadata["suunto_power"] = suunto.averagePower
+                metadata["suunto_ground_contact_time"] = suunto.averageGroundContactTime
+                metadata["suunto_vertical_oscillation"] = suunto.averageVerticalOscillation
+                metadata["suunto_stride_length"] = suunto.averageStrideLength
+                metadata["suunto_vo2max"] = suunto.vo2Max
+                metadata["suunto_training_effect"] = suunto.trainingEffect
+
+                // Store Suunto splits as JSON in metadata
+                if !suunto.splits.isEmpty {
+                    let splitsData = suunto.splits.map { split -> [String: Any] in
+                        var dict: [String: Any] = [
+                            "km": split.kilometer,
+                            "time": split.time,
+                            "pace": split.pace
+                        ]
+                        if let hr = split.averageHeartRate { dict["hr"] = hr }
+                        if let power = split.averagePower { dict["power"] = power }
+                        if let cadence = split.averageCadence { dict["cadence"] = cadence }
+                        if let elev = split.elevationGain { dict["elev"] = elev }
+                        return dict
+                    }
+                    metadata["suunto_splits"] = splitsData
+                    print("📊 DEBUG: Storing \(suunto.splits.count) Suunto splits in metadata")
+                }
+
+                return WorkoutModel(
+                    id: hkWorkout.id,
+                    workoutType: hkWorkout.workoutType,
+                    startDate: hkWorkout.startDate,
+                    endDate: hkWorkout.endDate,
+                    duration: hkWorkout.duration,
+                    distance: suunto.distance > 0 ? suunto.distance : hkWorkout.distance,
+                    totalEnergyBurned: suunto.calories > 0 ? suunto.calories : hkWorkout.totalEnergyBurned,
+                    sourceName: hkWorkout.sourceName,
+                    sourceVersion: hkWorkout.sourceVersion,
+                    metadata: metadata,
+                    averageHeartRate: suunto.averageHeartRate ?? hkWorkout.averageHeartRate,
+                    maxHeartRate: suunto.maxHeartRate ?? hkWorkout.maxHeartRate,
+                    elevationGain: suunto.elevationGain > 0 ? suunto.elevationGain : hkWorkout.elevationGain,
+                    hasRoute: hkWorkout.hasRoute || suunto.hasRoute,
+                    isIndoor: hkWorkout.isIndoor
+                )
+            }
             return hkWorkout
         } else if let stravaActivity = stravaActivity {
             // Create a stable UUID from Strava ID using namespace UUID
@@ -365,9 +493,16 @@ extension UnifiedWorkout {
             return healthKitWorkout?.sourceName ?? "Apple Watch"
         case .strava:
             return "Strava"
+        case .suunto:
+            return suuntoActivity?.deviceName ?? "Suunto"
         case .merged:
-            // For merged workouts, indicate both sources
-            return "Strava + \(healthKitWorkout?.sourceName ?? "HealthKit")"
+            // For merged workouts, indicate sources
+            if stravaActivity != nil {
+                return "Strava + \(healthKitWorkout?.sourceName ?? "HealthKit")"
+            } else if suuntoActivity != nil {
+                return "Suunto + \(healthKitWorkout?.sourceName ?? "HealthKit")"
+            }
+            return healthKitWorkout?.sourceName ?? "Merged"
         }
     }
 

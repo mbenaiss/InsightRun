@@ -31,6 +31,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
     private let stravaViewModel = StravaViewModel()
     private let stravaAuthService = StravaAuthService.shared
     private let unifiedCache = UnifiedWorkoutCache.shared
+    private let suuntoService = SuuntoImportService.shared
 
     enum SyncStatus {
         case idle
@@ -142,6 +143,9 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 case .strava:
                     sourceEmoji = "🏃"
                     sourceText = "Strava"
+                case .suunto:
+                    sourceEmoji = "⌚"
+                    sourceText = "Suunto"
                 case .merged:
                     sourceEmoji = "🔗"
                     sourceText = "Merged"
@@ -239,11 +243,15 @@ class UnifiedWorkoutViewModel: ObservableObject {
         var result: [UnifiedWorkout] = []
         var matchedStravaIDs = Set<Int64>()
 
+        // Load cached Suunto workouts
+        let suuntoWorkouts = loadCachedSuuntoWorkouts()
+
         print("🔍 DEBUG - Starting merge:")
         print("   HealthKit workouts: \(healthKit.count)")
         print("   Strava activities: \(strava.count)")
+        print("   Suunto workouts: \(suuntoWorkouts.count)")
 
-        // STEP 1: Process HealthKit workouts and find Strava matches
+        // STEP 1: Process HealthKit workouts and find Strava/Suunto matches
         for hkWorkout in healthKit {
             // Try to find matching Strava activity
             if let matchingStrava = findMatchingStravaActivity(
@@ -259,6 +267,14 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "MMM dd HH:mm"
                 print("🔗 Merged: \(dateFormatter.string(from: hkWorkout.startDate)) - HK: \(hkWorkout.sourceName) + Strava: \(matchingStrava.name)")
+            } else if let matchingSuunto = findMatchingSuuntoWorkout(for: hkWorkout, in: suuntoWorkouts) {
+                // Found Suunto match - create merged workout with Suunto data
+                let merged = UnifiedWorkout(merging: hkWorkout, with: matchingSuunto)
+                result.append(merged)
+
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "MMM dd HH:mm"
+                print("⌚ Merged with Suunto: \(dateFormatter.string(from: hkWorkout.startDate)) - \(matchingSuunto.activityType)")
             } else {
                 // No match - HealthKit only
                 let healthKitOnly = UnifiedWorkout(from: hkWorkout)
@@ -282,6 +298,42 @@ class UnifiedWorkoutViewModel: ObservableObject {
         print("✅ Merge result: \(result.count) unified workouts (\(matchedStravaIDs.count) merged)")
 
         return result
+    }
+
+    /// Find a Suunto workout that matches the HealthKit workout
+    private func findMatchingSuuntoWorkout(
+        for healthKitWorkout: WorkoutModel,
+        in suuntoWorkouts: [SuuntoActivity]
+    ) -> SuuntoActivity? {
+        let tolerance: TimeInterval = 5 * 60 // 5 minutes
+
+        for suunto in suuntoWorkouts {
+            let timeDiff = abs(healthKitWorkout.startDate.timeIntervalSince(suunto.startDate))
+            if timeDiff < tolerance {
+                // Check duration similarity (within 5%)
+                let durationDiff = abs(healthKitWorkout.duration - suunto.duration) / max(healthKitWorkout.duration, suunto.duration)
+                if durationDiff < 0.05 {
+                    return suunto
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Load cached Suunto workouts
+    private func loadCachedSuuntoWorkouts() -> [SuuntoActivity] {
+        do {
+            let cached = try suuntoService.fetchAllCachedWorkouts()
+            let activities = cached.map { SuuntoActivity(from: $0) }
+            print("⌚ Suunto cache: \(activities.count) workouts loaded")
+            for activity in activities {
+                print("   - \(activity.startDate): \(activity.activityType) - \(activity.distance)m")
+            }
+            return activities
+        } catch {
+            print("⚠️ Could not load Suunto cache: \(error.localizedDescription)")
+            return []
+        }
     }
 
     /// Find a Strava activity that matches the HealthKit workout

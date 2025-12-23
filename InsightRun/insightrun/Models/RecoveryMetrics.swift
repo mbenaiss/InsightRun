@@ -3,6 +3,7 @@
 //  InsightRun
 //
 //  Model for recovery and readiness metrics
+//  Uses personal baseline comparison for Whoop/Oura-style scoring
 //
 
 import Foundation
@@ -13,9 +14,9 @@ struct RecoveryMetrics: Identifiable {
 
     // Heart Rate Metrics
     let restingHeartRate: Double?
-    let hrvAverage: Double? // Heart Rate Variability (SDNN) - Night average
-    let hrvMin: Double? // HRV minimum during night
-    let hrvMax: Double? // HRV maximum during night
+    let hrvAverage: Double?
+    let hrvMin: Double?
+    let hrvMax: Double?
     let walkingHeartRate: Double?
 
     // Sleep Metrics
@@ -23,6 +24,12 @@ struct RecoveryMetrics: Identifiable {
 
     // Respiratory
     let respiratoryRate: Double?
+
+    // Oxygen Saturation (SpO2)
+    let oxygenSaturation: Double?
+
+    // Personal baseline for comparison
+    let baseline: PersonalBaseline?
 
     // Computed recovery score (0-100)
     var recoveryScore: Int {
@@ -43,86 +50,323 @@ struct RecoveryMetrics: Identifiable {
     }
 
     private func calculateRecoveryScore() -> Int {
+        // Use baseline-aware scoring if available, fallback to fixed ranges
+        if let baseline = baseline, baseline.isReliable {
+            return calculateBaselineAwareScore(baseline)
+        } else {
+            return calculateFixedRangeScore()
+        }
+    }
+
+    // MARK: - Baseline-Aware Scoring (Whoop/Oura style)
+
+    /// Scoring based on deviation from personal baseline
+    /// A normal day (at baseline) scores ~70%, better = higher, worse = lower
+    /// Based on 4 metrics + sleep quality:
+    /// - HRV (higher is better)
+    /// - Resting HR (lower is better)
+    /// - SpO2 (higher is better)
+    /// - Respiratory Rate (lower is better)
+    /// - Sleep (duration + efficiency + stages)
+    private func calculateBaselineAwareScore(_ baseline: PersonalBaseline) -> Int {
         var totalScore = 0.0
         var totalWeight = 0.0
 
-        // Weight configuration (based on scientific literature on recovery metrics)
-        let hrvWeight = 0.30      // 30% - Key recovery indicator
-        let sleepWeight = 0.35    // 35% - Most important recovery factor
-        let rhrWeight = 0.20      // 20% - Good cardiovascular indicator
-        let walkingHRWeight = 0.08 // 8% - Additional cardiovascular metric
-        let respRateWeight = 0.07  // 7% - Stress/recovery indicator
+        // Weight configuration (total = 100%)
+        let hrvWeight = 0.25       // 25% - Primary recovery indicator (higher is better)
+        let rhrWeight = 0.20       // 20% - Cardiovascular stress indicator (lower is better)
+        let spO2Weight = 0.15      // 15% - Oxygen saturation (higher is better)
+        let respRateWeight = 0.10  // 10% - Stress indicator (lower is better)
+        let sleepWeight = 0.30     // 30% - Sleep quality (duration + efficiency + stages)
 
-        // HRV Score (higher is better, typical range: 20-100ms)
+        // HRV Score (higher is better)
+        if let hrv = hrvAverage {
+            let score = scoreFromDeviation(
+                value: hrv,
+                average: baseline.hrvAverage,
+                stdDev: baseline.hrvStdDev,
+                isHigherBetter: true
+            )
+            totalScore += score * hrvWeight
+            totalWeight += hrvWeight
+        }
+
+        // RHR Score (lower is better)
+        if let rhr = restingHeartRate {
+            let score = scoreFromDeviation(
+                value: rhr,
+                average: baseline.restingHeartRateAverage,
+                stdDev: baseline.restingHeartRateStdDev,
+                isHigherBetter: false
+            )
+            totalScore += score * rhrWeight
+            totalWeight += rhrWeight
+        }
+
+        // SpO2 Score (higher is better, uses clinical thresholds)
+        if let spo2 = oxygenSaturation {
+            let score = scoreSpO2(spo2)
+            totalScore += score * spO2Weight
+            totalWeight += spO2Weight
+        }
+
+        // Respiratory Rate Score (lower is better)
+        if let respRate = respiratoryRate {
+            let score = scoreFromDeviation(
+                value: respRate,
+                average: baseline.respiratoryRateAverage,
+                stdDev: baseline.respiratoryRateStdDev,
+                isHigherBetter: false
+            )
+            totalScore += score * respRateWeight
+            totalWeight += respRateWeight
+        }
+
+        // Sleep Score (duration + efficiency + stages combined)
+        if let sleep = sleepData {
+            let durationEfficiencyScore = scoreSleepVsBaseline(sleep, baseline: baseline)
+            let stagesScore = scoreSleepStages(sleep, baseline: baseline)
+            // Combine: 60% duration/efficiency, 40% stages
+            let combinedSleepScore = (durationEfficiencyScore * 0.6) + (stagesScore * 0.4)
+            totalScore += combinedSleepScore * sleepWeight
+            totalWeight += sleepWeight
+        }
+
+        // Normalize by total weight
+        let rawScore = totalWeight > 0 ? (totalScore / totalWeight) : 0.5
+
+        // Map to 0-100 scale with center at 70% for baseline-matching day
+        // Score 0.5 (at baseline) = 70%, perfect deviation = 100%, -2 stddev = 40%
+        let finalScore = 40.0 + (rawScore * 60.0)
+
+        return max(0, min(100, Int(finalScore.rounded())))
+    }
+
+    /// Convert deviation to a 0-1 score
+    /// - isHigherBetter: true for HRV, false for RHR, nil for symmetric (respRate)
+    private func scoreFromDeviation(
+        value: Double,
+        average: Double?,
+        stdDev: Double?,
+        isHigherBetter: Bool?
+    ) -> Double {
+        guard let avg = average else {
+            // No baseline, return neutral score
+            return 0.5
+        }
+
+        let std = stdDev ?? (avg * 0.15) // Fallback: 15% of average
+        guard std > 0 else { return 0.5 }
+
+        let zScore = (value - avg) / std
+
+        // Clamp z-score to reasonable range (-3 to +3)
+        let clampedZ = max(-3.0, min(3.0, zScore))
+
+        switch isHigherBetter {
+        case true:
+            // Higher is better: +2 stddev = 1.0, baseline = 0.5, -2 stddev = 0.0
+            return min(max((clampedZ + 2) / 4.0, 0.0), 1.0)
+        case false:
+            // Lower is better: -2 stddev = 1.0, baseline = 0.5, +2 stddev = 0.0
+            return min(max((2 - clampedZ) / 4.0, 0.0), 1.0)
+        case nil:
+            // Symmetric: baseline = 1.0, any deviation is bad
+            return max(0, 1.0 - abs(clampedZ) / 2.0)
+        }
+    }
+
+    /// SpO2 scoring with clinical thresholds
+    private func scoreSpO2(_ spo2: Double) -> Double {
+        // Clinical thresholds:
+        // >= 95%: Normal
+        // 90-94%: Concerning
+        // < 90%: Dangerous
+        if spo2 >= 98 {
+            return 1.0
+        } else if spo2 >= 96 {
+            return 0.9
+        } else if spo2 >= 95 {
+            return 0.75
+        } else if spo2 >= 93 {
+            return 0.5
+        } else if spo2 >= 90 {
+            return 0.25
+        } else {
+            return 0.0
+        }
+    }
+
+    /// Sleep scoring compared to baseline
+    private func scoreSleepVsBaseline(_ sleep: SleepData, baseline: PersonalBaseline) -> Double {
+        var score = 0.0
+        var count = 0
+
+        // Duration: optimal 7-9h with personal average consideration
+        let hours = sleep.totalSleepDuration / 3600.0
+
+        let optimalScore: Double
+        if hours >= 7 && hours <= 9 {
+            optimalScore = 0.9 + 0.1 * min(hours / 8.0, 1.0)
+        } else if hours >= 6 && hours < 7 {
+            optimalScore = 0.6
+        } else if hours >= 5 && hours < 6 {
+            optimalScore = 0.3
+        } else if hours < 5 {
+            optimalScore = 0.1
+        } else {
+            // Oversleep (> 9h)
+            optimalScore = 0.7
+        }
+        score += optimalScore
+        count += 1
+
+        // Efficiency vs baseline
+        if let avgEfficiency = baseline.sleepEfficiencyAverage {
+            let efficiencyScore = scoreFromDeviation(
+                value: sleep.sleepEfficiency,
+                average: avgEfficiency,
+                stdDev: 5.0, // Typical stddev for efficiency
+                isHigherBetter: true
+            )
+            score += efficiencyScore
+            count += 1
+        } else {
+            // Fixed range fallback
+            let efficiencyScore = min(max((sleep.sleepEfficiency - 75) / 20, 0.0), 1.0)
+            score += efficiencyScore
+            count += 1
+        }
+
+        return count > 0 ? score / Double(count) : 0.5
+    }
+
+    /// Score sleep stages (deep and REM percentages)
+    private func scoreSleepStages(_ sleep: SleepData, baseline: PersonalBaseline) -> Double {
+        guard let deep = sleep.deepSleepDuration,
+              let rem = sleep.remSleepDuration,
+              sleep.totalSleepDuration > 0 else {
+            return 0.5 // No data, neutral score
+        }
+
+        let totalSleep = sleep.totalSleepDuration
+        let deepPercent = (deep / totalSleep) * 100
+        let remPercent = (rem / totalSleep) * 100
+
+        var score = 0.0
+        var count = 0
+
+        // Deep sleep scoring
+        if let avgDeep = baseline.deepSleepPercentageAverage {
+            let deepScore = scoreFromDeviation(
+                value: deepPercent,
+                average: avgDeep,
+                stdDev: 5.0,
+                isHigherBetter: true
+            )
+            score += deepScore
+        } else {
+            // Fixed range: 13-25% optimal
+            if deepPercent >= 15 && deepPercent <= 20 {
+                score += 1.0
+            } else if deepPercent >= 13 && deepPercent <= 25 {
+                score += 0.7
+            } else {
+                score += 0.3
+            }
+        }
+        count += 1
+
+        // REM sleep scoring
+        if let avgRem = baseline.remSleepPercentageAverage {
+            let remScore = scoreFromDeviation(
+                value: remPercent,
+                average: avgRem,
+                stdDev: 5.0,
+                isHigherBetter: true
+            )
+            score += remScore
+        } else {
+            // Fixed range: 18-28% optimal
+            if remPercent >= 20 && remPercent <= 25 {
+                score += 1.0
+            } else if remPercent >= 18 && remPercent <= 28 {
+                score += 0.7
+            } else {
+                score += 0.3
+            }
+        }
+        count += 1
+
+        return score / Double(count)
+    }
+
+    // MARK: - Fixed Range Scoring (Fallback)
+
+    /// Fallback scoring without personal baseline
+    /// Based on 4 metrics + sleep quality
+    private func calculateFixedRangeScore() -> Int {
+        var totalScore = 0.0
+        var totalWeight = 0.0
+
+        // Weight configuration (same as baseline-aware)
+        let hrvWeight = 0.25       // 25% - HRV (higher is better)
+        let rhrWeight = 0.20       // 20% - RHR (lower is better)
+        let spO2Weight = 0.15      // 15% - SpO2 (higher is better)
+        let respRateWeight = 0.10  // 10% - Respiratory (lower is better)
+        let sleepWeight = 0.30     // 30% - Sleep quality
+
         if let hrv = hrvAverage {
             let hrvScore = calculateHRVScore(hrv)
             totalScore += hrvScore * hrvWeight
             totalWeight += hrvWeight
         }
 
-        // Sleep Score (combination of duration and efficiency)
-        if let sleep = sleepData {
-            let sleepScore = calculateSleepScore(sleep)
-            totalScore += sleepScore * sleepWeight
-            totalWeight += sleepWeight
-        }
-
-        // Resting HR Score (lower is better, typical range: 40-80 bpm)
         if let rhr = restingHeartRate {
             let rhrScore = calculateRHRScore(rhr)
             totalScore += rhrScore * rhrWeight
             totalWeight += rhrWeight
         }
 
-        // Walking HR Score (lower is better, typical range: 70-110 bpm)
-        if let whr = walkingHeartRate {
-            let whrScore = calculateWalkingHRScore(whr)
-            totalScore += whrScore * walkingHRWeight
-            totalWeight += walkingHRWeight
+        if let spo2 = oxygenSaturation {
+            let spo2Score = scoreSpO2(spo2)
+            totalScore += spo2Score * spO2Weight
+            totalWeight += spO2Weight
         }
 
-        // Respiratory Rate Score (optimal: 12-16 breaths/min)
         if let respRate = respiratoryRate {
             let respScore = calculateRespiratoryScore(respRate)
             totalScore += respScore * respRateWeight
             totalWeight += respRateWeight
         }
 
-        // Normalize by total weight to handle missing metrics gracefully
-        // If no metrics available, default to 50 (neutral score)
+        if let sleep = sleepData {
+            let sleepScore = calculateSleepScore(sleep)
+            totalScore += sleepScore * sleepWeight
+            totalWeight += sleepWeight
+        }
+
         let finalScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 50
 
         return max(0, min(100, Int(finalScore.rounded())))
     }
 
-    // MARK: - Continuous Scoring Helper Methods
+    // MARK: - Fixed Range Helper Methods
 
-    /// Calculate HRV score using linear interpolation
-    /// - Parameter hrv: Heart Rate Variability in milliseconds
-    /// - Returns: Score from 0.0 to 1.0
     private func calculateHRVScore(_ hrv: Double) -> Double {
-        // Linear interpolation: 20ms = 0.0, 100ms = 1.0
-        // Values below 20 = 0.0, above 100 = 1.0
+        // Higher HRV is better: 20-100ms range
         return min(max((hrv - 20) / 80, 0.0), 1.0)
     }
 
-    /// Calculate Resting Heart Rate score using linear interpolation
-    /// - Parameter rhr: Resting Heart Rate in bpm
-    /// - Returns: Score from 0.0 to 1.0
     private func calculateRHRScore(_ rhr: Double) -> Double {
-        // Linear interpolation (inverted): 80bpm = 0.0, 40bpm = 1.0
-        // Higher RHR = worse recovery, lower RHR = better recovery
+        // Lower RHR is better: 40-80 bpm range
         return min(max((80 - rhr) / 40, 0.0), 1.0)
     }
 
-    /// Calculate sleep score based on duration and efficiency
-    /// - Parameter sleep: Sleep data
-    /// - Returns: Score from 0.0 to 1.0
     private func calculateSleepScore(_ sleep: SleepData) -> Double {
         let hours = sleep.totalSleepDuration / 3600.0
         let efficiency = sleep.sleepEfficiency / 100.0
 
-        // Duration score: 5h = 0.0, 9h = 1.0, with penalty for oversleeping
         var durationScore: Double
         if hours < 5 {
             durationScore = 0.0
@@ -131,38 +375,21 @@ struct RecoveryMetrics: Identifiable {
         } else if hours <= 10 {
             durationScore = 1.0
         } else {
-            // Slight penalty for excessive sleep (possible fatigue indicator)
             durationScore = max(0.7, 1.0 - (hours - 10) * 0.1)
         }
 
-        // Efficiency score: 75% = 0.5, 95% = 1.0
         let efficiencyScore = min(max((efficiency - 0.75) / 0.20, 0.0), 1.0)
 
-        // Combine: 70% duration, 30% efficiency
         return durationScore * 0.7 + efficiencyScore * 0.3
     }
 
-    /// Calculate Walking Heart Rate score using linear interpolation
-    /// - Parameter whr: Walking Heart Rate in bpm
-    /// - Returns: Score from 0.0 to 1.0
-    private func calculateWalkingHRScore(_ whr: Double) -> Double {
-        // Linear interpolation (inverted): 110bpm = 0.0, 70bpm = 1.0
-        // Higher walking HR = worse recovery
-        return min(max((110 - whr) / 40, 0.0), 1.0)
-    }
-
-    /// Calculate Respiratory Rate score with optimal range
-    /// - Parameter rate: Respiratory rate in breaths per minute
-    /// - Returns: Score from 0.0 to 1.0
     private func calculateRespiratoryScore(_ rate: Double) -> Double {
-        // Optimal range: 12-16 breaths/min
+        // Lower respiratory rate is generally better (12-16 is optimal)
         if rate >= 12 && rate <= 16 {
             return 1.0
         } else if rate < 12 {
-            // Below optimal: 8 = 0.5, 12 = 1.0
             return min(max((rate - 8) / 4, 0.5), 1.0)
         } else {
-            // Above optimal: 16 = 1.0, 22 = 0.0
             return min(max((22 - rate) / 6, 0.0), 1.0)
         }
     }

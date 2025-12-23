@@ -2071,6 +2071,9 @@ class HealthKitManager: ObservableObject {
         // First, fetch sleep data as we need it for HRV statistics
         let sleep = await fetchSleepDataSafe(for: startOfDay)
 
+        // Load or compute personal baseline
+        let baseline = await loadOrComputeBaseline()
+
         // Now fetch all other metrics in parallel, including HRV statistics based on sleep period
         async let restingHR = fetchLatestQuantitySafe(
             for: .restingHeartRate,
@@ -2088,8 +2091,15 @@ class HealthKitManager: ObservableObject {
             before: endOfDay,
             unit: HKUnit.count().unitDivided(by: .minute())
         )
+        async let oxygenSaturation = fetchLatestQuantitySafe(
+            for: .oxygenSaturation,
+            before: endOfDay,
+            unit: .percent()
+        )
 
-        let (rhrResult, hrvResult, whrResult, respRateResult) = await (restingHR, hrvStats, walkingHR, respiratoryRate)
+        let (rhrResult, hrvResult, whrResult, respRateResult, spO2Result) = await (
+            restingHR, hrvStats, walkingHR, respiratoryRate, oxygenSaturation
+        )
 
         return RecoveryMetrics(
             date: date,
@@ -2099,7 +2109,9 @@ class HealthKitManager: ObservableObject {
             hrvMax: hrvResult.max,
             walkingHeartRate: whrResult.value,
             sleepData: sleep,
-            respiratoryRate: respRateResult.value
+            respiratoryRate: respRateResult.value,
+            oxygenSaturation: spO2Result.value.map { $0 * 100 }, // Convert to percentage
+            baseline: baseline
         )
     }
 
@@ -2635,6 +2647,196 @@ class HealthKitManager: ObservableObject {
             cadence: cadence.map { Int($0.rounded()) },
             vo2Max: vo2Max,
             elevation: elevation.ascent
+        )
+    }
+
+    // MARK: - Personal Baseline Computation
+
+    /// Fetch historical data and compute personal baseline
+    /// Uses rolling 14-day window for averages
+    func computePersonalBaseline(days: Int = 14) async throws -> PersonalBaseline {
+        let calendar = Calendar.current
+        let endDate = Date()
+        let startDate = calendar.date(byAdding: .day, value: -days, to: endDate)!
+
+        // Fetch all historical data points in parallel
+        async let rhrHistory = fetchQuantityHistory(
+            for: .restingHeartRate,
+            start: startDate,
+            end: endDate,
+            unit: HKUnit.count().unitDivided(by: .minute())
+        )
+        async let hrvHistory = fetchQuantityHistory(
+            for: .heartRateVariabilitySDNN,
+            start: startDate,
+            end: endDate,
+            unit: .secondUnit(with: .milli)
+        )
+        async let walkingHRHistory = fetchQuantityHistory(
+            for: .walkingHeartRateAverage,
+            start: startDate,
+            end: endDate,
+            unit: HKUnit.count().unitDivided(by: .minute())
+        )
+        async let respRateHistory = fetchQuantityHistory(
+            for: .respiratoryRate,
+            start: startDate,
+            end: endDate,
+            unit: HKUnit.count().unitDivided(by: .minute())
+        )
+        async let spO2History = fetchQuantityHistory(
+            for: .oxygenSaturation,
+            start: startDate,
+            end: endDate,
+            unit: .percent()
+        )
+        async let sleepHistory = fetchSleepHistory(start: startDate, end: endDate)
+
+        let (rhr, hrv, whr, resp, spo2, sleep) = await (
+            rhrHistory, hrvHistory, walkingHRHistory, respRateHistory, spO2History, sleepHistory
+        )
+
+        // Compute statistics
+        let rhrStats = computeStatistics(rhr)
+        let hrvStats = computeStatistics(hrv)
+        let whrStats = computeStatistics(whr)
+        let respStats = computeStatistics(resp)
+        let spO2Stats = computeStatistics(spo2.map { $0 * 100 }) // Convert to percentage
+        let sleepStats = computeSleepStatistics(sleep)
+
+        let dataPointCount = max(rhr.count, hrv.count, sleep.count)
+
+        return PersonalBaseline(
+            id: UUID(),
+            computedAt: Date(),
+            dataPointCount: dataPointCount,
+            restingHeartRateAverage: rhrStats.average,
+            restingHeartRateStdDev: rhrStats.stdDev,
+            hrvAverage: hrvStats.average,
+            hrvStdDev: hrvStats.stdDev,
+            walkingHeartRateAverage: whrStats.average,
+            walkingHeartRateStdDev: whrStats.stdDev,
+            respiratoryRateAverage: respStats.average,
+            respiratoryRateStdDev: respStats.stdDev,
+            oxygenSaturationAverage: spO2Stats.average,
+            oxygenSaturationStdDev: spO2Stats.stdDev,
+            sleepDurationAverage: sleepStats.durationAverage,
+            sleepEfficiencyAverage: sleepStats.efficiencyAverage,
+            deepSleepPercentageAverage: sleepStats.deepPercentAverage,
+            remSleepPercentageAverage: sleepStats.remPercentAverage
+        )
+    }
+
+    /// Load existing baseline or compute new one if needed
+    func loadOrComputeBaseline() async -> PersonalBaseline? {
+        let storage = PersonalBaselineStorage.shared
+
+        if !storage.needsRefresh(), let existing = storage.load() {
+            return existing
+        }
+
+        // Compute new baseline
+        do {
+            let newBaseline = try await computePersonalBaseline()
+            storage.save(newBaseline)
+            return newBaseline
+        } catch {
+            return storage.load() // Return stale baseline if computation fails
+        }
+    }
+
+    /// Fetch all quantity samples in a date range
+    private func fetchQuantityHistory(
+        for identifier: HKQuantityTypeIdentifier,
+        start: Date,
+        end: Date,
+        unit: HKUnit
+    ) async -> [Double] {
+        guard let quantityType = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            return []
+        }
+
+        let predicate = HKQuery.predicateForSamples(
+            withStart: start,
+            end: end,
+            options: .strictStartDate
+        )
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: quantityType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, _ in
+                let values = (samples as? [HKQuantitySample])?.map {
+                    $0.quantity.doubleValue(for: unit)
+                } ?? []
+                continuation.resume(returning: values)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// Fetch sleep data for multiple days
+    private func fetchSleepHistory(start: Date, end: Date) async -> [SleepData] {
+        var sleepDataList: [SleepData] = []
+        let calendar = Calendar.current
+        var currentDate = start
+
+        while currentDate < end {
+            if let sleepData = await fetchSleepDataSafe(for: currentDate) {
+                sleepDataList.append(sleepData)
+            }
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+
+        return sleepDataList
+    }
+
+    /// Compute mean and standard deviation
+    private func computeStatistics(_ values: [Double]) -> (average: Double?, stdDev: Double?) {
+        guard !values.isEmpty else { return (nil, nil) }
+
+        let mean = values.reduce(0, +) / Double(values.count)
+
+        guard values.count > 1 else { return (mean, nil) }
+
+        let variance = values.reduce(0) { $0 + pow($1 - mean, 2) } / Double(values.count - 1)
+        let stdDev = sqrt(variance)
+
+        return (mean, stdDev)
+    }
+
+    /// Compute sleep-specific statistics
+    private func computeSleepStatistics(_ sleepList: [SleepData]) -> (
+        durationAverage: TimeInterval?,
+        efficiencyAverage: Double?,
+        deepPercentAverage: Double?,
+        remPercentAverage: Double?
+    ) {
+        guard !sleepList.isEmpty else {
+            return (nil, nil, nil, nil)
+        }
+
+        let durations = sleepList.map { $0.totalSleepDuration }
+        let efficiencies = sleepList.map { $0.sleepEfficiency }
+
+        let deepPercents = sleepList.compactMap { sleep -> Double? in
+            guard let deep = sleep.deepSleepDuration, sleep.totalSleepDuration > 0 else { return nil }
+            return (deep / sleep.totalSleepDuration) * 100
+        }
+
+        let remPercents = sleepList.compactMap { sleep -> Double? in
+            guard let rem = sleep.remSleepDuration, sleep.totalSleepDuration > 0 else { return nil }
+            return (rem / sleep.totalSleepDuration) * 100
+        }
+
+        return (
+            durations.reduce(0, +) / Double(durations.count),
+            efficiencies.reduce(0, +) / Double(efficiencies.count),
+            deepPercents.isEmpty ? nil : deepPercents.reduce(0, +) / Double(deepPercents.count),
+            remPercents.isEmpty ? nil : remPercents.reduce(0, +) / Double(remPercents.count)
         )
     }
 }

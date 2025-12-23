@@ -234,7 +234,7 @@ struct RecoveryDayView: View {
                     .padding(.horizontal, 32)
             }
             
-            Button("Retry") {
+            Button(String(localized: "Retry", comment: "Button to retry loading data")) {
                 Task { await viewModel.loadRecoveryMetrics(for: date) }
             }
         }

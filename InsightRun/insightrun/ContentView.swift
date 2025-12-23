@@ -62,7 +62,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showSuuntoImport) {
             SuuntoImportFromShareView(fileURL: importedFileURL) {
-                // On dismiss, clear the imported file URL
+                // On dismiss, stop security-scoped resource access and clear URL
+                if let url = importedFileURL {
+                    url.stopAccessingSecurityScopedResource()
+                }
                 importedFileURL = nil
             }
         }

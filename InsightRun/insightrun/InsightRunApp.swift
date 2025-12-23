@@ -74,6 +74,13 @@ struct InsightRunApp: App {
             return
         }
 
+        // Security: Start accessing the security-scoped resource
+        // This is required for files received via share sheet or open-in
+        guard url.startAccessingSecurityScopedResource() else {
+            print("⚠️ Could not access security-scoped resource: \(url.lastPathComponent)")
+            return
+        }
+
         print("📥 Received file to import: \(url.lastPathComponent)")
         importedFileURL = url
     }

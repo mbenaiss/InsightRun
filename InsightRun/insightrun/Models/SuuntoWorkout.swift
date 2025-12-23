@@ -266,18 +266,21 @@ struct ParsedSuuntoWorkout {
 // MARK: - Parser
 
 enum SuuntoParserError: Error, LocalizedError {
-    case invalidJSON
-    case invalidDate
-    case missingRequiredFields
+    case invalidJSON(detail: String)
+    case invalidDate(dateString: String)
+    case missingRequiredFields(fields: [String])
+    case fileReadFailed(path: String, underlying: Error)
 
     var errorDescription: String? {
         switch self {
-        case .invalidJSON:
-            return "Invalid Suunto JSON format"
-        case .invalidDate:
-            return "Could not parse workout date"
-        case .missingRequiredFields:
-            return "Missing required workout fields"
+        case .invalidJSON(let detail):
+            return "Invalid Suunto JSON format: \(detail). Ensure the file was exported from the Suunto app."
+        case .invalidDate(let dateString):
+            return "Could not parse workout date '\(dateString)'. Expected ISO8601 format."
+        case .missingRequiredFields(let fields):
+            return "Missing required fields: \(fields.joined(separator: ", "))"
+        case .fileReadFailed(let path, let error):
+            return "Could not read file '\(path)': \(error.localizedDescription)"
         }
     }
 }
@@ -318,8 +321,12 @@ struct SuuntoParser {
 
     static func parse(from data: Data) throws -> ParsedSuuntoWorkout {
         let decoder = JSONDecoder()
-        let export = try decoder.decode(SuuntoExport.self, from: data)
-        return try convert(export)
+        do {
+            let export = try decoder.decode(SuuntoExport.self, from: data)
+            return try convert(export)
+        } catch let decodingError as DecodingError {
+            throw SuuntoParserError.invalidJSON(detail: decodingError.localizedDescription)
+        }
     }
 
     static func parse(from url: URL) throws -> ParsedSuuntoWorkout {
@@ -329,9 +336,14 @@ struct SuuntoParser {
 
     /// Async version that loads file data on background queue to avoid blocking main thread
     static func parseAsync(from url: URL) async throws -> ParsedSuuntoWorkout {
-        let data = try await Task.detached(priority: .userInitiated) {
-            try Data(contentsOf: url)
-        }.value
+        let data: Data
+        do {
+            data = try await Task.detached(priority: .userInitiated) {
+                try Data(contentsOf: url)
+            }.value
+        } catch {
+            throw SuuntoParserError.fileReadFailed(path: url.lastPathComponent, underlying: error)
+        }
         return try parse(from: data)
     }
 
@@ -348,7 +360,7 @@ struct SuuntoParser {
 
         // Parse start date
         guard let startDate = parseDate(header.DateTime) else {
-            throw SuuntoParserError.invalidDate
+            throw SuuntoParserError.invalidDate(dateString: header.DateTime)
         }
 
         let endDate = startDate.addingTimeInterval(header.Duration)

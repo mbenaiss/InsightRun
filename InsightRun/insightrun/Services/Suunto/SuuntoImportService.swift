@@ -38,6 +38,40 @@ enum SuuntoImportError: Error, LocalizedError {
     }
 }
 
+// MARK: - Codable Types for Safe JSON Serialization
+
+struct CachedSplitData: Codable {
+    let km: Int
+    let time: Double
+    let pace: Double
+    let hr: Double?
+    let power: Double?
+    let cadence: Double?
+    let elev: Double?
+
+    init(from split: SuuntoSplit) {
+        self.km = split.kilometer
+        self.time = split.time
+        self.pace = split.pace
+        self.hr = split.averageHeartRate
+        self.power = split.averagePower
+        self.cadence = split.averageCadence
+        self.elev = split.elevationGain
+    }
+
+    func toSuuntoSplit() -> SuuntoSplit {
+        SuuntoSplit(
+            kilometer: km,
+            time: time,
+            pace: pace,
+            averageHeartRate: hr,
+            averagePower: power,
+            averageCadence: cadence,
+            elevationGain: elev
+        )
+    }
+}
+
 // MARK: - SwiftData Model for Cached Suunto Workouts
 
 @Model
@@ -136,40 +170,28 @@ final class CachedSuuntoWorkout {
         }
 
         // Encode samples (limit to reduce storage)
-        let maxSamples = 1000
         if !parsed.heartRateSamples.isEmpty {
-            let samples = Array(parsed.heartRateSamples.prefix(maxSamples))
+            let samples = Array(parsed.heartRateSamples.prefix(SuuntoImportConfig.maxCachedSamples))
                 .map { ["t": $0.date.timeIntervalSince1970, "v": $0.bpm] }
             self.heartRateSamplesJSON = try? JSONEncoder().encode(samples)
         }
 
         if !parsed.cadenceSamples.isEmpty {
-            let samples = Array(parsed.cadenceSamples.prefix(maxSamples))
+            let samples = Array(parsed.cadenceSamples.prefix(SuuntoImportConfig.maxCachedSamples))
                 .map { ["t": $0.date.timeIntervalSince1970, "v": $0.spm] }
             self.cadenceSamplesJSON = try? JSONEncoder().encode(samples)
         }
 
         if !parsed.powerSamples.isEmpty {
-            let samples = Array(parsed.powerSamples.prefix(maxSamples))
+            let samples = Array(parsed.powerSamples.prefix(SuuntoImportConfig.maxCachedSamples))
                 .map { ["t": $0.date.timeIntervalSince1970, "v": $0.watts] }
             self.powerSamplesJSON = try? JSONEncoder().encode(samples)
         }
 
-        // Encode splits
+        // Encode splits using typed Codable for safety
         if !parsed.splits.isEmpty {
-            let splitsData = parsed.splits.map { split -> [String: Any] in
-                var dict: [String: Any] = [
-                    "km": split.kilometer,
-                    "time": split.time,
-                    "pace": split.pace
-                ]
-                if let hr = split.averageHeartRate { dict["hr"] = hr }
-                if let power = split.averagePower { dict["power"] = power }
-                if let cadence = split.averageCadence { dict["cadence"] = cadence }
-                if let elev = split.elevationGain { dict["elev"] = elev }
-                return dict
-            }
-            self.splitsJSON = try? JSONSerialization.data(withJSONObject: splitsData)
+            let splitsData = parsed.splits.map { CachedSplitData(from: $0) }
+            self.splitsJSON = try? JSONEncoder().encode(splitsData)
         }
     }
 
@@ -212,24 +234,11 @@ final class CachedSuuntoWorkout {
             }
         }
 
-        // Decode splits
+        // Decode splits using typed Codable for safety
         var splits: [SuuntoSplit] = []
         if let data = splitsJSON,
-           let splitsArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            splits = splitsArray.compactMap { dict in
-                guard let km = dict["km"] as? Int,
-                      let time = dict["time"] as? Double,
-                      let pace = dict["pace"] as? Double else { return nil }
-                return SuuntoSplit(
-                    kilometer: km,
-                    time: time,
-                    pace: pace,
-                    averageHeartRate: dict["hr"] as? Double,
-                    averagePower: dict["power"] as? Double,
-                    averageCadence: dict["cadence"] as? Double,
-                    elevationGain: dict["elev"] as? Double
-                )
-            }
+           let splitsArray = try? JSONDecoder().decode([CachedSplitData].self, from: data) {
+            splits = splitsArray.map { $0.toSuuntoSplit() }
         }
 
         return ParsedSuuntoWorkout(
@@ -269,6 +278,17 @@ final class CachedSuuntoWorkout {
 
 import CoreLocation
 
+// MARK: - Configuration Constants
+
+private enum SuuntoImportConfig {
+    /// Time tolerance for matching workouts (seconds)
+    static let workoutMatchingTolerance: TimeInterval = 5 * 60 // 5 minutes
+    /// Duration difference threshold for matching (percentage)
+    static let durationMatchingThreshold: Double = 0.05 // 5%
+    /// Maximum samples to store in cache
+    static let maxCachedSamples = 1000
+}
+
 // MARK: - Import Service
 
 @MainActor
@@ -278,6 +298,7 @@ class SuuntoImportService: ObservableObject {
     @Published var isImporting = false
     @Published var lastImportResult: SuuntoImportResult?
     @Published var lastError: SuuntoImportError?
+    @Published var cacheSaveWarning: String?
 
     // Separate ModelContainer for Suunto data (avoids migration issues)
     private var suuntoContainer: ModelContainer?
@@ -298,11 +319,14 @@ class SuuntoImportService: ObservableObject {
                 isStoredInMemoryOnly: false,
                 allowsSave: true
             )
-            suuntoContainer = try ModelContainer(for: schema, configurations: [config])
-            suuntoContext = ModelContext(suuntoContainer!)
+            let container = try ModelContainer(for: schema, configurations: [config])
+            suuntoContainer = container
+            suuntoContext = ModelContext(container)
             print("✅ SuuntoImportService: Separate container initialized")
         } catch {
             print("⚠️ SuuntoImportService: Could not create separate container: \(error)")
+            suuntoContainer = nil
+            suuntoContext = nil
         }
     }
 
@@ -352,10 +376,13 @@ class SuuntoImportService: ObservableObject {
         let existingWorkout = try await findMatchingHealthKitWorkout(for: parsed)
 
         // Save to cache (gracefully handle database errors - import still succeeds)
+        cacheSaveWarning = nil
         do {
             try saveToCache(parsed, fileName: fileName)
         } catch {
-            print("⚠️ Could not save to cache (migration needed?): \(error.localizedDescription)")
+            let warningMessage = "Workout imported but cache save failed: \(error.localizedDescription)"
+            print("⚠️ \(warningMessage)")
+            cacheSaveWarning = warningMessage
         }
 
         let result: SuuntoImportResult
@@ -376,17 +403,14 @@ class SuuntoImportService: ObservableObject {
     private func findMatchingHealthKitWorkout(for suunto: ParsedSuuntoWorkout) async throws -> WorkoutModel? {
         let workouts = try await healthKitManager.fetchRunningWorkouts()
 
-        // Find workout with matching time window
-        let tolerance: TimeInterval = 5 * 60 // 5 minutes
-
         for workout in workouts {
             let timeDiff = abs(workout.startDate.timeIntervalSince(suunto.startDate))
-            if timeDiff < tolerance {
-                // Check duration similarity (within 5%)
+            if timeDiff < SuuntoImportConfig.workoutMatchingTolerance {
+                // Check duration similarity
                 let maxDuration = max(workout.duration, suunto.duration)
-                guard maxDuration > 0 else { continue } // Skip if both durations are 0
+                guard maxDuration > 0 else { continue }
                 let durationDiff = abs(workout.duration - suunto.duration) / maxDuration
-                if durationDiff < 0.05 {
+                if durationDiff < SuuntoImportConfig.durationMatchingThreshold {
                     print("🔍 Found matching HealthKit workout: \(workout.startDate)")
                     return workout
                 }

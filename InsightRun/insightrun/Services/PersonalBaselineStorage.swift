@@ -8,7 +8,6 @@
 
 import Foundation
 
-@MainActor
 class PersonalBaselineStorage {
     static let shared = PersonalBaselineStorage()
 

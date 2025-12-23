@@ -8,6 +8,15 @@
 
 import Foundation
 
+/// Weight configuration for recovery score calculation (total = 100%)
+private enum RecoveryWeights {
+    static let hrv = 0.25              // 25% - Primary recovery indicator (higher is better)
+    static let restingHeartRate = 0.20 // 20% - Cardiovascular stress indicator (lower is better)
+    static let oxygenSaturation = 0.15 // 15% - Oxygen saturation (higher is better)
+    static let respiratoryRate = 0.10  // 10% - Stress indicator (lower is better)
+    static let sleep = 0.30            // 30% - Sleep quality (duration + efficiency + stages)
+}
+
 struct RecoveryMetrics: Identifiable {
     let id = UUID()
     let date: Date
@@ -72,23 +81,17 @@ struct RecoveryMetrics: Identifiable {
         var totalScore = 0.0
         var totalWeight = 0.0
 
-        // Weight configuration (total = 100%)
-        let hrvWeight = 0.25       // 25% - Primary recovery indicator (higher is better)
-        let rhrWeight = 0.20       // 20% - Cardiovascular stress indicator (lower is better)
-        let spO2Weight = 0.15      // 15% - Oxygen saturation (higher is better)
-        let respRateWeight = 0.10  // 10% - Stress indicator (lower is better)
-        let sleepWeight = 0.30     // 30% - Sleep quality (duration + efficiency + stages)
-
         // HRV Score (higher is better)
         if let hrv = hrvAverage {
             let score = scoreFromDeviation(
                 value: hrv,
                 average: baseline.hrvAverage,
                 stdDev: baseline.hrvStdDev,
-                isHigherBetter: true
+                isHigherBetter: true,
+                defaultCV: MetricCV.hrv
             )
-            totalScore += score * hrvWeight
-            totalWeight += hrvWeight
+            totalScore += score * RecoveryWeights.hrv
+            totalWeight += RecoveryWeights.hrv
         }
 
         // RHR Score (lower is better)
@@ -97,17 +100,18 @@ struct RecoveryMetrics: Identifiable {
                 value: rhr,
                 average: baseline.restingHeartRateAverage,
                 stdDev: baseline.restingHeartRateStdDev,
-                isHigherBetter: false
+                isHigherBetter: false,
+                defaultCV: MetricCV.restingHR
             )
-            totalScore += score * rhrWeight
-            totalWeight += rhrWeight
+            totalScore += score * RecoveryWeights.restingHeartRate
+            totalWeight += RecoveryWeights.restingHeartRate
         }
 
         // SpO2 Score (higher is better, uses clinical thresholds)
         if let spo2 = oxygenSaturation {
             let score = scoreSpO2(spo2)
-            totalScore += score * spO2Weight
-            totalWeight += spO2Weight
+            totalScore += score * RecoveryWeights.oxygenSaturation
+            totalWeight += RecoveryWeights.oxygenSaturation
         }
 
         // Respiratory Rate Score (lower is better)
@@ -116,10 +120,11 @@ struct RecoveryMetrics: Identifiable {
                 value: respRate,
                 average: baseline.respiratoryRateAverage,
                 stdDev: baseline.respiratoryRateStdDev,
-                isHigherBetter: false
+                isHigherBetter: false,
+                defaultCV: MetricCV.respiratoryRate
             )
-            totalScore += score * respRateWeight
-            totalWeight += respRateWeight
+            totalScore += score * RecoveryWeights.respiratoryRate
+            totalWeight += RecoveryWeights.respiratoryRate
         }
 
         // Sleep Score (duration + efficiency + stages combined)
@@ -128,8 +133,8 @@ struct RecoveryMetrics: Identifiable {
             let stagesScore = scoreSleepStages(sleep, baseline: baseline)
             // Combine: 60% duration/efficiency, 40% stages
             let combinedSleepScore = (durationEfficiencyScore * 0.6) + (stagesScore * 0.4)
-            totalScore += combinedSleepScore * sleepWeight
-            totalWeight += sleepWeight
+            totalScore += combinedSleepScore * RecoveryWeights.sleep
+            totalWeight += RecoveryWeights.sleep
         }
 
         // Normalize by total weight
@@ -142,20 +147,32 @@ struct RecoveryMetrics: Identifiable {
         return max(0, min(100, Int(finalScore.rounded())))
     }
 
+    /// Metric-specific coefficient of variation for fallback stdDev calculation
+    /// Based on typical physiological variability
+    private enum MetricCV {
+        static let hrv = 0.30           // HRV: 20-40% CV, use 30%
+        static let restingHR = 0.08     // RHR: 5-10% CV, use 8%
+        static let respiratoryRate = 0.12  // Resp: 10-15% CV, use 12%
+        static let oxygenSaturation = 0.02 // SpO2: 1-2% CV, use 2%
+    }
+
     /// Convert deviation to a 0-1 score
-    /// - isHigherBetter: true for HRV, false for RHR, nil for symmetric (respRate)
+    /// - isHigherBetter: true for HRV/SpO2, false for RHR/RespRate
+    /// - defaultCV: metric-specific coefficient of variation for fallback
     private func scoreFromDeviation(
         value: Double,
         average: Double?,
         stdDev: Double?,
-        isHigherBetter: Bool?
+        isHigherBetter: Bool?,
+        defaultCV: Double = 0.15
     ) -> Double {
         guard let avg = average else {
             // No baseline, return neutral score
             return 0.5
         }
 
-        let std = stdDev ?? (avg * 0.15) // Fallback: 15% of average
+        // Use metric-specific coefficient of variation for fallback
+        let std = stdDev ?? (avg * defaultCV)
         guard std > 0 else { return 0.5 }
 
         let zScore = (value - avg) / std
@@ -309,41 +326,34 @@ struct RecoveryMetrics: Identifiable {
         var totalScore = 0.0
         var totalWeight = 0.0
 
-        // Weight configuration (same as baseline-aware)
-        let hrvWeight = 0.25       // 25% - HRV (higher is better)
-        let rhrWeight = 0.20       // 20% - RHR (lower is better)
-        let spO2Weight = 0.15      // 15% - SpO2 (higher is better)
-        let respRateWeight = 0.10  // 10% - Respiratory (lower is better)
-        let sleepWeight = 0.30     // 30% - Sleep quality
-
         if let hrv = hrvAverage {
             let hrvScore = calculateHRVScore(hrv)
-            totalScore += hrvScore * hrvWeight
-            totalWeight += hrvWeight
+            totalScore += hrvScore * RecoveryWeights.hrv
+            totalWeight += RecoveryWeights.hrv
         }
 
         if let rhr = restingHeartRate {
             let rhrScore = calculateRHRScore(rhr)
-            totalScore += rhrScore * rhrWeight
-            totalWeight += rhrWeight
+            totalScore += rhrScore * RecoveryWeights.restingHeartRate
+            totalWeight += RecoveryWeights.restingHeartRate
         }
 
         if let spo2 = oxygenSaturation {
             let spo2Score = scoreSpO2(spo2)
-            totalScore += spo2Score * spO2Weight
-            totalWeight += spO2Weight
+            totalScore += spo2Score * RecoveryWeights.oxygenSaturation
+            totalWeight += RecoveryWeights.oxygenSaturation
         }
 
         if let respRate = respiratoryRate {
             let respScore = calculateRespiratoryScore(respRate)
-            totalScore += respScore * respRateWeight
-            totalWeight += respRateWeight
+            totalScore += respScore * RecoveryWeights.respiratoryRate
+            totalWeight += RecoveryWeights.respiratoryRate
         }
 
         if let sleep = sleepData {
             let sleepScore = calculateSleepScore(sleep)
-            totalScore += sleepScore * sleepWeight
-            totalWeight += sleepWeight
+            totalScore += sleepScore * RecoveryWeights.sleep
+            totalWeight += RecoveryWeights.sleep
         }
 
         let finalScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 50

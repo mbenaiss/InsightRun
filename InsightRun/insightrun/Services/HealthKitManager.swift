@@ -264,6 +264,32 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    /// Get count of running workouts in a date range (optimized - no data transfer)
+    func getRecentWorkoutsCount(since startDate: Date) async throws -> Int {
+        let workoutType = HKObjectType.workoutType()
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+        let datePredicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictStartDate)
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [runningPredicate, datePredicate])
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: HealthKitError.queryFailed(error))
+                    return
+                }
+
+                continuation.resume(returning: samples?.count ?? 0)
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
     /// Fetch recent workouts with a limit
     func fetchWorkouts(limit: Int) async -> [WorkoutModel] {
         let workoutType = HKObjectType.workoutType()

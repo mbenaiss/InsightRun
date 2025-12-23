@@ -284,6 +284,9 @@ enum SuuntoParserError: Error, LocalizedError {
 
 struct SuuntoParser {
 
+    // Maximum samples to keep in memory (prevents memory issues for ultra-marathons)
+    private static let maxSamplesInMemory = 2000
+
     private static let iso8601Formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -296,6 +299,23 @@ struct SuuntoParser {
         return formatter
     }()
 
+    /// Downsample an array to maxCount elements, preserving first and last elements
+    /// Uses uniform sampling to maintain data distribution
+    private static func downsample<T>(_ array: [T], to maxCount: Int) -> [T] {
+        guard array.count > maxCount else { return array }
+
+        var result: [T] = []
+        result.reserveCapacity(maxCount)
+
+        let step = Double(array.count - 1) / Double(maxCount - 1)
+        for i in 0..<maxCount {
+            let index = min(Int(Double(i) * step), array.count - 1)
+            result.append(array[index])
+        }
+
+        return result
+    }
+
     static func parse(from data: Data) throws -> ParsedSuuntoWorkout {
         let decoder = JSONDecoder()
         let export = try decoder.decode(SuuntoExport.self, from: data)
@@ -304,6 +324,14 @@ struct SuuntoParser {
 
     static func parse(from url: URL) throws -> ParsedSuuntoWorkout {
         let data = try Data(contentsOf: url)
+        return try parse(from: data)
+    }
+
+    /// Async version that loads file data on background queue to avoid blocking main thread
+    static func parseAsync(from url: URL) async throws -> ParsedSuuntoWorkout {
+        let data = try await Task.detached(priority: .userInitiated) {
+            try Data(contentsOf: url)
+        }.value
         return try parse(from: data)
     }
 
@@ -481,6 +509,20 @@ struct SuuntoParser {
         print("   VO2max (from header): \(header.MAXVO2 ?? -1)")
         print("   Training Effect: \(header.PeakTrainingEffect ?? -1)")
 
+        // Downsample large arrays to prevent memory issues (ultra-marathons can have 20,000+ samples)
+        let downsampledHR = downsample(heartRateSamples, to: maxSamplesInMemory)
+        let downsampledCadence = downsample(cadenceSamples, to: maxSamplesInMemory)
+        let downsampledPower = downsample(powerSamples, to: maxSamplesInMemory)
+        let downsampledAltitude = downsample(altitudeSamples, to: maxSamplesInMemory)
+        let downsampledRoute = downsample(routeCoordinates, to: maxSamplesInMemory)
+
+        if heartRateSamples.count > maxSamplesInMemory {
+            print("   ⚠️ Downsampled HR from \(heartRateSamples.count) to \(downsampledHR.count) samples")
+        }
+        if routeCoordinates.count > maxSamplesInMemory {
+            print("   ⚠️ Downsampled route from \(routeCoordinates.count) to \(downsampledRoute.count) points")
+        }
+
         return ParsedSuuntoWorkout(
             startDate: startDate,
             endDate: endDate,
@@ -501,12 +543,12 @@ struct SuuntoParser {
             vo2Max: header.MAXVO2,
             epoc: header.EPOC,
             trainingEffect: header.PeakTrainingEffect,
-            routeCoordinates: routeCoordinates,
+            routeCoordinates: downsampledRoute,
             hasRoute: !routeCoordinates.isEmpty,
-            heartRateSamples: heartRateSamples,
-            cadenceSamples: cadenceSamples,
-            powerSamples: powerSamples,
-            altitudeSamples: altitudeSamples,
+            heartRateSamples: downsampledHR,
+            cadenceSamples: downsampledCadence,
+            powerSamples: downsampledPower,
+            altitudeSamples: downsampledAltitude,
             splits: splits,
             deviceName: deviceName,
             activityType: header.Activity,
@@ -526,24 +568,51 @@ struct SuuntoParser {
         let altitude: Double?
     }
 
-    /// Find the closest HR sample to a given date (within 10 seconds tolerance)
+    /// Find the closest HR sample to a given date using binary search (O(log n) complexity)
     /// HR and Distance samples are in separate JSON objects, so we need to match them by timestamp
-    static func findClosestHR(for date: Date, in hrSamples: [(date: Date, bpm: Double)]) -> Double? {
+    /// Assumes hrSamples are sorted by date (ascending)
+    static func findClosestHR(for date: Date, in hrSamples: [(date: Date, bpm: Double)], tolerance: TimeInterval = 10.0) -> Double? {
         guard !hrSamples.isEmpty else { return nil }
 
-        var closestSample: (date: Date, bpm: Double)?
-        var minInterval: TimeInterval = .infinity
+        let targetTime = date.timeIntervalSince1970
 
-        for sample in hrSamples {
-            let interval = abs(sample.date.timeIntervalSince(date))
-            if interval < minInterval {
-                minInterval = interval
-                closestSample = sample
+        // Binary search to find insertion point
+        var low = 0
+        var high = hrSamples.count - 1
+
+        while low < high {
+            let mid = (low + high) / 2
+            if hrSamples[mid].date.timeIntervalSince1970 < targetTime {
+                low = mid + 1
+            } else {
+                high = mid
             }
         }
 
-        // Only return HR if within 10 seconds of the distance sample
-        if minInterval <= 10.0, let sample = closestSample {
+        // Check candidates: the found index and the one before it
+        var bestSample: (date: Date, bpm: Double)?
+        var minInterval: TimeInterval = .infinity
+
+        // Check index found by binary search
+        if low < hrSamples.count {
+            let interval = abs(hrSamples[low].date.timeIntervalSince(date))
+            if interval < minInterval {
+                minInterval = interval
+                bestSample = hrSamples[low]
+            }
+        }
+
+        // Check previous index (might be closer)
+        if low > 0 {
+            let interval = abs(hrSamples[low - 1].date.timeIntervalSince(date))
+            if interval < minInterval {
+                minInterval = interval
+                bestSample = hrSamples[low - 1]
+            }
+        }
+
+        // Only return HR if within tolerance
+        if minInterval <= tolerance, let sample = bestSample {
             return sample.bpm
         }
 
@@ -632,6 +701,59 @@ struct SuuntoParser {
                 lastKmCrossingTime = crossingTime
                 lastKmCrossingIndex = i
                 currentKm += 1
+            }
+        }
+
+        // Handle final partial split (e.g., last 500m of a 10.5km run)
+        if let lastSample = sortedSamples.last,
+           lastKmCrossingIndex < sortedSamples.count - 1 {
+            let lastDistance = lastSample.distance
+            let previousKmDistance = Double(currentKm - 1) * 1000.0
+            let partialDistance = lastDistance - previousKmDistance
+
+            // Only add if partial distance is significant (> 100m)
+            if partialDistance > 100 {
+                let segmentSamples = Array(sortedSamples[lastKmCrossingIndex...])
+                let endTime = lastSample.date
+                let segmentTime = endTime.timeIntervalSince(lastKmCrossingTime)
+
+                // Calculate pace normalized to 1km for comparison
+                let pacePerKm = segmentTime / (partialDistance / 1000.0) / 60.0
+
+                let hrs = segmentSamples.compactMap { $0.hr }
+                let avgHR = hrs.isEmpty ? nil : hrs.reduce(0, +) / Double(hrs.count)
+
+                let powers = segmentSamples.compactMap { $0.power }
+                let avgPower = powers.isEmpty ? nil : powers.reduce(0, +) / Double(powers.count)
+
+                let cadences = segmentSamples.compactMap { $0.cadence }
+                let avgCadence = cadences.isEmpty ? nil : cadences.reduce(0, +) / Double(cadences.count)
+
+                var elevGain: Double? = nil
+                let altitudes = segmentSamples.compactMap { $0.altitude }
+                if altitudes.count > 1 {
+                    var gain = 0.0
+                    for j in 1..<altitudes.count {
+                        let diff = altitudes[j] - altitudes[j - 1]
+                        if diff > 0 { gain += diff }
+                    }
+                    elevGain = gain > 0 ? gain : nil
+                }
+
+                let paceMin = Int(pacePerKm)
+                let paceSec = Int((pacePerKm - Double(paceMin)) * 60)
+
+                splits.append(SuuntoSplit(
+                    kilometer: currentKm,
+                    time: segmentTime,
+                    pace: pacePerKm,
+                    averageHeartRate: avgHR,
+                    averagePower: avgPower,
+                    averageCadence: avgCadence,
+                    elevationGain: elevGain
+                ))
+
+                print("   📏 Split km\(currentKm) (partial \(String(format: "%.0f", partialDistance))m): \(String(format: "%.0f", segmentTime))s = \(paceMin)'\(String(format: "%02d", paceSec))\"/km, HR: \(String(format: "%.0f", avgHR ?? 0)) bpm")
             }
         }
 

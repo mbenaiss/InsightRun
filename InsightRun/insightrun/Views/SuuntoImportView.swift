@@ -140,17 +140,36 @@ struct SuuntoImportView: View {
         case .success(let urls):
             guard let url = urls.first else { return }
 
-            // Start accessing the security-scoped resource
-            guard url.startAccessingSecurityScopedResource() else {
-                errorMessage = "Could not access the selected file"
+            // Validate file extension
+            guard url.pathExtension.lowercased() == "json" else {
+                errorMessage = "Invalid file type. Please select a JSON file."
                 showResult = true
                 return
             }
 
-            defer { url.stopAccessingSecurityScopedResource() }
+            // Start accessing the security-scoped resource
+            let hasSecurityAccess = url.startAccessingSecurityScopedResource()
 
             Task {
+                // Ensure security scope is released when task completes
+                defer {
+                    if hasSecurityAccess {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
+
                 do {
+                    // Check file size before loading (max 50MB)
+                    let maxFileSize: Int64 = 50 * 1024 * 1024
+                    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+                    if let fileSize = attributes[.size] as? Int64, fileSize > maxFileSize {
+                        await MainActor.run {
+                            errorMessage = "File too large. Maximum size is 50MB."
+                            showResult = true
+                        }
+                        return
+                    }
+
                     let importResult = try await importService.importWorkout(
                         from: url,
                         fileName: url.lastPathComponent

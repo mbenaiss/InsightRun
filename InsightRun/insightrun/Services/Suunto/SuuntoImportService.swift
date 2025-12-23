@@ -326,10 +326,10 @@ class SuuntoImportService: ObservableObject {
         isImporting = true
         defer { isImporting = false }
 
-        // Parse the JSON file
+        // Parse the JSON file (file I/O on background queue)
         let parsed: ParsedSuuntoWorkout
         do {
-            parsed = try SuuntoParser.parse(from: url)
+            parsed = try await SuuntoParser.parseAsync(from: url)
             print("✅ Parsed Suunto workout: \(parsed.activityType) - \(parsed.distance)m")
         } catch {
             let importError = SuuntoImportError.parseError(error)
@@ -383,7 +383,9 @@ class SuuntoImportService: ObservableObject {
             let timeDiff = abs(workout.startDate.timeIntervalSince(suunto.startDate))
             if timeDiff < tolerance {
                 // Check duration similarity (within 5%)
-                let durationDiff = abs(workout.duration - suunto.duration) / max(workout.duration, suunto.duration)
+                let maxDuration = max(workout.duration, suunto.duration)
+                guard maxDuration > 0 else { continue } // Skip if both durations are 0
+                let durationDiff = abs(workout.duration - suunto.duration) / maxDuration
                 if durationDiff < 0.05 {
                     print("🔍 Found matching HealthKit workout: \(workout.startDate)")
                     return workout

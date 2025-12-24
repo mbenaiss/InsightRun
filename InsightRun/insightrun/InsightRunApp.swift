@@ -12,6 +12,7 @@ import SwiftData
 struct InsightRunApp: App {
     @State private var themeManager = ThemeManager()
     @StateObject private var revenueCatManager = RevenueCatManager.shared
+    @State private var importedFileURL: URL?
 
     // Unified ModelContainer for all SwiftData models (WorkoutAnalysis + CachedStravaActivity)
     let sharedModelContainer: ModelContainer
@@ -24,6 +25,7 @@ struct InsightRunApp: App {
         RevenueCatManager.shared.configure()
 
         // Configure SwiftData with EXPLICIT persistence (ensures data survives app restarts)
+        // Note: CachedSuuntoWorkout uses its own separate container (in SuuntoImportService)
         do {
             let schema = Schema([
                 WorkoutAnalysis.self,
@@ -54,11 +56,32 @@ struct InsightRunApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(importedFileURL: $importedFileURL)
                 .preferredColorScheme(themeManager.selectedTheme.colorScheme)
                 .environment(themeManager)
                 .environmentObject(revenueCatManager)
+                .onOpenURL { url in
+                    handleIncomingFile(url)
+                }
         }
         .modelContainer(sharedModelContainer)  // Use unified persistent container
+    }
+
+    private func handleIncomingFile(_ url: URL) {
+        // Check if it's a JSON file
+        guard url.pathExtension.lowercased() == "json" else {
+            print("⚠️ Ignoring non-JSON file: \(url.lastPathComponent)")
+            return
+        }
+
+        // Security: Start accessing the security-scoped resource
+        // This is required for files received via share sheet or open-in
+        guard url.startAccessingSecurityScopedResource() else {
+            print("⚠️ Could not access security-scoped resource: \(url.lastPathComponent)")
+            return
+        }
+
+        print("📥 Received file to import: \(url.lastPathComponent)")
+        importedFileURL = url
     }
 }

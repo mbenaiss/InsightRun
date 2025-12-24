@@ -12,6 +12,14 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @Environment(\.modelContext) private var modelContext
 
+    // File import from share sheet
+    @Binding var importedFileURL: URL?
+    @State private var showSuuntoImport = false
+
+    init(importedFileURL: Binding<URL?> = .constant(nil)) {
+        self._importedFileURL = importedFileURL
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
             // Workouts Tab - Always visible
@@ -52,12 +60,27 @@ struct ContentView: View {
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()
         }
+        .sheet(isPresented: $showSuuntoImport) {
+            SuuntoImportFromShareView(fileURL: importedFileURL) {
+                // On dismiss, stop security-scoped resource access and clear URL
+                if let url = importedFileURL {
+                    url.stopAccessingSecurityScopedResource()
+                }
+                importedFileURL = nil
+            }
+        }
+        .onChange(of: importedFileURL) { _, newURL in
+            if newURL != nil {
+                showSuuntoImport = true
+            }
+        }
         .onAppear {
             // Inject shared ModelContext into cache singletons
             // This ensures all caches use the unified persistent container
             Task { @MainActor in
                 StravaCache.shared.setModelContext(modelContext)
                 UnifiedWorkoutCache.shared.setModelContext(modelContext)
+                SuuntoImportService.shared.setModelContext(modelContext)
             }
         }
     }

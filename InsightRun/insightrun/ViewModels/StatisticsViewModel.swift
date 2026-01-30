@@ -481,7 +481,7 @@ class StatisticsViewModel: ObservableObject {
             }
 
             // Generate all weeks that overlap with the current month
-            var weekStart = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: startOfMonth)
+            let weekStart = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: startOfMonth)
             guard var currentWeekDate = calendar.date(from: weekStart) else { return data }
 
             while currentWeekDate < nextMonth {

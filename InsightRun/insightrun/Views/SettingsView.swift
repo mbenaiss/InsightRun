@@ -307,7 +307,7 @@ struct SettingsView: View {
                                 Text(String(localized: "Import Suunto Workout"))
                                     .font(.body)
                                     .foregroundStyle(Color.irTextPrimary)
-                                Text(String(localized: "Import JSON files from Suunto app"))
+                                Text(String(localized: "Import FIT files from Suunto app"))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

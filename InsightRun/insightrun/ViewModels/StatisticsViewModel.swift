@@ -15,7 +15,7 @@ class StatisticsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var selectedPeriod: TimePeriod = .thisMonth
     @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
-    @Published var chartGranularity: ChartGranularity = .month
+    @Published var chartGranularity: ChartGranularity = .week
 
     private let healthKitManager = HealthKitManager.shared
 
@@ -466,11 +466,52 @@ class StatisticsViewModel: ObservableObject {
         let calendar = Calendar.current
         var data: [PeriodData] = []
 
+        if selectedPeriod == .thisMonth && chartGranularity == .week {
+            let now = Date()
+            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else {
+                return data
+            }
+            guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth) else {
+                return data
+            }
+
+            // Group workouts by week using yearForWeekOfYear for correct year-boundary handling
+            let grouped = Dictionary(grouping: filteredWorkouts) { workout in
+                calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: workout.startDate)
+            }
+
+            // Generate all weeks that overlap with the current month
+            let weekStart = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: startOfMonth)
+            guard var currentWeekDate = calendar.date(from: weekStart) else { return data }
+
+            while currentWeekDate < nextMonth {
+                let weekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentWeekDate)
+                let workoutsInWeek = grouped[weekComponents] ?? []
+
+                let distance = workoutsInWeek.compactMap { $0.distance }.reduce(0, +)
+                let paces = workoutsInWeek.compactMap { $0.averagePace }
+                let avgPace = !paces.isEmpty ? paces.reduce(0, +) / Double(paces.count) : nil
+
+                data.append(PeriodData(
+                    date: currentWeekDate,
+                    distance: distance,
+                    workoutCount: workoutsInWeek.count,
+                    averagePace: avgPace
+                ))
+
+                guard let nextWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeekDate) else { break }
+                currentWeekDate = nextWeek
+            }
+
+            return data
+        }
+
         let components: Calendar.Component = chartGranularity == .week ? .weekOfYear : .month
+        let yearComponent: Calendar.Component = chartGranularity == .week ? .yearForWeekOfYear : .year
 
         // Group workouts by period
         let grouped = Dictionary(grouping: filteredWorkouts) { workout in
-            calendar.dateComponents([.year, components], from: workout.startDate)
+            calendar.dateComponents([yearComponent, components], from: workout.startDate)
         }
 
         // Create data points for each period
@@ -489,21 +530,7 @@ class StatisticsViewModel: ObservableObject {
             ))
         }
 
-        data = data.sorted { $0.date < $1.date }
-
-        // When displaying this month with week granularity, filter to only include weeks within the current month
-        if selectedPeriod == .thisMonth && chartGranularity == .week {
-            let now = Date()
-            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else {
-                return data
-            }
-            guard let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth) else {
-                return data
-            }
-            data = data.filter { $0.date >= startOfMonth && $0.date <= endOfMonth }
-        }
-
-        return data
+        return data.sorted { $0.date < $1.date }
     }
 
     var activityHeatMapData: [ActivityDay] {

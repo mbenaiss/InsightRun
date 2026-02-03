@@ -398,14 +398,15 @@ struct StatisticsView: View {
 
                 Spacer()
 
-                // Granularity picker - only show for "This month" filter with only Week option
-                if viewModel.selectedPeriod == .thisMonth {
-                    Picker("", selection: $viewModel.chartGranularity) {
-                        Text(StatisticsViewModel.ChartGranularity.week.localizedTitle).tag(StatisticsViewModel.ChartGranularity.week)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 160)
-                }
+                Text(viewModel.selectedPeriod == .thisMonth
+                    ? StatisticsViewModel.ChartGranularity.week.localizedTitle
+                    : StatisticsViewModel.ChartGranularity.month.localizedTitle)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(Color.secondary.opacity(0.2))
+                    .clipShape(Capsule())
             }
             .onChange(of: viewModel.selectedPeriod) { oldValue, newValue in
                 // Force appropriate granularity based on filter

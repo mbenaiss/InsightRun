@@ -27,20 +27,40 @@ struct InsightRunApp: App {
         // Configure SwiftData with EXPLICIT persistence (ensures data survives app restarts)
         // Note: CachedSuuntoWorkout uses its own separate container (in SuuntoImportService)
         do {
-            let schema = Schema([
+            // Use separate stores to avoid migration issues when adding new models
+            let existingSchema = Schema([
+                WorkoutAnalysis.self,
+                CachedStravaActivity.self,
+            ])
+
+            let unifiedCacheSchema = Schema([
+                CachedUnifiedWorkout.self
+            ])
+
+            // Original store for existing models
+            let existingConfig = ModelConfiguration(
+                "ExistingData",
+                schema: existingSchema,
+                isStoredInMemoryOnly: false
+            )
+
+            // New separate store for CachedUnifiedWorkout (avoids migration)
+            let unifiedCacheConfig = ModelConfiguration(
+                "UnifiedWorkoutCache",
+                schema: unifiedCacheSchema,
+                isStoredInMemoryOnly: false
+            )
+
+            // Combined schema for the container
+            let fullSchema = Schema([
                 WorkoutAnalysis.self,
                 CachedStravaActivity.self,
                 CachedUnifiedWorkout.self
             ])
 
-            let modelConfiguration = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: false  // CRITICAL: Explicitly persist to disk
-            )
-
             sharedModelContainer = try ModelContainer(
-                for: schema,
-                configurations: [modelConfiguration]
+                for: fullSchema,
+                configurations: [existingConfig, unifiedCacheConfig]
             )
 
             print("✅ SwiftData: Unified ModelContainer initialized (persistent storage)")
@@ -68,17 +88,18 @@ struct InsightRunApp: App {
     }
 
     private func handleIncomingFile(_ url: URL) {
-        // Check if it's a JSON file
-        guard url.pathExtension.lowercased() == "json" else {
-            print("⚠️ Ignoring non-JSON file: \(url.lastPathComponent)")
+        // Check if it's a FIT file
+        guard url.pathExtension.lowercased() == "fit" else {
+            print("⚠️ Ignoring non-FIT file: \(url.lastPathComponent)")
             return
         }
 
-        // Security: Start accessing the security-scoped resource
-        // This is required for files received via share sheet or open-in
-        guard url.startAccessingSecurityScopedResource() else {
-            print("⚠️ Could not access security-scoped resource: \(url.lastPathComponent)")
-            return
+        // Security: Try to start accessing the security-scoped resource
+        // For files from share sheet (copied to app's Inbox), this may return false
+        // but the file is still accessible - so we don't guard on this
+        let hasSecurityAccess = url.startAccessingSecurityScopedResource()
+        if !hasSecurityAccess {
+            print("ℹ️ No security-scoped access needed for: \(url.lastPathComponent) (likely in Inbox)")
         }
 
         print("📥 Received file to import: \(url.lastPathComponent)")

@@ -77,6 +77,7 @@ struct WorkoutRowView: View {
         case garmin
         case polar
         case coros
+        case imported  // FIT file imports
         case other
 
         var color: Color {
@@ -87,6 +88,7 @@ struct WorkoutRowView: View {
             case .garmin: return Color(hex: "007CC3") // Garmin blue
             case .polar: return Color(hex: "D32F2F") // Polar red
             case .coros: return Color(hex: "FF6B00") // Coros orange
+            case .imported: return Color(hex: "FF9500") // Import orange
             case .other: return .blue
             }
         }
@@ -106,6 +108,8 @@ struct WorkoutRowView: View {
             return .coros
         } else if sourceLower.contains("apple") || sourceLower.contains("watch") || sourceLower.contains("health") {
             return .apple
+        } else if sourceLower.contains("import") {
+            return .imported
         } else {
             return .other
         }
@@ -129,6 +133,11 @@ struct WorkoutRowView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 12, height: 12)
+                .foregroundStyle(.white)
+                .padding(5)
+        case .imported:
+            Text("I")
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(.white)
                 .padding(5)
         default:

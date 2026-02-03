@@ -494,7 +494,7 @@ extension UnifiedWorkout {
         case .strava:
             return "Strava"
         case .suunto:
-            return suuntoActivity?.deviceName ?? "Suunto"
+            return "Import"
         case .merged:
             // For merged workouts, indicate sources
             if stravaActivity != nil {

@@ -2,7 +2,7 @@
 //  SuuntoImportService.swift
 //  InsightRun
 //
-//  Service for importing Suunto JSON exports and matching with HealthKit
+//  Service for importing Suunto FIT exports and matching with HealthKit
 //
 
 import Foundation
@@ -14,6 +14,7 @@ import Combine
 
 enum SuuntoImportResult {
     case created(ParsedSuuntoWorkout)
+    case createdAndSavedToHealthKit(ParsedSuuntoWorkout, HKWorkout)
     case enriched(existingWorkout: WorkoutModel, suuntoData: ParsedSuuntoWorkout)
     case alreadyExists(ParsedSuuntoWorkout)
 }
@@ -350,7 +351,7 @@ class SuuntoImportService: ObservableObject {
         isImporting = true
         defer { isImporting = false }
 
-        // Parse the JSON file (file I/O on background queue)
+        // Parse the FIT file (file I/O on background queue)
         let parsed: ParsedSuuntoWorkout
         do {
             parsed = try await SuuntoParser.parseAsync(from: url)
@@ -390,8 +391,15 @@ class SuuntoImportService: ObservableObject {
             result = .enriched(existingWorkout: existing, suuntoData: parsed)
             print("✅ Found matching HealthKit workout, will enrich with Suunto data")
         } else {
-            result = .created(parsed)
-            print("✅ No matching HealthKit workout, Suunto data saved locally")
+            // No matching HealthKit workout — try to create one
+            do {
+                let hkWorkout = try await healthKitManager.saveWorkoutToHealthKit(from: parsed)
+                result = .createdAndSavedToHealthKit(parsed, hkWorkout)
+                print("✅ No matching HealthKit workout, created new one in HealthKit")
+            } catch {
+                print("⚠️ Could not save to HealthKit: \(error.localizedDescription). Saving locally.")
+                result = .created(parsed)
+            }
         }
 
         lastImportResult = result

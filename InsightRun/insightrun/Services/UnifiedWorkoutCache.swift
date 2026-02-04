@@ -37,14 +37,27 @@ class UnifiedWorkoutCache {
 
     // MARK: - Save
 
-    /// Save unified workouts to cache (upsert)
+    /// Save unified workouts to cache (upsert + delete stale entries)
     func saveWorkouts(_ workouts: [UnifiedWorkout]) throws {
         let context = try getContext()
 
+        // Get all cached workouts once
+        let descriptor = FetchDescriptor<CachedUnifiedWorkout>()
+        let allCachedWorkouts = try context.fetch(descriptor)
+
+        // Build set of new workout IDs for quick lookup
+        let newWorkoutIDs = Set(workouts.map { $0.id })
+
+        // Delete stale entries (not in new list)
+        for cached in allCachedWorkouts {
+            if !newWorkoutIDs.contains(cached.id) {
+                context.delete(cached)
+                print("🗑️ Deleted stale cached workout: \(cached.name)")
+            }
+        }
+
+        // Upsert workouts
         for workout in workouts {
-            // Check if workout already exists (manual filtering to avoid Predicate macro issues)
-            let descriptor = FetchDescriptor<CachedUnifiedWorkout>()
-            let allCachedWorkouts = try context.fetch(descriptor)
             let existing = allCachedWorkouts.first { $0.id == workout.id }
 
             if let existing = existing {

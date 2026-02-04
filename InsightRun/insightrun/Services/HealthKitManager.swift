@@ -36,6 +36,19 @@ class HealthKitManager: ObservableObject {
         // Track permission request
         AnalyticsService.shared.trackHealthKitPermissionRequested()
 
+        let typesToShare: Set<HKSampleType> = [
+            HKObjectType.workoutType(),
+            HKQuantityType.quantityType(forIdentifier: .heartRate)!,
+            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
+            HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+            HKQuantityType.quantityType(forIdentifier: .runningPower)!,
+            HKQuantityType.quantityType(forIdentifier: .runningStrideLength)!,
+            HKQuantityType.quantityType(forIdentifier: .runningGroundContactTime)!,
+            HKQuantityType.quantityType(forIdentifier: .runningVerticalOscillation)!,
+            HKQuantityType.quantityType(forIdentifier: .runningSpeed)!,
+            HKQuantityType.quantityType(forIdentifier: .stepCount)!,
+        ]
+
         var typesToRead: Set<HKObjectType> = [
             // Workouts
             HKObjectType.workoutType(),
@@ -101,7 +114,7 @@ class HealthKitManager: ObservableObject {
         typesToRead.formUnion(characteristicTypes)
 
         do {
-            try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+            try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
 
             // Mark that user has completed the authorization flow
             hasCompletedHealthKitSetup = true
@@ -2864,5 +2877,236 @@ class HealthKitManager: ObservableObject {
             deepPercents.isEmpty ? nil : deepPercents.reduce(0, +) / Double(deepPercents.count),
             remPercents.isEmpty ? nil : remPercents.reduce(0, +) / Double(remPercents.count)
         )
+    }
+
+    // MARK: - Save Workout to HealthKit (FIT Import)
+
+    /// Save a parsed FIT workout to HealthKit using HKWorkoutBuilder
+    /// Returns the created HKWorkout on success, nil on failure
+    nonisolated func saveWorkoutToHealthKit(from parsed: ParsedSuuntoWorkout) async throws -> HKWorkout {
+        let healthStore = self.healthStore
+        let activityType = workoutActivityType(from: parsed.activityType)
+        let isIndoor = parsed.routeCoordinates.isEmpty
+
+        let config = HKWorkoutConfiguration()
+        config.activityType = activityType
+        config.locationType = isIndoor ? .indoor : .outdoor
+
+        let builder = HKWorkoutBuilder(healthStore: healthStore, configuration: config, device: nil)
+
+        try await builder.beginCollection(at: parsed.startDate)
+
+        // Build all quantity samples
+        var samples: [HKQuantitySample] = []
+
+        // Distance
+        if parsed.distance > 0 {
+            let distanceType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+            let distanceQuantity = HKQuantity(unit: .meter(), doubleValue: parsed.distance)
+            let distanceSample = HKQuantitySample(
+                type: distanceType,
+                quantity: distanceQuantity,
+                start: parsed.startDate,
+                end: parsed.endDate
+            )
+            samples.append(distanceSample)
+        }
+
+        // Calories
+        if parsed.calories > 0 {
+            let caloriesType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+            let caloriesQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: parsed.calories)
+            let caloriesSample = HKQuantitySample(
+                type: caloriesType,
+                quantity: caloriesQuantity,
+                start: parsed.startDate,
+                end: parsed.endDate
+            )
+            samples.append(caloriesSample)
+        }
+
+        // Heart rate samples
+        let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
+        let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+        for hrSample in parsed.heartRateSamples {
+            let quantity = HKQuantity(unit: bpmUnit, doubleValue: hrSample.bpm)
+            let sample = HKQuantitySample(
+                type: hrType,
+                quantity: quantity,
+                start: hrSample.date,
+                end: hrSample.date
+            )
+            samples.append(sample)
+        }
+
+        // Power samples
+        let powerType = HKQuantityType.quantityType(forIdentifier: .runningPower)!
+        for powerSample in parsed.powerSamples {
+            let quantity = HKQuantity(unit: .watt(), doubleValue: powerSample.watts)
+            let sample = HKQuantitySample(
+                type: powerType,
+                quantity: quantity,
+                start: powerSample.date,
+                end: powerSample.date
+            )
+            samples.append(sample)
+        }
+
+        // Cadence → step count per interval
+        if parsed.cadenceSamples.count >= 2 {
+            let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+            for i in 1..<parsed.cadenceSamples.count {
+                let prev = parsed.cadenceSamples[i - 1]
+                let curr = parsed.cadenceSamples[i]
+                let intervalMinutes = curr.date.timeIntervalSince(prev.date) / 60.0
+                guard intervalMinutes > 0 else { continue }
+                let steps = prev.spm * intervalMinutes
+                let quantity = HKQuantity(unit: .count(), doubleValue: steps)
+                let sample = HKQuantitySample(
+                    type: stepType,
+                    quantity: quantity,
+                    start: prev.date,
+                    end: curr.date
+                )
+                samples.append(sample)
+            }
+        }
+
+        // Average speed
+        if let avgSpeed = parsed.averageSpeed, avgSpeed > 0 {
+            let speedType = HKQuantityType.quantityType(forIdentifier: .runningSpeed)!
+            let speedUnit = HKUnit.meter().unitDivided(by: .second())
+            let quantity = HKQuantity(unit: speedUnit, doubleValue: avgSpeed)
+            let sample = HKQuantitySample(
+                type: speedType,
+                quantity: quantity,
+                start: parsed.startDate,
+                end: parsed.endDate
+            )
+            samples.append(sample)
+        }
+
+        // Average ground contact time
+        if let gct = parsed.averageGroundContactTime, gct > 0 {
+            let gctType = HKQuantityType.quantityType(forIdentifier: .runningGroundContactTime)!
+            let msUnit = HKUnit.secondUnit(with: .milli)
+            let quantity = HKQuantity(unit: msUnit, doubleValue: gct)
+            let sample = HKQuantitySample(
+                type: gctType,
+                quantity: quantity,
+                start: parsed.startDate,
+                end: parsed.endDate
+            )
+            samples.append(sample)
+        }
+
+        // Average vertical oscillation
+        if let vo = parsed.averageVerticalOscillation, vo > 0 {
+            let voType = HKQuantityType.quantityType(forIdentifier: .runningVerticalOscillation)!
+            let cmUnit = HKUnit.meterUnit(with: .centi)
+            let quantity = HKQuantity(unit: cmUnit, doubleValue: vo)
+            let sample = HKQuantitySample(
+                type: voType,
+                quantity: quantity,
+                start: parsed.startDate,
+                end: parsed.endDate
+            )
+            samples.append(sample)
+        }
+
+        // Average stride length
+        if let stride = parsed.averageStrideLength, stride > 0 {
+            let strideType = HKQuantityType.quantityType(forIdentifier: .runningStrideLength)!
+            let quantity = HKQuantity(unit: .meter(), doubleValue: stride)
+            let sample = HKQuantitySample(
+                type: strideType,
+                quantity: quantity,
+                start: parsed.startDate,
+                end: parsed.endDate
+            )
+            samples.append(sample)
+        }
+
+        // Add all samples in one batch
+        if !samples.isEmpty {
+            try await builder.addSamples(samples)
+        }
+
+        // Metadata
+        var metadata: [String: Any] = [
+            HKMetadataKeyIndoorWorkout: isIndoor,
+        ]
+        let externalUUID = "\(parsed.startDate.timeIntervalSince1970)-\(parsed.duration)"
+        metadata[HKMetadataKeyExternalUUID] = externalUUID
+        if !parsed.deviceName.isEmpty {
+            metadata[HKMetadataKeyDeviceName] = parsed.deviceName
+        }
+
+        try await builder.addMetadata(metadata)
+
+        try await builder.endCollection(at: parsed.endDate)
+
+        guard let workout = try await builder.finishWorkout() else {
+            throw HealthKitError.dataNotAvailable
+        }
+
+        // Attach GPS route if available
+        if !parsed.routeCoordinates.isEmpty {
+            let locations = buildCLLocations(from: parsed)
+            if !locations.isEmpty {
+                let routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
+                try await routeBuilder.insertRouteData(locations)
+                try await routeBuilder.finishRoute(with: workout, metadata: nil)
+            }
+        }
+
+        print("✅ Saved workout to HealthKit: \(workout.uuid)")
+        return workout
+    }
+
+    // MARK: - Helpers for HealthKit Write
+
+    private nonisolated func workoutActivityType(from activityString: String) -> HKWorkoutActivityType {
+        let lower = activityString.lowercased()
+        if lower.contains("run") { return .running }
+        if lower.contains("trail") { return .running }
+        if lower.contains("cycl") || lower.contains("bik") { return .cycling }
+        if lower.contains("swim") { return .swimming }
+        if lower.contains("walk") || lower.contains("hik") { return .walking }
+        if lower.contains("cross") { return .crossTraining }
+        return .running
+    }
+
+    private nonisolated func buildCLLocations(from parsed: ParsedSuuntoWorkout) -> [CLLocation] {
+        let coords = parsed.routeCoordinates
+        guard !coords.isEmpty else { return [] }
+
+        let altitudes = parsed.altitudeSamples
+        let totalDuration = parsed.endDate.timeIntervalSince(parsed.startDate)
+        let count = coords.count
+
+        return coords.enumerated().map { index, coord in
+            let fraction = count > 1 ? Double(index) / Double(count - 1) : 0
+            let timestamp = parsed.startDate.addingTimeInterval(totalDuration * fraction)
+
+            // Find closest altitude sample or interpolate
+            let altitude: CLLocationDistance
+            if index < altitudes.count {
+                altitude = altitudes[index].meters
+            } else if !altitudes.isEmpty {
+                let altIndex = min(Int(fraction * Double(altitudes.count - 1)), altitudes.count - 1)
+                altitude = altitudes[altIndex].meters
+            } else {
+                altitude = 0
+            }
+
+            return CLLocation(
+                coordinate: coord,
+                altitude: altitude,
+                horizontalAccuracy: 5.0,
+                verticalAccuracy: 5.0,
+                timestamp: timestamp
+            )
+        }
     }
 }

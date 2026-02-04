@@ -1,6 +1,15 @@
 {
-  "originHash" : "d77ba498aba9091e25646400648d492626556f4da1669439545f8b7a3926eb9a",
+  "originHash" : "a5dea8f1d0efdd7769ea8da6055f6ad83b87aa8a838145a497e9f885fe192512",
   "pins" : [
+    {
+      "identity" : "fitfileparser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/roznet/FitFileParser.git",
+      "state" : {
+        "revision" : "afcdf1677d89819f305f7714bb3b6a18dca05cc6",
+        "version" : "1.5.2"
+      }
+    },
     {
       "identity" : "posthog-ios",
       "kind" : "remoteSourceControl",

@@ -144,8 +144,8 @@ struct StravaConnectionStepView: View {
             .padding(.horizontal, 32)
             .padding(.bottom, 32)
         }
-        .alert("Connection Error", isPresented: $showError) {
-            Button("OK", role: .cancel) {}
+        .alert(String(localized: "Connection Error", comment: "Strava connection error alert title"), isPresented: $showError) {
+            Button(String(localized: "OK", comment: "OK button"), role: .cancel) {}
         } message: {
             if let errorMessage = errorMessage {
                 Text(errorMessage)

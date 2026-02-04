@@ -2,7 +2,7 @@
 //  SuuntoImportView.swift
 //  InsightRun
 //
-//  View for importing Suunto JSON export files
+//  View for importing Suunto FIT export files
 //
 
 import SwiftUI
@@ -15,6 +15,7 @@ struct SuuntoImportView: View {
     @State private var importedWorkout: ParsedSuuntoWorkout?
     @State private var errorMessage: String?
     @State private var isMatched = false
+    @State private var isSavedToHealthKit = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -30,7 +31,7 @@ struct SuuntoImportView: View {
                     Text("Import Suunto Workout")
                         .font(.title2.bold())
 
-                    Text("Import a JSON file exported from the Suunto app to enrich your workout data with advanced metrics.")
+                    Text("Import a FIT file exported from the Suunto app to enrich your workout data with advanced metrics.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -48,7 +49,7 @@ struct SuuntoImportView: View {
                     Button {
                         showFilePicker = true
                     } label: {
-                        Label("Select JSON File", systemImage: "doc.badge.plus")
+                        Label("Select FIT File", systemImage: "doc.badge.plus")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -67,7 +68,7 @@ struct SuuntoImportView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         instructionRow(number: 1, text: "Open Suunto app on your phone")
                         instructionRow(number: 2, text: "Go to a workout and tap the share icon")
-                        instructionRow(number: 3, text: "Choose \"Export as JSON\"")
+                        instructionRow(number: 3, text: "Choose \"Export as FIT\"")
                         instructionRow(number: 4, text: "Save to Files or send to your device")
                     }
                 }
@@ -95,7 +96,7 @@ struct SuuntoImportView: View {
             }
             .fileImporter(
                 isPresented: $showFilePicker,
-                allowedContentTypes: [.json],
+                allowedContentTypes: [UTType(filenameExtension: "fit") ?? .data],
                 allowsMultipleSelection: false
             ) { result in
                 handleFileSelection(result)
@@ -112,6 +113,8 @@ struct SuuntoImportView: View {
                 } else if let workout = importedWorkout {
                     if isMatched {
                         Text("Workout enriched!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))\n\nSuunto data has been merged with the existing HealthKit workout.")
+                    } else if isSavedToHealthKit {
+                        Text("Workout imported and saved to Apple Health!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))")
                     } else {
                         Text("Workout imported!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))")
                     }
@@ -141,8 +144,8 @@ struct SuuntoImportView: View {
             guard let url = urls.first else { return }
 
             // Validate file extension
-            guard url.pathExtension.lowercased() == "json" else {
-                errorMessage = "Invalid file type. Please select a JSON file."
+            guard url.pathExtension.lowercased() == "fit" else {
+                errorMessage = "Invalid file type. Please select a FIT file."
                 showResult = true
                 return
             }
@@ -180,6 +183,12 @@ struct SuuntoImportView: View {
                         case .created(let workout):
                             importedWorkout = workout
                             isMatched = false
+                            errorMessage = nil
+
+                        case .createdAndSavedToHealthKit(let workout, _):
+                            importedWorkout = workout
+                            isMatched = false
+                            isSavedToHealthKit = true
                             errorMessage = nil
 
                         case .enriched(_, let suuntoData):
@@ -240,6 +249,7 @@ struct SuuntoImportFromShareView: View {
     @State private var importedWorkout: ParsedSuuntoWorkout?
     @State private var errorMessage: String?
     @State private var isMatched = false
+    @State private var isSavedToHealthKit = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -302,7 +312,7 @@ struct SuuntoImportFromShareView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.green)
 
-            Text(isMatched ? "Workout Enriched!" : "Workout Imported!")
+            Text(isMatched ? "Workout Enriched!" : (isSavedToHealthKit ? "Saved to Apple Health!" : "Workout Imported!"))
                 .font(.title2.bold())
 
             if let workout = importedWorkout {
@@ -319,6 +329,12 @@ struct SuuntoImportFromShareView: View {
 
                     if isMatched {
                         Text("Suunto data has been merged with the existing HealthKit workout.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 8)
+                    } else if isSavedToHealthKit {
+                        Text("Workout imported and saved to Apple Health!")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -390,6 +406,12 @@ struct SuuntoImportFromShareView: View {
                 case .created(let workout):
                     importedWorkout = workout
                     isMatched = false
+                    importState = .success
+
+                case .createdAndSavedToHealthKit(let workout, _):
+                    importedWorkout = workout
+                    isMatched = false
+                    isSavedToHealthKit = true
                     importState = .success
 
                 case .enriched(_, let suuntoData):

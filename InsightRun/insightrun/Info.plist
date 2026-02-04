@@ -19,20 +19,44 @@
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Suunto Workout</string>
+			<string>FIT Activity File</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>public.json</string>
+				<string>com.garmin.fit</string>
 			</array>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.garmin.fit</string>
+			<key>UTTypeDescription</key>
+			<string>FIT Activity File</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>fit</string>
+				</array>
+			</dict>
 		</dict>
 	</array>
 	<key>UISupportsDocumentBrowser</key>
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>InsightRun reads your workout data to provide personalized training insights and recovery recommendations.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>InsightRun saves imported workouts to Apple Health so they appear alongside your other activities.</string>
 </dict>
 </plist>

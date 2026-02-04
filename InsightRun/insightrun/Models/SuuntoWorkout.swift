@@ -2,203 +2,12 @@
 //  SuuntoWorkout.swift
 //  InsightRun
 //
-//  Model for parsing Suunto JSON export files
+//  Model for parsing FIT export files (Suunto, Garmin, etc.)
 //
 
 import Foundation
 import CoreLocation
-
-// MARK: - Root Structure
-
-struct SuuntoExport: Codable {
-    let DeviceLog: SuuntoDeviceLog
-}
-
-struct SuuntoDeviceLog: Codable {
-    let Header: SuuntoHeader
-    let Samples: [SuuntoSample]
-}
-
-// MARK: - Header (Summary Data)
-
-struct SuuntoHeader: Codable {
-    let Activity: String
-    let ActivityType: Int
-    let DateTime: String
-    let Duration: Double // seconds
-    let Distance: Double // meters
-    let Energy: Double? // joules
-    let TotalEnergy: Double? // joules
-    let Ascent: Double?
-    let Descent: Double?
-    let StepCount: Int?
-    let PauseDuration: Double?
-
-    // Device info
-    let Device: SuuntoDevice?
-
-    // Heart rate zones
-    let HrZones: SuuntoHrZones?
-
-    // Advanced metrics
-    let MAXVO2: Double?
-    let EPOC: Double?
-    let PeakTrainingEffect: Double?
-    let FitnessAge: Int?
-    let RecoveryTime: Double?
-
-    // Running dynamics
-    let GroundContactTime: SuuntoMinMaxAvg?
-    let VerticalOscillation: SuuntoMinMaxAvg?
-    let Stride: SuuntoMinMaxAvg?
-    let LeftGroundContactBalance: SuuntoMinMaxAvg?
-    let RightGroundContactBalance: SuuntoMinMaxAvg?
-
-    // Altitude
-    let Altitude: SuuntoMinMax?
-
-    // Speed
-    let DownhillSpeed: SuuntoMinMaxAvg?
-
-    // Personal thresholds
-    let LacticThHr: Double?
-    let LacticThPace: Double?
-    let Personal: SuuntoPersonal?
-
-    // Feeling
-    let Feeling: Int?
-    let Notes: String?
-}
-
-struct SuuntoDevice: Codable {
-    let Name: String?
-    let SerialNumber: String?
-    let Info: SuuntoDeviceInfo?
-}
-
-struct SuuntoDeviceInfo: Codable {
-    let SW: String?
-    let HW: String?
-}
-
-struct SuuntoHrZones: Codable {
-    let Zone1Duration: Double?
-    let Zone2Duration: Double?
-    let Zone3Duration: Double?
-    let Zone4Duration: Double?
-    let Zone5Duration: Double?
-    let Zone2LowerLimit: Double?
-    let Zone3LowerLimit: Double?
-    let Zone4LowerLimit: Double?
-    let Zone5LowerLimit: Double?
-}
-
-struct SuuntoMinMaxAvg: Codable {
-    let Avg: Double?
-    let Max: Double?
-    let Min: Double?
-}
-
-struct SuuntoMinMax: Codable {
-    let Max: Double?
-    let Min: Double?
-}
-
-struct SuuntoPersonal: Codable {
-    let MaxHR: Double? // in Hz (divide by 60 for bpm factor)
-    let RestHR: Double?
-}
-
-// MARK: - Samples (Time Series Data)
-
-struct SuuntoSample: Codable {
-    let TimeISO8601: String
-
-    // GPS (coordinates in radians!)
-    let GPSLatitude: Double?
-    let GPSLongitude: Double?
-    let Latitude: Double?
-    let Longitude: Double?
-    let GPSAltitude: Double?
-    let GPSSpeed: Double?
-    let GPSHeading: Double?
-
-    // Satellite info
-    let EHPE: Double?
-    let EVPE: Double?
-    let NumberOfSatellites: Int?
-
-    // Heart rate (in Hz, multiply by 60 for bpm)
-    let HR: Double?
-
-    // Metrics
-    let Altitude: Double?
-    let Speed: Double?
-    let Distance: Double?
-    let Cadence: Double? // in Hz
-    let Power: Double? // watts
-    let Temperature: Double? // Kelvin
-
-    // Running dynamics
-    let VerticalOscillation: Double?
-    let GroundContactTime: Double?
-
-    // Pressure
-    let AbsPressure: Double?
-    let SeaLevelPressure: Double?
-    let VerticalSpeed: Double?
-
-    // Battery (for diagnostics)
-    let BatteryCharge: Double?
-
-    // Events (laps, start/stop)
-    let Events: [SuuntoEvent]?
-
-    // UTC time
-    let UTC: String?
-}
-
-struct SuuntoEvent: Codable {
-    let Lap: SuuntoLap?
-    let Activity: SuuntoActivityEvent?
-    let ArrayBegin: Int?
-}
-
-struct SuuntoLap: Codable {
-    let `Type`: String?
-    let Duration: Double? // seconds since start
-    let Distance: Double? // meters
-    let Time: Double? // lap time in seconds
-    let HR: SuuntoLapHR?
-    let Cadence: SuuntoLapCadence?
-    let Power: SuuntoLapPower?
-    let Ascent: Double?
-    let Descent: Double?
-    let Speed: SuuntoLapSpeed?
-}
-
-struct SuuntoLapHR: Codable {
-    let Avg: Double?
-    let Max: Double?
-    let Min: Double?
-}
-
-struct SuuntoLapCadence: Codable {
-    let Avg: Double?
-}
-
-struct SuuntoLapPower: Codable {
-    let Avg: Double?
-}
-
-struct SuuntoLapSpeed: Codable {
-    let Avg: Double?
-}
-
-struct SuuntoActivityEvent: Codable {
-    let ActivityType: Int?
-    let CustomModeId: String?
-}
+import FitFileParser
 
 // MARK: - Suunto Split
 
@@ -266,15 +75,15 @@ struct ParsedSuuntoWorkout {
 // MARK: - Parser
 
 enum SuuntoParserError: Error, LocalizedError {
-    case invalidJSON(detail: String)
+    case invalidFITFile(detail: String)
     case invalidDate(dateString: String)
     case missingRequiredFields(fields: [String])
     case fileReadFailed(path: String, underlying: Error)
 
     var errorDescription: String? {
         switch self {
-        case .invalidJSON(let detail):
-            return "Invalid Suunto JSON format: \(detail). Ensure the file was exported from the Suunto app."
+        case .invalidFITFile(let detail):
+            return "Invalid FIT file: \(detail). Ensure the file was exported from the Suunto app."
         case .invalidDate(let dateString):
             return "Could not parse workout date '\(dateString)'. Expected ISO8601 format."
         case .missingRequiredFields(let fields):
@@ -289,18 +98,6 @@ struct SuuntoParser {
 
     // Maximum samples to keep in memory (prevents memory issues for ultra-marathons)
     private static let maxSamplesInMemory = 2000
-
-    private static let iso8601Formatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    private static let iso8601FormatterNoFraction: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
 
     /// Downsample an array to maxCount elements, preserving first and last elements
     /// Uses uniform sampling to maintain data distribution
@@ -319,62 +116,124 @@ struct SuuntoParser {
         return result
     }
 
-    static func parse(from data: Data) throws -> ParsedSuuntoWorkout {
-        let decoder = JSONDecoder()
-        do {
-            let export = try decoder.decode(SuuntoExport.self, from: data)
-            return try convert(export)
-        } catch let decodingError as DecodingError {
-            throw SuuntoParserError.invalidJSON(detail: decodingError.localizedDescription)
-        }
-    }
-
     static func parse(from url: URL) throws -> ParsedSuuntoWorkout {
-        let data = try Data(contentsOf: url)
-        return try parse(from: data)
+        guard let fitFile = FitFile(file: url) else {
+            throw SuuntoParserError.invalidFITFile(detail: "Could not open or parse the FIT file")
+        }
+        return try convert(fitFile)
     }
 
-    /// Async version that loads file data on background queue to avoid blocking main thread
+    /// Async version that loads and parses FIT file on background queue
     static func parseAsync(from url: URL) async throws -> ParsedSuuntoWorkout {
-        let data: Data
-        do {
-            data = try await Task.detached(priority: .userInitiated) {
-                try Data(contentsOf: url)
-            }.value
-        } catch {
-            throw SuuntoParserError.fileReadFailed(path: url.lastPathComponent, underlying: error)
+        let fitFile: FitFile? = await Task.detached(priority: .userInitiated) {
+            FitFile(file: url)
+        }.value
+
+        guard let fitFile else {
+            throw SuuntoParserError.fileReadFailed(path: url.lastPathComponent, underlying: NSError(
+                domain: "SuuntoParser", code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Could not parse FIT file"]
+            ))
         }
-        return try parse(from: data)
+        return try convert(fitFile)
     }
 
-    private static func parseDate(_ dateString: String) -> Date? {
-        if let date = iso8601Formatter.date(from: dateString) {
-            return date
-        }
-        return iso8601FormatterNoFraction.date(from: dateString)
-    }
+    // MARK: - FIT Conversion
 
-    private static func convert(_ export: SuuntoExport) throws -> ParsedSuuntoWorkout {
-        let header = export.DeviceLog.Header
-        let samples = export.DeviceLog.Samples
-
-        // Parse start date
-        guard let startDate = parseDate(header.DateTime) else {
-            throw SuuntoParserError.invalidDate(dateString: header.DateTime)
+    private static func convert(_ fitFile: FitFile) throws -> ParsedSuuntoWorkout {
+        // Extract session data (summary)
+        let sessions = fitFile.messages(forMessageType: FitMessageType.session)
+        guard let session = sessions.first else {
+            throw SuuntoParserError.missingRequiredFields(fields: ["session"])
         }
 
-        let endDate = startDate.addingTimeInterval(header.Duration)
+        let sessionFields = session.interpretedFields()
 
-        // Convert energy from joules to kcal
-        let energyJoules = header.TotalEnergy ?? header.Energy ?? 0
-        let calories = energyJoules / 4184.0 // 1 kcal = 4184 joules
+        // Start date
+        guard let startDateValue = sessionFields["start_time"],
+              let startDate = startDateValue.time else {
+            throw SuuntoParserError.missingRequiredFields(fields: ["start_time"])
+        }
 
-        // Extract heart rate samples and calculate averages
+        // Duration (seconds)
+        let duration: TimeInterval
+        if let totalTimer = sessionFields["total_timer_time"]?.valueUnit?.value {
+            duration = totalTimer
+        } else if let totalElapsed = sessionFields["total_elapsed_time"]?.valueUnit?.value {
+            duration = totalElapsed
+        } else {
+            throw SuuntoParserError.missingRequiredFields(fields: ["total_timer_time"])
+        }
+
+        let endDate = startDate.addingTimeInterval(duration)
+
+        // Distance (meters)
+        let distance = sessionFields["total_distance"]?.valueUnit?.value ?? 0
+
+        // Calories (kcal)
+        let calories = sessionFields["total_calories"]?.valueUnit?.value ?? 0
+
+        // Elevation
+        let elevationGain = sessionFields["total_ascent"]?.valueUnit?.value ?? 0
+        let elevationLoss = sessionFields["total_descent"]?.valueUnit?.value ?? 0
+
+        // Heart rate from session
+        let sessionAvgHR = sessionFields["avg_heart_rate"]?.valueUnit?.value
+        let sessionMaxHR = sessionFields["max_heart_rate"]?.valueUnit?.value
+
+        // Speed from session
+        let sessionAvgSpeed = sessionFields["avg_speed"]?.valueUnit?.value
+        let sessionMaxSpeed = sessionFields["max_speed"]?.valueUnit?.value
+
+        // Running dynamics from session
+        let sessionAvgCadence: Double? = {
+            if let rpm = sessionFields["avg_running_cadence"]?.valueUnit?.value ?? sessionFields["avg_cadence"]?.valueUnit?.value {
+                return rpm * 2.0 // rpm → spm
+            }
+            return nil
+        }()
+        let sessionAvgPower = sessionFields["avg_power"]?.valueUnit?.value
+        let sessionAvgGCT = sessionFields["avg_stance_time"]?.valueUnit?.value
+        let sessionAvgVO = sessionFields["avg_vertical_oscillation"]?.valueUnit?.value
+        let sessionAvgStride = sessionFields["avg_step_length"]?.valueUnit?.value
+
+        // Device info
+        let deviceName: String = {
+            let deviceInfos = fitFile.messages(forMessageType: FitMessageType.device_info)
+            for info in deviceInfos {
+                let fields = info.interpretedFields()
+                if let name = fields["product_name"]?.name {
+                    return name
+                }
+            }
+            return "Suunto"
+        }()
+
+        // Activity type from sport message
+        let activityType: String = {
+            let sports = fitFile.messages(forMessageType: FitMessageType.sport)
+            if let sport = sports.first {
+                let fields = sport.interpretedFields()
+                if let name = fields["name"]?.name {
+                    return name
+                }
+                if let sportName = fields["sport"]?.name {
+                    return sportName
+                }
+            }
+            return "Running"
+        }()
+
+        // MARK: - Record messages (time series)
+
+        let records = fitFile.messages(forMessageType: FitMessageType.record)
+
         var heartRateSamples: [(date: Date, bpm: Double)] = []
         var cadenceSamples: [(date: Date, spm: Double)] = []
         var powerSamples: [(date: Date, watts: Double)] = []
         var altitudeSamples: [(date: Date, meters: Double)] = []
         var routeCoordinates: [CLLocationCoordinate2D] = []
+        var distanceSamples: [DistanceSample] = []
 
         var hrSum: Double = 0
         var hrMax: Double = 0
@@ -390,138 +249,165 @@ struct SuuntoParser {
         var powerSum: Double = 0
         var powerCount: Int = 0
 
-        // For split calculation
-        var distanceSamples: [SuuntoParser.DistanceSample] = []
+        for record in records {
+            let fields = record.interpretedFields()
 
-        for sample in samples {
-            guard let sampleDate = parseDate(sample.TimeISO8601) else { continue }
+            guard let timestampValue = fields["timestamp"],
+                  let sampleDate = timestampValue.time else { continue }
 
-            // Heart rate: Suunto stores as fraction of maxHR or in Hz
-            // If value < 10, it's likely in Hz (multiply by 60)
-            // If value > 10, it's likely already in some form we need to interpret
-            if let hr = sample.HR, hr > 0 {
-                // Suunto stores HR as a ratio or in Hz
-                // Values like 1.08, 1.95, 2.0 etc are HR in Hz (need * 60)
-                // Values > 3.5 Hz would be > 210 bpm which is very high
-                let bpm: Double
-                if hr < 4.0 {
-                    // Likely in Hz, convert to bpm
-                    bpm = hr * 60.0
-                } else {
-                    // Already in bpm or similar
-                    bpm = hr
-                }
-
-                if bpm > 30 && bpm < 250 { // Sanity check
-                    heartRateSamples.append((date: sampleDate, bpm: bpm))
-                    hrSum += bpm
-                    hrMax = max(hrMax, bpm)
-                    hrCount += 1
-                }
+            // Heart rate (bpm direct in FIT)
+            if let hrValue = fields["heart_rate"]?.valueUnit?.value, hrValue > 30, hrValue < 250 {
+                heartRateSamples.append((date: sampleDate, bpm: hrValue))
+                hrSum += hrValue
+                hrMax = max(hrMax, hrValue)
+                hrCount += 1
             }
 
-            // Speed
-            if let speed = sample.Speed ?? sample.GPSSpeed, speed > 0 {
+            // Speed (m/s)
+            if let speed = fields["speed"]?.valueUnit?.value ?? fields["enhanced_speed"]?.valueUnit?.value, speed > 0 {
                 speedSum += speed
                 speedMax = max(speedMax, speed)
                 speedCount += 1
             }
 
-            // Cadence: Suunto stores in Hz, convert to steps per minute
-            if let cadence = sample.Cadence, cadence > 0 {
-                let spm = cadence * 60.0 * 2.0 // Hz to steps/min (×2 for both feet)
-                if spm > 100 && spm < 250 { // Sanity check
+            // Cadence: FIT stores running cadence as rpm, convert to spm (×2)
+            if let cadRpm = fields["cadence"]?.valueUnit?.value, cadRpm > 0 {
+                let spm = cadRpm * 2.0
+                if spm > 100, spm < 250 {
                     cadenceSamples.append((date: sampleDate, spm: spm))
                     cadenceSum += spm
                     cadenceCount += 1
                 }
             }
 
-            // Power
-            if let power = sample.Power, power > 0 {
+            // Power (watts)
+            if let power = fields["power"]?.valueUnit?.value, power > 0 {
                 powerSamples.append((date: sampleDate, watts: power))
                 powerSum += power
                 powerCount += 1
             }
 
             // Altitude
-            if let altitude = sample.Altitude ?? sample.GPSAltitude {
-                altitudeSamples.append((date: sampleDate, meters: altitude))
+            if let alt = fields["altitude"]?.valueUnit?.value ?? fields["enhanced_altitude"]?.valueUnit?.value {
+                altitudeSamples.append((date: sampleDate, meters: alt))
             }
 
-            // GPS coordinates (Suunto stores in radians, convert to degrees)
-            if let lat = sample.GPSLatitude ?? sample.Latitude,
-               let lon = sample.GPSLongitude ?? sample.Longitude {
-                // Convert from radians to degrees
-                let latDegrees = lat * (180.0 / .pi)
-                let lonDegrees = lon * (180.0 / .pi)
-
-                // Sanity check for valid coordinates
-                if latDegrees >= -90 && latDegrees <= 90 &&
-                   lonDegrees >= -180 && lonDegrees <= 180 {
-                    routeCoordinates.append(CLLocationCoordinate2D(
-                        latitude: latDegrees,
-                        longitude: lonDegrees
-                    ))
+            // GPS coordinates (FitFileParser converts semicircles → CLLocationCoordinate2D)
+            if let latField = fields["position_lat"],
+               let lonField = fields["position_long"] {
+                if let coord = latField.coordinate {
+                    // FitFileParser returns full coordinate from position_lat
+                    routeCoordinates.append(coord)
+                } else if let latVal = latField.valueUnit?.value,
+                          let lonVal = lonField.valueUnit?.value,
+                          latVal >= -90, latVal <= 90, lonVal >= -180, lonVal <= 180 {
+                    routeCoordinates.append(CLLocationCoordinate2D(latitude: latVal, longitude: lonVal))
                 }
             }
 
-            // Collect distance samples for split calculation
-            if let distance = sample.Distance, distance > 0 {
-                // Find HR from the closest HR sample (HR and Distance are in separate samples)
+            // Distance for split calculation
+            if let dist = fields["distance"]?.valueUnit?.value, dist > 0 {
                 let hrBpm = findClosestHR(for: sampleDate, in: heartRateSamples)
-
-                // Convert cadence to spm
-                var cadSpm: Double? = nil
-                if let cad = sample.Cadence, cad > 0 {
-                    cadSpm = cad * 60.0 * 2.0
-                }
+                let cadSpm: Double? = {
+                    if let c = fields["cadence"]?.valueUnit?.value, c > 0 { return c * 2.0 }
+                    return nil
+                }()
+                let alt = fields["altitude"]?.valueUnit?.value ?? fields["enhanced_altitude"]?.valueUnit?.value
                 distanceSamples.append(DistanceSample(
                     date: sampleDate,
-                    distance: distance,
+                    distance: dist,
                     hr: hrBpm,
-                    power: sample.Power,
+                    power: fields["power"]?.valueUnit?.value,
                     cadence: cadSpm,
-                    altitude: sample.Altitude ?? sample.GPSAltitude
+                    altitude: alt
                 ))
             }
         }
 
-        // Debug: show how many distance samples have HR matched
-        let distanceSamplesWithHR = distanceSamples.filter { $0.hr != nil }.count
-        print("   💓 HR samples collected: \(heartRateSamples.count), matched to distance samples: \(distanceSamplesWithHR)/\(distanceSamples.count)")
+        print("   💓 HR samples collected: \(heartRateSamples.count), matched to distance samples: \(distanceSamples.filter { $0.hr != nil }.count)/\(distanceSamples.count)")
 
-        // Calculate splits from distance samples (pass workout start date for accurate timing)
-        let splits = calculateSplits(from: distanceSamples, workoutStartDate: startDate)
+        // MARK: - Splits from Lap messages (fallback to calculated)
 
-        // Calculate averages
-        let averageHeartRate = hrCount > 0 ? hrSum / Double(hrCount) : nil
-        let maxHeartRate = hrMax > 0 ? hrMax : nil
-        let averageSpeed = speedCount > 0 ? speedSum / Double(speedCount) : header.DownhillSpeed?.Avg
-        let maxSpeed = speedMax > 0 ? speedMax : header.DownhillSpeed?.Max
-        let averageCadence = cadenceCount > 0 ? cadenceSum / Double(cadenceCount) : nil
-        let averagePower = powerCount > 0 ? powerSum / Double(powerCount) : nil
+        let lapMessages = fitFile.messages(forMessageType: FitMessageType.lap)
+        var splits: [SuuntoSplit] = []
 
-        // Running dynamics from header (convert units)
-        let avgGroundContactTime = header.GroundContactTime?.Avg.map { $0 * 1000 } // seconds to ms
-        let avgVerticalOscillation = header.VerticalOscillation?.Avg.map { $0 * 100 } // meters to cm
-        let avgStrideLength = header.Stride?.Avg
+        if !lapMessages.isEmpty {
+            for (index, lap) in lapMessages.enumerated() {
+                let lapFields = lap.interpretedFields()
 
-        // Device name
-        let deviceName = header.Device?.Name ?? "Suunto"
+                let lapTime = lapFields["total_timer_time"]?.valueUnit?.value
+                    ?? lapFields["total_elapsed_time"]?.valueUnit?.value ?? 0
+                let lapDistance = lapFields["total_distance"]?.valueUnit?.value ?? 1000.0
 
-        // Debug: print parsed values
-        print("🔍 DEBUG Suunto Parser:")
+                let pace = lapDistance > 0 ? (lapTime / (lapDistance / 1000.0)) / 60.0 : 0
+
+                let avgHR = lapFields["avg_heart_rate"]?.valueUnit?.value
+                let avgPower = lapFields["avg_power"]?.valueUnit?.value
+                let avgCadence: Double? = {
+                    if let c = lapFields["avg_running_cadence"]?.valueUnit?.value ?? lapFields["avg_cadence"]?.valueUnit?.value {
+                        return c * 2.0
+                    }
+                    return nil
+                }()
+                let elevGain = lapFields["total_ascent"]?.valueUnit?.value
+
+                let paceMin = Int(pace)
+                let paceSec = Int((pace - Double(paceMin)) * 60)
+
+                splits.append(SuuntoSplit(
+                    kilometer: index + 1,
+                    time: lapTime,
+                    pace: pace,
+                    averageHeartRate: avgHR,
+                    averagePower: avgPower,
+                    averageCadence: avgCadence,
+                    elevationGain: elevGain
+                ))
+
+                print("   📏 Split km\(index + 1): \(String(format: "%.0f", lapTime))s = \(paceMin)'\(String(format: "%02d", paceSec))\"/km, HR: \(String(format: "%.0f", avgHR ?? 0)) bpm")
+            }
+        }
+
+        // Fallback: calculate splits from distance samples if no laps
+        if splits.isEmpty {
+            splits = calculateSplits(from: distanceSamples, workoutStartDate: startDate)
+        }
+
+        // Calculate averages from records (use session values as fallback)
+        let averageHeartRate = hrCount > 0 ? hrSum / Double(hrCount) : sessionAvgHR
+        let maxHeartRate = hrMax > 0 ? hrMax : sessionMaxHR
+        let averageSpeed = speedCount > 0 ? speedSum / Double(speedCount) : sessionAvgSpeed
+        let maxSpeed = speedMax > 0 ? speedMax : sessionMaxSpeed
+        let averageCadence = cadenceCount > 0 ? cadenceSum / Double(cadenceCount) : sessionAvgCadence
+        let averagePower = powerCount > 0 ? powerSum / Double(powerCount) : sessionAvgPower
+
+        // Running dynamics from session (not typically in records)
+        let avgGroundContactTime = sessionAvgGCT
+        let avgVerticalOscillation: Double? = {
+            if let vo = sessionAvgVO {
+                // FIT stores VO in mm, convert to cm
+                return vo / 10.0
+            }
+            return nil
+        }()
+        let avgStrideLength: Double? = {
+            if let stride = sessionAvgStride {
+                // FIT stores step_length in mm, convert to meters
+                return stride / 1000.0
+            }
+            return nil
+        }()
+
+        print("🔍 DEBUG FIT Parser:")
         print("   Device: \(deviceName)")
-        print("   Cadence (from samples): \(averageCadence ?? -1) spm (\(cadenceCount) samples)")
-        print("   Power (from samples): \(averagePower ?? -1) W (\(powerCount) samples)")
-        print("   Stride (from header): \(avgStrideLength ?? -1) m")
-        print("   GCT (from header): \(avgGroundContactTime ?? -1) ms")
-        print("   VO (from header): \(avgVerticalOscillation ?? -1) cm")
-        print("   VO2max (from header): \(header.MAXVO2 ?? -1)")
-        print("   Training Effect: \(header.PeakTrainingEffect ?? -1)")
+        print("   Activity: \(activityType)")
+        print("   Cadence (from records): \(averageCadence ?? -1) spm (\(cadenceCount) samples)")
+        print("   Power (from records): \(averagePower ?? -1) W (\(powerCount) samples)")
+        print("   Stride (from session): \(avgStrideLength ?? -1) m")
+        print("   GCT (from session): \(avgGroundContactTime ?? -1) ms")
+        print("   VO (from session): \(avgVerticalOscillation ?? -1) cm")
 
-        // Downsample large arrays to prevent memory issues (ultra-marathons can have 20,000+ samples)
+        // Downsample large arrays to prevent memory issues
         let downsampledHR = downsample(heartRateSamples, to: maxSamplesInMemory)
         let downsampledCadence = downsample(cadenceSamples, to: maxSamplesInMemory)
         let downsampledPower = downsample(powerSamples, to: maxSamplesInMemory)
@@ -538,11 +424,11 @@ struct SuuntoParser {
         return ParsedSuuntoWorkout(
             startDate: startDate,
             endDate: endDate,
-            duration: header.Duration,
-            distance: header.Distance,
+            duration: duration,
+            distance: distance,
             calories: calories,
-            elevationGain: header.Ascent ?? 0,
-            elevationLoss: header.Descent ?? 0,
+            elevationGain: elevationGain,
+            elevationLoss: elevationLoss,
             averageHeartRate: averageHeartRate,
             maxHeartRate: maxHeartRate,
             averageSpeed: averageSpeed,
@@ -552,9 +438,9 @@ struct SuuntoParser {
             averageStrideLength: avgStrideLength,
             averageCadence: averageCadence,
             averagePower: averagePower,
-            vo2Max: header.MAXVO2,
-            epoc: header.EPOC,
-            trainingEffect: header.PeakTrainingEffect,
+            vo2Max: nil, // Not available in standard FIT fields
+            epoc: nil,
+            trainingEffect: nil,
             routeCoordinates: downsampledRoute,
             hasRoute: !routeCoordinates.isEmpty,
             heartRateSamples: downsampledHR,
@@ -563,9 +449,9 @@ struct SuuntoParser {
             altitudeSamples: downsampledAltitude,
             splits: splits,
             deviceName: deviceName,
-            activityType: header.Activity,
-            feeling: header.Feeling,
-            notes: header.Notes
+            activityType: activityType,
+            feeling: nil,
+            notes: nil
         )
     }
 
@@ -581,7 +467,7 @@ struct SuuntoParser {
     }
 
     /// Find the closest HR sample to a given date using binary search (O(log n) complexity)
-    /// HR and Distance samples are in separate JSON objects, so we need to match them by timestamp
+    /// HR and Distance samples may be in the same record, but we still match by timestamp for consistency
     /// Assumes hrSamples are sorted by date (ascending)
     static func findClosestHR(for date: Date, in hrSamples: [(date: Date, bpm: Double)], tolerance: TimeInterval = 10.0) -> Double? {
         guard !hrSamples.isEmpty else { return nil }

@@ -13,7 +13,7 @@ import HealthKit
 @Model
 class CachedUnifiedWorkout {
     @Attribute(.unique) var id: String
-    var source: String  // "healthKit", "strava", "merged"
+    var source: String  // "HealthKit", "Strava", "Suunto", "Merged"
     var startDate: Date
     var endDate: Date
     var duration: TimeInterval
@@ -33,6 +33,9 @@ class CachedUnifiedWorkout {
     // Original IDs for tracking
     var healthKitWorkoutId: String?
     var stravaActivityId: Int64?
+
+    // Original source name for badge display (e.g., "Apple Watch", "Strava", "Suunto")
+    var originalSourceName: String?
 
     init(from unified: UnifiedWorkout) {
         self.id = unified.id
@@ -56,6 +59,9 @@ class CachedUnifiedWorkout {
         // Store original IDs for tracking
         self.healthKitWorkoutId = unified.healthKitWorkout?.id.uuidString
         self.stravaActivityId = unified.stravaActivity?.id
+
+        // Store original source name for badge display
+        self.originalSourceName = unified.sourceName
     }
 
     // Convert back to UnifiedWorkout from cached fields
@@ -63,7 +69,8 @@ class CachedUnifiedWorkout {
     // The original WorkoutModel/StravaActivity objects are NOT preserved
     func toUnifiedWorkout() -> UnifiedWorkout {
         // Reconstruct based on original source type
-        switch source {
+        // Support both new (capitalized) and legacy (lowercase) source values
+        switch source.lowercased() {
         case "strava":
             // Create minimal StravaActivity for Strava-only workouts
             let stravaId = stravaActivityId ?? Int64(id.hashValue)
@@ -86,8 +93,31 @@ class CachedUnifiedWorkout {
             )
             return UnifiedWorkout(from: stravaActivity)
 
-        case "healthKit", "merged":
+        case "suunto":
+            // Create WorkoutModel for imported Suunto workouts
+            // Show "I" for Import badge by using "Import" as source name
+            let workoutId = UUID(uuidString: id) ?? UUID()
+            let suuntoWorkout = WorkoutModel(
+                id: workoutId,
+                workoutType: .running,
+                startDate: startDate,
+                endDate: endDate,
+                duration: duration,
+                distance: distance,
+                totalEnergyBurned: totalEnergyBurned,
+                sourceName: "Import",
+                sourceVersion: "FIT",
+                metadata: nil,
+                averageHeartRate: averageHeartRate,
+                maxHeartRate: maxHeartRate,
+                elevationGain: totalElevationGain,
+                hasRoute: hasRoute
+            )
+            return UnifiedWorkout(from: suuntoWorkout)
+
+        case "healthkit", "merged":
             // Create minimal WorkoutModel for HealthKit or merged workouts
+            // Use original source name (e.g., "Apple Watch", "Garmin", "Polar")
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
             let fallbackWorkout = WorkoutModel(
                 id: workoutId,
@@ -97,7 +127,7 @@ class CachedUnifiedWorkout {
                 duration: duration,
                 distance: distance,
                 totalEnergyBurned: totalEnergyBurned,
-                sourceName: source,
+                sourceName: originalSourceName ?? "Apple Watch",
                 sourceVersion: "Cached",
                 metadata: nil,
                 averageHeartRate: averageHeartRate,
@@ -108,7 +138,7 @@ class CachedUnifiedWorkout {
             return UnifiedWorkout(from: fallbackWorkout)
 
         default:
-            // Unknown source, fallback to HealthKit
+            // Unknown source, use original source name if available
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
             let fallbackWorkout = WorkoutModel(
                 id: workoutId,
@@ -118,7 +148,7 @@ class CachedUnifiedWorkout {
                 duration: duration,
                 distance: distance,
                 totalEnergyBurned: totalEnergyBurned,
-                sourceName: "Unknown",
+                sourceName: originalSourceName ?? source,
                 sourceVersion: "Cached",
                 metadata: nil,
                 averageHeartRate: averageHeartRate,

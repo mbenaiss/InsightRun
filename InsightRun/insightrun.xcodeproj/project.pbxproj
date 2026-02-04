@@ -11,6 +11,7 @@
 		BE65974D2EB222A300565DAC /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = BE65974C2EB222A300565DAC /* RevenueCatUI */; };
 		BE65974F2EB222C100565DAC /* insightrun.storekit in Resources */ = {isa = PBXBuildFile; fileRef = BE65974E2EB222C100565DAC /* insightrun.storekit */; };
 		BE6597A62EB2625F00565DAC /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = BE6597A52EB2625F00565DAC /* PostHog */; };
+		BE6597B02EB3000000565DAC /* FitFileParser in Frameworks */ = {isa = PBXBuildFile; productRef = BE6597AF2EB3000000565DAC /* FitFileParser */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +49,7 @@
 				BE6597A62EB2625F00565DAC /* PostHog in Frameworks */,
 				BE65974D2EB222A300565DAC /* RevenueCatUI in Frameworks */,
 				BE65974B2EB222A300565DAC /* RevenueCat in Frameworks */,
+				BE6597B02EB3000000565DAC /* FitFileParser in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,6 +96,7 @@
 				BE65974A2EB222A300565DAC /* RevenueCat */,
 				BE65974C2EB222A300565DAC /* RevenueCatUI */,
 				BE6597A52EB2625F00565DAC /* PostHog */,
+				BE6597AF2EB3000000565DAC /* FitFileParser */,
 			);
 			productName = insightrun;
 			productReference = BE013B582E9E7D83003FB282 /* insightrun.app */;
@@ -127,6 +130,7 @@
 			packageReferences = (
 				BE6597492EB222A300565DAC /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
 				BE6597A42EB2625F00565DAC /* XCRemoteSwiftPackageReference "posthog-ios" */,
+				BE6597AE2EB3000000565DAC /* XCRemoteSwiftPackageReference "FitFileParser" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BE013B592E9E7D83003FB282 /* Products */;
@@ -301,7 +305,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Cette app ne modifie pas vos données de santé.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "InsightRun enregistre dans Santé les entraînements importés depuis des fichiers FIT (Suunto, Garmin) avec fréquence cardiaque, parcours GPS, puissance et cadence.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -312,7 +316,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.5;
+				MARKETING_VERSION = 1.1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -346,7 +350,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Cette app ne modifie pas vos données de santé.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "InsightRun enregistre dans Santé les entraînements importés depuis des fichiers FIT (Suunto, Garmin) avec fréquence cardiaque, parcours GPS, puissance et cadence.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -357,7 +361,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.5;
+				MARKETING_VERSION = 1.1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -415,6 +419,14 @@
 				minimumVersion = 3.34.0;
 			};
 		};
+		BE6597AE2EB3000000565DAC /* XCRemoteSwiftPackageReference "FitFileParser" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/roznet/FitFileParser.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -432,6 +444,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = BE6597A42EB2625F00565DAC /* XCRemoteSwiftPackageReference "posthog-ios" */;
 			productName = PostHog;
+		};
+		BE6597AF2EB3000000565DAC /* FitFileParser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BE6597AE2EB3000000565DAC /* XCRemoteSwiftPackageReference "FitFileParser" */;
+			productName = FitFileParser;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

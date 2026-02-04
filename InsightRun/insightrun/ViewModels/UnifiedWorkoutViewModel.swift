@@ -295,6 +295,26 @@ class UnifiedWorkoutViewModel: ObservableObject {
             }
         }
 
+        // STEP 3: Add unmatched Suunto workouts (imported FIT files without HealthKit match)
+        // Check against ALL workouts in result (not just merged/suunto) to avoid duplicates
+        // when a Suunto workout was saved to HealthKit
+        for suunto in suuntoWorkouts {
+            let isMatched = result.contains { workout in
+                let timeDiff = abs(workout.startDate.timeIntervalSince(suunto.startDate))
+                let durationDiff = abs(workout.duration - suunto.duration) / max(workout.duration, suunto.duration)
+                return timeDiff < 5 * 60 && durationDiff < 0.05
+            }
+
+            if !isMatched {
+                let suuntoOnly = UnifiedWorkout(from: suunto)
+                result.append(suuntoOnly)
+
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "MMM dd HH:mm"
+                print("⌚ Suunto only (imported): \(dateFormatter.string(from: suunto.startDate)) - \(suunto.activityType)")
+            }
+        }
+
         print("✅ Merge result: \(result.count) unified workouts (\(matchedStravaIDs.count) merged)")
 
         return result

@@ -295,31 +295,8 @@ struct SettingsView: View {
                     }
                 }
 
-                // Suunto Import Section
+                // Apple Health Section
                 Section {
-                    Button {
-                        showSuuntoImport = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "square.and.arrow.down.fill")
-                                .foregroundStyle(.orange)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(String(localized: "Import Suunto Workout"))
-                                    .font(.body)
-                                    .foregroundStyle(Color.irTextPrimary)
-                                Text(String(localized: "Import FIT files from Suunto app"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    // HealthKit Write Permission Button
                     Button {
                         Task {
                             do {
@@ -334,10 +311,10 @@ struct SettingsView: View {
                             Image(systemName: "heart.text.square")
                                 .foregroundStyle(.pink)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(String(localized: "HealthKit Write Permission"))
+                                Text(String(localized: "Health Permissions"))
                                     .font(.body)
                                     .foregroundStyle(Color.irTextPrimary)
-                                Text(String(localized: "Enable to save imported workouts to Apple Health"))
+                                Text(String(localized: "Manage read and write access"))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -348,36 +325,10 @@ struct SettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
-
-                    if let count = try? SuuntoImportService.shared.getCachedWorkoutCount(), count > 0 {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.irSuccess)
-                            Text("\(count) " + String(localized: "workouts imported"))
-                                .font(.subheadline)
-                            Spacer()
-                        }
-
-                        Button(role: .destructive) {
-                            Task {
-                                do {
-                                    try SuuntoImportService.shared.clearAllCache()
-                                    print("🗑️ Cleared Suunto cache")
-                                } catch {
-                                    print("❌ Failed to clear Suunto cache: \(error)")
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "trash")
-                                Text(String(localized: "Clear Suunto Cache"))
-                            }
-                        }
-                    }
                 } header: {
-                    Text(String(localized: "Suunto"))
+                    Text(String(localized: "Apple Health"))
                 } footer: {
-                    Text(String(localized: "Import workout files exported from the Suunto app to enrich your data with advanced metrics like running power, cadence, and ground contact time."))
+                    Text(String(localized: "Grant write access to save imported workouts to the Health app."))
                 }
 
                 // Debug Section (for testing)

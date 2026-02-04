@@ -848,6 +848,24 @@
         }
       }
     },
+    "Apple Health" : {
+      "comment" : "Settings section header for Apple Health",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Santé"
+          }
+        }
+      }
+    },
     "Apple Intelligence requires iOS 26 or later" : {
       "comment" : "Error message when Apple Intelligence is not available (iOS version)",
       "extractionState" : "manual",
@@ -2139,6 +2157,9 @@
         }
       }
     },
+    "Enable to save imported workouts to Apple Health" : {
+
+    },
     "Error" : {
       "comment" : "Error state title",
       "extractionState" : "manual",
@@ -2710,6 +2731,24 @@
         }
       }
     },
+    "Grant write access to save imported workouts to the Health app." : {
+      "comment" : "Settings Apple Health section footer",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grant write access to save imported workouts to the Health app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accordez l'accès en écriture pour enregistrer les entraînements importés dans l'app Santé."
+          }
+        }
+      }
+    },
     "Ground Contact Time" : {
       "comment" : "Ground contact time advanced metric",
       "extractionState" : "manual",
@@ -2769,6 +2808,24 @@
         }
       }
     },
+    "Health Permissions" : {
+      "comment" : "Settings button for HealthKit permissions",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health Permissions"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorisations Santé"
+          }
+        }
+      }
+    },
     "HealthKit access required" : {
       "comment" : "Onboarding HealthKit error alert title",
       "extractionState" : "manual",
@@ -2780,6 +2837,9 @@
           }
         }
       }
+    },
+    "HealthKit Write Permission" : {
+
     },
     "Heart Rate" : {
       "comment" : "Heart rate chart title",
@@ -3352,6 +3412,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chargement..."
+          }
+        }
+      }
+    },
+    "Manage read and write access" : {
+      "comment" : "Settings HealthKit permissions description",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage read and write access"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gérer les accès en lecture et écriture"
           }
         }
       }

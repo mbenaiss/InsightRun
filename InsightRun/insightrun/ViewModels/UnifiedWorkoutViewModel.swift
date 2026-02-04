@@ -296,16 +296,13 @@ class UnifiedWorkoutViewModel: ObservableObject {
         }
 
         // STEP 3: Add unmatched Suunto workouts (imported FIT files without HealthKit match)
-        let matchedSuuntoStartDates = Set(result.compactMap { workout -> Date? in
-            // Check if this workout was merged with Suunto data
-            guard workout.source == .merged || workout.source == .suunto else { return nil }
-            return workout.startDate
-        })
-
+        // Check against ALL workouts in result (not just merged/suunto) to avoid duplicates
+        // when a Suunto workout was saved to HealthKit
         for suunto in suuntoWorkouts {
-            // Check if this Suunto workout was already merged
-            let isMatched = matchedSuuntoStartDates.contains { matchedDate in
-                abs(matchedDate.timeIntervalSince(suunto.startDate)) < 5 * 60
+            let isMatched = result.contains { workout in
+                let timeDiff = abs(workout.startDate.timeIntervalSince(suunto.startDate))
+                let durationDiff = abs(workout.duration - suunto.duration) / max(workout.duration, suunto.duration)
+                return timeDiff < 5 * 60 && durationDiff < 0.05
             }
 
             if !isMatched {

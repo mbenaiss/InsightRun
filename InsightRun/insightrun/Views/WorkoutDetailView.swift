@@ -1539,7 +1539,7 @@ struct InteractivePaceChart: View {
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.green)
-                                Text("min")
+                                Text(String(localized: "min", comment: "Minimum label"))
                                     .font(.caption2)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
@@ -1548,7 +1548,7 @@ struct InteractivePaceChart: View {
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.green)
-                                Text("max")
+                                Text(String(localized: "max", comment: "Maximum label"))
                                     .font(.caption2)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
@@ -1699,7 +1699,7 @@ struct InteractivePowerChart: View {
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.orange)
-                                Text("min")
+                                Text(String(localized: "min", comment: "Minimum label"))
                                     .font(.caption2)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
@@ -1708,7 +1708,7 @@ struct InteractivePowerChart: View {
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.orange)
-                                Text("max")
+                                Text(String(localized: "max", comment: "Maximum label"))
                                     .font(.caption2)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
@@ -2462,7 +2462,7 @@ struct IntervalRow: View {
                                     .fontWeight(.semibold)
                                     .foregroundStyle(Color.irTextPrimary)
                                     .monospacedDigit()
-                                Text("bpm")
+                                Text(String(localized: "bpm", comment: "Heart rate unit"))
                                     .font(.caption2)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
@@ -2513,7 +2513,7 @@ struct IntervalRow: View {
                                     .fontWeight(.semibold)
                                     .foregroundStyle(Color.irTextPrimary)
                                     .monospacedDigit()
-                                Text("W")
+                                Text(String(localized: "W", comment: "Power unit (Watts)"))
                                     .font(.caption2)
                                     .foregroundStyle(Color.irTextSecondary)
                             }

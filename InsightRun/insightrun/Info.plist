@@ -54,5 +54,9 @@
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>InsightRun reads your workout data to provide personalized training insights and recovery recommendations.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>InsightRun saves imported workouts to Apple Health so they appear alongside your other activities.</string>
 </dict>
 </plist>

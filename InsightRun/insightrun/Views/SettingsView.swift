@@ -319,6 +319,36 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
 
+                    // HealthKit Write Permission Button
+                    Button {
+                        Task {
+                            do {
+                                try await HealthKitManager.shared.requestAuthorization()
+                                print("✅ HealthKit authorization requested")
+                            } catch {
+                                print("❌ HealthKit authorization failed: \(error)")
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "heart.text.square")
+                                .foregroundStyle(.pink)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(String(localized: "HealthKit Write Permission"))
+                                    .font(.body)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                Text(String(localized: "Enable to save imported workouts to Apple Health"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
                     if let count = try? SuuntoImportService.shared.getCachedWorkoutCount(), count > 0 {
                         HStack {
                             Image(systemName: "checkmark.circle.fill")

@@ -25,7 +25,9 @@ import {
   incrementQuota,
   setQuotaConfig,
 } from './quota'
+import agentChatRoutes from './routes/agentChat'
 import analyzeHistoryRoutes from './routes/analyzeHistory'
+import dailyReadinessRoutes from './routes/dailyReadiness'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
 import stravaRoutes from './routes/strava'
@@ -364,6 +366,22 @@ app.use('/api/workout/smart-suggestion/*', async (c, next) => {
   await next()
 })
 
+// Auth middleware for /api/daily-readiness route
+app.use('/api/daily-readiness/*', async (c, next) => {
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+  await next()
+})
+
+// Auth middleware for /api/agent/* routes
+app.use('/api/agent/*', async (c, next) => {
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+  await next()
+})
+
 // Auth middleware for /api/strava/* routes (except webhooks)
 app.use('/api/strava/*', async (c, next) => {
   // Skip auth for webhook endpoints (Strava calls them)
@@ -388,6 +406,12 @@ app.route('/api/generate-workout', generateWorkoutRoutes)
 
 // Mount smart-suggestion route
 app.route('/api/workout/smart-suggestion', smartSuggestionRoutes)
+
+// Mount daily-readiness route
+app.route('/api/daily-readiness', dailyReadinessRoutes)
+
+// Mount agent chat routes
+app.route('/api/agent', agentChatRoutes)
 
 // Mount Strava routes
 app.route('/api/strava', stravaRoutes)

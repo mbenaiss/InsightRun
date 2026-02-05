@@ -11,11 +11,8 @@ import SwiftUI
 struct WorkoutListView: View {
     @StateObject private var healthKitViewModel = WorkoutListViewModel()
     @StateObject private var unifiedViewModel = UnifiedWorkoutViewModel()
-    @State private var showingAIAssistant = false
+    @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
     @State private var showInitialPaywall = false
-    @State private var isLoadingMetrics = false
-    @State private var currentYearWorkouts: [WorkoutModel] = []
-    @State private var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
     @State private var showIndexationBanner = false
     @State private var showIndexationSheet = false
     @Environment(\.scenePhase) private var scenePhase
@@ -59,134 +56,88 @@ struct WorkoutListView: View {
         }
     }
 
+    private var hasWorkouts: Bool {
+        !viewModel.workouts.isEmpty ||
+        (remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty)
+    }
+
+    private var isLoadingWorkouts: Bool {
+        viewModel.isLoading ||
+        (remoteConfig.isFeatureEnabled(.strava) && unifiedViewModel.isLoading)
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        if canShowWorkouts {
+            if isLoadingWorkouts && !hasWorkouts {
+                loadingView
+            } else if !hasWorkouts {
+                emptyView
+            } else {
+                workoutList
+            }
+        } else {
+            switch viewModel.authorizationStatus {
+            case .notDetermined:
+                authorizationView
+            case .denied:
+                deniedView
+            case .authorized:
+                emptyView
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                Group {
-                    // Support 3 modes: HealthKit only, Strava only, or Both
-                    if canShowWorkouts {
-                        // Mode: HealthKit authorized OR Strava-only mode
-                        let hasWorkouts = !viewModel.workouts.isEmpty ||
-                            (remoteConfig.isFeatureEnabled(.strava) && !unifiedViewModel.unifiedWorkouts.isEmpty)
-                        let isLoading = viewModel.isLoading ||
-                            (remoteConfig.isFeatureEnabled(.strava) && unifiedViewModel.isLoading)
-
-                        if isLoading && !hasWorkouts {
-                            loadingView
-                        } else if !hasWorkouts {
-                            emptyView
-                        } else {
-                            workoutList
-                        }
-                    } else {
-                        // No data source available - show appropriate view
-                        switch viewModel.authorizationStatus {
-                        case .notDetermined:
-                            authorizationView
-                        case .denied:
-                            deniedView
-                        case .authorized:
-                            // Should not reach here (canShowWorkouts would be true)
-                            emptyView
-                        }
-                    }
-                }
+            mainContent
                 .navigationTitle(String(localized: "Workouts", comment: "Main list screen title"))
                 .navigationBarTitleDisplayMode(.large)
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
-                        // Refresh authorization status when app becomes active
                         viewModel.refreshAuthorizationStatus()
                     }
                 }
                 .onChange(of: viewModel.authorizationStatus) { oldValue, newValue in
-                    // Show paywall when HealthKit is authorized for the first time
                     if oldValue == .notDetermined && newValue == .authorized &&
                        !revenueCatManager.isSubscriptionActive &&
                        !revenueCatManager.hasSeenInitialPaywall {
                         showInitialPaywall = true
                     }
                 }
-                .onChange(of: revenueCatManager.isSubscriptionActive) { _, isActive in
-                    // Refresh view when subscription status changes
+                .onChange(of: revenueCatManager.isSubscriptionActive) { _, _ in
                     if viewModel.authorizationStatus == .authorized {
                         Task {
                             await viewModel.refresh()
                         }
                     }
                 }
+                .onChange(of: viewModel.isLoading) { _, isLoading in
+                    if !isLoading { updateContextProvider() }
+                }
+                .onChange(of: unifiedViewModel.isLoading) { _, isLoading in
+                    if !isLoading { updateContextProvider() }
+                }
                 .task {
-                    // Load HealthKit workouts on first appear if authorized
                     if viewModel.authorizationStatus == .authorized && viewModel.workouts.isEmpty {
                         await viewModel.loadWorkouts()
                     }
                 }
                 .task {
-                    // Load unified workouts to merge HealthKit with Strava and/or Suunto data
-                    // - HealthKit only: unified will contain HealthKit + Suunto merge
-                    // - Strava enabled: unified will also merge Strava data
                     if canShowWorkouts || stravaAuth.isAuthenticated {
                         await unifiedViewModel.loadUnifiedWorkouts()
                     }
                 }
                 .onAppear {
-                    // Track workout list viewed when data available
                     if canShowWorkouts {
                         AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
-
-                        // Check if indexation banner should be shown
                         if revenueCatManager.hasAIAccess {
                             let needsRefresh = HistoricalSummaryStorage.shared.needsRefresh()
                             showIndexationBanner = needsRefresh
                         }
                     }
+                    updateContextProvider()
                 }
-
-                // Floating AI Button - Only for users with AI access (subscribers or TestFlight), only on list view
-                if canShowWorkouts &&
-                   !displayWorkouts.isEmpty &&
-                   revenueCatManager.hasAIAccess {
-                    Button(action: {
-                        Task {
-                            // Open AI assistant directly
-                            // Indexation is handled via IndexationBannerView or SettingsView
-                            await loadRecentWorkoutsForAI()
-                            showingAIAssistant = true
-                        }
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.irPrimaryAccent, .cyan],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 60, height: 60)
-                                .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 12, y: 6)
-
-                            if isLoadingMetrics {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 24, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
-                        }
-                    }
-                    .disabled(isLoadingMetrics)
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
-                }
-            }
-        }
-        .sheet(isPresented: $showingAIAssistant) {
-            WorkoutAIAssistantView(
-                mode: .recentWorkouts(currentYearWorkouts, workoutsMetrics),
-                isPresented: $showingAIAssistant
-            )
         }
         .fullScreenCover(isPresented: $showInitialPaywall) {
             SubscriptionPaywallView(isInitialFlow: true)
@@ -199,39 +150,10 @@ struct WorkoutListView: View {
 
     // MARK: - Helper Functions
 
-    private func loadRecentWorkoutsForAI() async {
-        isLoadingMetrics = true
-
-        // Get last 10 workouts for AI context (much faster than loading entire year)
-        // Use displayWorkouts to support all 3 modes (HealthKit only, Strava only, Both)
+    private func updateContextProvider() {
+        // Get last 10 workouts for AI context
         let last10 = Array(displayWorkouts.prefix(10))
-        currentYearWorkouts = last10
-
-        print("📊 WorkoutListView: Loading metrics for last \(last10.count) workouts for AI context")
-
-        // Load metrics for last 10 workouts only
-        await withTaskGroup(of: (UUID, WorkoutMetrics?).self) { group in
-            for workout in last10 {
-                group.addTask {
-                    do {
-                        let metrics = try await HealthKitManager.shared.fetchWorkoutMetrics(for: workout)
-                        return (workout.id, metrics)
-                    } catch {
-                        print("Error loading metrics for workout \(workout.id): \(error)")
-                        return (workout.id, nil)
-                    }
-                }
-            }
-
-            // Collect results
-            for await (id, metrics) in group {
-                if let metrics = metrics {
-                    workoutsMetrics[id] = metrics
-                }
-            }
-        }
-
-        isLoadingMetrics = false
+        contextProvider.recentWorkouts = last10
     }
 
     // MARK: - Authorization View

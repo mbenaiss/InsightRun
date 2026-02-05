@@ -78,6 +78,7 @@ class UnifiedWorkoutCache {
                 existing.name = workout.name
                 existing.notes = workout.notes
                 existing.cachedAt = Date()
+                existing.originalSourceName = workout.sourceName
 
                 print("🔄 Updated cached unified workout: \(workout.name)")
             } else {

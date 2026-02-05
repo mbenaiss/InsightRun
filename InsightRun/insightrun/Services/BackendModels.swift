@@ -36,6 +36,7 @@ struct ChatDataPayload: Encodable {
     let workout: WorkoutData?
     let recovery: RecoveryData?
     let profile: HealthProfileData?
+    let baseline: PersonalBaselineData?
     let recentWorkouts: RecentWorkoutsData?
     let historicalSummary: String? // One-time deep analysis summary
 }
@@ -112,6 +113,21 @@ struct HealthProfileData: Encodable {
     let swimmingDistance: Double?
 }
 
+// MARK: - Personal Baseline Data
+
+struct PersonalBaselineData: Encodable {
+    let restingHeartRateAverage: Double?
+    let restingHeartRateStdDev: Double?
+    let hrvAverage: Double?
+    let hrvStdDev: Double?
+    let sleepDurationAverage: Double? // in seconds
+    let sleepEfficiencyAverage: Double? // percentage
+    let respiratoryRateAverage: Double?
+    let respiratoryRateStdDev: Double?
+    let dataPointCount: Int
+    let isReliable: Bool
+}
+
 // MARK: - Recent Workouts Data
 
 struct RecentWorkoutsData: Encodable {
@@ -122,6 +138,20 @@ struct RecentWorkoutsData: Encodable {
     let avgPace: Double
     let weeklyVolumeChange: Double?
     let daysSinceLastWorkout: Int?
+}
+
+// MARK: - Agent Chat Request
+
+struct AgentChatRequest: Encodable {
+    let userQuestion: String
+    let language: String
+    let data: ChatDataPayload
+    let conversationHistory: [AgentConversationMessage]?
+}
+
+struct AgentConversationMessage: Encodable {
+    let role: String
+    let content: String
 }
 
 // MARK: - Batch Analysis

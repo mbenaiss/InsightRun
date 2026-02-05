@@ -131,6 +131,8 @@ class ModelRouter {
             return "training history analysis"
         case .recoveryCoaching:
             return "recovery coaching"
+        case .unified:
+            return "unified AI coaching with full context"
         }
     }
 

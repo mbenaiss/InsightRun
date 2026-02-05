@@ -16,8 +16,10 @@ struct SettingsView: View {
     @State private var showSuuntoImport = false
     @ObservedObject private var stravaAuth = StravaAuthService.shared
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
+    @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var isSyncing = false
     @State private var lastSyncResult: String?
+    @State private var notificationsEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -112,6 +114,92 @@ struct SettingsView: View {
                     Text(String(localized: "Appearance"))
                 } footer: {
                     Text(String(localized: "Choose the app theme. System mode automatically adapts to your iOS settings."))
+                }
+
+                // Notifications Section
+                Section {
+                    Toggle(isOn: $notificationsEnabled) {
+                        HStack {
+                            Image(systemName: "bell.fill")
+                                .foregroundStyle(Color.irPrimaryAccent)
+                            Text(String(localized: "Enable Notifications", comment: "Master notification toggle"))
+                        }
+                    }
+                    .onChange(of: notificationsEnabled) { _, newValue in
+                        if newValue {
+                            Task {
+                                let granted = await notificationManager.requestPermissions()
+                                if !granted {
+                                    notificationsEnabled = false
+                                }
+                            }
+                        } else {
+                            notificationManager.removeAllPendingNotifications()
+                        }
+                    }
+
+                    if notificationsEnabled {
+                        Toggle(isOn: Binding(
+                            get: { notificationManager.isDailyReadinessEnabled },
+                            set: { enabled in
+                                if enabled {
+                                    // Schedule with current saved time, will auto-update from wake-up on next launch
+                                    notificationManager.scheduleDailyReadinessCheck(
+                                        hour: notificationManager.savedReadinessHour,
+                                        minute: notificationManager.savedReadinessMinute
+                                    )
+                                    Task {
+                                        await notificationManager.updateDailyReadinessFromWakeUp()
+                                    }
+                                } else {
+                                    notificationManager.cancelDailyReadinessCheck()
+                                }
+                            }
+                        )) {
+                            Text(String(localized: "Daily Readiness", comment: "Daily readiness notification toggle"))
+                        }
+
+                        if notificationManager.isDailyReadinessEnabled {
+                            HStack {
+                                Image(systemName: "alarm.fill")
+                                    .foregroundStyle(.secondary)
+                                Text(String(localized: "30 min after wake-up", comment: "Auto wake-up notification schedule"))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(String(format: "%d:%02d", notificationManager.savedReadinessHour, notificationManager.savedReadinessMinute))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { notificationManager.isWeeklySummaryEnabled },
+                            set: { enabled in
+                                if enabled {
+                                    notificationManager.scheduleWeeklySummary()
+                                } else {
+                                    notificationManager.cancelWeeklySummary()
+                                }
+                            }
+                        )) {
+                            Text(String(localized: "Weekly Summary", comment: "Weekly summary notification toggle"))
+                        }
+
+                        if notificationManager.isWeeklySummaryEnabled {
+                            HStack {
+                                Image(systemName: "calendar")
+                                    .foregroundStyle(.secondary)
+                                Text(String(localized: "Sunday at 6:00 PM", comment: "Weekly summary schedule"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text(String(localized: "Notifications", comment: "Notifications section header"))
+                } footer: {
+                    Text(String(localized: "Receive daily readiness reminders, weekly training summaries, and proactive coaching alerts.", comment: "Notifications section footer"))
                 }
 
                 // Medical Information Section
@@ -431,6 +519,10 @@ struct SettingsView: View {
             }
         }
         .preferredColorScheme(themeManager.selectedTheme.colorScheme)
+        .task {
+            await notificationManager.checkPermissionStatus()
+            notificationsEnabled = notificationManager.isNotificationsEnabled
+        }
     }
 
     // MARK: - Helper Methods

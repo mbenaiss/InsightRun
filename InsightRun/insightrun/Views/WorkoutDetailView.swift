@@ -15,28 +15,19 @@ import Charts
 struct WorkoutDetailView: View {
     let workout: WorkoutModel
     @StateObject private var viewModel: WorkoutDetailViewModel
-    @State private var showingAIAssistant = false
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
+    @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
 
     init(workout: WorkoutModel) {
         self.workout = workout
         _viewModel = StateObject(wrappedValue: WorkoutDetailViewModel(workout: workout))
 
-        // Initialize analysisViewModel with a temporary modelContext
-        // Will be replaced in onAppear with actual modelContext
-        let container: ModelContainer
-        do {
-            container = try ModelContainer(for: WorkoutAnalysis.self)
-        } catch {
-            // Fallback to in-memory container if persistent storage fails
-            let schema = Schema([WorkoutAnalysis.self])
-            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            container = try! ModelContainer(for: schema, configurations: [config])
+        guard let container = InsightRunApp.shared else {
+            fatalError("ModelContainer not initialized before WorkoutDetailView")
         }
-
         _analysisViewModel = StateObject(wrappedValue: WorkoutAnalysisViewModel(
             workout: workout,
             metrics: nil,
@@ -63,9 +54,8 @@ struct WorkoutDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            GeometryReader { geometry in
-                ScrollView {
+        GeometryReader { geometry in
+            ScrollView {
                     VStack(spacing: 16) {
                         if viewModel.isLoading {
                             loadingSection
@@ -136,53 +126,36 @@ struct WorkoutDetailView: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .clipped()
             }
-            .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                await viewModel.loadMetrics()
-                // Update metrics in analysisViewModel after loading
-                analysisViewModel.updateMetrics(viewModel.metrics)
-                // Load cached analysis only if user has AI access (subscribed or TestFlight)
-                if revenueCatManager.hasAIAccess {
-                    await analysisViewModel.loadAnalysis()
-                }
-            }
-            .onAppear {
-                // Track workout detail viewed
-                AnalyticsService.shared.trackWorkoutDetailViewed()
-            }
-
-            // Floating AI Button - Only for users with AI access (subscribers or TestFlight)
-            if !viewModel.isLoading &&
-               viewModel.metrics != nil &&
-               revenueCatManager.hasAIAccess {
-                Button(action: { showingAIAssistant = true }) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue, .cyan],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 60, height: 60)
-                            .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
-
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.trailing, 20)
-                .padding(.bottom, 20)
+        .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await viewModel.loadMetrics()
+            // Update metrics in analysisViewModel after loading
+            analysisViewModel.updateMetrics(viewModel.metrics)
+            // Load cached analysis only if user has AI access (subscribed or TestFlight)
+            if revenueCatManager.hasAIAccess {
+                await analysisViewModel.loadAnalysis()
             }
         }
-        .sheet(isPresented: $showingAIAssistant) {
-            WorkoutAIAssistantView(
-                mode: .singleWorkout(workout, viewModel.metrics),
-                isPresented: $showingAIAssistant
-            )
+        .onAppear {
+            // Track workout detail viewed
+            AnalyticsService.shared.trackWorkoutDetailViewed()
+
+            // Update context provider with selected workout for unified AI assistant
+            contextProvider.currentPage = .workoutDetail
+            // Set selected workout immediately (metrics will be nil initially)
+            contextProvider.setSelectedWorkout(workout, metrics: viewModel.metrics)
+        }
+        .onChange(of: viewModel.isLoading) { _, isLoading in
+            // Update selected workout when loading completes
+            if !isLoading {
+                contextProvider.setSelectedWorkout(workout, metrics: viewModel.metrics)
+            }
+        }
+        .onDisappear {
+            // Clear selected workout when leaving detail view
+            contextProvider.clearSelectedWorkout()
+            contextProvider.currentPage = .workouts
         }
     }
 

@@ -197,6 +197,70 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    /// Fetch running workouts within a date range
+    /// - Parameters:
+    ///   - startDate: Start of the date range
+    ///   - endDate: End of the date range
+    /// - Returns: Array of workouts within the date range, sorted by date descending
+    func fetchRunningWorkouts(from startDate: Date, to endDate: Date) async throws -> [WorkoutModel] {
+        let workoutType = HKObjectType.workoutType()
+        let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: startDate,
+            end: endDate,
+            options: .strictStartDate
+        )
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [runningPredicate, datePredicate])
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: HealthKitError.queryFailed(error))
+                    return
+                }
+
+                guard let workouts = samples as? [HKWorkout] else {
+                    continuation.resume(returning: [])
+                    return
+                }
+
+                let workoutModels = workouts.map { workout in
+                    // Use statistics(for:) instead of deprecated totalEnergyBurned (iOS 18+)
+                    let energyType = HKQuantityType(.activeEnergyBurned)
+                    let energyBurned = workout.statistics(for: energyType)?.sumQuantity()?.doubleValue(for: .kilocalorie())
+
+                    return WorkoutModel(
+                        id: workout.uuid,
+                        workoutType: workout.workoutActivityType,
+                        startDate: workout.startDate,
+                        endDate: workout.endDate,
+                        duration: workout.duration,
+                        distance: workout.totalDistance?.doubleValue(for: .meter()),
+                        totalEnergyBurned: energyBurned,
+                        sourceName: workout.sourceRevision.source.name,
+                        sourceVersion: workout.sourceRevision.version,
+                        metadata: workout.metadata,
+                        averageHeartRate: nil,
+                        maxHeartRate: nil,
+                        elevationGain: nil,
+                        hasRoute: workout.workoutActivities.contains { $0.allStatistics[.init(.distanceWalkingRunning)] != nil }
+                    )
+                }
+
+                continuation.resume(returning: workoutModels)
+            }
+
+            self.healthStore.execute(query)
+        }
+    }
+
     /// Fetch running workouts with pagination (RECOMMENDED)
     /// - Parameters:
     ///   - limit: Number of workouts to fetch (default: 100, similar to Strava's per_page=200 but conservative)

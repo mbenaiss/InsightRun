@@ -17,6 +17,9 @@ struct InsightRunApp: App {
     // Unified ModelContainer for all SwiftData models (WorkoutAnalysis + CachedStravaActivity)
     let sharedModelContainer: ModelContainer
 
+    // Static accessor for shared container (used by views that need ModelContext in init)
+    private(set) static var shared: ModelContainer?
+
     init() {
         // Configure analytics (PostHog) - non-blocking, won't crash if PostHog is unavailable
         AnalyticsService.shared.configure()
@@ -62,6 +65,9 @@ struct InsightRunApp: App {
                 for: fullSchema,
                 configurations: [existingConfig, unifiedCacheConfig]
             )
+
+            // Make container accessible statically for views that need it in init
+            InsightRunApp.shared = sharedModelContainer
 
             print("✅ SwiftData: Unified ModelContainer initialized (persistent storage)")
         } catch {

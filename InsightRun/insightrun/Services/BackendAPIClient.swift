@@ -138,6 +138,101 @@ class BackendAPIClient {
         }
     }
 
+    // MARK: - Agent Chat (Streaming with function calling)
+
+    enum AgentStreamEvent {
+        case content(String)
+        case functionResult(AgentFunctionResult)
+    }
+
+    struct AgentFunctionResult {
+        let functionName: String
+        let result: Data
+        let message: String
+    }
+
+    func agentChatStream(payload: AgentChatRequest) async throws -> AsyncThrowingStream<AgentStreamEvent, Error> {
+        let url = URL(string: "\(baseURL)/api/agent/chat")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(payload)
+
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: BackendError.invalidResponse)
+                        return
+                    }
+
+                    switch httpResponse.statusCode {
+                    case 200...299:
+                        break
+                    case 401:
+                        throw BackendError.unauthorized
+                    case 429:
+                        throw BackendError.rateLimitExceeded
+                    case 500...599:
+                        throw BackendError.serverError
+                    default:
+                        throw BackendError.unknownError(httpResponse.statusCode)
+                    }
+
+                    for try await line in bytes.lines {
+                        if line.hasPrefix("data: ") {
+                            let jsonString = String(line.dropFirst(6))
+
+                            if jsonString == "[DONE]" {
+                                continuation.finish()
+                                return
+                            }
+
+                            guard let jsonData = jsonString.data(using: .utf8),
+                                  let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                                  let type = json["type"] as? String else {
+                                continue
+                            }
+
+                            switch type {
+                            case "content":
+                                if let content = json["content"] as? String {
+                                    continuation.yield(.content(content))
+                                }
+                            case "function_result":
+                                if let functionName = json["function"] as? String,
+                                   let message = json["message"] as? String,
+                                   let result = json["result"] {
+                                    let resultData = try JSONSerialization.data(withJSONObject: result)
+                                    continuation.yield(.functionResult(AgentFunctionResult(
+                                        functionName: functionName,
+                                        result: resultData,
+                                        message: message
+                                    )))
+                                }
+                            default:
+                                break
+                            }
+                        }
+                    }
+
+                    continuation.finish()
+
+                } catch {
+                    print("❌ BackendAPIClient agent streaming error: \(error)")
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
     // MARK: - Historical Analysis (Batch Processing)
 
     /// Analyze a batch of workouts (up to 50)
@@ -338,6 +433,7 @@ class BackendAPIClient {
             workout: nil,
             recovery: nil,
             profile: nil,
+            baseline: nil,
             recentWorkouts: recentWorkoutsData,
             historicalSummary: historicalSummary
         )
@@ -422,6 +518,50 @@ class BackendAPIClient {
         print("✅ BackendAPIClient: Fetched remote config")
 
         return config
+    }
+
+    // MARK: - Daily Readiness
+
+    /// Fetch daily readiness score from backend
+    func fetchDailyReadiness(request: DailyReadinessRequest) async throws -> DailyReadinessResponse {
+        let url = URL(string: "\(baseURL)/api/daily-readiness")!
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = 15
+
+        let encoder = JSONEncoder()
+        urlRequest.httpBody = try encoder.encode(request)
+
+        print("📊 BackendAPIClient: Fetching daily readiness...")
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let readinessResponse = try decoder.decode(DailyReadinessResponse.self, from: data)
+
+        print("✅ BackendAPIClient: Daily readiness fetched - Score: \(readinessResponse.score)")
+
+        return readinessResponse
     }
 
     // MARK: - Configuration

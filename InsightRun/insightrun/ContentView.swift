@@ -9,8 +9,11 @@ import SwiftData
 
 struct ContentView: View {
     @StateObject private var onboardingManager = OnboardingManager.shared
+    @StateObject private var contextProvider = UnifiedAIContextProvider.shared
     @State private var selectedTab = 0
+    @State private var showingAIAssistant = false
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
     // File import from share sheet
     @Binding var importedFileURL: URL?
@@ -21,7 +24,8 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        ZStack(alignment: .bottomTrailing) {
+            TabView(selection: $selectedTab) {
             // Workouts Tab - Always visible
             WorkoutListView()
                 .tabItem {
@@ -56,6 +60,29 @@ struct ContentView: View {
                     Label(String(localized: "tab.health"), systemImage: "person.fill")
                 }
                 .tag(4)
+            }
+            .onChange(of: selectedTab) { _, newTab in
+                // Update context provider's current page based on selected tab
+                let page: AIContextPage = switch newTab {
+                case 0: .workouts
+                case 1: .statistics
+                case 2: .plan
+                case 3: .recovery
+                case 4: .profile
+                default: .workouts
+                }
+                contextProvider.currentPage = page
+            }
+
+            // Floating AI Button (global across all tabs)
+            FloatingAIButton(showingAIAssistant: $showingAIAssistant)
+                .environmentObject(revenueCatManager)
+        }
+        .sheet(isPresented: $showingAIAssistant) {
+            WorkoutAIAssistantView(
+                mode: .unified,
+                isPresented: $showingAIAssistant
+            )
         }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()
@@ -81,6 +108,32 @@ struct ContentView: View {
                 StravaCache.shared.setModelContext(modelContext)
                 UnifiedWorkoutCache.shared.setModelContext(modelContext)
                 SuuntoImportService.shared.setModelContext(modelContext)
+            }
+        }
+        .task {
+            // Pre-load AI context data in background for faster AI assistant access
+            if revenueCatManager.hasAIAccess {
+                await contextProvider.loadAllData()
+            }
+
+            // Check notification permissions and trigger proactive alerts
+            let notificationManager = NotificationManager.shared
+            await notificationManager.checkPermissionStatus()
+
+            if notificationManager.isNotificationsEnabled {
+                // Auto-adjust daily readiness time based on wake-up
+                await notificationManager.updateDailyReadinessFromWakeUp()
+
+                let trainingLoad = TrainingLoadService.shared
+                await trainingLoad.analyzeTrainingLoad()
+
+                if trainingLoad.isOvertrainingRisk, let volumeChange = trainingLoad.weeklyVolumeChange {
+                    notificationManager.sendOvertrainingAlert(volumeIncrease: volumeChange)
+                }
+
+                if trainingLoad.isInactive, let days = trainingLoad.daysSinceLastWorkout {
+                    notificationManager.sendInactivityReminder(daysSinceLastRun: days)
+                }
             }
         }
     }

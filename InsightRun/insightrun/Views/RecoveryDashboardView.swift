@@ -11,16 +11,14 @@ import Charts
 
 struct RecoveryDashboardView: View {
     @StateObject private var viewModel = RecoveryViewModel()
-    @ObservedObject private var revenueCatManager = RevenueCatManager.shared
-    @State private var showingAIAssistant = false
+    @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
     @State private var showingMedicalSources = false
     @State private var showingCalendar = false
     @State private var availableDates: [Date] = []
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            NavigationStack {
-                TabView(selection: $viewModel.selectedDate) {
+        NavigationStack {
+            TabView(selection: $viewModel.selectedDate) {
                     ForEach(availableDates, id: \.self) { date in
                         RecoveryDayView(date: date, viewModel: viewModel)
                             .tag(date)
@@ -43,25 +41,21 @@ struct RecoveryDashboardView: View {
                         setupInitialDates()
                     }
                     await viewModel.loadRecoveryMetrics()
+
+                    // Update context provider with recovery metrics
+                    if let recovery = viewModel.recoveryMetrics {
+                        contextProvider.recoveryMetrics = recovery
+                    }
                 }
                 .onChange(of: viewModel.selectedDate) { _, newDate in
                     ensureDateIsAvailable(newDate)
+                    // Update context provider when date changes
+                    Task {
+                        await viewModel.loadRecoveryMetrics(for: newDate)
+                        contextProvider.recoveryMetrics = viewModel.recoveryMetrics
+                    }
                 }
             }
-
-            // Floating AI Button
-            if viewModel.recoveryMetrics != nil && revenueCatManager.hasAIAccess {
-                aiAssistantButton
-            }
-        }
-        .sheet(isPresented: $showingAIAssistant) {
-            if let recovery = viewModel.recoveryMetrics {
-                WorkoutAIAssistantView(
-                    mode: .recoveryCoaching(recovery),
-                    isPresented: $showingAIAssistant
-                )
-            }
-        }
         .sheet(isPresented: $showingMedicalSources) {
             MedicalSourcesView()
         }
@@ -102,31 +96,6 @@ struct RecoveryDashboardView: View {
             availableDates.append(startOfDay)
             availableDates.sort()
         }
-    }
-
-    // MARK: - Subviews
-
-    private var aiAssistantButton: some View {
-        Button(action: { showingAIAssistant = true }) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.blue, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 60, height: 60)
-                    .shadow(color: .blue.opacity(0.4), radius: 12, y: 6)
-
-                Image(systemName: "sparkles")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-        }
-        .padding(.trailing, 20)
-        .padding(.bottom, 20)
     }
 
     // MARK: - Date Picker Dropdown

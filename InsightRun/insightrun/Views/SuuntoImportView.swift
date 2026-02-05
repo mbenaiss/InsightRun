@@ -28,10 +28,10 @@ struct SuuntoImportView: View {
                         .font(.system(size: 60))
                         .foregroundStyle(.orange)
 
-                    Text("Import Suunto Workout")
+                    Text(String(localized: "Import Suunto Workout", comment: "Title for Suunto import screen"))
                         .font(.title2.bold())
 
-                    Text("Import a FIT file exported from the Suunto app to enrich your workout data with advanced metrics.")
+                    Text(String(localized: "Import a FIT file exported from the Suunto app to enrich your workout data with advanced metrics.", comment: "Description for Suunto import screen"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -43,13 +43,13 @@ struct SuuntoImportView: View {
 
                 // Import button
                 if importService.isImporting {
-                    ProgressView("Importing...")
+                    ProgressView(String(localized: "Importing...", comment: "Loading state during Suunto import"))
                         .padding()
                 } else {
                     Button {
                         showFilePicker = true
                     } label: {
-                        Label("Select FIT File", systemImage: "doc.badge.plus")
+                        Label(String(localized: "Select FIT File", comment: "Button to select a FIT file for import"), systemImage: "doc.badge.plus")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -62,14 +62,14 @@ struct SuuntoImportView: View {
 
                 // Instructions
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("How to export from Suunto:")
+                    Text(String(localized: "How to export from Suunto:", comment: "Instructions header for Suunto export"))
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        instructionRow(number: 1, text: "Open Suunto app on your phone")
-                        instructionRow(number: 2, text: "Go to a workout and tap the share icon")
-                        instructionRow(number: 3, text: "Choose \"Export as FIT\"")
-                        instructionRow(number: 4, text: "Save to Files or send to your device")
+                        instructionRow(number: 1, text: String(localized: "Open Suunto app on your phone", comment: "Suunto export instruction step 1"))
+                        instructionRow(number: 2, text: String(localized: "Go to a workout and tap the share icon", comment: "Suunto export instruction step 2"))
+                        instructionRow(number: 3, text: String(localized: "Choose \"Export as FIT\"", comment: "Suunto export instruction step 3"))
+                        instructionRow(number: 4, text: String(localized: "Save to Files or send to your device", comment: "Suunto export instruction step 4"))
                     }
                 }
                 .padding()
@@ -81,7 +81,7 @@ struct SuuntoImportView: View {
 
                 // Stats
                 if let count = try? importService.getCachedWorkoutCount(), count > 0 {
-                    Text("\(count) Suunto workouts imported")
+                    Text(String(localized: "\(count) Suunto workouts imported", comment: "Count of imported Suunto workouts"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -89,7 +89,7 @@ struct SuuntoImportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
+                    Button(String(localized: "Close", comment: "Close button")) {
                         dismiss()
                     }
                 }
@@ -101,8 +101,8 @@ struct SuuntoImportView: View {
             ) { result in
                 handleFileSelection(result)
             }
-            .alert("Import Result", isPresented: $showResult) {
-                Button("OK") {
+            .alert(String(localized: "Import Result", comment: "Alert title for import result"), isPresented: $showResult) {
+                Button(String(localized: "OK", comment: "OK button")) {
                     if importedWorkout != nil && errorMessage == nil {
                         dismiss()
                     }
@@ -112,11 +112,11 @@ struct SuuntoImportView: View {
                     Text(error)
                 } else if let workout = importedWorkout {
                     if isMatched {
-                        Text("Workout enriched!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))\n\nSuunto data has been merged with the existing HealthKit workout.")
+                        Text(String(localized: "Workout enriched!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))\n\nSuunto data has been merged with the existing HealthKit workout.", comment: "Success message when workout was enriched"))
                     } else if isSavedToHealthKit {
-                        Text("Workout imported and saved to Apple Health!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))")
+                        Text(String(localized: "Workout imported and saved to Apple Health!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))", comment: "Success message when workout saved to HealthKit"))
                     } else {
-                        Text("Workout imported!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))")
+                        Text(String(localized: "Workout imported!\n\n\(workout.activityType)\n\(formattedDistance(workout.distance))\n\(formattedDuration(workout.duration))", comment: "Success message when workout imported"))
                     }
                 }
             }
@@ -145,7 +145,7 @@ struct SuuntoImportView: View {
 
             // Validate file extension
             guard url.pathExtension.lowercased() == "fit" else {
-                errorMessage = "Invalid file type. Please select a FIT file."
+                errorMessage = String(localized: "Invalid file type. Please select a FIT file.", comment: "Error for invalid file type")
                 showResult = true
                 return
             }
@@ -167,7 +167,7 @@ struct SuuntoImportView: View {
                     let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
                     if let fileSize = attributes[.size] as? Int64, fileSize > maxFileSize {
                         await MainActor.run {
-                            errorMessage = "File too large. Maximum size is 50MB."
+                            errorMessage = String(localized: "File too large. Maximum size is 50MB.", comment: "Error for file too large")
                             showResult = true
                         }
                         return
@@ -198,7 +198,7 @@ struct SuuntoImportView: View {
 
                         case .alreadyExists(let workout):
                             importedWorkout = workout
-                            errorMessage = "This workout has already been imported."
+                            errorMessage = String(localized: "This workout has already been imported.", comment: "Error for duplicate import")
                         }
                         showResult = true
                     }
@@ -218,7 +218,7 @@ struct SuuntoImportView: View {
 
     private func formattedDistance(_ meters: Double) -> String {
         let km = meters / 1000.0
-        return String(format: "%.2f km", km)
+        return String(format: "%.2f %@", km, String(localized: "km", comment: "Kilometer unit abbreviation"))
     }
 
     private func formattedDuration(_ seconds: TimeInterval) -> String {
@@ -227,9 +227,9 @@ struct SuuntoImportView: View {
         let secs = Int(seconds) % 60
 
         if hours > 0 {
-            return String(format: "%dh %02dm %02ds", hours, minutes, secs)
+            return String(format: "%d%@ %02d%@ %02d%@", hours, String(localized: "h", comment: "Hour abbreviation"), minutes, String(localized: "m", comment: "Minute abbreviation"), secs, String(localized: "s", comment: "Second abbreviation"))
         } else {
-            return String(format: "%dm %02ds", minutes, secs)
+            return String(format: "%d%@ %02d%@", minutes, String(localized: "m", comment: "Minute abbreviation"), secs, String(localized: "s", comment: "Second abbreviation"))
         }
     }
 }
@@ -274,11 +274,11 @@ struct SuuntoImportFromShareView: View {
                 }
             }
             .padding()
-            .navigationTitle("Import Suunto")
+            .navigationTitle(String(localized: "Import Suunto", comment: "Navigation title for Suunto share import"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
+                    Button(String(localized: "Close", comment: "Close button")) {
                         onDismiss()
                         dismiss()
                     }
@@ -295,7 +295,7 @@ struct SuuntoImportFromShareView: View {
             ProgressView()
                 .scaleEffect(1.5)
 
-            Text("Importing workout...")
+            Text(String(localized: "Importing workout...", comment: "Loading state during workout import"))
                 .font(.headline)
 
             if let url = fileURL {
@@ -312,7 +312,7 @@ struct SuuntoImportFromShareView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.green)
 
-            Text(isMatched ? "Workout Enriched!" : (isSavedToHealthKit ? "Saved to Apple Health!" : "Workout Imported!"))
+            Text(isMatched ? String(localized: "Workout Enriched!", comment: "Success title when workout enriched") : (isSavedToHealthKit ? String(localized: "Saved to Apple Health!", comment: "Success title when saved to HealthKit") : String(localized: "Workout Imported!", comment: "Success title when workout imported")))
                 .font(.title2.bold())
 
             if let workout = importedWorkout {
@@ -328,13 +328,13 @@ struct SuuntoImportFromShareView: View {
                     .foregroundStyle(.secondary)
 
                     if isMatched {
-                        Text("Suunto data has been merged with the existing HealthKit workout.")
+                        Text(String(localized: "Suunto data has been merged with the existing HealthKit workout.", comment: "Detail message when workout enriched"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.top, 8)
                     } else if isSavedToHealthKit {
-                        Text("Workout imported and saved to Apple Health!")
+                        Text(String(localized: "Workout imported and saved to Apple Health!", comment: "Detail message when saved to HealthKit"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -343,7 +343,7 @@ struct SuuntoImportFromShareView: View {
                 }
             }
 
-            Button("Done") {
+            Button(String(localized: "Done", comment: "Done button")) {
                 onDismiss()
                 dismiss()
             }
@@ -358,7 +358,7 @@ struct SuuntoImportFromShareView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.red)
 
-            Text("Import Failed")
+            Text(String(localized: "Import Failed", comment: "Error title when import fails"))
                 .font(.title2.bold())
 
             if let error = errorMessage {
@@ -368,7 +368,7 @@ struct SuuntoImportFromShareView: View {
                     .multilineTextAlignment(.center)
             }
 
-            Button("Close") {
+            Button(String(localized: "Close", comment: "Close button")) {
                 onDismiss()
                 dismiss()
             }
@@ -380,7 +380,7 @@ struct SuuntoImportFromShareView: View {
     private func performImport() async {
         guard let url = fileURL else {
             importState = .error
-            errorMessage = "No file provided"
+            errorMessage = String(localized: "No file provided", comment: "Error when no file is provided")
             return
         }
 
@@ -421,7 +421,7 @@ struct SuuntoImportFromShareView: View {
 
                 case .alreadyExists(let workout):
                     importedWorkout = workout
-                    errorMessage = "This workout has already been imported."
+                    errorMessage = String(localized: "This workout has already been imported.", comment: "Error for duplicate import")
                     importState = .error
                 }
             }
@@ -434,7 +434,7 @@ struct SuuntoImportFromShareView: View {
     }
 
     private func formattedDistance(_ meters: Double) -> String {
-        String(format: "%.2f km", meters / 1000.0)
+        String(format: "%.2f %@", meters / 1000.0, String(localized: "km", comment: "Kilometer unit abbreviation"))
     }
 
     private func formattedDuration(_ seconds: TimeInterval) -> String {
@@ -442,9 +442,9 @@ struct SuuntoImportFromShareView: View {
         let minutes = (Int(seconds) % 3600) / 60
 
         if hours > 0 {
-            return String(format: "%dh %02dm", hours, minutes)
+            return String(format: "%d%@ %02d%@", hours, String(localized: "h", comment: "Hour abbreviation"), minutes, String(localized: "m", comment: "Minute abbreviation"))
         } else {
-            return String(format: "%d min", minutes)
+            return String(format: "%d %@", minutes, String(localized: "min", comment: "Minutes abbreviation"))
         }
     }
 }

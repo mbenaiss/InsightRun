@@ -200,7 +200,7 @@ struct WorkoutRowView: View {
                     if let pace = workout.averagePace {
                         let minutes = Int(pace)
                         let seconds = Int((pace - Double(minutes)) * 60)
-                        Label(String(format: "%d'%02d\"/km", minutes, seconds), systemImage: "speedometer")
+                        Label(String(format: "%d'%02d\"%@", minutes, seconds, String(localized: "/km", comment: "Pace unit suffix")), systemImage: "speedometer")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

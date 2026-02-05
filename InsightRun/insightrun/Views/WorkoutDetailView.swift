@@ -360,7 +360,7 @@ struct WorkoutDetailView: View {
                 MetricRow(
                     icon: "lungs.fill",
                     label: String(localized: "VO2 Max", comment: "VO2 Maximum performance metric"),
-                    value: String(format: "%.1f ml/kg/min", vo2Max),
+                    value: String(format: "%.1f %@", vo2Max, String(localized: "ml/kg/min", comment: "VO2 Max unit")),
                     color: .red,
                     metricInfoKey: "metric.vo2_max",
                     currentValue: vo2Max
@@ -376,7 +376,7 @@ struct WorkoutDetailView: View {
                 MetricRow(
                     icon: "timer",
                     label: String(localized: "Ground Contact Time", comment: "Ground contact time advanced metric"),
-                    value: String(format: "%.0f ms", gct),
+                    value: String(format: "%.0f %@", gct, String(localized: "ms", comment: "Milliseconds unit")),
                     color: .indigo,
                     metricInfoKey: "metric.ground_contact_time",
                     currentValue: gct
@@ -387,7 +387,7 @@ struct WorkoutDetailView: View {
                 MetricRow(
                     icon: "arrow.up.and.down",
                     label: String(localized: "Vertical Oscillation", comment: "Vertical oscillation advanced metric"),
-                    value: String(format: "%.1f cm", vo),
+                    value: String(format: "%.1f %@", vo, String(localized: "cm", comment: "Centimeters unit")),
                     color: .cyan,
                     metricInfoKey: "metric.vertical_oscillation",
                     currentValue: vo
@@ -693,7 +693,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(Color.irTextSecondary)
 
                 if let version = workout.sourceVersion {
-                    Text("v\(version)")
+                    Text(verbatim: "v\(version)")
                         .font(.caption2)
                         .foregroundStyle(Color.irTextSecondary)
                 }
@@ -1028,7 +1028,7 @@ struct SplitRow: View {
         HStack(spacing: 8) {
             // Kilometer number and distance
             VStack(alignment: .leading, spacing: 2) {
-                Text("km \(split.kilometer)")
+                Text(String(localized: "km", comment: "Kilometer abbreviation") + " \(split.kilometer)")
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.irTextSecondary)
@@ -1036,7 +1036,7 @@ struct SplitRow: View {
                 // Show actual distance if different from 1000m
                 let distanceKm = split.distance / 1000.0
                 if abs(distanceKm - 1.0) > 0.01 {
-                    Text(String(format: "%.2f km", distanceKm))
+                    Text(String(format: "%.2f %@", distanceKm, String(localized: "km", comment: "Kilometer abbreviation")))
                         .font(.caption2)
                         .foregroundStyle(Color.irTextSecondary)
                 }
@@ -1055,7 +1055,7 @@ struct SplitRow: View {
                     Image(systemName: "heart.fill")
                         .font(.caption2)
                         .foregroundStyle(.red)
-                    Text(String(format: "%.0f bpm", hr))
+                    Text(String(format: "%.0f %@", hr, String(localized: "bpm", comment: "Beats per minute unit")))
                         .font(.subheadline)
                         .foregroundStyle(Color.irTextSecondary)
                 }
@@ -1068,14 +1068,14 @@ struct SplitRow: View {
             // Elevation indicators - 1/3
             HStack(spacing: 4) {
                 if let gain = split.elevationGain, gain > 0 {
-                    Label(String(format: "↗%.0fm", gain), systemImage: "")
+                    Label(String(format: "↗%.0f%@", gain, String(localized: "m", comment: "Meters unit abbreviation")), systemImage: "")
                         .font(.caption2)
                         .foregroundStyle(.green)
                         .labelStyle(.titleOnly)
                 }
 
                 if let loss = split.elevationLoss, loss > 0 {
-                    Label(String(format: "↘%.0fm", loss), systemImage: "")
+                    Label(String(format: "↘%.0f%@", loss, String(localized: "m", comment: "Meters unit abbreviation")), systemImage: "")
                         .font(.caption2)
                         .foregroundStyle(.blue)
                         .labelStyle(.titleOnly)
@@ -1289,7 +1289,7 @@ struct InteractiveHeartRateChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "km %.1f", selected.km))
+            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
         }
         return nil
     }
@@ -1307,7 +1307,7 @@ struct InteractiveHeartRateChart: View {
                         .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
-                        Text("\(Int(data.value)) bpm")
+                        Text("\(Int(data.value)) \(String(localized: "bpm", comment: "Beats per minute unit"))")
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundStyle(.red)
@@ -1317,7 +1317,7 @@ struct InteractiveHeartRateChart: View {
                     } else if showMinMax, let min = minHeartRate, let max = maxHeartRate {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(min)) bpm")
+                                Text("\(Int(min)) \(String(localized: "bpm", comment: "Beats per minute unit"))")
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.red)
@@ -1326,7 +1326,7 @@ struct InteractiveHeartRateChart: View {
                                     .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(max)) bpm")
+                                Text("\(Int(max)) \(String(localized: "bpm", comment: "Beats per minute unit"))")
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.red)
@@ -1474,7 +1474,7 @@ struct InteractivePaceChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "km %.1f", selected.km))
+            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
         }
         return nil
     }
@@ -1640,7 +1640,7 @@ struct InteractivePowerChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "km %.1f", selected.km))
+            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
         }
         return nil
     }
@@ -1658,7 +1658,7 @@ struct InteractivePowerChart: View {
                         .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
-                        Text("\(Int(data.value)) W")
+                        Text("\(Int(data.value)) \(String(localized: "W", comment: "Watts unit"))")
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundStyle(.orange)
@@ -1668,7 +1668,7 @@ struct InteractivePowerChart: View {
                     } else if showMinMax, let min = minPower, let max = maxPower {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(min)) W")
+                                Text("\(Int(min)) \(String(localized: "W", comment: "Watts unit"))")
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.orange)
@@ -1677,7 +1677,7 @@ struct InteractivePowerChart: View {
                                     .foregroundStyle(Color.irTextSecondary)
                             }
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(max)) W")
+                                Text("\(Int(max)) \(String(localized: "W", comment: "Watts unit"))")
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.orange)
@@ -1812,7 +1812,7 @@ struct InteractiveElevationChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "km %.1f", selected.km))
+            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
         }
         return nil
     }
@@ -1830,7 +1830,7 @@ struct InteractiveElevationChart: View {
                         .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
-                        Text(String(format: "%+.0f m", data.value))
+                        Text(String(format: "%+.0f %@", data.value, String(localized: "m", comment: "Meters unit abbreviation")))
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundStyle(.green)
@@ -1840,7 +1840,7 @@ struct InteractiveElevationChart: View {
                     } else if showTotals {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(String(format: "+%.0f m", totalGain))
+                                Text(String(format: "+%.0f %@", totalGain, String(localized: "m", comment: "Meters unit abbreviation")))
                                     .font(.title3)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.green)
@@ -1850,7 +1850,7 @@ struct InteractiveElevationChart: View {
                             }
                             if totalLoss > 0 {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(String(format: "-%.0f m", totalLoss))
+                                    Text(String(format: "-%.0f %@", totalLoss, String(localized: "m", comment: "Meters unit abbreviation")))
                                         .font(.title3)
                                         .fontWeight(.semibold)
                                         .foregroundStyle(.blue)
@@ -2234,7 +2234,7 @@ struct SplitsByKmContent: View {
                         Text(best.paceFormatted)
                             .font(.headline)
                             .foregroundStyle(Color.irSuccess)
-                        Text("km \(best.kilometer)")
+                        Text(String(localized: "km", comment: "Kilometer abbreviation") + " \(best.kilometer)")
                             .font(.caption2)
                             .foregroundStyle(Color.irTextSecondary)
                     }
@@ -2250,7 +2250,7 @@ struct SplitsByKmContent: View {
                         Text(worst.paceFormatted)
                             .font(.headline)
                             .foregroundStyle(Color.irWarning)
-                        Text("km \(worst.kilometer)")
+                        Text(String(localized: "km", comment: "Kilometer abbreviation") + " \(worst.kilometer)")
                             .font(.caption2)
                             .foregroundStyle(Color.irTextSecondary)
                     }

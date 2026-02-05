@@ -154,6 +154,20 @@ final class AnalyticsService {
         track(.healthKitPermissionDenied)
     }
 
+    // MARK: - Notification Permission Events
+
+    func trackNotificationPermissionGranted() {
+        track(.notificationPermissionGranted)
+    }
+
+    func trackNotificationPermissionDenied() {
+        track(.notificationPermissionDenied)
+    }
+
+    func trackNotificationPermissionSkipped() {
+        track(.notificationPermissionSkipped)
+    }
+
     // MARK: - Workout Events
 
     func trackWorkoutListViewed(totalWorkouts: Int) {
@@ -500,6 +514,11 @@ enum AnalyticsEvent: String {
     case healthKitPermissionRequested = "healthkit_permission_requested"
     case healthKitPermissionGranted = "healthkit_permission_granted"
     case healthKitPermissionDenied = "healthkit_permission_denied"
+
+    // Notification Permission
+    case notificationPermissionGranted = "notification_permission_granted"
+    case notificationPermissionDenied = "notification_permission_denied"
+    case notificationPermissionSkipped = "notification_permission_skipped"
 
     // Workouts
     case workoutListViewed = "workout_list_viewed"

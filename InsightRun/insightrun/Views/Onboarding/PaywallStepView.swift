@@ -11,6 +11,7 @@ import RevenueCatUI
 
 struct PaywallStepView: View {
     let onContinue: () -> Void
+    var stepNumber: Int = 4
 
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
@@ -18,7 +19,7 @@ struct PaywallStepView: View {
         Group {
             if revenueCatManager.isSubscriptionActive {
                 // User is already subscribed - show confirmation screen
-                AlreadySubscribedView(onContinue: onContinue)
+                AlreadySubscribedView(onContinue: onContinue, stepNumber: stepNumber)
             } else {
                 // User is not subscribed - show paywall
                 PaywallView()
@@ -46,7 +47,7 @@ struct PaywallStepView: View {
             }
         }
         .onAppear {
-            AnalyticsService.shared.trackOnboardingStepViewed(step: 3, stepName: "paywall")
+            AnalyticsService.shared.trackOnboardingStepViewed(step: stepNumber, stepName: "paywall")
             if !revenueCatManager.isSubscriptionActive {
                 AnalyticsService.shared.trackPaywallViewed(
                     triggerSource: "onboarding",
@@ -61,6 +62,7 @@ struct PaywallStepView: View {
 
 struct AlreadySubscribedView: View {
     let onContinue: () -> Void
+    var stepNumber: Int = 4
 
     var body: some View {
         VStack(spacing: 32) {
@@ -106,7 +108,7 @@ struct AlreadySubscribedView: View {
             .padding(.bottom, 32)
         }
         .onAppear {
-            AnalyticsService.shared.trackOnboardingStepViewed(step: 3, stepName: "paywall_already_subscribed")
+            AnalyticsService.shared.trackOnboardingStepViewed(step: stepNumber, stepName: "paywall_already_subscribed")
         }
     }
 }

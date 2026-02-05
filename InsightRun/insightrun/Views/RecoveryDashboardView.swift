@@ -151,9 +151,14 @@ struct RecoveryDayView: View {
             // Circular Recovery Score
             circularRecoveryScore(recovery)
 
-            // Recommendation Card
-            recommendationCard(recovery)
-                .padding(.horizontal)
+            // Coaching Section (AI-enhanced for today, static for past days)
+            if Calendar.current.isDateInToday(date) {
+                CoachingSection(fallbackRecommendation: recovery.recoveryStatus.recommendation)
+                    .padding(.horizontal)
+            } else {
+                recommendationCard(recovery)
+                    .padding(.horizontal)
+            }
 
             // Trends Section
             trendsSection(recovery)
@@ -391,15 +396,6 @@ struct RecoveryDayView: View {
                 .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
             
-            // Note: Since this view is deeper in hierarchy, showing sheet on parent might be tricky.
-            // But we can just use a Button that does nothing? 
-            // Or we pass a callback?
-            // For now, let's omit the button action or make it work via Environment?
-            // Or just leave it as is, but it won't open the sheet since state is in parent.
-            // Solution: Use Link or Notification or Binding.
-            // Binding is easiest.
-            // But let's simplify and remove the button action for now or accept it won't work in this refactor without binding.
-            // Actually, we can use `showingMedicalSources` if passed.
         }
         .padding(20)
         .background(Color.irCardBackground)
@@ -407,10 +403,6 @@ struct RecoveryDayView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
     }
 
-    // Deviation helpers need to be copied too or moved to static/extensions.
-    // I will duplicate them for safety as moving them out might break other things I don't see (unlikely but safer).
-    // ...
-    // Actually, I can put them in an extension of RecoveryDayView.
     
     private func getHRVDeviationStatus(_ hrv: Double, baseline: PersonalBaseline?) -> DeviationStatus {
         guard let baseline = baseline, let avg = baseline.hrvAverage else { return hrv >= 50 ? .normal : .belowNormal }
@@ -521,6 +513,90 @@ struct SleepStageRow: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(Color.irTextSecondary)
+        }
+    }
+}
+
+// MARK: - Coaching Section (AI-enhanced for today)
+
+struct CoachingSection: View {
+    let fallbackRecommendation: String
+    @StateObject private var readinessVM = DailyReadinessViewModel()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with coaching icon and readiness score badge
+            HStack {
+                Label(
+                    String(localized: "Coaching", comment: "Section header for recovery recommendation"),
+                    systemImage: "text.bubble.fill"
+                )
+                .font(.headline)
+                .foregroundStyle(.orange.gradient)
+
+                Spacer()
+
+                if readinessVM.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else if let score = readinessVM.readinessScore {
+                    HStack(spacing: 4) {
+                        Text(readinessVM.status.emoji)
+                            .font(.caption)
+                        Text("\(score)/100")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .foregroundStyle(readinessVM.status.color)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(readinessVM.status.color.opacity(0.15))
+                    .clipShape(Capsule())
+                }
+            }
+
+            // Recommendation text (AI or fallback)
+            if readinessVM.readinessScore != nil, !readinessVM.recommendation.isEmpty {
+                Text(readinessVM.recommendation)
+                    .font(.body)
+                    .foregroundStyle(Color.irTextPrimary)
+                    .multilineTextAlignment(.leading)
+            } else {
+                Text(fallbackRecommendation)
+                    .font(.body)
+                    .foregroundStyle(Color.irTextPrimary)
+                    .multilineTextAlignment(.leading)
+            }
+
+            // Suggested workout (only when readiness is available)
+            if readinessVM.readinessScore != nil {
+                Divider()
+
+                HStack(spacing: 8) {
+                    Image(systemName: readinessVM.suggestedWorkoutType.icon)
+                        .font(.title3)
+                        .foregroundStyle(readinessVM.status.color)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "Suggested Workout", comment: "Suggested workout section title"))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text(readinessVM.suggestedWorkoutType.title)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.irTextPrimary)
+                    }
+
+                    Spacer()
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.irWarning.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .task {
+            await readinessVM.fetchDailyReadiness()
         }
     }
 }

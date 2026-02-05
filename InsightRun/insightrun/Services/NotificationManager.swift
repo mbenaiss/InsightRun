@@ -25,6 +25,7 @@ class NotificationManager: ObservableObject {
     private let readinessMinuteKey = "com.insightrun.readinessMinute"
     private let lastOvertrainingAlertKey = "com.insightrun.lastOvertrainingAlert"
     private let lastInactivityReminderKey = "com.insightrun.lastInactivityReminder"
+    private let lastLowReadinessAlertKey = "com.insightrun.lastLowReadinessAlert"
     private let throttleInterval: TimeInterval = 24 * 60 * 60 // 24 hours
 
     private let defaultFallbackHour = 9
@@ -76,6 +77,12 @@ class NotificationManager: ObservableObject {
             return
         }
 
+        // Set enabled state immediately so wake-up reschedule doesn't race this call.
+        isDailyReadinessEnabled = true
+        userDefaults.set(true, forKey: dailyReadinessKey)
+        userDefaults.set(hour, forKey: readinessHourKey)
+        userDefaults.set(minute, forKey: readinessMinuteKey)
+
         let center = UNUserNotificationCenter.current()
 
         // Remove existing daily readiness notifications
@@ -103,14 +110,11 @@ class NotificationManager: ObservableObject {
                 try await center.add(request)
                 print("✅ NotificationManager: Daily readiness scheduled at \(hour):\(minute)")
             } catch {
+                isDailyReadinessEnabled = false
+                userDefaults.set(false, forKey: dailyReadinessKey)
                 print("❌ NotificationManager: Failed to schedule daily readiness: \(error)")
             }
         }
-
-        isDailyReadinessEnabled = true
-        userDefaults.set(true, forKey: dailyReadinessKey)
-        userDefaults.set(hour, forKey: readinessHourKey)
-        userDefaults.set(minute, forKey: readinessMinuteKey)
     }
 
     /// Update daily readiness time based on average wake-up time from HealthKit
@@ -187,14 +191,13 @@ class NotificationManager: ObservableObject {
         Task {
             do {
                 try await center.add(request)
+                isWeeklySummaryEnabled = true
+                userDefaults.set(true, forKey: weeklySummaryKey)
                 print("✅ NotificationManager: Weekly summary scheduled")
             } catch {
                 print("❌ NotificationManager: Failed to schedule weekly summary: \(error)")
             }
         }
-
-        isWeeklySummaryEnabled = true
-        userDefaults.set(true, forKey: weeklySummaryKey)
     }
 
     /// Cancel weekly summary notifications
@@ -273,9 +276,13 @@ class NotificationManager: ObservableObject {
         }
     }
 
-    /// Send low readiness notification
+    /// Send low readiness notification (throttled to once per 24h)
     func sendLowReadinessAlert(score: Int, reason: String) {
         guard isNotificationsEnabled else { return }
+        guard !isThrottled(key: lastLowReadinessAlertKey) else {
+            print("⏱️ NotificationManager: Low readiness alert throttled (24h)")
+            return
+        }
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Rest Day Recommended 😴", comment: "Low readiness notification title")
@@ -295,6 +302,7 @@ class NotificationManager: ObservableObject {
         Task {
             do {
                 try await UNUserNotificationCenter.current().add(request)
+                self.markSent(key: self.lastLowReadinessAlertKey)
             } catch {
                 print("❌ NotificationManager: Failed to send low readiness alert: \(error)")
             }

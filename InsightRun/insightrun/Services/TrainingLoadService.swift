@@ -46,14 +46,14 @@ class TrainingLoadService: ObservableObject {
             let today = Date()
 
             // This week's range (Monday to today)
-            let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+            guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) else { return }
             let thisWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: weekStart, to: today)
             let thisWeekVolume = thisWeekWorkouts.compactMap { $0.distance }.reduce(0, +)
 
             // Previous week's range (same days of the week for fair comparison)
-            let prevWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart)!
+            guard let prevWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart) else { return }
             let daysIntoWeek = calendar.component(.weekday, from: today) - calendar.component(.weekday, from: weekStart)
-            let prevWeekEnd = calendar.date(byAdding: .day, value: daysIntoWeek, to: prevWeekStart)!
+            guard let prevWeekEnd = calendar.date(byAdding: .day, value: daysIntoWeek, to: prevWeekStart) else { return }
             let prevWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: prevWeekStart, to: prevWeekEnd)
             let prevWeekVolume = prevWeekWorkouts.compactMap { $0.distance }.reduce(0, +)
 
@@ -77,7 +77,7 @@ class TrainingLoadService: ObservableObject {
     private func checkInactivity() async {
         do {
             let calendar = Calendar.current
-            let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
+            guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date()) else { return }
             let workouts = try await healthKitManager.fetchRunningWorkouts(from: thirtyDaysAgo, to: Date())
 
             if let lastWorkout = workouts.first {

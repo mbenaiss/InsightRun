@@ -55,35 +55,6 @@ const AGENT_FUNCTIONS = [
       required: ['workoutType', 'duration'],
     },
   },
-  {
-    name: 'analyze_trend',
-    description:
-      'Analyze a specific trend in the user data like pace progression, heart rate patterns, or training load. Use this when the user asks about trends or patterns.',
-    parameters: {
-      type: 'object',
-      properties: {
-        metric: {
-          type: 'string',
-          enum: [
-            'pace',
-            'heart_rate',
-            'distance',
-            'cadence',
-            'vo2max',
-            'training_load',
-            'recovery',
-          ],
-          description: 'The metric to analyze',
-        },
-        period: {
-          type: 'string',
-          enum: ['week', 'month', 'quarter', 'year'],
-          description: 'Time period for the analysis',
-        },
-      },
-      required: ['metric', 'period'],
-    },
-  },
 ]
 
 interface AgentChatRequest {
@@ -105,14 +76,18 @@ interface OpenRouterResponse {
   choices: Array<{
     message?: {
       content?: string
-      function_call?: FunctionCall
+      tool_calls?: Array<{
+        function: FunctionCall
+      }>
     }
     delta?: {
       content?: string
-      function_call?: {
-        name?: string
-        arguments?: string
-      }
+      tool_calls?: Array<{
+        function?: {
+          name?: string
+          arguments?: string
+        }
+      }>
     }
   }>
   usage?: {
@@ -141,12 +116,10 @@ You are now operating in AGENT MODE. In addition to providing advice, you can ta
 ## Available Actions
 
 1. **generate_workout** - Create a structured workout when the user asks for a specific training session
-2. **analyze_trend** - Deep dive into performance metrics when the user asks about patterns
 
 ## When to Use Functions
 
 - User asks to "create", "generate", "plan", or "build" a workout → use generate_workout
-- User asks about "trends", "patterns", "progress", or "evolution" → use analyze_trend
 
 ## Response Guidelines for Agent Mode
 
@@ -195,20 +168,6 @@ function processFunctionCall(functionCall: FunctionCall): {
       return {
         result: workout,
         displayMessage: `Generated a ${workoutArgs.workoutType.replace('_', ' ')} workout (${workoutArgs.duration} min)`,
-      }
-    }
-
-    case 'analyze_trend': {
-      const analysis = {
-        metric: args.metric,
-        period: args.period,
-        trend: 'improving', // Placeholder - would be calculated from data
-        percentageChange: 5.2,
-        insights: [`Your ${args.metric} has been improving over the last ${args.period}`],
-      }
-      return {
-        result: analysis,
-        displayMessage: `Analyzed ${args.metric} trend over the last ${args.period}`,
       }
     }
 
@@ -301,6 +260,10 @@ app.post('/chat', async (c) => {
       )
     }
 
+    if (typeof body.data !== 'object' || body.data === null || Array.isArray(body.data)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid data format' }, 400)
+    }
+
     if (body.userQuestion.length > MAX_PROMPT_LENGTH) {
       return c.json(
         {
@@ -329,13 +292,19 @@ app.post('/chat', async (c) => {
 
     // Add conversation history if provided
     if (body.conversationHistory) {
+      let totalChars = 0
+      const MAX_HISTORY_CHARS = 20_000
       const validHistory = body.conversationHistory
-        .slice(-50)
-        .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+        .slice(-20)
+        .filter((msg) => msg.role === 'user')
         .map((msg) => ({
           ...msg,
           content: typeof msg.content === 'string' ? msg.content.slice(0, MAX_PROMPT_LENGTH) : '',
         }))
+        .filter((msg) => {
+          totalChars += msg.content.length
+          return totalChars <= MAX_HISTORY_CHARS
+        })
       messages.push(...validHistory)
     }
 
@@ -355,8 +324,8 @@ app.post('/chat', async (c) => {
         messages,
         max_tokens: MAX_TOKENS,
         temperature: AI_TEMPERATURE,
-        functions: AGENT_FUNCTIONS,
-        function_call: 'auto',
+        tools: AGENT_FUNCTIONS.map((fn) => ({ type: 'function' as const, function: fn })),
+        tool_choice: 'auto',
         stream: true,
       }),
     })
@@ -450,13 +419,14 @@ app.post('/chat', async (c) => {
                   const json: OpenRouterResponse = JSON.parse(dataStr)
                   const choice = json.choices?.[0]
 
-                  // Handle function calls
-                  if (choice?.delta?.function_call) {
-                    if (choice.delta.function_call.name) {
-                      functionCall = { name: choice.delta.function_call.name, arguments: '' }
+                  // Handle tool calls
+                  const toolCall = choice?.delta?.tool_calls?.[0]
+                  if (toolCall?.function) {
+                    if (toolCall.function.name) {
+                      functionCall = { name: toolCall.function.name, arguments: '' }
                     }
-                    if (choice.delta.function_call.arguments && functionCall) {
-                      functionCall.arguments += choice.delta.function_call.arguments
+                    if (toolCall.function.arguments && functionCall) {
+                      functionCall.arguments += toolCall.function.arguments
                     }
                   }
 

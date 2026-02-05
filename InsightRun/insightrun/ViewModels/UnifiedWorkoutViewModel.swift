@@ -397,7 +397,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
         let grouped = Dictionary(grouping: unifiedWorkouts) { workout -> String in
             let formatter = DateFormatter()
             formatter.dateFormat = "MMMM yyyy"
-            formatter.locale = Locale(identifier: "fr_FR")
+            formatter.locale = Locale.current
             return formatter.string(from: workout.startDate).capitalized
         }
 

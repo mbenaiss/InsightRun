@@ -10,7 +10,7 @@ import SwiftUI
 
 struct FloatingAIButton: View {
     @Binding var showingAIAssistant: Bool
-    @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
+    @StateObject private var contextProvider = UnifiedAIContextProvider.shared
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @State private var isLoading = false
 
@@ -58,10 +58,8 @@ struct FloatingAIButton: View {
             await contextProvider.loadAllData()
         }
 
-        await MainActor.run {
-            isLoading = false
-            showingAIAssistant = true
-        }
+        isLoading = false
+        showingAIAssistant = true
     }
 }
 

@@ -490,14 +490,14 @@ struct SettingsView: View {
                     HStack {
                         Text(String(localized: "Version", comment: "Label for app version"))
                         Spacer()
-                        Text("1.0.0")
+                        Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A")
                             .foregroundStyle(.secondary)
                     }
 
                     HStack {
                         Text(String(localized: "Build", comment: "Label for app build number"))
                         Spacer()
-                        Text("1")
+                        Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A")
                             .foregroundStyle(.secondary)
                     }
                 } header: {

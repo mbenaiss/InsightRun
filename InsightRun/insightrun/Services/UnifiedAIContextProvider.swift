@@ -62,7 +62,7 @@ class UnifiedAIContextProvider: ObservableObject {
 
         do {
             let calendar = Calendar.current
-            let startOfYear = calendar.date(from: calendar.dateComponents([.year], from: Date()))!
+            guard let startOfYear = calendar.date(from: calendar.dateComponents([.year], from: Date())) else { return }
             let workouts = try await healthKitManager.fetchRunningWorkouts(from: startOfYear, to: Date())
 
             // Take last 10 workouts

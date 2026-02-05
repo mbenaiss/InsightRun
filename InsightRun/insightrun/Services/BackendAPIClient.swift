@@ -564,12 +564,6 @@ class BackendAPIClient {
         return readinessResponse
     }
 
-    // MARK: - Configuration
-
-    func setBaseURL(_ url: String) {
-        // Pour changer l'URL après déploiement
-        // BackendAPIClient.shared.setBaseURL("https://insightrun-backend.YOUR_SUBDOMAIN.workers.dev")
-    }
 }
 
 // MARK: - Models

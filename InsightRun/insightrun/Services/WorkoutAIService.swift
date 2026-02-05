@@ -220,7 +220,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             print("❌ WorkoutAIService: Unexpected error: \(error)")
 
             await MainActor.run {
-                self.error = "❌ Erreur: \(error.localizedDescription)"
+                self.error = String(localized: "❌ Error: \(error.localizedDescription)", comment: "AI service error message")
                 self.isStreaming = false
                 self.streamedResponse = ""
             }
@@ -353,12 +353,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             )
         case .unified:
             // Unified mode - load all data from UnifiedAIContextProvider
-            let contextProvider = await MainActor.run { UnifiedAIContextProvider.shared }
-            let workouts = await MainActor.run { contextProvider.recentWorkouts }
-            let metricsDict = await MainActor.run { contextProvider.workoutsMetrics }
-            let recoveryMetrics = await MainActor.run { contextProvider.recoveryMetrics }
-            let selectedWorkout = await MainActor.run { contextProvider.selectedWorkout }
-            let selectedMetrics = await MainActor.run { contextProvider.selectedWorkoutMetrics }
+            let (workouts, metricsDict, recoveryMetrics, selectedWorkout, selectedMetrics) = await MainActor.run {
+                let cp = UnifiedAIContextProvider.shared
+                return (cp.recentWorkouts, cp.workoutsMetrics, cp.recoveryMetrics, cp.selectedWorkout, cp.selectedWorkoutMetrics)
+            }
 
             print("📊 WorkoutAIService: Unified mode - \(workouts.count) workouts, recovery: \(recoveryMetrics != nil)")
 

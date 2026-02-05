@@ -16,12 +16,15 @@ struct OnboardingView: View {
 
     // Number of onboarding steps depends on Strava feature flag
     private var totalSteps: Int {
-        remoteConfig.isFeatureEnabled(.strava) ? 4 : 3 // 4 with Strava, 3 without
+        remoteConfig.isFeatureEnabled(.strava) ? 5 : 4
     }
+
+    // Strava step tag (only used when Strava is enabled)
+    private var stravaStepTag: Int { 3 }
 
     // Paywall step tag depends on whether Strava is enabled
     private var paywallStepTag: Int {
-        remoteConfig.isFeatureEnabled(.strava) ? 3 : 2
+        remoteConfig.isFeatureEnabled(.strava) ? 4 : 3
     }
 
     var body: some View {
@@ -45,29 +48,37 @@ struct OnboardingView: View {
                 HealthKitPermissionStepView(onContinue: {
                     AnalyticsService.shared.trackOnboardingStepCompleted(step: 2, stepName: "healthkit_permission")
                     withAnimation {
-                        // Skip to paywall if Strava is disabled
-                        currentStep = remoteConfig.isFeatureEnabled(.strava) ? 2 : paywallStepTag
+                        currentStep = 2
                     }
                 })
                 .tag(1)
 
-                // Step 3: Strava Connection (only if enabled)
+                // Step 3: Notification Permission
+                NotificationPermissionStepView(onContinue: {
+                    AnalyticsService.shared.trackOnboardingStepCompleted(step: 3, stepName: "notification_permission")
+                    withAnimation {
+                        currentStep = remoteConfig.isFeatureEnabled(.strava) ? stravaStepTag : paywallStepTag
+                    }
+                })
+                .tag(2)
+
+                // Step 4: Strava Connection (only if enabled)
                 if remoteConfig.isFeatureEnabled(.strava) {
                     StravaConnectionStepView(onContinue: {
-                        AnalyticsService.shared.trackOnboardingStepCompleted(step: 3, stepName: "strava_connection")
+                        AnalyticsService.shared.trackOnboardingStepCompleted(step: 4, stepName: "strava_connection")
                         withAnimation {
                             currentStep = paywallStepTag
                         }
                     })
-                    .tag(2)
+                    .tag(stravaStepTag)
                 }
 
                 // Paywall (always present for stability)
                 PaywallStepView(onContinue: {
-                    let stepNumber = remoteConfig.isFeatureEnabled(.strava) ? 4 : 3
+                    let stepNumber = remoteConfig.isFeatureEnabled(.strava) ? 5 : 4
                     AnalyticsService.shared.trackOnboardingStepCompleted(step: stepNumber, stepName: "paywall")
                     completeOnboarding()
-                })
+                }, stepNumber: remoteConfig.isFeatureEnabled(.strava) ? 5 : 4)
                 .tag(paywallStepTag)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))

@@ -15,6 +15,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     @Published var streamedResponse = ""
     @Published var error: String?
     @Published var suggestedQuestions: [String] = []
+    @Published var lastFunctionResult: BackendAPIClient.AgentFunctionResult?
 
     // Backend API client (sécurisé)
     private let backendClient = BackendAPIClient.shared
@@ -141,6 +142,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             self.streamedResponse = ""
             self.error = nil
             self.suggestedQuestions = []
+            self.lastFunctionResult = nil
         }
 
         // Use ModelRouter to classify complexity and get RequestType
@@ -155,35 +157,37 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode) async {
         do {
-            // Show a message while waiting for response
             await MainActor.run {
                 self.streamedResponse = String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server")
             }
 
-            // Build payload from mode data
-            let payload = await buildChatPayload(question: question, requestType: requestType, mode: mode)
+            let payload = await buildAgentPayload(question: question, mode: mode)
+            let stream = try await backendClient.agentChatStream(payload: payload)
 
-            // Use new API v2 with streaming
-            let stream = try await backendClient.chatStreamV2(payload: payload)
-
-            // Stream content as it arrives
-            for await chunk in stream {
+            for try await event in stream {
                 await MainActor.run {
-                    // Clear "connecting" message on first chunk
-                    if self.streamedResponse == String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server") {
-                        self.streamedResponse = ""
-                    }
+                    switch event {
+                    case .content(let chunk):
+                        if self.streamedResponse == String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server") {
+                            self.streamedResponse = ""
+                        }
+                        self.streamedResponse += chunk
 
-                    // Append chunk to streamed response
-                    self.streamedResponse += chunk
+                    case .functionResult(let result):
+                        self.lastFunctionResult = result
+                        if self.streamedResponse == String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server") {
+                            self.streamedResponse = ""
+                        }
+                    }
                 }
             }
 
             await MainActor.run {
                 self.isStreaming = false
-                if !self.streamedResponse.isEmpty {
+                if !self.streamedResponse.isEmpty || self.lastFunctionResult != nil {
                     self.lastResponse = self.streamedResponse
                     self.generateContextualSuggestions()
+                    RevenueCatManager.shared.incrementFreeRequestCount()
                 }
             }
 
@@ -216,7 +220,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             print("❌ WorkoutAIService: Unexpected error: \(error)")
 
             await MainActor.run {
-                self.error = "❌ Erreur: \(error.localizedDescription)"
+                self.error = String(localized: "❌ Error: \(error.localizedDescription)", comment: "AI service error message")
                 self.isStreaming = false
                 self.streamedResponse = ""
             }
@@ -232,6 +236,18 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         // Map to supported language codes
         let supportedLanguages = ["fr", "en", "es", "de", "it", "pt", "nl", "ja", "zh", "ko", "ar"]
         return supportedLanguages.contains(preferredLanguage) ? preferredLanguage : "en"
+    }
+
+    private func buildAgentPayload(question: String, mode: AIAssistantMode) async -> AgentChatRequest {
+        let chatPayload = await buildChatPayload(question: question, requestType: .complex, mode: mode)
+        let detectedLanguage = detectLanguage(from: question)
+
+        return AgentChatRequest(
+            userQuestion: question,
+            language: detectedLanguage,
+            data: chatPayload.data,
+            conversationHistory: nil
+        )
     }
 
     private func buildChatPayload(question: String, requestType: RequestType, mode: AIAssistantMode) async -> ChatRequestV2 {
@@ -251,6 +267,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     return .workout
                 case .recoveryCoaching:
                     return .recovery
+                case .unified:
+                    return .workout // Unified mode covers all contexts
                 }
             }()
             await MainActor.run {
@@ -258,21 +276,35 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             }
         }
 
+        // Load health profile for personalized coaching
+        let healthProfile = await loadHealthProfile()
+        if healthProfile != nil {
+            print("✅ WorkoutAIService: Health profile loaded")
+        }
+
+        // Load personal baseline for deviation-based analysis
+        let personalBaseline = loadPersonalBaseline()
+        if let baseline = personalBaseline {
+            print("✅ WorkoutAIService: Personal baseline loaded (\(baseline.dataPointCount) days, reliable: \(baseline.isReliable))")
+        }
+
         var chatData = ChatDataPayload(
             workout: nil,
             recovery: nil,
-            profile: nil,
+            profile: healthProfile,
+            baseline: personalBaseline,
             recentWorkouts: nil,
             historicalSummary: historicalSummary?.summary
         )
 
-        // Extract data from mode
+        // Extract data from mode (always keep profile and baseline)
         switch mode {
         case .singleWorkout(let workout, let metrics):
             chatData = ChatDataPayload(
                 workout: convertToWorkoutData(workout: workout, metrics: metrics),
                 recovery: nil,
-                profile: nil,
+                profile: healthProfile,
+                baseline: personalBaseline,
                 recentWorkouts: nil,
                 historicalSummary: historicalSummary?.summary
             )
@@ -294,7 +326,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             chatData = ChatDataPayload(
                 workout: nil,
                 recovery: nil,
-                profile: nil,
+                profile: healthProfile,
+                baseline: personalBaseline,
                 recentWorkouts: RecentWorkoutsData(
                     workouts: recentWorkouts.map { workout in
                         let metrics = metricsDict[workout.id]
@@ -313,8 +346,60 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             chatData = ChatDataPayload(
                 workout: nil,
                 recovery: convertToRecoveryData(metrics: recoveryMetrics),
-                profile: nil,
+                profile: healthProfile,
+                baseline: personalBaseline,
                 recentWorkouts: nil,
+                historicalSummary: historicalSummary?.summary
+            )
+        case .unified:
+            // Unified mode - load all data from UnifiedAIContextProvider
+            let (workouts, metricsDict, recoveryMetrics, selectedWorkout, selectedMetrics) = await MainActor.run {
+                let cp = UnifiedAIContextProvider.shared
+                return (cp.recentWorkouts, cp.workoutsMetrics, cp.recoveryMetrics, cp.selectedWorkout, cp.selectedWorkoutMetrics)
+            }
+
+            print("📊 WorkoutAIService: Unified mode - \(workouts.count) workouts, recovery: \(recoveryMetrics != nil)")
+
+            // Build recovery data if available
+            var recoveryData: RecoveryData? = nil
+            if let recovery = recoveryMetrics {
+                recoveryData = convertToRecoveryData(metrics: recovery)
+            }
+
+            // Build workouts data
+            var recentWorkoutsData: RecentWorkoutsData? = nil
+            if !workouts.isEmpty {
+                let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
+                let totalDuration = workouts.map { $0.duration }.reduce(0, +)
+                let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
+                let avgPace = calculateAveragePace(workouts: workouts) ?? 0
+
+                recentWorkoutsData = RecentWorkoutsData(
+                    workouts: workouts.map { workout in
+                        let metrics = metricsDict[workout.id]
+                        return convertToWorkoutData(workout: workout, metrics: metrics)
+                    },
+                    totalDistance: totalDistance,
+                    totalDuration: totalDuration,
+                    totalCalories: totalCalories,
+                    avgPace: avgPace,
+                    weeklyVolumeChange: nil,
+                    daysSinceLastWorkout: nil
+                )
+            }
+
+            // Build selected workout data if viewing workout detail
+            var selectedWorkoutData: WorkoutData? = nil
+            if let workout = selectedWorkout {
+                selectedWorkoutData = convertToWorkoutData(workout: workout, metrics: selectedMetrics)
+            }
+
+            chatData = ChatDataPayload(
+                workout: selectedWorkoutData,
+                recovery: recoveryData,
+                profile: healthProfile,
+                baseline: personalBaseline,
+                recentWorkouts: recentWorkoutsData,
                 historicalSummary: historicalSummary?.summary
             )
         }
@@ -471,5 +556,49 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         let paces = workouts.compactMap { $0.averagePace }
         guard !paces.isEmpty else { return nil }
         return paces.reduce(0, +) / Double(paces.count)
+    }
+
+    // MARK: - Profile & Baseline Loading
+
+    /// Load health profile from HealthKit for personalized coaching
+    private func loadHealthProfile() async -> HealthProfileData? {
+        do {
+            let profile = try await MainActor.run {
+                HealthKitManager.shared
+            }.fetchHealthProfile()
+
+            return HealthProfileData(
+                age: profile.age,
+                sex: profile.biologicalSex?.rawValue == 1 ? "Female" : profile.biologicalSex?.rawValue == 2 ? "Male" : nil,
+                bodyMass: profile.bodyMass,
+                bodyFatPercentage: profile.bodyFatPercentage,
+                exerciseTime: profile.exerciseTime.map { Int($0) },
+                cyclingDistance: profile.cyclingDistance,
+                swimmingDistance: profile.swimmingDistance
+            )
+        } catch {
+            print("⚠️ WorkoutAIService: Failed to load health profile: \(error)")
+            return nil
+        }
+    }
+
+    /// Load personal baseline from storage for deviation-based analysis
+    private func loadPersonalBaseline() -> PersonalBaselineData? {
+        guard let baseline = PersonalBaselineStorage.shared.load() else {
+            return nil
+        }
+
+        return PersonalBaselineData(
+            restingHeartRateAverage: baseline.restingHeartRateAverage,
+            restingHeartRateStdDev: baseline.restingHeartRateStdDev,
+            hrvAverage: baseline.hrvAverage,
+            hrvStdDev: baseline.hrvStdDev,
+            sleepDurationAverage: baseline.sleepDurationAverage,
+            sleepEfficiencyAverage: baseline.sleepEfficiencyAverage,
+            respiratoryRateAverage: baseline.respiratoryRateAverage,
+            respiratoryRateStdDev: baseline.respiratoryRateStdDev,
+            dataPointCount: baseline.dataPointCount,
+            isReliable: baseline.isReliable
+        )
     }
 }

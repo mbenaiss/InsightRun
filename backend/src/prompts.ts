@@ -1,6 +1,7 @@
 import type {
   ChatDataPayload,
   HealthProfileData,
+  PersonalBaselineData,
   RecentWorkoutsData,
   RecoveryData,
   WorkoutData,
@@ -294,6 +295,50 @@ function buildHealthProfileContext(profile: HealthProfileData): string {
   return context
 }
 
+// Build personal baseline context for comparison
+function buildBaselineContext(baseline: PersonalBaselineData): string {
+  let context = `# 📈 Personal Baseline (Your Normal Values)\n\n`
+
+  context += `**Data Quality:** ${baseline.isReliable ? `✅ Reliable (${baseline.dataPointCount} days)` : `⚠️ Building (${baseline.dataPointCount}/7 days needed)`}\n\n`
+
+  if (baseline.restingHeartRateAverage) {
+    context += `- Your Normal Resting HR: ${Math.round(baseline.restingHeartRateAverage)} bpm`
+    if (baseline.restingHeartRateStdDev) {
+      context += ` (±${baseline.restingHeartRateStdDev.toFixed(1)} bpm)`
+    }
+    context += `\n`
+  }
+
+  if (baseline.hrvAverage) {
+    context += `- Your Normal HRV: ${Math.round(baseline.hrvAverage)} ms`
+    if (baseline.hrvStdDev) {
+      context += ` (±${baseline.hrvStdDev.toFixed(1)} ms)`
+    }
+    context += `\n`
+  }
+
+  if (baseline.sleepDurationAverage) {
+    const hours = baseline.sleepDurationAverage / 3600
+    context += `- Your Normal Sleep: ${hours.toFixed(1)}h`
+    if (baseline.sleepEfficiencyAverage) {
+      context += ` (${Math.round(baseline.sleepEfficiencyAverage)}% efficiency)`
+    }
+    context += `\n`
+  }
+
+  if (baseline.respiratoryRateAverage) {
+    context += `- Your Normal Respiratory Rate: ${baseline.respiratoryRateAverage.toFixed(1)} breaths/min`
+    if (baseline.respiratoryRateStdDev) {
+      context += ` (±${baseline.respiratoryRateStdDev.toFixed(1)})`
+    }
+    context += `\n`
+  }
+
+  context += `\n**IMPORTANT:** Always compare today's metrics to these personal baseline values. A deviation of more than 1-2 standard deviations is significant.\n`
+
+  return context
+}
+
 // Format helpers
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
@@ -329,7 +374,19 @@ Analyze comprehensive health and workout data to provide actionable insights tha
 # Available Data Context
 `
 
-  // Add historical summary first (if available) - provides long-term context
+  // Add health profile context FIRST - most important for personalization
+  if (data.profile) {
+    systemPrompt += buildHealthProfileContext(data.profile)
+    systemPrompt += `\n`
+  }
+
+  // Add personal baseline context - critical for deviation-based analysis
+  if (data.baseline) {
+    systemPrompt += buildBaselineContext(data.baseline)
+    systemPrompt += `\n`
+  }
+
+  // Add historical summary (if available) - provides long-term context
   if (data.historicalSummary) {
     systemPrompt += `# 📚 Historical Training Profile (Complete Analysis)\n\n`
     systemPrompt += data.historicalSummary
@@ -354,12 +411,6 @@ Analyze comprehensive health and workout data to provide actionable insights tha
     systemPrompt += `\n`
   }
 
-  // Add health profile context if available
-  if (data.profile) {
-    systemPrompt += buildHealthProfileContext(data.profile)
-    systemPrompt += `\n`
-  }
-
   // Add the analysis framework (same as in iOS)
   systemPrompt += `
 # Analysis Framework
@@ -368,9 +419,15 @@ Analyze comprehensive health and workout data to provide actionable insights tha
 When asked about readiness or daily recommendations, calculate a score based on:
 - **Sleep Quality** (7-9h = optimal, <6h = red flag)
 - **Resting Heart Rate** (lower = better recovery, +5-10 bpm above baseline = warning)
-- **HRV (Heart Rate Variability)** (higher = better, <30ms = fatigue)
+- **HRV (Heart Rate Variability)** (higher = better, compare to personal baseline)
 - **Training Load** (days since last hard workout, cumulative weekly volume)
 - **Soreness/Pain** (if mentioned by user)
+
+**CRITICAL: Use Personal Baseline for Comparison**
+If personal baseline data is available, ALWAYS compare today's metrics to the user's normal values:
+- "Your HRV is 35ms, which is 20% below your usual 44ms - this indicates fatigue"
+- "Your resting HR of 62 bpm is within your normal range (58-64 bpm)"
+- "At 45 years old with your weight of 78kg, your pace of 5:30/km is excellent"
 
 **Score Interpretation:**
 - 85-100 ✅ "Perfect for intense training" - Long run, intervals, tempo

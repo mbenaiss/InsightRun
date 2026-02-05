@@ -57,6 +57,20 @@ export const healthProfileDataSchema = z.object({
   swimmingDistance: z.number().nonnegative().optional(),
 })
 
+// Zod schema for PersonalBaselineData
+export const personalBaselineDataSchema = z.object({
+  restingHeartRateAverage: z.number().positive().optional(),
+  restingHeartRateStdDev: z.number().nonnegative().optional(),
+  hrvAverage: z.number().positive().optional(),
+  hrvStdDev: z.number().nonnegative().optional(),
+  sleepDurationAverage: z.number().nonnegative().optional(),
+  sleepEfficiencyAverage: z.number().min(0).max(100).optional(),
+  respiratoryRateAverage: z.number().positive().optional(),
+  respiratoryRateStdDev: z.number().nonnegative().optional(),
+  dataPointCount: z.number().int().nonnegative(),
+  isReliable: z.boolean(),
+})
+
 export interface WorkoutData {
   date: string
   duration: number
@@ -115,6 +129,19 @@ export interface HealthProfileData {
   swimmingDistance?: number
 }
 
+export interface PersonalBaselineData {
+  restingHeartRateAverage?: number
+  restingHeartRateStdDev?: number
+  hrvAverage?: number
+  hrvStdDev?: number
+  sleepDurationAverage?: number // in seconds
+  sleepEfficiencyAverage?: number // percentage
+  respiratoryRateAverage?: number
+  respiratoryRateStdDev?: number
+  dataPointCount: number
+  isReliable: boolean // true when dataPointCount >= 7
+}
+
 export interface RecentWorkoutsData {
   workouts: WorkoutData[]
   totalDistance: number
@@ -129,6 +156,7 @@ export interface ChatDataPayload {
   workout?: WorkoutData
   recovery?: RecoveryData
   profile?: HealthProfileData
+  baseline?: PersonalBaselineData
   recentWorkouts?: RecentWorkoutsData
   historicalSummary?: string // One-time deep analysis summary
 }

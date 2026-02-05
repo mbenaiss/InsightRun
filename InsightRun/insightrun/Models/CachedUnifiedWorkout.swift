@@ -13,7 +13,7 @@ import HealthKit
 @Model
 class CachedUnifiedWorkout {
     @Attribute(.unique) var id: String
-    var source: String  // "HealthKit", "Strava", "Suunto", "Merged"
+    var source: String  // "healthKit", "strava", "merged"
     var startDate: Date
     var endDate: Date
     var duration: TimeInterval
@@ -34,7 +34,7 @@ class CachedUnifiedWorkout {
     var healthKitWorkoutId: String?
     var stravaActivityId: Int64?
 
-    // Original source name for badge display (e.g., "Apple Watch", "Strava", "Suunto")
+    // Original source name for display (e.g., "Apple Watch", "Suunto Run")
     var originalSourceName: String?
 
     init(from unified: UnifiedWorkout) {
@@ -60,7 +60,7 @@ class CachedUnifiedWorkout {
         self.healthKitWorkoutId = unified.healthKitWorkout?.id.uuidString
         self.stravaActivityId = unified.stravaActivity?.id
 
-        // Store original source name for badge display
+        // Store original source name for display (e.g., "Apple Watch", "Suunto Run")
         self.originalSourceName = unified.sourceName
     }
 
@@ -69,8 +69,7 @@ class CachedUnifiedWorkout {
     // The original WorkoutModel/StravaActivity objects are NOT preserved
     func toUnifiedWorkout() -> UnifiedWorkout {
         // Reconstruct based on original source type
-        // Support both new (capitalized) and legacy (lowercase) source values
-        switch source.lowercased() {
+        switch source {
         case "strava":
             // Create minimal StravaActivity for Strava-only workouts
             let stravaId = stravaActivityId ?? Int64(id.hashValue)
@@ -93,32 +92,11 @@ class CachedUnifiedWorkout {
             )
             return UnifiedWorkout(from: stravaActivity)
 
-        case "suunto":
-            // Create WorkoutModel for imported Suunto workouts
-            // Show "I" for Import badge by using "Import" as source name
-            let workoutId = UUID(uuidString: id) ?? UUID()
-            let suuntoWorkout = WorkoutModel(
-                id: workoutId,
-                workoutType: .running,
-                startDate: startDate,
-                endDate: endDate,
-                duration: duration,
-                distance: distance,
-                totalEnergyBurned: totalEnergyBurned,
-                sourceName: "Import",
-                sourceVersion: "FIT",
-                metadata: nil,
-                averageHeartRate: averageHeartRate,
-                maxHeartRate: maxHeartRate,
-                elevationGain: totalElevationGain,
-                hasRoute: hasRoute
-            )
-            return UnifiedWorkout(from: suuntoWorkout)
-
-        case "healthkit", "merged":
+        case "healthKit", "merged":
             // Create minimal WorkoutModel for HealthKit or merged workouts
-            // Use original source name (e.g., "Apple Watch", "Garmin", "Polar")
+            // Use originalSourceName to preserve the device name (e.g., "Apple Watch")
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
+            let displaySourceName = originalSourceName ?? "Apple Watch"
             let fallbackWorkout = WorkoutModel(
                 id: workoutId,
                 workoutType: .running,
@@ -127,7 +105,7 @@ class CachedUnifiedWorkout {
                 duration: duration,
                 distance: distance,
                 totalEnergyBurned: totalEnergyBurned,
-                sourceName: originalSourceName ?? "Apple Watch",
+                sourceName: displaySourceName,
                 sourceVersion: "Cached",
                 metadata: nil,
                 averageHeartRate: averageHeartRate,
@@ -138,8 +116,9 @@ class CachedUnifiedWorkout {
             return UnifiedWorkout(from: fallbackWorkout)
 
         default:
-            // Unknown source, use original source name if available
+            // Unknown source, use originalSourceName if available
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
+            let displaySourceName = originalSourceName ?? "Apple Watch"
             let fallbackWorkout = WorkoutModel(
                 id: workoutId,
                 workoutType: .running,
@@ -148,7 +127,7 @@ class CachedUnifiedWorkout {
                 duration: duration,
                 distance: distance,
                 totalEnergyBurned: totalEnergyBurned,
-                sourceName: originalSourceName ?? source,
+                sourceName: displaySourceName,
                 sourceVersion: "Cached",
                 metadata: nil,
                 averageHeartRate: averageHeartRate,

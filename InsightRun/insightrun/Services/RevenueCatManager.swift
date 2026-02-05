@@ -22,6 +22,11 @@ class RevenueCatManager: NSObject, ObservableObject {
     // Track if user has seen the initial paywall after HealthKit authorization
     @Published var hasSeenInitialPaywall: Bool = false
 
+    // Free AI requests tracking (allows 3 free requests before requiring subscription)
+    @Published private(set) var freeAIRequestsUsed: Int = 0
+    private let maxFreeRequests = 3
+    private let freeRequestsKey = "com.insightrun.freeAIRequestsUsed"
+
     // Cache TestFlight environment status
     private var cachedTestFlightStatus: Bool?
 
@@ -32,8 +37,9 @@ class RevenueCatManager: NSObject, ObservableObject {
 
     override private init() {
         super.init()
-        // Load persisted value
+        // Load persisted values
         self.hasSeenInitialPaywall = UserDefaults.standard.bool(forKey: "hasSeenInitialPaywall")
+        self.freeAIRequestsUsed = UserDefaults.standard.integer(forKey: freeRequestsKey)
 
         // Detect TestFlight environment on initialization
         Task {
@@ -90,9 +96,32 @@ class RevenueCatManager: NSObject, ObservableObject {
     }
 
     /// Determines if the user has access to AI features
-    /// Returns true if user is subscribed OR running in TestFlight
+    /// Returns true if user is subscribed, running in TestFlight, OR has free requests remaining
     var hasAIAccess: Bool {
-        return isSubscriptionActive || isTestFlightEnvironment
+        return isSubscriptionActive || isTestFlightEnvironment || hasFreeRequestsRemaining
+    }
+
+    /// Check if user has free AI requests remaining
+    var hasFreeRequestsRemaining: Bool {
+        return freeAIRequestsUsed < maxFreeRequests
+    }
+
+    /// Number of free requests remaining
+    var freeRequestsRemaining: Int {
+        return max(0, maxFreeRequests - freeAIRequestsUsed)
+    }
+
+    /// Increment free AI request counter (call this after each AI request for non-subscribers)
+    func incrementFreeRequestCount() {
+        guard !isSubscriptionActive && !isTestFlightEnvironment else { return }
+        freeAIRequestsUsed += 1
+        UserDefaults.standard.set(freeAIRequestsUsed, forKey: freeRequestsKey)
+    }
+
+    /// Reset free request counter (useful for testing or promotions)
+    func resetFreeRequestCount() {
+        freeAIRequestsUsed = 0
+        UserDefaults.standard.set(0, forKey: freeRequestsKey)
     }
 
     /// Update hasSeenInitialPaywall and persist to UserDefaults

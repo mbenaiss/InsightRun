@@ -13,17 +13,64 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     let role: MessageRole
     let content: String
     let timestamp: Date
+    let functionName: String?
+    let functionResult: Data?
+    let functionMessage: String?
 
     enum MessageRole: String, Codable {
         case user
         case assistant
     }
 
-    init(id: UUID = UUID(), role: MessageRole, content: String, timestamp: Date) {
+    init(id: UUID = UUID(), role: MessageRole, content: String, timestamp: Date, functionName: String? = nil, functionResult: Data? = nil, functionMessage: String? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
+        self.functionName = functionName
+        self.functionResult = functionResult
+        self.functionMessage = functionMessage
+    }
+
+    // MARK: - Codable (backward-compatible)
+
+    enum CodingKeys: String, CodingKey {
+        case id, role, content, timestamp, functionName, functionResult, functionMessage
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        role = try container.decode(MessageRole.self, forKey: .role)
+        content = try container.decode(String.self, forKey: .content)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        functionName = try container.decodeIfPresent(String.self, forKey: .functionName)
+        functionResult = try container.decodeIfPresent(Data.self, forKey: .functionResult)
+        functionMessage = try container.decodeIfPresent(String.self, forKey: .functionMessage)
+    }
+
+    // MARK: - Agent Card Helpers
+
+    var isWorkoutCard: Bool {
+        functionName == "generate_workout" && functionResult != nil
+    }
+
+    var isTrendCard: Bool {
+        functionName == "analyze_trend" && functionResult != nil
+    }
+
+    var workoutResult: AgentWorkoutResult? {
+        guard isWorkoutCard, let data = functionResult else { return nil }
+        return try? JSONDecoder().decode(AgentWorkoutResult.self, from: data)
+    }
+
+    var trendResult: AgentTrendResult? {
+        guard isTrendCard, let data = functionResult else { return nil }
+        return try? JSONDecoder().decode(AgentTrendResult.self, from: data)
+    }
+
+    static func == (lhs: ChatMessage, rhs: ChatMessage) -> Bool {
+        lhs.id == rhs.id && lhs.content == rhs.content && lhs.functionName == rhs.functionName
     }
 }
 
@@ -62,6 +109,7 @@ enum AIAssistantMode {
     case singleWorkout(WorkoutModel, WorkoutMetrics?)
     case recentWorkouts([WorkoutModel], [UUID: WorkoutMetrics]) // Now includes metrics dictionary
     case recoveryCoaching(RecoveryMetrics)
+    case unified // Unified mode - loads all data from UnifiedAIContextProvider
 }
 
 struct WorkoutAIAssistantView: View {
@@ -285,7 +333,8 @@ struct WorkoutAIAssistantView: View {
                 )
                 .font(.title3)
 
-            Text(String(localized: "AI Assistant", comment: "AI assistant header title"))
+            // Show contextual title in unified mode, generic title otherwise
+            Text(headerTitle)
                 .font(.headline)
 
             Spacer()
@@ -392,6 +441,19 @@ struct WorkoutAIAssistantView: View {
         .padding()
     }
 
+    private var headerTitle: String {
+        switch mode {
+        case .singleWorkout:
+            return String(localized: "Workout Analyst", comment: "AI context title for workout detail")
+        case .recentWorkouts:
+            return String(localized: "Training Coach", comment: "AI context title for workouts")
+        case .recoveryCoaching:
+            return String(localized: "Recovery Coach", comment: "AI context title for recovery")
+        case .unified:
+            return UnifiedAIContextProvider.shared.getContextTitle()
+        }
+    }
+
     private var sampleQuestions: [String] {
         switch mode {
         case .singleWorkout:
@@ -418,6 +480,9 @@ struct WorkoutAIAssistantView: View {
                 String(localized: "What type of training is suitable?", comment: "Sample question about suitable training type"),
                 String(localized: "How to optimize my sleep?", comment: "Sample question about sleep optimization")
             ]
+        case .unified:
+            // Use contextual suggestions from UnifiedAIContextProvider
+            return UnifiedAIContextProvider.shared.getSampleQuestions()
         }
     }
 
@@ -593,6 +658,9 @@ struct WorkoutAIAssistantView: View {
             contextType = .workout
         case .recoveryCoaching:
             contextType = .recovery
+        case .unified:
+            // For unified mode, determine context based on current page
+            contextType = UnifiedAIContextProvider.shared.currentPage == .recovery ? .recovery : .workout
         }
         AnalyticsService.shared.trackAIMessageSent(
             messageLength: userQuestion.count,
@@ -628,8 +696,24 @@ struct WorkoutAIAssistantView: View {
                 // Calculate response time
                 let responseTime = messageStartTime.map { Int(Date().timeIntervalSince($0) * 1000) } ?? 0
 
+                // Handle function result — replace streaming message with card message
+                if let funcResult = aiService.lastFunctionResult {
+                    if let streamingId = streamingMessageId,
+                       let index = messages.firstIndex(where: { $0.id == streamingId }) {
+                        messages[index] = ChatMessage(
+                            id: streamingId,
+                            role: .assistant,
+                            content: aiService.streamedResponse.isEmpty ? funcResult.message : aiService.streamedResponse,
+                            timestamp: messages[index].timestamp,
+                            functionName: funcResult.functionName,
+                            functionResult: funcResult.result,
+                            functionMessage: funcResult.message
+                        )
+                    }
+                }
+
                 // Haptic feedback for response completion
-                if aiService.error == nil && !aiService.streamedResponse.isEmpty {
+                if aiService.error == nil && (!aiService.streamedResponse.isEmpty || aiService.lastFunctionResult != nil) {
                     notificationFeedback.notificationOccurred(.success)
 
                     // Track AI response received
@@ -784,6 +868,8 @@ struct WorkoutAIAssistantView: View {
             return "recent_workouts"
         case .recoveryCoaching:
             return "recovery_coaching"
+        case .unified:
+            return "unified"
         }
     }
 }
@@ -802,11 +888,17 @@ struct MessageBubble: View {
 
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
                 if message.role == .assistant {
-                    MarkdownView(message.content)
-                        .padding(12)
-                        .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+                    if let workoutResult = message.workoutResult {
+                        WorkoutCardView(workout: workoutResult, message: message.functionMessage)
+                    } else if let trendResult = message.trendResult {
+                        TrendAnalysisCardView(trend: trendResult, message: message.functionMessage)
+                    } else {
+                        MarkdownView(message.content)
+                            .padding(12)
+                            .background(Color.irCardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+                    }
                 } else {
                     Text(message.content)
                         .font(.body)
@@ -1049,6 +1141,8 @@ struct ConversationHistoryRow: View {
             return "chart.line.uptrend.xyaxis"
         case "recovery_coaching":
             return "heart.text.square"
+        case "unified":
+            return "sparkles"
         default:
             return "sparkles"
         }

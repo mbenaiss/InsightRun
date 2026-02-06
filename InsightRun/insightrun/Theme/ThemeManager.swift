@@ -57,24 +57,21 @@ class ThemeManager {
     }
 
     init() {
-        // Load saved theme or default to system
-        if let savedTheme = UserDefaults.standard.string(forKey: "selectedTheme"),
-           let theme = AppTheme(rawValue: savedTheme) {
-            self.selectedTheme = theme
-        } else {
-            // Migration: handle old French rawValues
-            if let oldSaved = UserDefaults.standard.string(forKey: "selectedTheme") {
-                switch oldSaved {
+        if let savedTheme = UserDefaults.standard.string(forKey: "selectedTheme") {
+            if let theme = AppTheme(rawValue: savedTheme) {
+                self.selectedTheme = theme
+            } else {
+                // Migration: handle old French rawValues
+                switch savedTheme {
                 case "Système": self.selectedTheme = .system
                 case "Clair": self.selectedTheme = .light
                 case "Sombre": self.selectedTheme = .dark
                 default: self.selectedTheme = .system
                 }
-                // Re-save with new key
                 UserDefaults.standard.set(self.selectedTheme.rawValue, forKey: "selectedTheme")
-            } else {
-                self.selectedTheme = .system
             }
+        } else {
+            self.selectedTheme = .system
         }
     }
 }

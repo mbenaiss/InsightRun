@@ -209,16 +209,30 @@ struct SuuntoParser {
             return "Suunto"
         }()
 
-        // Activity type from sport message
+        // Activity type from session sport/sub_sport, fallback to sport message
         let activityType: String = {
+            // 1) Try session-level sport field (most reliable)
+            if let sportName = sessionFields["sport"]?.name, !sportName.isEmpty {
+                // Combine with sub_sport for more precision (e.g. "running" + "trail" → "trail_running")
+                if let subSport = sessionFields["sub_sport"]?.name, !subSport.isEmpty,
+                   subSport != "generic" {
+                    return "\(sportName)_\(subSport)"
+                }
+                return sportName
+            }
+            // 2) Fallback to sport message
             let sports = fitFile.messages(forMessageType: FitMessageType.sport)
             if let sport = sports.first {
                 let fields = sport.interpretedFields()
-                if let name = fields["name"]?.name {
-                    return name
-                }
-                if let sportName = fields["sport"]?.name {
+                if let sportName = fields["sport"]?.name, !sportName.isEmpty {
+                    if let subSport = fields["sub_sport"]?.name, !subSport.isEmpty,
+                       subSport != "generic" {
+                        return "\(sportName)_\(subSport)"
+                    }
                     return sportName
+                }
+                if let name = fields["name"]?.name, !name.isEmpty {
+                    return name
                 }
             }
             return "Running"

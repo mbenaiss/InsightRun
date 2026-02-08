@@ -2950,7 +2950,7 @@ class HealthKitManager: ObservableObject {
     nonisolated func saveWorkoutToHealthKit(from parsed: ParsedSuuntoWorkout) async throws -> HKWorkout {
         let healthStore = self.healthStore
         let activityType = workoutActivityType(from: parsed.activityType)
-        let isIndoor = parsed.routeCoordinates.isEmpty
+        let isIndoor = isIndoorWorkout(activityString: parsed.activityType, hasRoute: parsed.hasRoute)
 
         let config = HKWorkoutConfiguration()
         config.activityType = activityType
@@ -2963,9 +2963,11 @@ class HealthKitManager: ObservableObject {
         // Build all quantity samples
         var samples: [HKQuantitySample] = []
 
-        // Distance
+        // Distance (use correct type based on activity)
         if parsed.distance > 0 {
-            let distanceType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+            let distanceIdentifier: HKQuantityTypeIdentifier = activityType == .cycling ? .distanceCycling :
+                activityType == .swimming ? .distanceSwimming : .distanceWalkingRunning
+            let distanceType = HKQuantityType.quantityType(forIdentifier: distanceIdentifier)!
             let distanceQuantity = HKQuantity(unit: .meter(), doubleValue: parsed.distance)
             let distanceSample = HKQuantitySample(
                 type: distanceType,
@@ -3132,13 +3134,50 @@ class HealthKitManager: ObservableObject {
 
     private nonisolated func workoutActivityType(from activityString: String) -> HKWorkoutActivityType {
         let lower = activityString.lowercased()
-        if lower.contains("run") { return .running }
+        // Trail running / hiking
+        if lower.contains("hik") { return .hiking }
         if lower.contains("trail") { return .running }
+        // Running (including treadmill)
+        if lower.contains("run") { return .running }
+        // Cycling
         if lower.contains("cycl") || lower.contains("bik") { return .cycling }
+        // Swimming
         if lower.contains("swim") { return .swimming }
-        if lower.contains("walk") || lower.contains("hik") { return .walking }
-        if lower.contains("cross") { return .crossTraining }
-        return .running
+        // Walking
+        if lower.contains("walk") { return .walking }
+        // Cross-training / fitness
+        if lower.contains("cross") || lower.contains("fitness") { return .crossTraining }
+        // Elliptical
+        if lower.contains("elliptical") { return .elliptical }
+        // Rowing
+        if lower.contains("row") { return .rowing }
+        // Yoga / Pilates
+        if lower.contains("yoga") { return .yoga }
+        if lower.contains("pilates") { return .pilates }
+        // Strength / Musculation
+        if lower.contains("strength") || lower.contains("musculation") { return .traditionalStrengthTraining }
+        // Skiing
+        if lower.contains("ski") && lower.contains("cross") { return .crossCountrySkiing }
+        if lower.contains("ski") { return .downhillSkiing }
+        // Other outdoor activities
+        if lower.contains("paddle") || lower.contains("sup") { return .paddleSports }
+        if lower.contains("climb") { return .climbing }
+        return .other
+    }
+
+    /// Determine if the workout should be marked as indoor based on FIT sport/sub_sport and GPS data
+    private nonisolated func isIndoorWorkout(activityString: String, hasRoute: Bool) -> Bool {
+        let lower = activityString.lowercased()
+        // Explicitly indoor activities from FIT sub_sport
+        if lower.contains("treadmill") || lower.contains("indoor") || lower.contains("stationary") {
+            return true
+        }
+        // Explicitly outdoor activities → never mark as indoor even without GPS
+        if lower.contains("trail") || lower.contains("hik") || lower.contains("outdoor") {
+            return false
+        }
+        // For other activities, use GPS presence as heuristic
+        return !hasRoute
     }
 
     private nonisolated func buildCLLocations(from parsed: ParsedSuuntoWorkout) -> [CLLocation] {

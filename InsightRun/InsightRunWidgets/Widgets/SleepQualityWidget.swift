@@ -74,8 +74,7 @@ struct SleepQualityWidgetView: View {
     // MARK: - Lock Screen: Circular
 
     private var accessoryCircularView: some View {
-        let score = entry.data?.qualityScore ?? 0
-        Gauge(value: Double(score), in: 0...100) {
+        Gauge(value: Double(entry.data?.qualityScore ?? 0), in: 0...100) {
             Text("S")
         } currentValueLabel: {
             Image(systemName: "moon.zzz.fill")

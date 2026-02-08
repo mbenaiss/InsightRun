@@ -57,9 +57,70 @@ struct HealthVitalsWidgetView: View {
             smallView
         case .systemMedium:
             mediumView
+        case .accessoryCircular:
+            accessoryCircularView
+        case .accessoryRectangular:
+            accessoryRectangularView
+        case .accessoryInline:
+            accessoryInlineView
         default:
             smallView
         }
+    }
+
+    // MARK: - Lock Screen: Circular
+
+    private var accessoryCircularView: some View {
+        VStack(spacing: 1) {
+            Image(systemName: "waveform.path.ecg")
+                .font(.caption)
+            Text(entry.data?.hrv.map { String(format: "%.0f", $0) } ?? "--")
+                .font(.system(.caption, design: .rounded, weight: .bold))
+            Text("ms")
+                .font(.system(size: 8))
+                .foregroundStyle(.secondary)
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Rectangular
+
+    private var accessoryRectangularView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "heart.text.clipboard")
+                Text("Signes vitaux")
+                    .font(.headline)
+                    .widgetAccentable()
+            }
+            HStack(spacing: 10) {
+                if let hrv = entry.data?.hrv {
+                    Text("HRV \(String(format: "%.0f", hrv))ms")
+                        .font(.caption)
+                }
+                if let rhr = entry.data?.restingHeartRate {
+                    Text("FC \(String(format: "%.0f", rhr))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let spo2 = entry.data?.oxygenSaturation {
+                    Text("SpO2 \(String(format: "%.0f", spo2))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Inline
+
+    private var accessoryInlineView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "waveform.path.ecg")
+            Text("HRV \(entry.data?.hrv.map { String(format: "%.0f ms", $0) } ?? "--")")
+        }
+        .containerBackground(for: .widget) { Color.clear }
     }
 
     // MARK: - Small Widget
@@ -231,6 +292,6 @@ struct HealthVitalsWidget: Widget {
         }
         .configurationDisplayName("Signes vitaux")
         .description("HRV, frequence cardiaque au repos, SpO2 et frequence respiratoire.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

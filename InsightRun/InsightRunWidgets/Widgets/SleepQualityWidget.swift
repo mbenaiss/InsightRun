@@ -60,9 +60,74 @@ struct SleepQualityWidgetView: View {
             smallView
         case .systemMedium:
             mediumView
+        case .accessoryCircular:
+            accessoryCircularView
+        case .accessoryRectangular:
+            accessoryRectangularView
+        case .accessoryInline:
+            accessoryInlineView
         default:
             smallView
         }
+    }
+
+    // MARK: - Lock Screen: Circular
+
+    private var accessoryCircularView: some View {
+        let score = entry.data?.qualityScore ?? 0
+        Gauge(value: Double(score), in: 0...100) {
+            Text("S")
+        } currentValueLabel: {
+            Image(systemName: "moon.zzz.fill")
+                .font(.caption)
+        }
+        .gaugeStyle(.accessoryCircular)
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Rectangular
+
+    private var accessoryRectangularView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "moon.zzz.fill")
+                Text("Sommeil")
+                    .font(.headline)
+                    .widgetAccentable()
+            }
+            if let data = entry.data {
+                HStack(spacing: 8) {
+                    Text(formattedSleepDuration(data.totalSleepHours))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    Text("\(data.qualityScore)/100")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(data.sleepStartTime)-\(data.sleepEndTime)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Aucune donnee")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Inline
+
+    private var accessoryInlineView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "moon.zzz.fill")
+            if let data = entry.data {
+                Text("\(formattedSleepDuration(data.totalSleepHours)) - Score \(data.qualityScore)")
+            } else {
+                Text("Pas de sommeil")
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
     }
 
     // MARK: - Small Widget
@@ -267,6 +332,6 @@ struct SleepQualityWidget: Widget {
         }
         .configurationDisplayName("Sommeil")
         .description("Qualite du sommeil, duree et repartition des phases.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

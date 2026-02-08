@@ -57,9 +57,72 @@ struct TrainingLoadWidgetView: View {
             smallView
         case .systemMedium:
             mediumView
+        case .accessoryCircular:
+            accessoryCircularView
+        case .accessoryRectangular:
+            accessoryRectangularView
+        case .accessoryInline:
+            accessoryInlineView
         default:
             smallView
         }
+    }
+
+    // MARK: - Lock Screen: Circular
+
+    private var accessoryCircularView: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: 1) {
+                Image(systemName: statusIcon)
+                    .font(.caption)
+                Text(statusShort)
+                    .font(.system(size: 9, weight: .semibold))
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Rectangular
+
+    private var accessoryRectangularView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                Text("Charge")
+                    .font(.headline)
+                    .widgetAccentable()
+            }
+            HStack(spacing: 8) {
+                Text(statusTitle)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                if let change = entry.data?.weeklyVolumeChange {
+                    Text(String(format: "%+.0f%%", change))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let days = entry.data?.daysSinceLastWorkout {
+                    Text(days == 0 ? "Auj." : "Il y a \(days)j")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Inline
+
+    private var accessoryInlineView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: statusIcon)
+            Text(statusTitle)
+            if let change = entry.data?.weeklyVolumeChange {
+                Text(String(format: "(%+.0f%%)", change))
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
     }
 
     // MARK: - Small Widget
@@ -235,6 +298,15 @@ struct TrainingLoadWidgetView: View {
         }
     }
 
+    private var statusShort: String {
+        switch entry.data?.status {
+        case "normal": return "OK"
+        case "overtraining": return "Haut"
+        case "inactive": return "Repos"
+        default: return "--"
+        }
+    }
+
     private var statusIcon: String {
         switch entry.data?.status {
         case "normal": return "checkmark.circle.fill"
@@ -269,6 +341,6 @@ struct TrainingLoadWidget: Widget {
         }
         .configurationDisplayName("Charge d'entrainement")
         .description("Suivi du volume hebdomadaire et detection du surentrainement.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

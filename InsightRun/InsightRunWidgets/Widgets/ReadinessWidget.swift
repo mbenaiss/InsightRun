@@ -50,9 +50,61 @@ struct ReadinessWidgetView: View {
             smallView
         case .systemMedium:
             mediumView
+        case .accessoryCircular:
+            accessoryCircularView
+        case .accessoryRectangular:
+            accessoryRectangularView
+        case .accessoryInline:
+            accessoryInlineView
         default:
             smallView
         }
+    }
+
+    // MARK: - Lock Screen: Circular
+
+    private var accessoryCircularView: some View {
+        Gauge(value: Double(score), in: 0...100) {
+            Text("R")
+        } currentValueLabel: {
+            Text("\(score)")
+                .font(.system(.title3, design: .rounded, weight: .bold))
+        }
+        .gaugeStyle(.accessoryCircular)
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Rectangular
+
+    private var accessoryRectangularView: some View {
+        HStack(spacing: 8) {
+            Gauge(value: Double(score), in: 0...100) {
+                Text("")
+            }
+            .gaugeStyle(.accessoryCircular)
+            .scaleEffect(0.7)
+            .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Readiness")
+                    .font(.headline)
+                    .widgetAccentable()
+                Text("\(score)/100 - \(statusText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Inline
+
+    private var accessoryInlineView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "bolt.heart.fill")
+            Text("Readiness \(score)/100")
+        }
+        .containerBackground(for: .widget) { Color.clear }
     }
 
     // MARK: - Small Widget
@@ -223,6 +275,6 @@ struct ReadinessWidget: Widget {
         }
         .configurationDisplayName("Readiness")
         .description("Score de récupération et état de préparation quotidien.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

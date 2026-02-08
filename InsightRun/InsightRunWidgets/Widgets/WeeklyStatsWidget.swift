@@ -57,9 +57,64 @@ struct WeeklyStatsWidgetView: View {
             smallView
         case .systemMedium:
             mediumView
+        case .accessoryCircular:
+            accessoryCircularView
+        case .accessoryRectangular:
+            accessoryRectangularView
+        case .accessoryInline:
+            accessoryInlineView
         default:
             smallView
         }
+    }
+
+    // MARK: - Lock Screen: Circular
+
+    private var accessoryCircularView: some View {
+        VStack(spacing: 1) {
+            Image(systemName: "figure.run")
+                .font(.caption)
+            Text(formattedDistanceShort)
+                .font(.system(.caption, design: .rounded, weight: .bold))
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Rectangular
+
+    private var accessoryRectangularView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "chart.bar.fill")
+                Text("Cette semaine")
+                    .font(.headline)
+                    .widgetAccentable()
+            }
+            HStack(spacing: 8) {
+                Text(formattedDistance)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                Text("\(totalRuns) sorties")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let pace = formattedPace {
+                    Text(pace)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Inline
+
+    private var accessoryInlineView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "figure.run")
+            Text("\(formattedDistance) - \(totalRuns) sorties")
+        }
+        .containerBackground(for: .widget) { Color.clear }
     }
 
     // MARK: - Small Widget
@@ -187,6 +242,11 @@ struct WeeklyStatsWidgetView: View {
         return String(format: "%d:%02d /km", minutes, seconds)
     }
 
+    private var formattedDistanceShort: String {
+        let km = (entry.data?.totalDistance ?? 0) / 1000.0
+        return String(format: "%.0f km", km)
+    }
+
     private var formattedDuration: String {
         let duration = entry.data?.totalDuration ?? 0
         let hours = Int(duration) / 3600
@@ -238,6 +298,6 @@ struct WeeklyStatsWidget: Widget {
         }
         .configurationDisplayName("Statistiques hebdo")
         .description("Distance, sorties et allure de la semaine en cours.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

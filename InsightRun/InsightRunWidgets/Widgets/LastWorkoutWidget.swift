@@ -58,9 +58,74 @@ struct LastWorkoutWidgetView: View {
             smallView
         case .systemMedium:
             mediumView
+        case .accessoryCircular:
+            accessoryCircularView
+        case .accessoryRectangular:
+            accessoryRectangularView
+        case .accessoryInline:
+            accessoryInlineView
         default:
             smallView
         }
+    }
+
+    // MARK: - Lock Screen: Circular
+
+    private var accessoryCircularView: some View {
+        VStack(spacing: 1) {
+            Image(systemName: "figure.run")
+                .font(.caption)
+            Text(formattedDistanceShort)
+                .font(.system(.caption, design: .rounded, weight: .bold))
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Rectangular
+
+    private var accessoryRectangularView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "figure.run")
+                Text("Derniere sortie")
+                    .font(.headline)
+                    .widgetAccentable()
+            }
+            if entry.data != nil {
+                HStack(spacing: 8) {
+                    Text(formattedDistance)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    if let pace = formattedPace {
+                        Text(pace)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(formattedDuration)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Aucune sortie")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    // MARK: - Lock Screen: Inline
+
+    private var accessoryInlineView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "figure.run")
+            if entry.data != nil {
+                Text("\(formattedDistance) - \(formattedPace ?? formattedDuration)")
+            } else {
+                Text("Aucune sortie")
+            }
+        }
+        .containerBackground(for: .widget) { Color.clear }
     }
 
     // MARK: - Small Widget
@@ -229,6 +294,11 @@ struct LastWorkoutWidgetView: View {
         return String(format: "%.2f km", km)
     }
 
+    private var formattedDistanceShort: String {
+        let km = (entry.data?.distance ?? 0) / 1000.0
+        return String(format: "%.1f", km)
+    }
+
     private var formattedPace: String? {
         guard let pace = entry.data?.averagePace, pace > 0 else { return nil }
         let minutes = Int(pace)
@@ -277,6 +347,6 @@ struct LastWorkoutWidget: Widget {
         }
         .configurationDisplayName("Derniere sortie")
         .description("Resume de votre derniere seance de course.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

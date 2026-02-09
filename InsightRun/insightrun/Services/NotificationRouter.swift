@@ -47,9 +47,8 @@ extension NotificationRouter: UNUserNotificationCenterDelegate {
             default:
                 break
             }
+            completionHandler()
         }
-
-        completionHandler()
     }
 
     nonisolated func userNotificationCenter(

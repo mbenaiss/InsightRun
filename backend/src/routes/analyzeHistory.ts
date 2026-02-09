@@ -220,7 +220,7 @@ async function callOpenRouterNonStreaming(
       choices: Array<{ message: { content: string } }>
     }
 
-    return data.choices[0].message.content
+    return data.choices[0]?.message?.content || ''
   } catch (error) {
     clearTimeout(timeoutId)
     if ((error as Error).name === 'AbortError') {

@@ -299,6 +299,7 @@ app.post('/chat', async (c) => {
       const MAX_HISTORY_CHARS = 20_000
       const validHistory = body.conversationHistory
         .slice(-20)
+        .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
         .map((msg) => ({
           ...msg,
           content: typeof msg.content === 'string' ? msg.content.slice(0, MAX_PROMPT_LENGTH) : '',

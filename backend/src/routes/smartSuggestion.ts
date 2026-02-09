@@ -142,7 +142,7 @@ async function callModelForSuggestion(
     }
   }
 
-  return data.choices[0].message.content.trim()
+  return (data.choices[0]?.message?.content || '').trim()
 }
 
 // POST /api/workout/smart-suggestion
@@ -253,7 +253,6 @@ app.post('/', async (c) => {
       {
         error: 'Smart Suggestion Failed',
         message: error instanceof Error ? error.message : 'Unknown error occurred',
-        details: String(error),
       },
       500
     )

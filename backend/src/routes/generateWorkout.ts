@@ -202,7 +202,7 @@ async function callOpenRouterForWorkout(
     }
   }
 
-  return data.choices[0].message.content
+  return data.choices[0]?.message?.content || ''
 }
 
 function cleanJSONResponse(text: string): string {
@@ -375,7 +375,6 @@ app.post('/', async (c) => {
       {
         error: 'Workout Generation Failed',
         message: error instanceof Error ? error.message : 'Unknown error occurred',
-        details: String(error),
       },
       500
     )

@@ -143,16 +143,9 @@ struct SettingsView: View {
                             get: { notificationManager.isDailyReadinessEnabled },
                             set: { enabled in
                                 if enabled {
-                                    // Schedule with current saved time, will auto-update from wake-up on next launch
-                                    notificationManager.scheduleDailyReadinessCheck(
-                                        hour: notificationManager.savedReadinessHour,
-                                        minute: notificationManager.savedReadinessMinute
-                                    )
-                                    Task {
-                                        await notificationManager.updateDailyReadinessFromWakeUp()
-                                    }
+                                    notificationManager.enableDailyReadiness()
                                 } else {
-                                    notificationManager.cancelDailyReadinessCheck()
+                                    notificationManager.cancelDailyReadiness()
                                 }
                             }
                         )) {
@@ -161,13 +154,9 @@ struct SettingsView: View {
 
                         if notificationManager.isDailyReadinessEnabled {
                             HStack {
-                                Image(systemName: "alarm.fill")
+                                Image(systemName: "bed.double.fill")
                                     .foregroundStyle(.secondary)
-                                Text(String(localized: "30 min after wake-up", comment: "Auto wake-up notification schedule"))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text(String(format: "%d:%02d", notificationManager.savedReadinessHour, notificationManager.savedReadinessMinute))
+                                Text(String(localized: "After wake-up detection", comment: "Wake-up based notification schedule"))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }

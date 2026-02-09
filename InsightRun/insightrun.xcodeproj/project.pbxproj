@@ -12,7 +12,7 @@
 		BE65974F2EB222C100565DAC /* insightrun.storekit in Resources */ = {isa = PBXBuildFile; fileRef = BE65974E2EB222C100565DAC /* insightrun.storekit */; };
 		BE6597A62EB2625F00565DAC /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = BE6597A52EB2625F00565DAC /* PostHog */; };
 		BE6597B02EB3000000565DAC /* FitFileParser in Frameworks */ = {isa = PBXBuildFile; productRef = BE6597AF2EB3000000565DAC /* FitFileParser */; };
-		C1A0010D2EFF000100565DAC /* InsightRunWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = C1A001012EFF000100565DAC /* InsightRunWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C1A0010D2EFF000100565DAC /* InsightRunWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1A001012EFF000100565DAC /* InsightRunWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,15 +26,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		C1A0010C2EFF000100565DAC /* Embed App Extensions */ = {
+		C1A0010C2EFF000100565DAC /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				C1A0010D2EFF000100565DAC /* InsightRunWidgets.appex in Embed App Extensions */,
+				C1A0010D2EFF000100565DAC /* InsightRunWidgets.appex in Embed Foundation Extensions */,
 			);
-			name = "Embed App Extensions";
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -133,7 +133,7 @@
 				BE013B542E9E7D83003FB282 /* Sources */,
 				BE013B552E9E7D83003FB282 /* Frameworks */,
 				BE013B562E9E7D83003FB282 /* Resources */,
-				C1A0010C2EFF000100565DAC /* Embed App Extensions */,
+				C1A0010C2EFF000100565DAC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -182,7 +182,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2610;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					BE013B572E9E7D83003FB282 = {
 						CreatedOnToolsVersion = 26.1;
@@ -395,7 +395,7 @@
 				CODE_SIGN_ENTITLEMENTS = insightrun/insightrun.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -440,7 +440,7 @@
 				CODE_SIGN_ENTITLEMENTS = insightrun/insightrun.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -484,7 +484,7 @@
 				CODE_SIGN_ENTITLEMENTS = InsightRunWidgets/InsightRunWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InsightRunWidgets/Info.plist;
@@ -519,7 +519,7 @@
 				CODE_SIGN_ENTITLEMENTS = InsightRunWidgets/InsightRunWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InsightRunWidgets/Info.plist;

@@ -21,24 +21,11 @@ class NotificationManager: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let dailyReadinessKey = "com.insightrun.dailyReadinessNotification"
     private let weeklySummaryKey = "com.insightrun.weeklySummaryNotification"
-    private let readinessHourKey = "com.insightrun.readinessHour"
-    private let readinessMinuteKey = "com.insightrun.readinessMinute"
     private let lastOvertrainingAlertKey = "com.insightrun.lastOvertrainingAlert"
     private let lastInactivityReminderKey = "com.insightrun.lastInactivityReminder"
     private let lastLowReadinessAlertKey = "com.insightrun.lastLowReadinessAlert"
+    private let lastDailyReadinessKey = "com.insightrun.lastDailyReadiness"
     private let throttleInterval: TimeInterval = 24 * 60 * 60 // 24 hours
-
-    private let defaultFallbackHour = 9
-    private let wakeUpOffsetMinutes = 30
-
-    var savedReadinessHour: Int {
-        let hour = userDefaults.integer(forKey: readinessHourKey)
-        return userDefaults.object(forKey: readinessHourKey) != nil ? hour : defaultFallbackHour
-    }
-
-    var savedReadinessMinute: Int {
-        userDefaults.integer(forKey: readinessMinuteKey)
-    }
 
     private init() {
         isDailyReadinessEnabled = userDefaults.bool(forKey: dailyReadinessKey)
@@ -70,97 +57,52 @@ class NotificationManager: ObservableObject {
 
     // MARK: - Daily Readiness Notification
 
-    /// Schedule daily readiness check notification (default: 7:00 AM)
-    func scheduleDailyReadinessCheck(hour: Int = 7, minute: Int = 0) {
+    /// Enable daily readiness notifications (triggered by SleepObserverService on wake-up)
+    func enableDailyReadiness() {
         guard isNotificationsEnabled else {
             print("⚠️ NotificationManager: Notifications not enabled")
             return
         }
 
-        // Set enabled state immediately so wake-up reschedule doesn't race this call.
         isDailyReadinessEnabled = true
         userDefaults.set(true, forKey: dailyReadinessKey)
-        userDefaults.set(hour, forKey: readinessHourKey)
-        userDefaults.set(minute, forKey: readinessMinuteKey)
+        SleepObserverService.shared.startObserving()
+    }
 
-        let center = UNUserNotificationCenter.current()
+    /// Send daily readiness notification immediately (called by SleepObserverService on wake-up)
+    /// Throttled to once per day
+    func sendDailyReadinessNow() {
+        guard isNotificationsEnabled, isDailyReadinessEnabled else { return }
+        guard !isThrottled(key: lastDailyReadinessKey) else {
+            print("⏱️ NotificationManager: Daily readiness throttled (24h)")
+            return
+        }
 
-        // Remove existing daily readiness notifications
-        center.removePendingNotificationRequests(withIdentifiers: ["daily-readiness"])
-
-        // Create content
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Good morning! 🏃", comment: "Daily readiness notification title")
         content.body = String(localized: "Check your readiness score to plan today's training.", comment: "Daily readiness notification body")
         content.sound = .default
         content.categoryIdentifier = "DAILY_READINESS"
 
-        // Create trigger for specified time every day
-        var dateComponents = DateComponents()
-        dateComponents.hour = hour
-        dateComponents.minute = minute
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        let request = UNNotificationRequest(
+            identifier: "daily-readiness-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
 
-        // Create request
-        let request = UNNotificationRequest(identifier: "daily-readiness", content: content, trigger: trigger)
-
-        // Schedule
         Task {
             do {
-                try await center.add(request)
-                print("✅ NotificationManager: Daily readiness scheduled at \(hour):\(minute)")
+                try await UNUserNotificationCenter.current().add(request)
+                self.markSent(key: self.lastDailyReadinessKey)
+                print("✅ NotificationManager: Daily readiness notification sent")
             } catch {
-                isDailyReadinessEnabled = false
-                userDefaults.set(false, forKey: dailyReadinessKey)
-                print("❌ NotificationManager: Failed to schedule daily readiness: \(error)")
+                print("❌ NotificationManager: Failed to send daily readiness: \(error)")
             }
-        }
-    }
-
-    /// Update daily readiness time based on average wake-up time from HealthKit
-    /// Reads the last 7 days of sleep data, computes average wake-up hour, adds 30 min offset
-    /// Falls back to 9:00 AM if no sleep data is available
-    func updateDailyReadinessFromWakeUp() async {
-        guard isDailyReadinessEnabled else { return }
-
-        let calendar = Calendar.current
-        let today = Date()
-        var wakeUpMinutes: [Int] = []
-
-        for dayOffset in 1...7 {
-            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
-            if let sleepData = try? await HealthKitManager.shared.fetchSleepData(for: date) {
-                let components = calendar.dateComponents([.hour, .minute], from: sleepData.sleepEnd)
-                if let h = components.hour, let m = components.minute {
-                    wakeUpMinutes.append(h * 60 + m)
-                }
-            }
-        }
-
-        let targetHour: Int
-        let targetMinute: Int
-
-        if wakeUpMinutes.isEmpty {
-            targetHour = defaultFallbackHour
-            targetMinute = 0
-            print("⚠️ NotificationManager: No sleep data, using fallback \(targetHour):00")
-        } else {
-            let avgMinutes = wakeUpMinutes.reduce(0, +) / wakeUpMinutes.count + wakeUpOffsetMinutes
-            targetHour = (avgMinutes / 60) % 24
-            targetMinute = avgMinutes % 60
-            print("✅ NotificationManager: Average wake-up + 30min → \(targetHour):\(String(format: "%02d", targetMinute))")
-        }
-
-        // Only reschedule if time actually changed
-        if targetHour != savedReadinessHour || targetMinute != savedReadinessMinute {
-            scheduleDailyReadinessCheck(hour: targetHour, minute: targetMinute)
         }
     }
 
     /// Cancel daily readiness notifications
-    func cancelDailyReadinessCheck() {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["daily-readiness"])
+    func cancelDailyReadiness() {
         isDailyReadinessEnabled = false
         userDefaults.set(false, forKey: dailyReadinessKey)
     }

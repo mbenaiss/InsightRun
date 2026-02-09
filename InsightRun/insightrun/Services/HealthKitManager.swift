@@ -119,8 +119,9 @@ class HealthKitManager: ObservableObject {
             // Mark that user has completed the authorization flow
             hasCompletedHealthKitSetup = true
 
-            // Start background workout sync now that HealthKit is authorized
+            // Start background sync now that HealthKit is authorized
             WorkoutSyncService.shared.startObserving()
+            SleepObserverService.shared.startObserving()
 
             // Track permission granted (user allowed access)
             AnalyticsService.shared.trackHealthKitPermissionGranted()
@@ -2885,7 +2886,7 @@ class HealthKitManager: ObservableObject {
     }
 
     /// Fetch sleep data for multiple days
-    private func fetchSleepHistory(start: Date, end: Date) async -> [SleepData] {
+    func fetchSleepHistory(start: Date, end: Date) async -> [SleepData] {
         var sleepDataList: [SleepData] = []
         let calendar = Calendar.current
         var currentDate = start

@@ -214,6 +214,110 @@ function calculateReadinessScore(
     totalWeight += weight
   }
 
+  // Respiratory Rate Score (15% weight)
+  if (recovery.respiratoryRate !== undefined) {
+    const weight = 0.15
+    let rrScore: number
+
+    if (baseline?.respiratoryRateAverage && baseline.isReliable) {
+      const deviation =
+        ((recovery.respiratoryRate - baseline.respiratoryRateAverage) /
+          baseline.respiratoryRateAverage) *
+        100
+
+      // Lower respiratory rate at rest is generally better
+      if (deviation <= -5) {
+        rrScore = 90
+      } else if (deviation <= 5) {
+        rrScore = 75
+      } else if (deviation <= 15) {
+        rrScore = 55
+      } else {
+        rrScore = 35
+      }
+
+      insights.push({
+        metric: 'Respiratory Rate',
+        value: recovery.respiratoryRate,
+        comparison: deviation < -5 ? 'below' : deviation > 5 ? 'above' : 'at',
+        deviation: Math.round(deviation),
+        message:
+          deviation > 10
+            ? 'Elevated respiratory rate - possible stress or fatigue'
+            : deviation < -5
+              ? 'Lower than usual respiratory rate - good recovery sign'
+              : 'Respiratory rate is within your normal range',
+      })
+    } else {
+      // Fixed range scoring (normal adult: 12-20 breaths/min)
+      rrScore =
+        recovery.respiratoryRate <= 14
+          ? 85
+          : recovery.respiratoryRate <= 18
+            ? 70
+            : recovery.respiratoryRate <= 22
+              ? 50
+              : 35
+
+      insights.push({
+        metric: 'Respiratory Rate',
+        value: recovery.respiratoryRate,
+        comparison:
+          recovery.respiratoryRate <= 14
+            ? 'below'
+            : recovery.respiratoryRate <= 18
+              ? 'at'
+              : 'above',
+        message:
+          recovery.respiratoryRate <= 14
+            ? 'Excellent respiratory rate'
+            : recovery.respiratoryRate <= 18
+              ? 'Normal respiratory rate'
+              : 'Elevated respiratory rate',
+      })
+    }
+
+    totalScore += rrScore * weight
+    totalWeight += weight
+  }
+
+  // Walking Heart Rate Score (10% weight)
+  if (recovery.walkingHeartRate !== undefined) {
+    const weight = 0.1
+    let whrScore: number
+
+    // Lower walking HR indicates better cardiovascular fitness/recovery
+    if (recovery.walkingHeartRate <= 80) {
+      whrScore = 90
+    } else if (recovery.walkingHeartRate <= 95) {
+      whrScore = 75
+    } else if (recovery.walkingHeartRate <= 110) {
+      whrScore = 55
+    } else {
+      whrScore = 35
+    }
+
+    insights.push({
+      metric: 'Walking Heart Rate',
+      value: recovery.walkingHeartRate,
+      comparison:
+        recovery.walkingHeartRate <= 85
+          ? 'below'
+          : recovery.walkingHeartRate <= 100
+            ? 'at'
+            : 'above',
+      message:
+        recovery.walkingHeartRate <= 85
+          ? 'Low walking HR indicates good cardiovascular fitness'
+          : recovery.walkingHeartRate <= 100
+            ? 'Normal walking heart rate'
+            : 'Elevated walking HR - may indicate fatigue',
+    })
+
+    totalScore += whrScore * weight
+    totalWeight += weight
+  }
+
   // Calculate final score
   const finalScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50
 
@@ -248,22 +352,58 @@ function getRecommendation(status: string, language: string): string {
     excellent: {
       en: "You're fully recovered! Perfect day for high-intensity training like intervals or tempo runs.",
       fr: 'Vous êtes complètement récupéré ! Journée idéale pour un entraînement intense comme des intervalles ou du tempo.',
+      es: '¡Estás completamente recuperado! Día perfecto para entrenamiento de alta intensidad como intervalos o tempo.',
+      de: 'Du bist vollständig erholt! Perfekter Tag für intensives Training wie Intervalle oder Tempoläufe.',
+      it: 'Sei completamente recuperato! Giornata perfetta per allenamento ad alta intensità come intervalli o tempo.',
+      pt: 'Você está totalmente recuperado! Dia perfeito para treino de alta intensidade como intervalos ou tempo.',
+      nl: 'Je bent volledig hersteld! Perfecte dag voor intensieve training zoals intervallen of temporuns.',
+      ja: '完全に回復しています！インターバルやテンポランなどの高強度トレーニングに最適な日です。',
+      zh: '您已完全恢复！非常适合进行间歇跑或节奏跑等高强度训练。',
+      ko: '완전히 회복되었습니다! 인터벌이나 템포런 같은 고강도 훈련에 완벽한 날입니다.',
+      ar: 'أنت متعافٍ تمامًا! يوم مثالي للتدريب عالي الكثافة مثل الفترات أو جري التيمبو.',
     },
     good: {
       en: 'Good recovery. A moderate workout like a steady-state run would be beneficial.',
       fr: 'Bonne récupération. Une séance modérée comme une course à allure régulière serait bénéfique.',
+      es: 'Buena recuperación. Un entrenamiento moderado como una carrera a ritmo constante sería beneficioso.',
+      de: 'Gute Erholung. Ein moderates Training wie ein gleichmäßiger Lauf wäre vorteilhaft.',
+      it: 'Buon recupero. Un allenamento moderato come una corsa a ritmo costante sarebbe benefico.',
+      pt: 'Boa recuperação. Um treino moderado como uma corrida em ritmo constante seria benéfico.',
+      nl: 'Goed herstel. Een matige training zoals een steady-state run zou gunstig zijn.',
+      ja: '良好な回復状態です。ステディランのような中程度のトレーニングが効果的です。',
+      zh: '恢复良好。建议进行中等强度训练，如匀速跑。',
+      ko: '좋은 회복 상태입니다. 일정한 페이스의 달리기 같은 중강도 운동이 좋겠습니다.',
+      ar: 'تعافٍ جيد. تمرين معتدل مثل الجري بوتيرة ثابتة سيكون مفيدًا.',
     },
     fair: {
       en: 'Partial recovery. Consider an easy run or cross-training today.',
       fr: "Récupération partielle. Envisagez une course facile ou du cross-training aujourd'hui.",
+      es: 'Recuperación parcial. Considera una carrera fácil o entrenamiento cruzado hoy.',
+      de: 'Teilweise erholt. Erwäge einen leichten Lauf oder Cross-Training heute.',
+      it: 'Recupero parziale. Considera una corsa facile o cross-training oggi.',
+      pt: 'Recuperação parcial. Considere uma corrida leve ou treino cruzado hoje.',
+      nl: 'Gedeeltelijk herstel. Overweeg een rustige loop of cross-training vandaag.',
+      ja: '部分的な回復です。今日は軽いランニングかクロストレーニングを検討してください。',
+      zh: '部分恢复。建议今天进行轻松跑或交叉训练。',
+      ko: '부분적으로 회복되었습니다. 오늘은 가벼운 달리기나 크로스트레이닝을 고려하세요.',
+      ar: 'تعافٍ جزئي. فكر في جري خفيف أو تدريب متعدد اليوم.',
     },
     poor: {
       en: 'Rest recommended. Your body needs more recovery time. Light stretching or walking is okay.',
       fr: 'Repos recommandé. Votre corps a besoin de plus de récupération. Étirements légers ou marche sont OK.',
+      es: 'Se recomienda descanso. Tu cuerpo necesita más tiempo de recuperación. Estiramientos ligeros o caminar está bien.',
+      de: 'Ruhe empfohlen. Dein Körper braucht mehr Erholungszeit. Leichtes Dehnen oder Spazierengehen ist okay.',
+      it: 'Riposo consigliato. Il tuo corpo ha bisogno di più tempo per recuperare. Stretching leggero o camminata vanno bene.',
+      pt: 'Descanso recomendado. Seu corpo precisa de mais tempo de recuperação. Alongamento leve ou caminhada estão OK.',
+      nl: 'Rust aanbevolen. Je lichaam heeft meer hersteltijd nodig. Licht stretchen of wandelen is prima.',
+      ja: '休息をおすすめします。体にもっと回復時間が必要です。軽いストレッチやウォーキングは問題ありません。',
+      zh: '建议休息。您的身体需要更多恢复时间。轻度拉伸或散步是可以的。',
+      ko: '휴식을 권장합니다. 몸이 더 많은 회복 시간이 필요합니다. 가벼운 스트레칭이나 걷기는 괜찮습니다.',
+      ar: 'يُنصح بالراحة. جسمك يحتاج إلى مزيد من وقت التعافي. تمارين الإطالة الخفيفة أو المشي مقبولان.',
     },
   }
 
-  const lang = language.toLowerCase().startsWith('fr') ? 'fr' : 'en'
+  const lang = language.toLowerCase().slice(0, 2)
   return recommendations[status]?.[lang] || recommendations[status]?.en || ''
 }
 

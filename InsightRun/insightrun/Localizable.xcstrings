@@ -6452,6 +6452,42 @@
     "Running" : {
       "comment" : "Sport type: running"
     },
+    "Running (indoor)" : {
+      "comment" : "Indoor running workout type for notification",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running (indoor)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Course à pied (tapis)"
+          }
+        }
+      }
+    },
+    "Running (outdoor)" : {
+      "comment" : "Outdoor running workout type for notification",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running (outdoor)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Course à pied (plein air)"
+          }
+        }
+      }
+    },
     "Running AI Coach" : {
       "comment" : "Empty state title for AI assistant",
       "extractionState" : "manual",
@@ -8365,6 +8401,24 @@
         }
       }
     },
+    "Sync %lld / %lld" : {
+      "comment" : "Workout sync notification title showing current/total count",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync %1$lld / %2$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation %1$lld / %2$lld"
+          }
+        }
+      }
+    },
     "Sync your recent workouts for better AI insights" : {
       "comment" : "Banner description for profile update",
       "extractionState" : "manual",
@@ -9609,8 +9663,41 @@
         }
       }
     },
+    "Walking" : {
+      "comment" : "Walking workout type for notification",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walking"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marche"
+          }
+        }
+      }
+    },
     "Workout" : {
-      "comment" : "Default workout type name"
+      "comment" : "Generic workout type for notification",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workout"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entraînement"
+          }
+        }
+      }
     },
     "Workout analysis" : {
       "comment" : "Mode description for single workout analysis",

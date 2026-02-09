@@ -134,6 +134,23 @@ struct ContentView: View {
                 if trainingLoad.isInactive, let days = trainingLoad.daysSinceLastWorkout {
                     notificationManager.sendInactivityReminder(daysSinceLastRun: days)
                 }
+
+                // Update training load widget
+                let calendar = Calendar.current
+                if let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())),
+                   let prevWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart) {
+                    let thisWeekWorkouts = try? await HealthKitManager.shared.fetchRunningWorkouts(from: weekStart, to: Date())
+                    let prevWeekWorkouts = try? await HealthKitManager.shared.fetchRunningWorkouts(from: prevWeekStart, to: weekStart)
+                    let thisWeekDist = (thisWeekWorkouts ?? []).compactMap { $0.distance }.reduce(0, +)
+                    let lastWeekDist = (prevWeekWorkouts ?? []).compactMap { $0.distance }.reduce(0, +)
+                    WidgetDataProvider.shared.updateTrainingLoad(
+                        volumeChange: trainingLoad.weeklyVolumeChange,
+                        daysSinceLastWorkout: trainingLoad.daysSinceLastWorkout,
+                        status: trainingLoad.trainingStatus,
+                        thisWeekDistance: thisWeekDist,
+                        lastWeekDistance: lastWeekDist
+                    )
+                }
             }
         }
     }

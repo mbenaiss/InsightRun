@@ -85,6 +85,21 @@ class RecoveryViewModel: ObservableObject {
                 }
             }
 
+            // Update widget data when loading today's metrics
+            if Calendar.current.isDateInToday(targetDate) {
+                WidgetDataProvider.shared.updateReadiness(from: metrics)
+                WidgetDataProvider.shared.updateHealthVitals(
+                    hrv: metrics.hrvAverage,
+                    rhr: metrics.restingHeartRate,
+                    spo2: metrics.oxygenSaturation,
+                    respRate: metrics.respiratoryRate,
+                    walkingHR: metrics.walkingHeartRate
+                )
+                if let sleep = metrics.sleepData {
+                    WidgetDataProvider.shared.updateSleep(from: sleep)
+                }
+            }
+
             if Calendar.current.isDate(targetDate, inSameDayAs: selectedDate) {
                 await loadRecentWorkoutsCount()
             }

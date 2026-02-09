@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
-import { estimateTokenCount } from '../utils'
+import { estimateTokenCount, getLanguageName } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -53,103 +53,75 @@ interface AIGeneratedWorkout {
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const MAX_TOKENS = 4000 // Increased for workout generation
-const AI_TEMPERATURE = 0.7
+const MAX_TOKENS = 4000
+const AI_TEMPERATURE = 0.4
 
 function buildWorkoutGenerationPrompt(
   userQuestion: string,
   language: string,
   userContext?: WorkoutGenerationRequest['userContext']
 ): { system: string; user: string } {
-  const systemPrompt = `You are a professional running coach AI. Generate structured workout plans in valid JSON format.
+  const langName = getLanguageName(language)
+
+  // Build user context only with available data
+  let userContextStr = ''
+  if (userContext) {
+    const parts: string[] = []
+    if (userContext.avgPace) parts.push(`Average pace: ${userContext.avgPace.toFixed(2)} min/km`)
+    if (userContext.vo2Max) parts.push(`VO2 Max: ${userContext.vo2Max}`)
+    if (userContext.recentWorkouts) parts.push(`Recent workouts: ${userContext.recentWorkouts}`)
+    parts.push(`Fitness level: ${userContext.fitnessLevel || 'intermediate'}`)
+    userContextStr = parts.map((p) => `- ${p}`).join('\n')
+  } else {
+    userContextStr = '- No context available, use general recommendations'
+  }
+
+  const systemPrompt = `You are a professional running coach AI. Generate structured workout plans as valid JSON.
+
+LANGUAGE: All text fields (name, description, instructions) MUST be in ${langName}.
 
 CRITICAL RULES:
-- Output ONLY valid JSON, no markdown formatting, no code blocks, no explanation
-- RESPECT the user's request exactly - if they ask for a simple continuous run, generate ONE step only
-- Only add warm-up and cool-down phases if the workout is high-intensity (intervals, speed work, tempo)
-- For easy/endurance/steady runs, generate a single step with the requested duration/distance
-- **MANDATORY: If the user specifies EXACT pace values (e.g., "5:30/km", "4:45 per kilometer"), you MUST use those EXACT values in the targetPace field. Do NOT modify, estimate, or adjust user-specified paces, distances, or durations. These are strict requirements, not suggestions.**
-- If no specific pace is mentioned, provide specific paces based on user's fitness level
-- Recovery times should be appropriate to workout intensity
-- Max 50 steps per workout
-- Distances in meters, durations in seconds
+- Output ONLY valid JSON. No markdown, no code blocks, no explanation text.
+- Respect the user's request exactly: simple continuous run = ONE step only.
+- Only add warm-up/cool-down for high-intensity workouts (intervals, speed work, tempo).
+- If the user specifies exact pace values, use those EXACT values. Never modify user-specified paces, distances, or durations.
+- If no pace is specified, suggest paces based on user's fitness level.
+- Max 50 steps. Distances in meters, durations in seconds.
 
-SPECIAL CASE - DETAILED PHASE FORMAT:
-If the user provides a pre-formatted workout with phases (e.g., "Échauffement: 10 min à 6:00/km, Tempo: 20 min à 5:30/km"), parse it EXACTLY:
-- Extract the title (first line before the phases)
-- Convert each phase to a step with EXACT values specified
-- Identify step type from phase name:
-  * "Échauffement", "Warm-up", "Warmup" → type: "warmup"
-  * "Tempo", "Seuil", "Threshold" → type: "work"
-  * "Intervalles", "Intervals", "Répétitions" → type: "interval"
-  * "Récupération", "Recovery" → type: "recovery"
-  * "Retour au calme", "Cool-down", "Cooldown" → type: "cooldown"
-  * "Endurance", "Easy", "Facile" → type: "work"
-- Parse duration: "10 min" → 600 seconds, "5 km" → 5000 meters
-- Parse pace:
-  * Single value: "5:30/km" → targetPace: "5:30"
-  * Range: "6:52 – 7:22 /km" → targetPaceMin: "6:52", targetPaceMax: "7:22" (NO targetPace field)
-  * IMPORTANT: When user specifies a pace RANGE (e.g., "6:00-6:30" or "6:00 – 6:30"), use targetPaceMin and targetPaceMax. Do NOT use targetPace for ranges.
-- Keep phases in the EXACT order provided by user
+PHASE PARSING:
+If the user provides a pre-formatted workout with phases, parse it exactly:
+- Map phase names to types: warmup/warm-up → "warmup", tempo/seuil/threshold → "work", intervals/répétitions → "interval", recovery/récupération → "recovery", cooldown/retour au calme → "cooldown", endurance/easy → "work"
+- Convert: "10 min" → 600 seconds, "5 km" → 5000 meters
+- Keep phases in the exact order provided.
 
-OUTPUT FORMAT (MUST be valid JSON):
+PACE RULES:
+- Exact pace (e.g., "5:30/km") → use "targetPace": "5:30"
+- Pace range (e.g., "6:00-6:30/km") → use "targetPaceMin": "6:00", "targetPaceMax": "6:30"
+- Never mix targetPace and targetPaceMin/Max in the same step.
+
+OUTPUT FORMAT:
 {
-  "name": "Workout name (concise, descriptive)",
-  "description": "Brief workout description (1-2 sentences)",
+  "name": "Concise workout name",
+  "description": "Brief description (1-2 sentences)",
   "sport": "running",
   "steps": [
     {
       "type": "warmup",
-      "goal": { "type": "duration", "value": 900 },
+      "goal": { "type": "duration", "value": 600 },
       "targetPaceMin": "6:30",
       "targetPaceMax": "7:00",
-      "instructions": "Easy warm-up, build up gradually"
-    },
-    {
-      "type": "work",
-      "goal": { "type": "distance", "value": 400 },
-      "targetPace": "4:00",
-      "targetHeartRateZone": 4,
-      "instructions": "Fast but controlled - note: single targetPace when exact pace specified"
-    },
-    {
-      "type": "recovery",
-      "goal": { "type": "duration", "value": 60 },
-      "targetPace": "6:00",
-      "instructions": "Slow jog to recover"
-    },
-    {
-      "type": "cooldown",
-      "goal": { "type": "distance", "value": 800 },
-      "targetPaceMin": "6:00",
-      "targetPaceMax": "6:30",
-      "instructions": "Easy pace to finish - note: paceMin/Max when range specified"
+      "instructions": "Easy warm-up"
     }
   ],
   "totalDistance": 7600,
   "estimatedDuration": 2700
 }
 
-IMPORTANT PACE RULES:
-- Use "targetPace" (single value) when user specifies an EXACT pace like "5:09/km"
-- Use "targetPaceMin" + "targetPaceMax" (range) when user specifies a RANGE like "6:52 – 7:22 /km"
-- NEVER mix both in the same step (either targetPace OR targetPaceMin/Max, not both)
-- For warmup/cooldown without specified pace, you can suggest a range
-- For work intervals with specified pace, use the exact value
+Step types: "warmup", "work", "recovery", "cooldown", "interval"
+Goal types: "distance" (meters), "duration" (seconds), "open"
 
 USER CONTEXT:
-${
-  userContext
-    ? `- Average pace: ${userContext.avgPace ? `${userContext.avgPace.toFixed(2)} min/km` : 'unknown'}
-- VO2 Max: ${userContext.vo2Max || 'unknown'}
-- Recent workouts: ${userContext.recentWorkouts || 0}
-- Fitness level: ${userContext.fitnessLevel || 'intermediate'}`
-    : '- No context available, use general recommendations'
-}
-
-LANGUAGE: Respond in ${language} (name, description, instructions)
-
-IMPORTANT: Return ONLY the JSON object, nothing else.`
+${userContextStr}`
 
   const userPrompt = `Generate a running workout based on this request: ${userQuestion}`
 
@@ -230,7 +202,7 @@ async function callOpenRouterForWorkout(
     }
   }
 
-  return data.choices[0].message.content
+  return data.choices[0]?.message?.content || ''
 }
 
 function cleanJSONResponse(text: string): string {
@@ -403,7 +375,6 @@ app.post('/', async (c) => {
       {
         error: 'Workout Generation Failed',
         message: error instanceof Error ? error.message : 'Unknown error occurred',
-        details: String(error),
       },
       500
     )

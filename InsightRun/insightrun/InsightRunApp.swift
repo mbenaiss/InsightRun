@@ -74,9 +74,20 @@ struct InsightRunApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
 
+        // Setup notification tap handling
+        Task { @MainActor in
+            NotificationRouter.shared.setup()
+        }
+
         // Track app opened event - non-blocking
         Task { @MainActor in
             AnalyticsService.shared.trackAppOpened()
+        }
+
+        // Start background sync if HealthKit is already authorized
+        if HealthKitManager.shared.hasCompletedHealthKitSetup {
+            WorkoutSyncService.shared.startObserving()
+            SleepObserverService.shared.startObserving()
         }
     }
 

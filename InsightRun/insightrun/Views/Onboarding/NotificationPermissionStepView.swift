@@ -121,7 +121,7 @@ struct NotificationPermissionStepView: View {
             let granted = await NotificationManager.shared.requestPermissions()
 
             if granted {
-                NotificationManager.shared.scheduleDailyReadinessCheck()
+                NotificationManager.shared.enableDailyReadiness()
                 NotificationManager.shared.scheduleWeeklySummary()
                 AnalyticsService.shared.trackNotificationPermissionGranted()
             } else {

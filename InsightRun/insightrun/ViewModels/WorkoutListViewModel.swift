@@ -82,6 +82,12 @@ class WorkoutListViewModel: ObservableObject {
             workouts = result.workouts
             hasMoreWorkouts = result.hasMore
 
+            // Update widget data
+            WidgetDataProvider.shared.updateWeeklyStats(workouts: workouts)
+            if let latestWorkout = workouts.first {
+                WidgetDataProvider.shared.updateLastWorkout(from: latestWorkout)
+            }
+
             if workouts.isEmpty {
                 errorMessage = "Aucun workout de course trouvé."
             } else if isFirstSync {
@@ -151,7 +157,7 @@ class WorkoutListViewModel: ObservableObject {
     func refreshAuthorizationStatus() {
         Task {
             await checkAuthorizationStatus()
-            if authorizationStatus == .authorized && workouts.isEmpty {
+            if authorizationStatus == .authorized {
                 await loadWorkouts()
             }
         }

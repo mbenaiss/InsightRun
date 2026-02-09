@@ -465,7 +465,7 @@ struct StatisticsView: View {
             AxisMarks(position: .leading) { value in
                 AxisValueLabel {
                     if let distance = value.as(Double.self) {
-                        Text("\(Int(distance)) km")
+                        Text("\(Int(distance)) \(String(localized: "km", comment: "Kilometer abbreviation"))")
                     }
                 }
             }
@@ -540,7 +540,7 @@ struct StatisticsView: View {
                                 .fill(dist.color)
                                 .frame(width: 10, height: 10)
 
-                            Text("\(dist.range) /km")
+                            Text("\(dist.range) \(String(localized: "/km", comment: "Pace unit suffix"))")
                                 .font(.subheadline)
 
                             Spacer()
@@ -816,7 +816,7 @@ struct StatisticsView: View {
         let absMinutes = Int(abs(change))
         let absSeconds = Int((abs(change) - Double(absMinutes)) * 60)
         let sign = change < 0 ? "-" : "+"
-        return "\(sign)\(absMinutes):\(String(format: "%02d", absSeconds)) /km"
+        return "\(sign)\(absMinutes):\(String(format: "%02d", absSeconds)) \(String(localized: "/km", comment: "Pace unit suffix"))"
     }
 }
 

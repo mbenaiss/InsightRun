@@ -128,6 +128,7 @@ struct WorkoutAIAssistantView: View {
     @State private var currentConversationId: UUID?
     @State private var showIndexationBanner = false
     @State private var showIndexationSheet = false
+    @State private var lastHapticDate = Date.distantPast
 
     // Haptic feedback generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -230,6 +231,13 @@ struct WorkoutAIAssistantView: View {
                                     content: newValue,
                                     timestamp: messages[index].timestamp
                                 )
+
+                                // Haptic pulse while streaming (throttled to ~4 per second)
+                                let now = Date()
+                                if now.timeIntervalSince(lastHapticDate) >= 0.25 {
+                                    lastHapticDate = now
+                                    impactLight.impactOccurred()
+                                }
                             }
                         }
                     }

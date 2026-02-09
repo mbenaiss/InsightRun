@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HealthProfileView: View {
     @StateObject private var viewModel = HealthProfileViewModel()
+    @StateObject private var notificationRouter = NotificationRouter.shared
     @State private var showSettings = false
     @Environment(ThemeManager.self) private var themeManager
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
@@ -41,6 +42,9 @@ struct HealthProfileView: View {
                 SettingsView()
                     .environment(themeManager)
                     .environmentObject(revenueCatManager)
+            }
+            .navigationDestination(isPresented: $notificationRouter.showWeeklySummary) {
+                WeeklySummaryView()
             }
             .refreshable {
                 await viewModel.refresh()
@@ -135,10 +139,14 @@ struct HealthProfileView: View {
     @ViewBuilder
     private func profileContent(_ profile: HealthProfile) -> some View {
         VStack(spacing: 20) {
+            // Weekly Summary
+            weeklySummaryLink
+                .padding(.horizontal)
+                .padding(.top)
+
             // User Info
             userInfoSection(profile)
                 .padding(.horizontal)
-                .padding(.top)
 
             // Body Metrics
             bodyMetricsSection(profile)
@@ -157,6 +165,39 @@ struct HealthProfileView: View {
                 .padding(.horizontal)
         }
         .padding(.bottom, 20)
+    }
+
+    // MARK: - Weekly Summary Link
+
+    private var weeklySummaryLink: some View {
+        NavigationLink {
+            WeeklySummaryView()
+        } label: {
+            HStack(spacing: 16) {
+                Image(systemName: "calendar")
+                    .font(.title2)
+                    .foregroundStyle(Color.irPrimaryAccent.gradient)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "Weekly Summary", comment: "Link to weekly summary screen"))
+                        .font(.headline)
+                        .foregroundStyle(Color.irTextPrimary)
+                    Text(String(localized: "Running, sleep & recovery overview", comment: "Weekly summary link description"))
+                        .font(.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+            .padding(20)
+            .background(Color.irCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        }
     }
 
     // MARK: - User Info Section

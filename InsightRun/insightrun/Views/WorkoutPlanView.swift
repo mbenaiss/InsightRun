@@ -1166,7 +1166,7 @@ struct WorkoutVisualization: View {
                                 VStack(spacing: 2) {
                                     Image(systemName: iconForStepType(step.type))
                                         .font(.caption2)
-                                    Text(step.type.rawValue)
+                                    Text(step.displayName)
                                         .font(.system(size: 8))
                                         .lineLimit(1)
                                 }
@@ -1274,12 +1274,12 @@ struct WorkoutStepRow: View {
             if let formatted = goal.distanceFormatted {
                 return formatted
             }
-            return "\(Int(goal.value))m"
+            return "\(Int(goal.value))\(String(localized: "m", comment: "Meters unit abbreviation"))"
         case .duration:
             if let formatted = goal.durationFormatted {
                 return formatted
             }
-            return "\(Int(goal.value))s"
+            return "\(Int(goal.value))\(String(localized: "s", comment: "Seconds unit abbreviation"))"
         case .open:
             return String(localized: "Open", comment: "Open goal type")
         }
@@ -1514,12 +1514,12 @@ struct EditableWorkoutStepRow: View {
             if let formatted = goal.distanceFormatted {
                 return formatted
             }
-            return "\(Int(goal.value))m"
+            return "\(Int(goal.value))\(String(localized: "m", comment: "Meters unit abbreviation"))"
         case .duration:
             if let formatted = goal.durationFormatted {
                 return formatted
             }
-            return "\(Int(goal.value))s"
+            return "\(Int(goal.value))\(String(localized: "s", comment: "Seconds unit abbreviation"))"
         case .open:
             return String(localized: "Open", comment: "Open goal type")
         }

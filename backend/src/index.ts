@@ -92,14 +92,15 @@ const MAX_PROMPT_LENGTH = 5000 // Increased to support classification prompts wi
 const MAX_TOKENS = 2000
 const AI_TEMPERATURE = 0.7
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const DEFAULT_APP_SECRET = 'healthapp-ios-v1'
-
 type AppContext = Context<{ Bindings: Bindings; Variables: Variables }>
 
 function validateAppAuth(c: AppContext): boolean {
+  if (!c.env.APP_SECRET) {
+    console.error('⚠️ APP_SECRET not configured')
+    return false
+  }
   const appKey = c.req.header('X-App-Key')
-  const expectedKey = c.env.APP_SECRET || DEFAULT_APP_SECRET
-  return appKey === expectedKey
+  return appKey === c.env.APP_SECRET
 }
 
 function validateAdminAuth(c: AppContext): boolean {
@@ -507,7 +508,7 @@ app.post('/api/chat', async (c) => {
           {
             error: 'AI Service Error',
             message: 'Failed to get response from AI service',
-            details: errorText,
+            details: 'Check server logs for details',
           },
           500
         )
@@ -743,6 +744,20 @@ app.post('/api/chat/stream', async (c) => {
       prompt
     )
 
+    if (!openRouterResponse.ok) {
+      const errorText = await openRouterResponse.text()
+      console.error('OpenRouter error:', errorText)
+
+      return c.json(
+        {
+          error: 'AI Service Error',
+          message: 'Failed to get response from AI service',
+          details: errorText,
+        },
+        500
+      )
+    }
+
     // Variables to capture during streaming
     let fullOutput = ''
     let inputTokens: number | undefined
@@ -897,6 +912,7 @@ app.post('/api/chat/v2', async (c) => {
 
     // Determine which model to use
     let finalModel: string
+    let selectedModelConfig: Awaited<ReturnType<typeof selectModel>>['model'] | undefined
 
     if (requestType) {
       // Use semantic requestType to select model (preferred)
@@ -916,6 +932,7 @@ app.post('/api/chat/v2', async (c) => {
       // Select model based on requestType and user quota
       const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
       finalModel = selection.model.modelId
+      selectedModelConfig = selection.model
 
       console.log(`✅ Selected model: ${selection.model.displayName} (${finalModel})`)
     } else if (manualModel) {
@@ -1006,16 +1023,11 @@ app.post('/api/chat/v2', async (c) => {
                 const latency = (Date.now() - startTime) / 1000
 
                 // Increment quotas if needed (e.g., Sonnet usage)
-                if (requestType) {
+                if (selectedModelConfig) {
                   c.executionCtx.waitUntil(
                     (async () => {
                       try {
-                        const selection = await selectModel(
-                          requestType as RequestType,
-                          c.env.RATE_LIMITER,
-                          userId
-                        )
-                        await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+                        await afterModelUsage(selectedModelConfig, c.env.RATE_LIMITER, userId)
                       } catch (error) {
                         console.error('Quota increment error:', error)
                       }

@@ -12,11 +12,37 @@
 		BE65974F2EB222C100565DAC /* insightrun.storekit in Resources */ = {isa = PBXBuildFile; fileRef = BE65974E2EB222C100565DAC /* insightrun.storekit */; };
 		BE6597A62EB2625F00565DAC /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = BE6597A52EB2625F00565DAC /* PostHog */; };
 		BE6597B02EB3000000565DAC /* FitFileParser in Frameworks */ = {isa = PBXBuildFile; productRef = BE6597AF2EB3000000565DAC /* FitFileParser */; };
+		C1A0010D2EFF000100565DAC /* InsightRunWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1A001012EFF000100565DAC /* InsightRunWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C1A0010A2EFF000100565DAC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BE013B502E9E7D83003FB282 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C1A001022EFF000100565DAC;
+			remoteInfo = InsightRunWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C1A0010C2EFF000100565DAC /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C1A0010D2EFF000100565DAC /* InsightRunWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		BE013B582E9E7D83003FB282 /* insightrun.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = insightrun.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE65974E2EB222C100565DAC /* insightrun.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = insightrun.storekit; path = insightrun/insightrun.storekit; sourceTree = "<group>"; };
+		C1A001012EFF000100565DAC /* InsightRunWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = InsightRunWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -28,6 +54,13 @@
 			);
 			target = BE013B572E9E7D83003FB282 /* insightrun */;
 		};
+		C1A0010E2EFF000100565DAC /* Exceptions for "InsightRunWidgets" folder in "InsightRunWidgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C1A001022EFF000100565DAC /* InsightRunWidgets */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -37,6 +70,14 @@
 				BE65980F2EB29EF800565DAC /* Exceptions for "insightrun" folder in "insightrun" target */,
 			);
 			path = insightrun;
+			sourceTree = "<group>";
+		};
+		C1A001092EFF000100565DAC /* InsightRunWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C1A0010E2EFF000100565DAC /* Exceptions for "InsightRunWidgets" folder in "InsightRunWidgets" target */,
+			);
+			path = InsightRunWidgets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -53,6 +94,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C1A001042EFF000100565DAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -61,6 +109,7 @@
 			children = (
 				BE65974E2EB222C100565DAC /* insightrun.storekit */,
 				BE013B5A2E9E7D83003FB282 /* insightrun */,
+				C1A001092EFF000100565DAC /* InsightRunWidgets */,
 				BE013B592E9E7D83003FB282 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -69,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				BE013B582E9E7D83003FB282 /* insightrun.app */,
+				C1A001012EFF000100565DAC /* InsightRunWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -83,10 +133,12 @@
 				BE013B542E9E7D83003FB282 /* Sources */,
 				BE013B552E9E7D83003FB282 /* Frameworks */,
 				BE013B562E9E7D83003FB282 /* Resources */,
+				C1A0010C2EFF000100565DAC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C1A0010B2EFF000100565DAC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BE013B5A2E9E7D83003FB282 /* insightrun */,
@@ -102,6 +154,26 @@
 			productReference = BE013B582E9E7D83003FB282 /* insightrun.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C1A001022EFF000100565DAC /* InsightRunWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C1A001062EFF000100565DAC /* Build configuration list for PBXNativeTarget "InsightRunWidgets" */;
+			buildPhases = (
+				C1A001032EFF000100565DAC /* Sources */,
+				C1A001042EFF000100565DAC /* Frameworks */,
+				C1A001052EFF000100565DAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C1A001092EFF000100565DAC /* InsightRunWidgets */,
+			);
+			name = InsightRunWidgets;
+			productName = InsightRunWidgets;
+			productReference = C1A001012EFF000100565DAC /* InsightRunWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -110,9 +182,12 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2610;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					BE013B572E9E7D83003FB282 = {
+						CreatedOnToolsVersion = 26.1;
+					};
+					C1A001022EFF000100565DAC = {
 						CreatedOnToolsVersion = 26.1;
 					};
 				};
@@ -138,6 +213,7 @@
 			projectRoot = "";
 			targets = (
 				BE013B572E9E7D83003FB282 /* insightrun */,
+				C1A001022EFF000100565DAC /* InsightRunWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -151,6 +227,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C1A001052EFF000100565DAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -161,7 +244,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C1A001032EFF000100565DAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C1A0010B2EFF000100565DAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C1A001022EFF000100565DAC /* InsightRunWidgets */;
+			targetProxy = C1A0010A2EFF000100565DAC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		BE013B612E9E7D84003FB282 /* Debug */ = {
@@ -297,7 +395,7 @@
 				CODE_SIGN_ENTITLEMENTS = insightrun/insightrun.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -316,7 +414,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.5;
+				MARKETING_VERSION = 1.1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -342,7 +440,7 @@
 				CODE_SIGN_ENTITLEMENTS = insightrun/insightrun.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -361,7 +459,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.5;
+				MARKETING_VERSION = 1.1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -374,6 +472,76 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		C1A001072EFF000100565DAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = InsightRunWidgets/InsightRunWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = PCTXJ3892R;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = InsightRunWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "InsightRun Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C1A001082EFF000100565DAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = InsightRunWidgets/InsightRunWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = PCTXJ3892R;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = InsightRunWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "InsightRun Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -396,6 +564,15 @@
 			buildConfigurations = (
 				BE013B642E9E7D84003FB282 /* Debug */,
 				BE013B652E9E7D84003FB282 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C1A001062EFF000100565DAC /* Build configuration list for PBXNativeTarget "InsightRunWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1A001072EFF000100565DAC /* Debug */,
+				C1A001082EFF000100565DAC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

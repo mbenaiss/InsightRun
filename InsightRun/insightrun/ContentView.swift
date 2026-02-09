@@ -10,6 +10,7 @@ import SwiftData
 struct ContentView: View {
     @StateObject private var onboardingManager = OnboardingManager.shared
     @StateObject private var contextProvider = UnifiedAIContextProvider.shared
+    @StateObject private var notificationRouter = NotificationRouter.shared
     @State private var selectedTab = 0
     @State private var showingAIAssistant = false
     @Environment(\.modelContext) private var modelContext
@@ -84,6 +85,12 @@ struct ContentView: View {
                 isPresented: $showingAIAssistant
             )
         }
+        .onChange(of: notificationRouter.pendingTab) { _, tab in
+            if let tab {
+                selectedTab = tab
+                notificationRouter.pendingTab = nil
+            }
+        }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()
         }
@@ -121,8 +128,10 @@ struct ContentView: View {
             await notificationManager.checkPermissionStatus()
 
             if notificationManager.isNotificationsEnabled {
-                // Auto-adjust daily readiness time based on wake-up
-                await notificationManager.updateDailyReadinessFromWakeUp()
+                // Start sleep observer for wake-up based notifications
+                if notificationManager.isDailyReadinessEnabled {
+                    SleepObserverService.shared.startObserving()
+                }
 
                 let trainingLoad = TrainingLoadService.shared
                 await trainingLoad.analyzeTrainingLoad()
@@ -133,6 +142,23 @@ struct ContentView: View {
 
                 if trainingLoad.isInactive, let days = trainingLoad.daysSinceLastWorkout {
                     notificationManager.sendInactivityReminder(daysSinceLastRun: days)
+                }
+
+                // Update training load widget
+                let calendar = Calendar.current
+                if let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())),
+                   let prevWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart) {
+                    let thisWeekWorkouts = try? await HealthKitManager.shared.fetchRunningWorkouts(from: weekStart, to: Date())
+                    let prevWeekWorkouts = try? await HealthKitManager.shared.fetchRunningWorkouts(from: prevWeekStart, to: weekStart)
+                    let thisWeekDist = (thisWeekWorkouts ?? []).compactMap { $0.distance }.reduce(0, +)
+                    let lastWeekDist = (prevWeekWorkouts ?? []).compactMap { $0.distance }.reduce(0, +)
+                    WidgetDataProvider.shared.updateTrainingLoad(
+                        volumeChange: trainingLoad.weeklyVolumeChange,
+                        daysSinceLastWorkout: trainingLoad.daysSinceLastWorkout,
+                        status: trainingLoad.trainingStatus,
+                        thisWeekDistance: thisWeekDist,
+                        lastWeekDistance: lastWeekDist
+                    )
                 }
             }
         }

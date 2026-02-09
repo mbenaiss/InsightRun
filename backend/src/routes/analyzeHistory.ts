@@ -10,7 +10,15 @@ import type {
   WorkoutData,
 } from '../types'
 import { batchAnalysisRequestSchema, consolidateRequestSchema } from '../types'
-import { estimateTokenCount, truncateToTokenLimit, validateTokenCount } from '../utils'
+import {
+  estimateTokenCount,
+  formatDistance,
+  formatDuration,
+  formatPace,
+  getLanguageName,
+  truncateToTokenLimit,
+  validateTokenCount,
+} from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -31,46 +39,6 @@ const BATCH_TIMEOUT = 30000 // 30s timeout for batch analysis
 const CONSOLIDATE_TIMEOUT = 60000 // 60s timeout for consolidation
 const MAX_BATCH_TOKENS = 1000 // Max tokens for batch summary (concise)
 const MAX_CONSOLIDATE_TOKENS = 3000 // Max tokens for final consolidated summary
-
-// Helper to format duration
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (hours > 0) {
-    return `${hours}h ${minutes.toString().padStart(2, '0')}m`
-  }
-  return `${minutes}m`
-}
-
-// Helper to format distance
-function formatDistance(meters: number): string {
-  return `${(meters / 1000).toFixed(2)} km`
-}
-
-// Helper to format pace
-function formatPace(pace: number): string {
-  const minutes = Math.floor(pace)
-  const seconds = Math.floor((pace - minutes) * 60)
-  return `${minutes}'${seconds.toString().padStart(2, '0')}"/km`
-}
-
-// Helper to get language name
-function getLanguageName(langCode: string): string {
-  const languages: Record<string, string> = {
-    fr: 'French',
-    en: 'English',
-    es: 'Spanish',
-    de: 'German',
-    it: 'Italian',
-    pt: 'Portuguese',
-    nl: 'Dutch',
-    ja: 'Japanese',
-    zh: 'Chinese',
-    ko: 'Korean',
-    ar: 'Arabic',
-  }
-  return languages[langCode.toLowerCase()] || 'English'
-}
 
 // Helper to build health profile context
 function buildHealthProfileContext(profile: HealthProfileData): string {
@@ -116,81 +84,52 @@ function buildBatchAnalysisPrompt(
   workouts: WorkoutData[],
   profile: HealthProfileData | undefined,
   language: string
-): string {
-  let prompt = `You are an expert running coach analyzing a batch of ${workouts.length} workouts.
+): { system: string; user: string } {
+  const langName = getLanguageName(language)
 
-CRITICAL: Generate a CONCISE summary under 800 tokens (strict limit: 1000 tokens).
-This is a PARTIAL summary that will be combined with other batches later.
+  const system = `You are an expert running coach analyzing workout data. Generate concise, factual summaries.
 
-**IMPORTANT: You MUST respond in ${getLanguageName(language)} language.**
+**LANGUAGE: Respond entirely in ${langName}.**
+**DATA INTEGRITY: Only reference metrics present in the data. Never invent values.**
 
-`
+This is a PARTIAL batch summary that will be combined with other batches later. Keep it concise and under 1000 tokens.
+${profile ? `\n${buildHealthProfileContext(profile)}` : ''}`
 
-  if (profile) {
-    prompt += `\n${buildHealthProfileContext(profile)}\n\n`
-  }
+  let user = `Analyze these ${workouts.length} workouts and create a compact summary covering:
 
-  prompt += `Your task: Create a compact summary focusing on:
+1. **Key Statistics**: date range, total workouts/distance/duration, averages
+2. **Performance Highlights**: best performances, improvements or declines
+3. **Physiological Insights**: HR trends, cadence, VO2 max patterns (if available)
+4. **Training Patterns**: frequency, volume progression, hard/easy distribution
+5. **Concerns**: injury risks, overtraining signals
 
-1. **Key Statistics** (100 tokens):
-   - Date range covered
-   - Total workouts, distance, duration
-   - Average pace, speed, HR (if available)
-
-2. **Performance Highlights** (200 tokens):
-   - Best performances (fastest pace, longest distance)
-   - Notable improvements or declines
-   - Consistency patterns
-
-3. **Physiological Insights** (200 tokens):
-   - HR trends (zones, efficiency)
-   - Cadence, VO2 max patterns (if available)
-   - Biomechanics observations (GCT, vertical oscillation if available)
-
-4. **Training Patterns** (200 tokens):
-   - Frequency, volume progression
-   - Hard/easy distribution
-   - Recovery patterns observed
-
-5. **Concerns** (100 tokens):
-   - Injury risks detected (volume spikes, inadequate recovery)
-   - Overtraining signals
-   - Technical issues
-
-Keep it FACTUAL and DATA-DRIVEN. Use bullet points. Be concise.
-
----
+Use bullet points. Be factual and data-driven.
 
 # Workouts (${workouts.length} total)
-
 `
 
   for (let i = 0; i < workouts.length; i++) {
     const w = workouts[i]
-    prompt += `\n${i + 1}. ${w.date} | ${formatDuration(w.duration)} | ${formatDistance(w.distance)}`
+    user += `\n${i + 1}. ${w.date} | ${formatDuration(w.duration)} | ${formatDistance(w.distance)}`
 
     if (w.pace) {
-      prompt += ` | Pace: ${formatPace(w.pace)}`
+      user += ` | Pace: ${formatPace(w.pace)}`
     }
 
     if (w.heartRate?.avg) {
-      prompt += ` | HR: ${Math.round(w.heartRate.avg)} bpm`
+      user += ` | HR: ${Math.round(w.heartRate.avg)} bpm`
     }
 
     if (w.cadence) {
-      prompt += ` | Cadence: ${Math.round(w.cadence)} spm`
+      user += ` | Cadence: ${Math.round(w.cadence)} spm`
     }
 
     if (w.vo2Max) {
-      prompt += ` | VO2: ${w.vo2Max.toFixed(1)}`
+      user += ` | VO2: ${w.vo2Max.toFixed(1)}`
     }
-
-    prompt += `\n`
   }
 
-  prompt += `\n\nGenerate the concise batch summary now (target: 800 tokens, max: 1000 tokens).`
-
-  return prompt
+  return { system, user }
 }
 
 // Build consolidation prompt (for all batch summaries)
@@ -198,78 +137,40 @@ function buildConsolidationPrompt(
   batchSummaries: string[],
   language: string,
   profile?: HealthProfileData
-): string {
-  let prompt = `You are an expert running coach consolidating ${batchSummaries.length} partial training summaries into ONE comprehensive analysis.
+): { system: string; user: string } {
+  const langName = getLanguageName(language)
 
-CRITICAL: Generate a DETAILED final summary under 2500 tokens (strict limit: 3000 tokens).
-This will be used as context for future coaching conversations.
+  let system = `You are an expert running coach consolidating partial training summaries into ONE comprehensive analysis.
 
-**IMPORTANT: You MUST respond in ${getLanguageName(language)} language.**
+**LANGUAGE: Respond entirely in ${langName}.**
+**DATA INTEGRITY: Only reference data from the provided summaries. Never invent metrics.**
 
-`
+This summary will be used as context for future coaching conversations. Keep it under 3000 tokens but be detailed and quantitative.`
 
-  // Add runner profile context if available
   if (profile) {
-    prompt += `${buildHealthProfileContext(profile)}\n`
-    prompt += `Use this runner profile to calibrate training load, recovery expectations, and physiological baselines when consolidating the summaries.\n\n`
+    system += `\n\n${buildHealthProfileContext(profile)}`
+    system += `\nUse this profile to calibrate training load, recovery expectations, and physiological baselines.`
   }
 
-  prompt += `Your task: Create a comprehensive summary with these sections:
+  let user = `Consolidate these ${batchSummaries.length} batch summaries (ordered from oldest to most recent) into ONE comprehensive analysis with these sections:
 
-1. **OVERALL PERFORMANCE TRENDS** (400 tokens):
-   - Pace progression over time
-   - Volume progression (km/week)
-   - Speed evolution
-   - Heart rate efficiency trends
-   - Best performances and PRs
+1. **OVERALL PERFORMANCE TRENDS**: pace progression, volume progression, HR efficiency, PRs
+2. **PHYSIOLOGICAL PROFILE**: HR zones, aerobic base, biomechanics baseline, VO2 max trends
+3. **TRAINING PATTERNS**: frequency, consistency, hard/easy distribution, recovery patterns
+4. **STRENGTHS & ACHIEVEMENTS**: personal records, consistent periods, technical strengths
+5. **WEAKNESSES & RISKS**: injury indicators, overtraining signals, recovery deficits
+6. **STATISTICAL BASELINE**: totals, averages, intensity distribution
 
-2. **PHYSIOLOGICAL PROFILE** (500 tokens):
-   - HR zones distribution
-   - Aerobic base strength
-   - Cardiovascular efficiency
-   - Running biomechanics baseline (cadence, GCT, etc.)
-   - VO2 max trends (if available)
+Be factual, quantitative, and actionable. Use specific numbers.
 
-3. **TRAINING PATTERNS** (400 tokens):
-   - Frequency and consistency
-   - Optimal training volume
-   - Hard/easy distribution
-   - Long run patterns
-   - Recovery patterns
-
-4. **STRENGTHS & ACHIEVEMENTS** (300 tokens):
-   - Top personal records
-   - Most consistent periods
-   - Performance highlights
-   - Technical strengths
-
-5. **WEAKNESSES & RISKS** (300 tokens):
-   - Injury risk indicators
-   - Overtraining signals
-   - Technical weaknesses
-   - Recovery deficits
-
-6. **STATISTICAL BASELINE** (400 tokens):
-   - Total distance, time, workouts
-   - Average pace, speed, HR, cadence
-   - Intensity distribution (easy/moderate/hard %)
-   - Consistency metrics
-
-Be FACTUAL, QUANTITATIVE, and ACTIONABLE. Use specific numbers and trends.
-
----
-
-# Batch Summaries to Consolidate
-
+# Batch Summaries (oldest first)
 `
 
   for (let i = 0; i < batchSummaries.length; i++) {
-    prompt += `\n## Batch ${i + 1}\n\n${batchSummaries[i]}\n\n---\n`
+    user += `\n## Batch ${i + 1}\n\n${batchSummaries[i]}\n\n---\n`
   }
 
-  prompt += `\n\nGenerate the comprehensive consolidated summary now (target: 2500 tokens, max: 3000 tokens).`
-
-  return prompt
+  return { system, user }
 }
 
 // Call OpenRouter (non-streaming)
@@ -319,7 +220,7 @@ async function callOpenRouterNonStreaming(
       choices: Array<{ message: { content: string } }>
     }
 
-    return data.choices[0].message.content
+    return data.choices[0]?.message?.content || ''
   } catch (error) {
     clearTimeout(timeoutId)
     if ((error as Error).name === 'AbortError') {
@@ -382,8 +283,11 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     )
 
     // Build batch analysis prompt
-    const systemPrompt = ''
-    const prompt = buildBatchAnalysisPrompt(workouts, undefined, language)
+    const { system: systemPrompt, user: prompt } = buildBatchAnalysisPrompt(
+      workouts,
+      undefined,
+      language
+    )
 
     // Call OpenRouter with batch timeout
     let summary = await callOpenRouterNonStreaming(
@@ -527,8 +431,11 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     )
 
     // Build consolidation prompt with optional profile context
-    const systemPrompt = ''
-    const prompt = buildConsolidationPrompt(batchSummaries, language, profile)
+    const { system: systemPrompt, user: prompt } = buildConsolidationPrompt(
+      batchSummaries,
+      language,
+      profile
+    )
 
     // Call OpenRouter with consolidation timeout
     let summary = await callOpenRouterNonStreaming(

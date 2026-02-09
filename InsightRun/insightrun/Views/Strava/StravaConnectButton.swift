@@ -31,7 +31,7 @@ struct StravaConnectButton: View {
                 HStack {
                     ProgressView()
                         .tint(variant == .orange ? .white : .orange)
-                    Text("Connecting...")
+                    Text(String(localized: "Connecting...", comment: "Loading state while connecting to Strava"))
                         .font(.headline)
                         .foregroundStyle(variant == .orange ? .white : Color(hex: "FC5200"))
                 }

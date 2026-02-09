@@ -1,0 +1,611 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Readiness" : {
+      "comment" : "Widget readiness title / display name",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération"
+          }
+        }
+      }
+    },
+    "Excellent" : {
+      "comment" : "Status: excellent",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excellent"
+          }
+        }
+      }
+    },
+    "Good" : {
+      "comment" : "Status: good",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bon"
+          }
+        }
+      }
+    },
+    "Fair" : {
+      "comment" : "Status: fair",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moyen"
+          }
+        }
+      }
+    },
+    "Poor" : {
+      "comment" : "Status: poor",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faible"
+          }
+        }
+      }
+    },
+    "ms" : {
+      "comment" : "Unit: milliseconds",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ms"
+          }
+        }
+      }
+    },
+    "bpm" : {
+      "comment" : "Unit: beats per minute",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bpm"
+          }
+        }
+      }
+    },
+    "Resting HR" : {
+      "comment" : "Resting heart rate label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FC repos"
+          }
+        }
+      }
+    },
+    "Open the app to sync" : {
+      "comment" : "Prompt to open app for data sync",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir l'app pour synchroniser"
+          }
+        }
+      }
+    },
+    "Daily readiness and recovery score." : {
+      "comment" : "Readiness widget description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score de récupération et état de préparation quotidien."
+          }
+        }
+      }
+    },
+    "This Week" : {
+      "comment" : "This week label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette semaine"
+          }
+        }
+      }
+    },
+    "%lld runs" : {
+      "comment" : "Number of runs",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sorties"
+          }
+        }
+      }
+    },
+    "Weekly Statistics" : {
+      "comment" : "Widget weekly stats medium header",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statistiques de la semaine"
+          }
+        }
+      }
+    },
+    "Distance" : {
+      "comment" : "Widget distance label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance"
+          }
+        }
+      }
+    },
+    "Runs" : {
+      "comment" : "Widget runs label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorties"
+          }
+        }
+      }
+    },
+    "Avg Pace" : {
+      "comment" : "Widget average pace label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allure moy."
+          }
+        }
+      }
+    },
+    "Duration" : {
+      "comment" : "Widget duration label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée"
+          }
+        }
+      }
+    },
+    "Weekly Stats" : {
+      "comment" : "Widget display name",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stats hebdo"
+          }
+        }
+      }
+    },
+    "Distance, runs and pace for the current week." : {
+      "comment" : "Weekly stats widget description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance, sorties et allure de la semaine en cours."
+          }
+        }
+      }
+    },
+    "Last Workout" : {
+      "comment" : "Widget last workout title / display name",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière sortie"
+          }
+        }
+      }
+    },
+    "No workout" : {
+      "comment" : "No workout placeholder",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune sortie"
+          }
+        }
+      }
+    },
+    "Pace" : {
+      "comment" : "Widget pace label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allure"
+          }
+        }
+      }
+    },
+    "Avg HR" : {
+      "comment" : "Widget average heart rate label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FC moy."
+          }
+        }
+      }
+    },
+    "Calories" : {
+      "comment" : "Widget calories label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calories"
+          }
+        }
+      }
+    },
+    "No workout recorded" : {
+      "comment" : "No workout recorded placeholder",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune sortie enregistrée"
+          }
+        }
+      }
+    },
+    "Summary of your last running workout." : {
+      "comment" : "Last workout widget description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résumé de votre dernière séance de course."
+          }
+        }
+      }
+    },
+    "Health Vitals" : {
+      "comment" : "Widget health vitals title / display name",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signes vitaux"
+          }
+        }
+      }
+    },
+    "Health" : {
+      "comment" : "Widget health title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Santé"
+          }
+        }
+      }
+    },
+    "HRV, resting heart rate, SpO2 and respiratory rate." : {
+      "comment" : "Health vitals widget description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV, fréquence cardiaque au repos, SpO2 et fréquence respiratoire."
+          }
+        }
+      }
+    },
+    "Sleep" : {
+      "comment" : "Widget sleep title / display name",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sommeil"
+          }
+        }
+      }
+    },
+    "No data" : {
+      "comment" : "No data placeholder",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée"
+          }
+        }
+      }
+    },
+    "No sleep data" : {
+      "comment" : "No sleep data placeholder",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de données de sommeil"
+          }
+        }
+      }
+    },
+    "Score" : {
+      "comment" : "Sleep quality score label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score"
+          }
+        }
+      }
+    },
+    "Efficiency" : {
+      "comment" : "Sleep efficiency label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Efficacité"
+          }
+        }
+      }
+    },
+    "Deep" : {
+      "comment" : "Deep sleep label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profond"
+          }
+        }
+      }
+    },
+    "REM" : {
+      "comment" : "REM sleep label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paradoxal"
+          }
+        }
+      }
+    },
+    "Insufficient" : {
+      "comment" : "Sleep quality: poor",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insuffisant"
+          }
+        }
+      }
+    },
+    "Sleep quality, duration and stage breakdown." : {
+      "comment" : "Sleep widget description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité du sommeil, durée et répartition des phases."
+          }
+        }
+      }
+    },
+    "Load" : {
+      "comment" : "Widget training load title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge"
+          }
+        }
+      }
+    },
+    "Today" : {
+      "comment" : "Today label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aujourd'hui"
+          }
+        }
+      }
+    },
+    "Yesterday" : {
+      "comment" : "Yesterday label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier"
+          }
+        }
+      }
+    },
+    "%lldd ago" : {
+      "comment" : "Days since last workout (abbreviated)",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "il y a %lldj"
+          }
+        }
+      }
+    },
+    "Training Load" : {
+      "comment" : "Widget training load header / display name",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge d'entraînement"
+          }
+        }
+      }
+    },
+    "Last Week" : {
+      "comment" : "Last week label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem. préc."
+          }
+        }
+      }
+    },
+    "Change" : {
+      "comment" : "Volume change label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Variation"
+          }
+        }
+      }
+    },
+    "vs last wk" : {
+      "comment" : "Compared to last week",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vs sem. préc."
+          }
+        }
+      }
+    },
+    "On Track" : {
+      "comment" : "Training status: normal",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En forme"
+          }
+        }
+      }
+    },
+    "High Load" : {
+      "comment" : "Training status: overtraining",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge élevée"
+          }
+        }
+      }
+    },
+    "Inactive" : {
+      "comment" : "Training status: inactive",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inactif"
+          }
+        }
+      }
+    },
+    "High" : {
+      "comment" : "Training status short: overtraining",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haut"
+          }
+        }
+      }
+    },
+    "Rest" : {
+      "comment" : "Training status short: inactive",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repos"
+          }
+        }
+      }
+    },
+    "Last run: today" : {
+      "comment" : "Last workout today",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière sortie : aujourd'hui"
+          }
+        }
+      }
+    },
+    "Last run: yesterday" : {
+      "comment" : "Last workout yesterday",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière sortie : hier"
+          }
+        }
+      }
+    },
+    "Last run: %lld days ago" : {
+      "comment" : "Last workout days ago",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière sortie : il y a %lld jours"
+          }
+        }
+      }
+    },
+    "Weekly volume tracking and overtraining detection." : {
+      "comment" : "Training load widget description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suivi du volume hebdomadaire et détection du surentraînement."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

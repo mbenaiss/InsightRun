@@ -86,7 +86,7 @@ struct WeeklyStatsWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "chart.bar.fill")
-                Text("Cette semaine")
+                Text(String(localized: "This Week", comment: "Widget weekly stats header"))
                     .font(.headline)
                     .widgetAccentable()
             }
@@ -94,7 +94,7 @@ struct WeeklyStatsWidgetView: View {
                 Text(formattedDistance)
                     .font(.caption)
                     .fontWeight(.semibold)
-                Text("\(totalRuns) sorties")
+                Text(String(localized: "\(totalRuns) runs", comment: "Number of runs"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let pace = formattedPace {
@@ -112,7 +112,7 @@ struct WeeklyStatsWidgetView: View {
     private var accessoryInlineView: some View {
         HStack(spacing: 4) {
             Image(systemName: "figure.run")
-            Text("\(formattedDistance) - \(totalRuns) sorties")
+            Text("\(formattedDistance) - \(String(localized: "\(totalRuns) runs", comment: "Number of runs"))")
         }
         .containerBackground(for: .widget) { Color.clear }
     }
@@ -125,7 +125,7 @@ struct WeeklyStatsWidgetView: View {
                 Image(systemName: "chart.bar.fill")
                     .font(.caption2)
                     .foregroundStyle(.blue)
-                Text("Cette semaine")
+                Text(String(localized: "This Week", comment: "Widget weekly stats header"))
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -168,7 +168,7 @@ struct WeeklyStatsWidgetView: View {
                 Image(systemName: "chart.bar.fill")
                     .font(.caption)
                     .foregroundStyle(.blue)
-                Text("Statistiques de la semaine")
+                Text(String(localized: "Weekly Statistics", comment: "Widget weekly stats medium header"))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -181,7 +181,7 @@ struct WeeklyStatsWidgetView: View {
                 StatMetricCard(
                     icon: "road.lanes",
                     value: formattedDistance,
-                    label: "Distance",
+                    label: String(localized: "Distance", comment: "Widget distance label"),
                     color: .blue
                 )
 
@@ -191,7 +191,7 @@ struct WeeklyStatsWidgetView: View {
                 StatMetricCard(
                     icon: "figure.run",
                     value: "\(totalRuns)",
-                    label: "Sorties",
+                    label: String(localized: "Runs", comment: "Widget runs label"),
                     color: .green
                 )
 
@@ -201,7 +201,7 @@ struct WeeklyStatsWidgetView: View {
                 StatMetricCard(
                     icon: "timer",
                     value: formattedPace ?? "--",
-                    label: "Allure moy.",
+                    label: String(localized: "Avg Pace", comment: "Widget average pace label"),
                     color: .orange
                 )
 
@@ -211,7 +211,7 @@ struct WeeklyStatsWidgetView: View {
                 StatMetricCard(
                     icon: "clock.fill",
                     value: formattedDuration,
-                    label: "Durée",
+                    label: String(localized: "Duration", comment: "Widget duration label"),
                     color: .purple
                 )
             }
@@ -296,8 +296,8 @@ struct WeeklyStatsWidget: Widget {
         StaticConfiguration(kind: kind, provider: WeeklyStatsProvider()) { entry in
             WeeklyStatsWidgetView(entry: entry)
         }
-        .configurationDisplayName("Statistiques hebdo")
-        .description("Distance, sorties et allure de la semaine en cours.")
+        .configurationDisplayName(String(localized: "Weekly Stats", comment: "Widget display name"))
+        .description(String(localized: "Distance, runs and pace for the current week.", comment: "Weekly stats widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

@@ -90,7 +90,7 @@ struct SleepQualityWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "moon.zzz.fill")
-                Text("Sommeil")
+                Text(String(localized: "Sleep", comment: "Widget sleep title"))
                     .font(.headline)
                     .widgetAccentable()
             }
@@ -107,7 +107,7 @@ struct SleepQualityWidgetView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text("Aucune donnee")
+                Text(String(localized: "No data", comment: "No data placeholder"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -123,7 +123,7 @@ struct SleepQualityWidgetView: View {
             if let data = entry.data {
                 Text("\(formattedSleepDuration(data.totalSleepHours)) - Score \(data.qualityScore)")
             } else {
-                Text("Pas de sommeil")
+                Text(String(localized: "No sleep data", comment: "No sleep data placeholder"))
             }
         }
         .containerBackground(for: .widget) { Color.clear }
@@ -137,7 +137,7 @@ struct SleepQualityWidgetView: View {
                 Image(systemName: "moon.zzz.fill")
                     .font(.caption2)
                     .foregroundStyle(.indigo)
-                Text("Sommeil")
+                Text(String(localized: "Sleep", comment: "Widget sleep title"))
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -173,7 +173,7 @@ struct SleepQualityWidgetView: View {
                 }
             } else {
                 Spacer()
-                Text("Aucune donnee")
+                Text(String(localized: "No data", comment: "No data placeholder"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -208,7 +208,7 @@ struct SleepQualityWidgetView: View {
                         VStack(spacing: 0) {
                             Text("\(data.qualityScore)")
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
-                            Text("Score")
+                            Text(String(localized: "Score", comment: "Sleep quality score label"))
                                 .font(.system(size: 9))
                                 .foregroundStyle(.secondary)
                         }
@@ -226,7 +226,7 @@ struct SleepQualityWidgetView: View {
                     Image(systemName: "moon.zzz.fill")
                         .font(.caption)
                         .foregroundStyle(.indigo)
-                    Text("Sommeil")
+                    Text(String(localized: "Sleep", comment: "Widget sleep title"))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
@@ -250,7 +250,7 @@ struct SleepQualityWidgetView: View {
                         Image(systemName: "percent")
                             .font(.system(size: 9))
                             .foregroundStyle(.blue)
-                        Text("Efficacite: \(String(format: "%.0f%%", data.sleepEfficiency))")
+                        Text("\(String(localized: "Efficiency", comment: "Sleep efficiency label")): \(String(format: "%.0f%%", data.sleepEfficiency))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -261,7 +261,7 @@ struct SleepQualityWidgetView: View {
                             Image(systemName: "moon.fill")
                                 .font(.system(size: 9))
                                 .foregroundStyle(.purple)
-                            Text("Profond: \(formattedSleepDuration(deep))")
+                            Text("\(String(localized: "Deep", comment: "Deep sleep label")): \(formattedSleepDuration(deep))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -272,14 +272,14 @@ struct SleepQualityWidgetView: View {
                             Image(systemName: "brain.head.profile")
                                 .font(.system(size: 9))
                                 .foregroundStyle(.cyan)
-                            Text("Paradoxal: \(formattedSleepDuration(rem))")
+                            Text("\(String(localized: "REM", comment: "REM sleep label")): \(formattedSleepDuration(rem))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
                 } else {
                     Spacer()
-                    Text("Aucune donnee de sommeil")
+                    Text(String(localized: "No sleep data", comment: "No sleep data placeholder"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -303,10 +303,10 @@ struct SleepQualityWidgetView: View {
 
     private func qualityText(_ score: Int) -> String {
         switch score {
-        case 80...100: return "Excellent"
-        case 60..<80: return "Bon"
-        case 40..<60: return "Moyen"
-        default: return "Insuffisant"
+        case 80...100: return String(localized: "Excellent", comment: "Sleep quality")
+        case 60..<80: return String(localized: "Good", comment: "Sleep quality")
+        case 40..<60: return String(localized: "Fair", comment: "Sleep quality")
+        default: return String(localized: "Insufficient", comment: "Sleep quality")
         }
     }
 
@@ -329,8 +329,8 @@ struct SleepQualityWidget: Widget {
         StaticConfiguration(kind: kind, provider: SleepQualityProvider()) { entry in
             SleepQualityWidgetView(entry: entry)
         }
-        .configurationDisplayName("Sommeil")
-        .description("Qualite du sommeil, duree et repartition des phases.")
+        .configurationDisplayName(String(localized: "Sleep", comment: "Widget display name"))
+        .description(String(localized: "Sleep quality, duration and stage breakdown.", comment: "Sleep widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

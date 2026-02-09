@@ -89,7 +89,7 @@ struct TrainingLoadWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "chart.line.uptrend.xyaxis")
-                Text("Charge")
+                Text(String(localized: "Load", comment: "Widget training load title"))
                     .font(.headline)
                     .widgetAccentable()
             }
@@ -103,7 +103,7 @@ struct TrainingLoadWidgetView: View {
                         .foregroundStyle(.secondary)
                 }
                 if let days = entry.data?.daysSinceLastWorkout {
-                    Text(days == 0 ? "Auj." : "Il y a \(days)j")
+                    Text(days == 0 ? String(localized: "Today", comment: "Today abbreviation") : String(localized: "\(days)d ago", comment: "Days since last workout"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -133,7 +133,7 @@ struct TrainingLoadWidgetView: View {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.caption2)
                     .foregroundStyle(statusColor)
-                Text("Charge")
+                Text(String(localized: "Load", comment: "Widget training load title"))
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -163,7 +163,7 @@ struct TrainingLoadWidgetView: View {
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundStyle(.secondary)
-                    Text("vs sem. prec.")
+                    Text(String(localized: "vs last wk", comment: "Compared to last week"))
                         .font(.system(size: 8))
                         .foregroundStyle(.tertiary)
                 }
@@ -177,7 +177,7 @@ struct TrainingLoadWidgetView: View {
                     Image(systemName: "calendar")
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
-                    Text(days == 0 ? "Aujourd'hui" : days == 1 ? "Hier" : "Il y a \(days)j")
+                    Text(days == 0 ? String(localized: "Today", comment: "Today") : days == 1 ? String(localized: "Yesterday", comment: "Yesterday") : String(localized: "\(days)d ago", comment: "Days ago"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -215,7 +215,7 @@ struct TrainingLoadWidgetView: View {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.caption)
                         .foregroundStyle(statusColor)
-                    Text("Charge d'entrainement")
+                    Text(String(localized: "Training Load", comment: "Widget training load header"))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
@@ -226,7 +226,7 @@ struct TrainingLoadWidgetView: View {
                 // Volume comparison
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Cette semaine")
+                        Text(String(localized: "This Week", comment: "This week label"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                         Text(formattedDistance(entry.data?.thisWeekDistance ?? 0))
@@ -234,7 +234,7 @@ struct TrainingLoadWidgetView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Semaine prec.")
+                        Text(String(localized: "Last Week", comment: "Last week label"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                         Text(formattedDistance(entry.data?.lastWeekDistance ?? 0))
@@ -244,7 +244,7 @@ struct TrainingLoadWidgetView: View {
 
                     if let change = entry.data?.weeklyVolumeChange {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Variation")
+                            Text(String(localized: "Change", comment: "Volume change label"))
                                 .font(.system(size: 9))
                                 .foregroundStyle(.secondary)
                             HStack(spacing: 2) {
@@ -291,9 +291,9 @@ struct TrainingLoadWidgetView: View {
 
     private var statusTitle: String {
         switch entry.data?.status {
-        case "normal": return "En forme"
-        case "overtraining": return "Charge elevee"
-        case "inactive": return "Inactif"
+        case "normal": return String(localized: "On Track", comment: "Training status: normal")
+        case "overtraining": return String(localized: "High Load", comment: "Training status: overtraining")
+        case "inactive": return String(localized: "Inactive", comment: "Training status: inactive")
         default: return "--"
         }
     }
@@ -301,8 +301,8 @@ struct TrainingLoadWidgetView: View {
     private var statusShort: String {
         switch entry.data?.status {
         case "normal": return "OK"
-        case "overtraining": return "Haut"
-        case "inactive": return "Repos"
+        case "overtraining": return String(localized: "High", comment: "Training status short: overtraining")
+        case "inactive": return String(localized: "Rest", comment: "Training status short: inactive")
         default: return "--"
         }
     }
@@ -323,9 +323,9 @@ struct TrainingLoadWidgetView: View {
 
     private func lastWorkoutText(_ days: Int) -> String {
         switch days {
-        case 0: return "Derniere sortie: aujourd'hui"
-        case 1: return "Derniere sortie: hier"
-        default: return "Derniere sortie: il y a \(days) jours"
+        case 0: return String(localized: "Last run: today", comment: "Last workout today")
+        case 1: return String(localized: "Last run: yesterday", comment: "Last workout yesterday")
+        default: return String(localized: "Last run: \(days) days ago", comment: "Last workout days ago")
         }
     }
 }
@@ -339,8 +339,8 @@ struct TrainingLoadWidget: Widget {
         StaticConfiguration(kind: kind, provider: TrainingLoadProvider()) { entry in
             TrainingLoadWidgetView(entry: entry)
         }
-        .configurationDisplayName("Charge d'entrainement")
-        .description("Suivi du volume hebdomadaire et detection du surentrainement.")
+        .configurationDisplayName(String(localized: "Training Load", comment: "Widget display name"))
+        .description(String(localized: "Weekly volume tracking and overtraining detection.", comment: "Training load widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

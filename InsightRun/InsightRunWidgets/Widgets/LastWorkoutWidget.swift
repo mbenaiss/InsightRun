@@ -87,7 +87,7 @@ struct LastWorkoutWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "figure.run")
-                Text("Derniere sortie")
+                Text(String(localized: "Last Workout", comment: "Widget last workout title"))
                     .font(.headline)
                     .widgetAccentable()
             }
@@ -106,7 +106,7 @@ struct LastWorkoutWidgetView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text("Aucune sortie")
+                Text(String(localized: "No workout", comment: "No workout placeholder"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -122,7 +122,7 @@ struct LastWorkoutWidgetView: View {
             if entry.data != nil {
                 Text("\(formattedDistance) - \(formattedPace ?? formattedDuration)")
             } else {
-                Text("Aucune sortie")
+                Text(String(localized: "No workout", comment: "No workout placeholder"))
             }
         }
         .containerBackground(for: .widget) { Color.clear }
@@ -136,7 +136,7 @@ struct LastWorkoutWidgetView: View {
                 Image(systemName: "figure.run")
                     .font(.caption2)
                     .foregroundStyle(.green)
-                Text("Dernière sortie")
+                Text(String(localized: "Last Workout", comment: "Widget last workout title"))
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -166,7 +166,7 @@ struct LastWorkoutWidgetView: View {
                 }
             } else {
                 Spacer()
-                Text("Aucune sortie")
+                Text(String(localized: "No workout", comment: "No workout placeholder"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -185,7 +185,7 @@ struct LastWorkoutWidgetView: View {
                 Image(systemName: "figure.run")
                     .font(.caption)
                     .foregroundStyle(.green)
-                Text("Derniere sortie")
+                Text(String(localized: "Last Workout", comment: "Widget last workout title"))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -207,7 +207,7 @@ struct LastWorkoutWidgetView: View {
                             .foregroundStyle(.blue)
                         Text(formattedDistance)
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                        Text("Distance")
+                        Text(String(localized: "Distance", comment: "Widget distance label"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -220,7 +220,7 @@ struct LastWorkoutWidgetView: View {
                             .foregroundStyle(.orange)
                         Text(formattedPace ?? "--")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                        Text("Allure")
+                        Text(String(localized: "Pace", comment: "Widget pace label"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -233,7 +233,7 @@ struct LastWorkoutWidgetView: View {
                             .foregroundStyle(.purple)
                         Text(formattedDuration)
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                        Text("Duree")
+                        Text(String(localized: "Duration", comment: "Widget duration label"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -246,7 +246,7 @@ struct LastWorkoutWidgetView: View {
                             .foregroundStyle(.red)
                         Text(formattedHeartRate)
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                        Text("FC moy.")
+                        Text(String(localized: "Avg HR", comment: "Widget average heart rate label"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -259,7 +259,7 @@ struct LastWorkoutWidgetView: View {
                             .foregroundStyle(.orange)
                         Text(formattedCalories)
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                        Text("Calories")
+                        Text(String(localized: "Calories", comment: "Widget calories label"))
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -273,7 +273,7 @@ struct LastWorkoutWidgetView: View {
                         Image(systemName: "figure.run")
                             .font(.title3)
                             .foregroundStyle(.secondary)
-                        Text("Aucune sortie enregistree")
+                        Text(String(localized: "No workout recorded", comment: "No workout recorded placeholder"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -330,7 +330,7 @@ struct LastWorkoutWidgetView: View {
     private var relativeDate: String {
         guard let workoutDate = entry.data?.date else { return "" }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale.current
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: workoutDate, relativeTo: Date())
     }
@@ -345,8 +345,8 @@ struct LastWorkoutWidget: Widget {
         StaticConfiguration(kind: kind, provider: LastWorkoutProvider()) { entry in
             LastWorkoutWidgetView(entry: entry)
         }
-        .configurationDisplayName("Derniere sortie")
-        .description("Resume de votre derniere seance de course.")
+        .configurationDisplayName(String(localized: "Last Workout", comment: "Widget display name"))
+        .description(String(localized: "Summary of your last running workout.", comment: "Last workout widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

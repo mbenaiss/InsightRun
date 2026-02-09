@@ -89,7 +89,7 @@ struct HealthVitalsWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "heart.text.clipboard")
-                Text("Signes vitaux")
+                Text(String(localized: "Health Vitals", comment: "Widget health vitals title"))
                     .font(.headline)
                     .widgetAccentable()
             }
@@ -131,7 +131,7 @@ struct HealthVitalsWidgetView: View {
                 Image(systemName: "heart.text.clipboard")
                     .font(.caption2)
                     .foregroundStyle(.red)
-                Text("Sante")
+                Text(String(localized: "Health", comment: "Widget health title"))
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -191,7 +191,7 @@ struct HealthVitalsWidgetView: View {
                 Image(systemName: "heart.text.clipboard")
                     .font(.caption)
                     .foregroundStyle(.red)
-                Text("Signes vitaux")
+                Text(String(localized: "Health Vitals", comment: "Widget health vitals title"))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -214,7 +214,7 @@ struct HealthVitalsWidgetView: View {
                 // Resting Heart Rate
                 VitalCard(
                     icon: "heart.fill",
-                    label: "FC repos",
+                    label: String(localized: "Resting HR", comment: "Resting heart rate label"),
                     value: entry.data?.restingHeartRate.map { String(format: "%.0f", $0) } ?? "--",
                     unit: "bpm",
                     color: .red
@@ -290,8 +290,8 @@ struct HealthVitalsWidget: Widget {
         StaticConfiguration(kind: kind, provider: HealthVitalsProvider()) { entry in
             HealthVitalsWidgetView(entry: entry)
         }
-        .configurationDisplayName("Signes vitaux")
-        .description("HRV, frequence cardiaque au repos, SpO2 et frequence respiratoire.")
+        .configurationDisplayName(String(localized: "Health Vitals", comment: "Widget display name"))
+        .description(String(localized: "HRV, resting heart rate, SpO2 and respiratory rate.", comment: "Health vitals widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

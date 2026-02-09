@@ -31,6 +31,14 @@ final class WorkoutSyncService {
         startObserverQuery()
     }
 
+    func stopObserving() {
+        if let query = observerQuery {
+            healthStore.stop(query)
+            observerQuery = nil
+            print("✅ WorkoutSyncService: ObserverQuery stopped")
+        }
+    }
+
     // MARK: - Background Delivery
 
     private func enableBackgroundDelivery() {

@@ -86,7 +86,7 @@ struct ReadinessWidgetView: View {
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Readiness")
+                Text(String(localized: "Readiness", comment: "Widget readiness title"))
                     .font(.headline)
                     .widgetAccentable()
                 Text("\(score)/100 - \(statusText)")
@@ -102,7 +102,7 @@ struct ReadinessWidgetView: View {
     private var accessoryInlineView: some View {
         HStack(spacing: 4) {
             Image(systemName: "bolt.heart.fill")
-            Text("Readiness \(score)/100")
+            Text("\(String(localized: "Readiness", comment: "Widget readiness inline")) \(score)/100")
         }
         .containerBackground(for: .widget) { Color.clear }
     }
@@ -115,7 +115,7 @@ struct ReadinessWidgetView: View {
                 Image(systemName: "bolt.heart.fill")
                     .font(.caption2)
                     .foregroundStyle(scoreColor)
-                Text("Readiness")
+                Text(String(localized: "Readiness", comment: "Widget readiness title"))
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -189,7 +189,7 @@ struct ReadinessWidgetView: View {
                     Image(systemName: "bolt.heart.fill")
                         .font(.subheadline)
                         .foregroundStyle(scoreColor)
-                    Text("Readiness")
+                    Text(String(localized: "Readiness", comment: "Widget readiness title"))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
@@ -200,7 +200,7 @@ struct ReadinessWidgetView: View {
                     WidgetMetricRow(
                         icon: "waveform.path.ecg",
                         label: "HRV",
-                        value: String(format: "%.0f ms", hrv),
+                        value: String(format: "%.0f %@", hrv, String(localized: "ms", comment: "Unit: milliseconds")),
                         color: .purple
                     )
                 }
@@ -208,14 +208,14 @@ struct ReadinessWidgetView: View {
                 if let rhr = entry.data?.rhrValue {
                     WidgetMetricRow(
                         icon: "heart.fill",
-                        label: "FC repos",
-                        value: String(format: "%.0f bpm", rhr),
+                        label: String(localized: "Resting HR", comment: "Resting heart rate label"),
+                        value: String(format: "%.0f %@", rhr, String(localized: "bpm", comment: "Unit: beats per minute")),
                         color: .red
                     )
                 }
 
                 if entry.data?.hrvValue == nil && entry.data?.rhrValue == nil {
-                    Text("Ouvrir l'app pour synchroniser")
+                    Text(String(localized: "Open the app to sync", comment: "Prompt to open app"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -237,10 +237,10 @@ struct ReadinessWidgetView: View {
     private var statusText: String {
         guard let status = entry.data?.status else { return "--" }
         switch status {
-        case "excellent": return "Excellent"
-        case "good": return "Bon"
-        case "fair": return "Moyen"
-        case "poor": return "Faible"
+        case "excellent": return String(localized: "Excellent", comment: "Readiness status")
+        case "good": return String(localized: "Good", comment: "Readiness status")
+        case "fair": return String(localized: "Fair", comment: "Readiness status")
+        case "poor": return String(localized: "Poor", comment: "Readiness status")
         default: return status.capitalized
         }
     }
@@ -273,8 +273,8 @@ struct ReadinessWidget: Widget {
         StaticConfiguration(kind: kind, provider: ReadinessProvider()) { entry in
             ReadinessWidgetView(entry: entry)
         }
-        .configurationDisplayName("Readiness")
-        .description("Score de récupération et état de préparation quotidien.")
+        .configurationDisplayName(String(localized: "Readiness", comment: "Widget display name"))
+        .description(String(localized: "Daily readiness and recovery score.", comment: "Readiness widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

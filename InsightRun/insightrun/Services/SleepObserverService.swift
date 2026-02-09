@@ -29,6 +29,14 @@ final class SleepObserverService {
         startObserverQuery()
     }
 
+    func stopObserving() {
+        if let query = observerQuery {
+            healthStore.stop(query)
+            observerQuery = nil
+            print("✅ SleepObserverService: ObserverQuery stopped")
+        }
+    }
+
     // MARK: - Background Delivery
 
     private func enableBackgroundDelivery() {

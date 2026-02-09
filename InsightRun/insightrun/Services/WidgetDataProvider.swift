@@ -166,16 +166,21 @@ class WidgetDataProvider {
     // MARK: - Private
 
     private func save<T: Encodable>(_ data: T, forKey key: String) {
-        guard let encoded = try? encoder.encode(data) else { return }
-        defaults?.set(encoded, forKey: key)
+        do {
+            let encoded = try encoder.encode(data)
+            defaults?.set(encoded, forKey: key)
+        } catch {
+            print("❌ WidgetDataProvider: Failed to encode \(key): \(error)")
+        }
     }
 
     private func reloadWidgets() {
         reloadTask?.cancel()
         reloadTask = Task {
             try? await Task.sleep(nanoseconds: 500_000_000)
-            guard !Task.isCancelled else { return }
-            WidgetCenter.shared.reloadAllTimelines()
+            if !Task.isCancelled {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
         }
     }
 }

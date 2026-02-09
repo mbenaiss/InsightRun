@@ -119,6 +119,9 @@ class HealthKitManager: ObservableObject {
             // Mark that user has completed the authorization flow
             hasCompletedHealthKitSetup = true
 
+            // Start background workout sync now that HealthKit is authorized
+            WorkoutSyncService.shared.startObserving()
+
             // Track permission granted (user allowed access)
             AnalyticsService.shared.trackHealthKitPermissionGranted()
         } catch {

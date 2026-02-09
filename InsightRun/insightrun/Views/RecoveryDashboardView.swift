@@ -494,7 +494,7 @@ struct SleepStageRow: View {
     private var formattedDuration: String {
         let hours = Int(duration) / 3600
         let minutes = Int(duration) % 3600 / 60
-        return String(format: "%dh%02d", hours, minutes)
+        return String(format: "%d%@%02d", hours, String(localized: "h", comment: "Hour abbreviation"), minutes)
     }
 
     var body: some View {

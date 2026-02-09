@@ -54,6 +54,10 @@
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
 	<key>NSHealthShareUsageDescription</key>
 	<string>InsightRun reads your workout data to provide personalized training insights and recovery recommendations.</string>
 	<key>NSHealthUpdateUsageDescription</key>

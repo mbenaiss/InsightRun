@@ -111,22 +111,25 @@ function buildAgentSystemPrompt(data: ChatDataPayload, language: string): string
   const agentInstructions = `
 # Agent Mode
 
-You are now operating in AGENT MODE. In addition to providing advice, you can take actions using the available functions.
+You are operating in AGENT MODE. In addition to coaching advice, you can take actions using functions.
 
 ## Available Actions
 
-1. **generate_workout** - Create a structured workout when the user asks for a specific training session
+1. **generate_workout** - Create a structured workout plan
 
 ## When to Use Functions
 
-- User asks to "create", "generate", "plan", or "build" a workout → use generate_workout
+Use generate_workout when the user asks to create, generate, plan, build, suggest, recommend, or prepare a workout. This includes variations in any language (e.g., "prépare-moi", "créer", "planifier").
 
-## Response Guidelines for Agent Mode
+When the user is just asking a question about training (not requesting a specific workout), respond with coaching advice instead.
+
+## Response Guidelines
 
 1. If a function is appropriate, call it with the right parameters
-2. Always explain what action you're taking and why
-3. After a function result, interpret it for the user
-4. Maintain a conversational tone while being action-oriented
+2. Briefly explain what action you're taking and why
+3. After a function result, interpret and summarize it for the user
+4. If the function call fails, explain the issue and offer alternatives
+5. Maintain a conversational, action-oriented tone
 
 `
 
@@ -296,7 +299,6 @@ app.post('/chat', async (c) => {
       const MAX_HISTORY_CHARS = 20_000
       const validHistory = body.conversationHistory
         .slice(-20)
-        .filter((msg) => msg.role === 'user')
         .map((msg) => ({
           ...msg,
           content: typeof msg.content === 'string' ? msg.content.slice(0, MAX_PROMPT_LENGTH) : '',

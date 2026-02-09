@@ -99,7 +99,7 @@ struct SettingsView: View {
                 Section {
                     Picker(String(localized: "Appearance"), selection: Bindable(themeManager).selectedTheme) {
                         ForEach(AppTheme.allCases) { theme in
-                            Label(theme.rawValue, systemImage: theme.icon)
+                            Label(theme.localizedName, systemImage: theme.icon)
                                 .tag(theme)
                         }
                     }

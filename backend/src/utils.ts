@@ -104,3 +104,40 @@ export function validateTokenCount(text: string, maxTokens: number, context: str
 
   return tokenCount
 }
+
+export function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  if (hours > 0) {
+    return `${hours}h ${minutes.toString().padStart(2, '0')}m`
+  }
+  return `${minutes}m`
+}
+
+export function formatDistance(meters: number): string {
+  return `${(meters / 1000).toFixed(2)} km`
+}
+
+export function formatPace(pace: number): string {
+  const minutes = Math.floor(pace)
+  const seconds = Math.floor((pace - minutes) * 60)
+  return `${minutes}'${seconds.toString().padStart(2, '0')}"/km`
+}
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  fr: 'French',
+  en: 'English',
+  es: 'Spanish',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  nl: 'Dutch',
+  ja: 'Japanese',
+  zh: 'Chinese',
+  ko: 'Korean',
+  ar: 'Arabic',
+}
+
+export function getLanguageName(langCode: string): string {
+  return LANGUAGE_NAMES[langCode.toLowerCase()] || 'English'
+}

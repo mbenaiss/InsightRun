@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { ChatRequestV2 } from '../types'
-import { estimateTokenCount } from '../utils'
+import { estimateTokenCount, getLanguageName } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -48,15 +48,19 @@ function buildSmartSuggestionPrompt(payload: ChatRequestV2): { system: string; u
     ? Math.floor((Date.now() - new Date(lastWorkoutDate).getTime()) / (1000 * 60 * 60 * 24))
     : null
 
-  const systemPrompt = `You are an elite running coach AI. Analyze the runner's data deeply and create ONE highly personalized workout.
+  const langName = getLanguageName(language)
+
+  const systemPrompt = `You are an elite running coach AI. Analyze the runner's data and create ONE highly personalized workout.
+
+**LANGUAGE: Respond entirely in ${langName}. Use phase names appropriate for ${langName}.**
 
 RUNNER PROFILE:
-- Avg pace: ${avgPaceFormatted} (use this as baseline)
+- Avg pace: ${avgPaceFormatted} (use this as baseline for pace calculations)
 - Recent volume: ${totalDistanceKm}km over ${workouts.length} workouts (${totalDurationMin}min total)
-- Days since last run: ${daysSinceLastWorkout !== null ? daysSinceLastWorkout : 'unknown'}
+${daysSinceLastWorkout !== null ? `- Days since last run: ${daysSinceLastWorkout}` : ''}
 ${historicalSummary ? `\nLONG-TERM PATTERN:\n${historicalSummary}` : ''}
 
-LAST ${Math.min(5, workouts.length)} WORKOUTS (analyze progression/fatigue):
+LAST ${Math.min(5, workouts.length)} WORKOUTS:
 ${workouts
   .slice(0, 5)
   .map(
@@ -65,7 +69,7 @@ ${workouts
   )
   .join('\n')}
 
-ANALYSIS FRAMEWORK (think, don't output):
+INTERNAL ANALYSIS (reason about these, don't output them):
 1. Training load trend: increasing/stable/decreasing?
 2. Workout variety: all easy runs? need intensity?
 3. Recovery status: adequate rest days? signs of fatigue?
@@ -74,35 +78,22 @@ ANALYSIS FRAMEWORK (think, don't output):
 OUTPUT FORMAT (strict):
 [Short Workout Title]
 
-- [Phase]: [duration] at [exact pace]
-- [Phase]: [duration] at [exact pace]
-- [Phase]: [duration] at [exact pace]
+- [Phase name]: [duration] at [exact single pace]
+- [Phase name]: [duration] at [exact single pace]
 ...
 
-EXAMPLE:
-"Séance de Récupération Active avec Tempo Léger
-
-- Échauffement : 10 min à 6:39/km
-- Endurance facile : 20 min à 6:54/km
-- Tempo modéré : 12 min à 6:14/km
-- Récupération : 5 min à 6:54/km
-- Retour au calme : 10 min à 6:39/km"
-
-STRICT RULES:
-- Title + phases format (clear, detailed, editable by user)
-- Each phase MUST have exact duration (min or km) + exact pace
-- NO ranges/progressive paces (FORBIDDEN: "5:15→4:30/km")
-- Calculate paces from runner's ${avgPaceFormatted} avg:
-  * Easy/Recovery: +15-30 sec/km slower
+RULES:
+- Title + blank line + phases list. Nothing else.
+- Each phase MUST have exact duration (min or km) and ONE exact pace value (e.g., "5:30/km").
+- Each pace must be a single fixed value. Never use ranges or progressive paces.
+- Calculate paces relative to runner's ${avgPaceFormatted} baseline:
+  * Easy/Recovery: +15-30 sec/km
   * Endurance: +0-15 sec/km
-  * Tempo: -10 to -20 sec/km faster
-  * Speed intervals: -30 to -45 sec/km faster
-- Adapt to runner's current fitness, fatigue, and recent training
-- Use appropriate phase names: Échauffement, Endurance, Tempo, Intervalles, Récupération, Retour au calme
-- Language: ${language}
-- Total workout should be 40-90 minutes based on runner's recent volume
-
-OUTPUT: Title + blank line + phases list. User will edit this before generating the structured workout.`
+  * Tempo: -10 to -20 sec/km
+  * Speed intervals: -30 to -45 sec/km
+- Adapt to runner's current fitness, fatigue, and recent training.
+- Total workout: 40-90 minutes based on runner's recent volume.
+- The user will edit this before generating the structured workout.`
 
   const userPrompt = `Based on my recent training history, suggest a detailed workout for my next run.`
 

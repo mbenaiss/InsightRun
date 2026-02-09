@@ -78,6 +78,11 @@ struct InsightRunApp: App {
         Task { @MainActor in
             AnalyticsService.shared.trackAppOpened()
         }
+
+        // Start background workout sync if HealthKit is already authorized
+        if HealthKitManager.shared.hasCompletedHealthKitSetup {
+            WorkoutSyncService.shared.startObserving()
+        }
     }
 
     var body: some Scene {

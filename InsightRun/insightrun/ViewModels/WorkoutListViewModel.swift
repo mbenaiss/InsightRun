@@ -157,7 +157,7 @@ class WorkoutListViewModel: ObservableObject {
     func refreshAuthorizationStatus() {
         Task {
             await checkAuthorizationStatus()
-            if authorizationStatus == .authorized && workouts.isEmpty {
+            if authorizationStatus == .authorized {
                 await loadWorkouts()
             }
         }

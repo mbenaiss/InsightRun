@@ -508,7 +508,7 @@ app.post('/api/chat', async (c) => {
           {
             error: 'AI Service Error',
             message: 'Failed to get response from AI service',
-            details: errorText,
+            details: 'Check server logs for details',
           },
           500
         )

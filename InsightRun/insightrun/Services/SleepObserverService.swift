@@ -9,6 +9,7 @@
 import Foundation
 import HealthKit
 
+@MainActor
 final class SleepObserverService {
     static let shared = SleepObserverService()
 
@@ -51,19 +52,20 @@ final class SleepObserverService {
         guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { return }
 
         let query = HKObserverQuery(sampleType: sleepType, predicate: nil) { [weak self] _, completionHandler, error in
-            guard let self else {
-                completionHandler()
-                return
-            }
-
             if let error {
                 print("❌ SleepObserverService: ObserverQuery error: \(error)")
                 completionHandler()
                 return
             }
 
-            self.handleSleepUpdate {
-                completionHandler()
+            Task { @MainActor in
+                guard let self else {
+                    completionHandler()
+                    return
+                }
+                self.handleSleepUpdate {
+                    completionHandler()
+                }
             }
         }
 
@@ -89,35 +91,32 @@ final class SleepObserverService {
 
         // Fetch today's sleep data to confirm wake-up
         Task {
+            defer { completion() }
+
             let today = Date()
             guard let sleepData = try? await HealthKitManager.shared.fetchSleepData(for: today) else {
                 // Also check yesterday (sleep session that ended this morning)
-                let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)!
-                guard let yesterdaySleep = try? await HealthKitManager.shared.fetchSleepData(for: yesterday) else {
-                    completion()
+                guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today),
+                      let yesterdaySleep = try? await HealthKitManager.shared.fetchSleepData(for: yesterday) else {
                     return
                 }
 
                 // Confirm the sleep session ended recently (within the last 2 hours)
                 let timeSinceWakeUp = today.timeIntervalSince(yesterdaySleep.sleepEnd)
                 guard timeSinceWakeUp >= 0 && timeSinceWakeUp < 2 * 60 * 60 else {
-                    completion()
                     return
                 }
 
                 self.triggerDailyReadiness()
-                completion()
                 return
             }
 
             let timeSinceWakeUp = today.timeIntervalSince(sleepData.sleepEnd)
             guard timeSinceWakeUp >= 0 && timeSinceWakeUp < 2 * 60 * 60 else {
-                completion()
                 return
             }
 
             self.triggerDailyReadiness()
-            completion()
         }
     }
 

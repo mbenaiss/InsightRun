@@ -62,7 +62,7 @@ class WeeklySummaryViewModel: ObservableObject {
     var formattedTotalDistance: String {
         let km = totalDistance / 1000.0
         let unit = String(localized: "km", comment: "Unit abbreviation for kilometers")
-        return String(format: "%.1f \(unit)", km)
+        return String(format: "%.1f %@", km, unit)
     }
 
     var formattedTotalDuration: String {
@@ -71,9 +71,9 @@ class WeeklySummaryViewModel: ObservableObject {
         let h = String(localized: "h", comment: "Unit abbreviation for hours in duration")
         let m = String(localized: "m", comment: "Unit abbreviation for minutes in duration")
         if hours > 0 {
-            return String(format: "%d\(h) %02d\(m)", hours, minutes)
+            return "\(hours)\(h) \(String(format: "%02d", minutes))\(m)"
         }
-        return String(format: "%d\(m)", minutes)
+        return "\(minutes)\(m)"
     }
 
     var formattedAveragePace: String {
@@ -81,7 +81,7 @@ class WeeklySummaryViewModel: ObservableObject {
         let minutes = Int(pace)
         let seconds = Int((pace - Double(minutes)) * 60)
         let unit = String(localized: "/km", comment: "Pace unit per kilometer")
-        return String(format: "%d'%02d\"\(unit)", minutes, seconds)
+        return "\(minutes)'\(String(format: "%02d", seconds))\"\(unit)"
     }
 
     var formattedAverageSleep: String {
@@ -162,12 +162,18 @@ class WeeklySummaryViewModel: ObservableObject {
         if !withStages.isEmpty {
             let stageCount = Double(withStages.count)
             averageDeepPercent = withStages.map { ($0.deepSleepDuration! / $0.totalSleepDuration) * 100 }.reduce(0, +) / stageCount
-            averageCorePercent = withStages.compactMap { s in
+            let coreValues = withStages.compactMap { s in
                 s.coreSleepDuration.map { ($0 / s.totalSleepDuration) * 100 }
-            }.reduce(0, +) / stageCount
-            averageRemPercent = withStages.compactMap { s in
+            }
+            if !coreValues.isEmpty {
+                averageCorePercent = coreValues.reduce(0, +) / Double(coreValues.count)
+            }
+            let remValues = withStages.compactMap { s in
                 s.remSleepDuration.map { ($0 / s.totalSleepDuration) * 100 }
-            }.reduce(0, +) / stageCount
+            }
+            if !remValues.isEmpty {
+                averageRemPercent = remValues.reduce(0, +) / Double(remValues.count)
+            }
         }
     }
 

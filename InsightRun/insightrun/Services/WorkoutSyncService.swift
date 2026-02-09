@@ -10,6 +10,7 @@ import Foundation
 import HealthKit
 import UserNotifications
 
+@MainActor
 final class WorkoutSyncService {
     static let shared = WorkoutSyncService()
 
@@ -49,19 +50,20 @@ final class WorkoutSyncService {
 
     private func startObserverQuery() {
         let query = HKObserverQuery(sampleType: .workoutType(), predicate: nil) { [weak self] _, completionHandler, error in
-            guard let self else {
-                completionHandler()
-                return
-            }
-
             if let error {
                 print("❌ WorkoutSyncService: ObserverQuery error: \(error)")
                 completionHandler()
                 return
             }
 
-            self.fetchNewWorkouts {
-                completionHandler()
+            Task { @MainActor in
+                guard let self else {
+                    completionHandler()
+                    return
+                }
+                self.fetchNewWorkouts {
+                    completionHandler()
+                }
             }
         }
 
@@ -82,42 +84,44 @@ final class WorkoutSyncService {
             anchor: anchor,
             limit: HKObjectQueryNoLimit
         ) { [weak self] _, samples, _, newAnchor, error in
-            guard let self else {
-                completion()
-                return
-            }
-
             if let error {
                 print("❌ WorkoutSyncService: AnchoredObjectQuery error: \(error)")
                 completion()
                 return
             }
 
-            if let newAnchor {
-                self.saveAnchor(newAnchor)
-            }
+            Task { @MainActor in
+                guard let self else {
+                    completion()
+                    return
+                }
 
-            // First launch: seed anchor without sending notifications
-            guard isSeeded else {
-                UserDefaults.standard.set(true, forKey: self.seededKey)
-                print("✅ WorkoutSyncService: Anchor seeded (skipping \(samples?.count ?? 0) existing workouts)")
-                completion()
-                return
-            }
+                if let newAnchor {
+                    self.saveAnchor(newAnchor)
+                }
 
-            let workouts = (samples as? [HKWorkout])?.filter {
-                $0.workoutActivityType == .running
-            } ?? []
+                // First launch: seed anchor without sending notifications
+                guard isSeeded else {
+                    UserDefaults.standard.set(true, forKey: self.seededKey)
+                    print("✅ WorkoutSyncService: Anchor seeded (skipping \(samples?.count ?? 0) existing workouts)")
+                    completion()
+                    return
+                }
 
-            guard !workouts.isEmpty else {
-                completion()
-                return
-            }
+                let workouts = (samples as? [HKWorkout])?.filter {
+                    $0.workoutActivityType == .running
+                } ?? []
 
-            print("🏃 WorkoutSyncService: \(workouts.count) new running workout(s) detected")
+                guard !workouts.isEmpty else {
+                    completion()
+                    return
+                }
 
-            self.sendNotifications(for: workouts) {
-                completion()
+                print("🏃 WorkoutSyncService: \(workouts.count) new running workout(s) detected")
+
+                self.sendNotifications(for: workouts) {
+                    completion()
+                }
             }
         }
 

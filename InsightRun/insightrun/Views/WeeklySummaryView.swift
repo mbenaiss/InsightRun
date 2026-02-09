@@ -145,14 +145,14 @@ struct WeeklySummaryView: View {
                     icon: "flame.fill",
                     iconColor: .red,
                     title: String(localized: "Calories", comment: "Label for total calories"),
-                    value: String(format: "%.0f kcal", viewModel.totalCalories)
+                    value: String(format: "%.0f %@", viewModel.totalCalories, String(localized: "kcal", comment: "Unit abbreviation for kilocalories"))
                 )
 
                 MetricCard(
                     icon: "mountain.2.fill",
                     iconColor: .brown,
                     title: String(localized: "Elevation", comment: "Label for total elevation gain"),
-                    value: String(format: "%.0f m", viewModel.totalElevation)
+                    value: String(format: "%.0f %@", viewModel.totalElevation, String(localized: "m", comment: "Unit abbreviation for meters"))
                 )
 
                 if let hr = viewModel.averageHeartRate {
@@ -160,7 +160,7 @@ struct WeeklySummaryView: View {
                         icon: "heart.fill",
                         iconColor: .pink,
                         title: String(localized: "Avg HR", comment: "Label for average heart rate"),
-                        value: String(format: "%.0f bpm", hr)
+                        value: String(format: "%.0f %@", hr, String(localized: "bpm", comment: "Unit abbreviation for beats per minute"))
                     )
                 }
             }
@@ -283,7 +283,7 @@ struct WeeklySummaryView: View {
                             icon: "waveform.path.ecg",
                             color: .purple,
                             label: String(localized: "HRV", comment: "Label for heart rate variability"),
-                            value: String(format: "%.0f ms", hrv)
+                            value: String(format: "%.0f %@", hrv, String(localized: "ms", comment: "Unit abbreviation for milliseconds"))
                         )
                     }
 
@@ -292,7 +292,7 @@ struct WeeklySummaryView: View {
                             icon: "heart.fill",
                             color: .red,
                             label: String(localized: "Resting HR", comment: "Label for resting heart rate"),
-                            value: String(format: "%.0f bpm", rhr)
+                            value: String(format: "%.0f %@", rhr, String(localized: "bpm", comment: "Unit abbreviation for beats per minute"))
                         )
                     }
 
@@ -396,7 +396,7 @@ struct WeeklySummaryView: View {
                         .font(.body)
                         .fontWeight(.semibold)
                 } else {
-                    Text(String(format: "%+.0f \(String(localized: "pts", comment: "Unit abbreviation for points"))", change))
+                    Text(String(format: "%+.0f %@", change, String(localized: "pts", comment: "Unit abbreviation for points")))
                         .font(.body)
                         .fontWeight(.semibold)
                 }

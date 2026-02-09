@@ -15,6 +15,7 @@ class WidgetDataProvider {
 
     private let defaults: UserDefaults?
     private let encoder = JSONEncoder()
+    private var reloadTask: Task<Void, Never>?
 
     private init() {
         defaults = UserDefaults(suiteName: WidgetDataKeys.suiteName)
@@ -170,6 +171,11 @@ class WidgetDataProvider {
     }
 
     private func reloadWidgets() {
-        WidgetCenter.shared.reloadAllTimelines()
+        reloadTask?.cancel()
+        reloadTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 }

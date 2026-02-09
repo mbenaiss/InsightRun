@@ -355,7 +355,7 @@ async function processWebhookEvent(c: StravaContext, event: StravaWebhookEvent) 
           await c.env.STRAVA_CACHE.prepare(`
             UPDATE strava_sync_state
             SET total_activities = total_activities - 1,
-                last_synced_at = ?
+                last_sync_at = ?
             WHERE user_id = ?
           `)
             .bind(Date.now(), userId)

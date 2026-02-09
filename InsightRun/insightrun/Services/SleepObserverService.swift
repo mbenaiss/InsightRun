@@ -66,11 +66,11 @@ final class SleepObserverService {
                 return
             }
 
+            guard let self else {
+                completionHandler()
+                return
+            }
             Task { @MainActor in
-                guard let self else {
-                    completionHandler()
-                    return
-                }
                 self.handleSleepUpdate {
                     completionHandler()
                 }

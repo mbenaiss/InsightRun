@@ -64,11 +64,11 @@ final class WorkoutSyncService {
                 return
             }
 
+            guard let self else {
+                completionHandler()
+                return
+            }
             Task { @MainActor in
-                guard let self else {
-                    completionHandler()
-                    return
-                }
                 self.fetchNewWorkouts {
                     completionHandler()
                 }
@@ -98,11 +98,11 @@ final class WorkoutSyncService {
                 return
             }
 
+            guard let self else {
+                completion()
+                return
+            }
             Task { @MainActor in
-                guard let self else {
-                    completion()
-                    return
-                }
 
                 if let newAnchor {
                     self.saveAnchor(newAnchor)

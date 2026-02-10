@@ -6,7 +6,7 @@
 //
 
 import StoreKit
-import UIKit
+import SwiftUI
 
 @MainActor
 final class ReviewManager {
@@ -41,7 +41,7 @@ final class ReviewManager {
             .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
         else { return }
 
-        SKStoreReviewController.requestReview(in: scene)
+        AppStore.requestReview(in: scene)
 
         defaults.set(Date(), forKey: Keys.lastReviewRequestDate)
         defaults.set(reviewRequestCount + 1, forKey: Keys.reviewRequestCount)

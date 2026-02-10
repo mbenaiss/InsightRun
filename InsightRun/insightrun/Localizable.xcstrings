@@ -3769,6 +3769,23 @@
     "It's been %lld days since your last run. A light jog could boost your mood!" : {
       "comment" : "Inactivity reminder notification body"
     },
+    "kcal" : {
+      "comment" : "Unit abbreviation for kilocalories",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal"
+          }
+        }
+      }
+    },
     "km" : {
       "comment" : "Kilometers unit abbreviation",
       "extractionState" : "manual",
@@ -3783,23 +3800,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "km"
-          }
-        }
-      }
-    },
-    "kcal" : {
-      "comment" : "Unit abbreviation for kilocalories",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "kcal"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "kcal"
           }
         }
       }
@@ -6067,6 +6067,402 @@
         }
       }
     },
+    "progression.average" : {
+      "comment" : "Average label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "avg"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "moy"
+          }
+        }
+      }
+    },
+    "progression.empty.message" : {
+      "comment" : "Progression empty state message",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At least 2 workouts are needed in this period to show progression."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au moins 2 entraînements sont nécessaires sur cette période pour afficher la progression."
+          }
+        }
+      }
+    },
+    "progression.empty.title" : {
+      "comment" : "Progression empty state title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough data"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas assez de données"
+          }
+        }
+      }
+    },
+    "progression.loading" : {
+      "comment" : "Loading progression metrics",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading metrics… %d%%"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement des métriques… %d%%"
+          }
+        }
+      }
+    },
+    "progression.metric.bestPace" : {
+      "comment" : "Best pace metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best pace"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meilleure allure"
+          }
+        }
+      }
+    },
+    "progression.metric.cadence" : {
+      "comment" : "Cadence metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avg cadence"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cadence moy."
+          }
+        }
+      }
+    },
+    "progression.metric.doubleSupport" : {
+      "comment" : "Double support metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double support"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double appui"
+          }
+        }
+      }
+    },
+    "progression.metric.groundContactTime" : {
+      "comment" : "Ground contact time metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ground contact"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temps au sol"
+          }
+        }
+      }
+    },
+    "progression.metric.maxSpeed" : {
+      "comment" : "Max speed metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max speed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vitesse max"
+          }
+        }
+      }
+    },
+    "progression.metric.power" : {
+      "comment" : "Running power metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puissance"
+          }
+        }
+      }
+    },
+    "progression.metric.stairDescentSpeed" : {
+      "comment" : "Stair descent speed metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stair descent"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descente escaliers"
+          }
+        }
+      }
+    },
+    "progression.metric.strideLength" : {
+      "comment" : "Stride length metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stride length"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longueur de foulée"
+          }
+        }
+      }
+    },
+    "progression.metric.verticalOscillation" : {
+      "comment" : "Vertical oscillation metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vertical osc."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oscillation vert."
+          }
+        }
+      }
+    },
+    "progression.metric.walkingAsymmetry" : {
+      "comment" : "Walking asymmetry metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walking asymmetry"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asymétrie marche"
+          }
+        }
+      }
+    },
+    "progression.metric.walkingSpeed" : {
+      "comment" : "Walking speed metric",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walking speed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vitesse de marche"
+          }
+        }
+      }
+    },
+    "progression.section.advanced" : {
+      "comment" : "Advanced metrics section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced metrics"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Métriques avancées"
+          }
+        }
+      }
+    },
+    "progression.section.performance" : {
+      "comment" : "Performance section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance"
+          }
+        }
+      }
+    },
+    "progression.unit.kmh" : {
+      "comment" : "Speed unit",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "km/h"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "km/h"
+          }
+        }
+      }
+    },
+    "progression.unit.m" : {
+      "comment" : "Meters unit",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "m"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "m"
+          }
+        }
+      }
+    },
+    "progression.unit.minKm" : {
+      "comment" : "Pace unit",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "min/km"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "min/km"
+          }
+        }
+      }
+    },
+    "progression.unit.spm" : {
+      "comment" : "Steps per minute",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "spm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ppm"
+          }
+        }
+      }
+    },
+    "progression.unit.vo2" : {
+      "comment" : "VO2 Max unit",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ml/kg/min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ml/kg/min"
+          }
+        }
+      }
+    },
     "pts" : {
       "comment" : "Unit abbreviation for points",
       "localizations" : {
@@ -7107,6 +7503,7 @@
     },
     "statistics.charts.distance" : {
       "comment" : "Chart distance label",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -7177,6 +7574,7 @@
     },
     "statistics.charts.period" : {
       "comment" : "Chart period label",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -7188,6 +7586,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Période"
+          }
+        }
+      }
+    },
+    "statistics.charts.total" : {
+      "comment" : "Total label",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "total"
           }
         }
       }
@@ -8131,6 +8541,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Records personnels"
+          }
+        }
+      }
+    },
+    "statistics.tab.overview" : {
+      "comment" : "Overview tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vue d'ensemble"
+          }
+        }
+      }
+    },
+    "statistics.tab.progression" : {
+      "comment" : "Progression tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progression"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progression"
           }
         }
       }

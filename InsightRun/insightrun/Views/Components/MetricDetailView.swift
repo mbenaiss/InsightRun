@@ -48,7 +48,7 @@ struct MetricDetailView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
@@ -149,7 +149,7 @@ struct MetricDetailView: View {
                         .annotation(position: .top, alignment: .trailing) {
                             Text(String(localized: "Avg", comment: "Average baseline label"))
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                 }
             }
@@ -176,7 +176,7 @@ struct MetricDetailView: View {
                         .frame(width: 8, height: 8)
                     Text(String(localized: "Daily value", comment: "Chart legend - daily value"))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
 
                 if getBaselineAverage() != nil {
@@ -186,7 +186,7 @@ struct MetricDetailView: View {
                             .frame(width: 16, height: 2)
                         Text(String(localized: "Personal average", comment: "Chart legend - personal average"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
 

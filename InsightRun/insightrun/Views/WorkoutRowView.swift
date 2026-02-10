@@ -184,25 +184,25 @@ struct WorkoutRowView: View {
 
                     Text(workout.startDate, style: .time)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
 
                 // Metrics on same line with reduced spacing
                 HStack(spacing: 8) {
                     Label(workout.distanceFormatted, systemImage: "ruler")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
 
                     Label(workout.durationFormatted, systemImage: "clock")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
 
                     if let pace = workout.averagePace {
                         let minutes = Int(pace)
                         let seconds = Int((pace - Double(minutes)) * 60)
                         Label(String(format: "%d'%02d\"%@", minutes, seconds, String(localized: "/km", comment: "Pace unit suffix")), systemImage: "speedometer")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
                 .lineLimit(1)
@@ -223,7 +223,7 @@ struct WorkoutRowView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.irBorder, lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 }
 

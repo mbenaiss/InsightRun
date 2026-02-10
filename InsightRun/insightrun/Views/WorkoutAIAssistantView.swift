@@ -352,26 +352,26 @@ struct WorkoutAIAssistantView: View {
                     // New conversation button
                     Button(action: startNewConversation) {
                         Image(systemName: "square.and.pencil")
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
 
                     // Conversation history button
                     Button(action: showConversationHistory) {
                         Image(systemName: "clock.arrow.circlepath")
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
 
                     // Clear chat button
                     Button(action: clearChat) {
                         Image(systemName: "trash")
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color.irCardBackground)
+        .background(.ultraThinMaterial)
     }
 
     // MARK: - Empty State
@@ -383,7 +383,7 @@ struct WorkoutAIAssistantView: View {
                 Circle()
                     .fill(Color.irCardBackground)
                     .frame(width: 100, height: 100)
-                    .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
+                    .shadow(color: Color.irShadowStrong, radius: 20, y: 10)
 
                 Image(systemName: "sparkles")
                     .font(.system(size: 40))
@@ -403,7 +403,7 @@ struct WorkoutAIAssistantView: View {
 
                 Text(String(localized: "Ask questions about your performance", comment: "Empty state subtitle for AI assistant"))
                     .font(.subheadline)
-                    .foregroundColor(.irTextSecondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -411,7 +411,7 @@ struct WorkoutAIAssistantView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(String(localized: "Quick questions", comment: "Section header for sample questions"))
                     .font(.caption)
-                    .foregroundColor(.irTextSecondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .textCase(.uppercase)
                     .padding(.horizontal, 4)
 
@@ -425,20 +425,20 @@ struct WorkoutAIAssistantView: View {
                             HStack {
                                 Image(systemName: "lightbulb.fill")
                                     .font(.caption)
-                                    .foregroundColor(.irWarning)
+                                    .foregroundStyle(Color.irWarning)
                                 Text(sample)
                                     .font(.subheadline)
-                                    .foregroundColor(.irTextPrimary)
+                                    .foregroundStyle(Color.irTextPrimary)
                                     .multilineTextAlignment(.leading)
                                 Spacer()
                                 Image(systemName: "arrow.up.right")
                                     .font(.caption)
-                                    .foregroundColor(.irTextSecondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             .padding(12)
                             .background(Color.irCardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+                            .shadow(color: Color.irShadow, radius: 4, y: 2)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -499,10 +499,10 @@ struct WorkoutAIAssistantView: View {
     private func errorView(_ error: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.irError)
+                .foregroundStyle(Color.irError)
             Text(error)
                 .font(.caption)
-                .foregroundColor(.irTextSecondary)
+                .foregroundStyle(Color.irTextSecondary)
             Spacer()
             Button(String(localized: "Dismiss", comment: "Button to dismiss error message")) {
                 aiService.error = nil
@@ -522,11 +522,11 @@ struct WorkoutAIAssistantView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "lightbulb.fill")
-                    .foregroundColor(.irWarning)
+                    .foregroundStyle(Color.irWarning)
                     .font(.caption)
                 Text(String(localized: "Suggested questions", comment: "Section header for AI-suggested questions"))
                     .font(.caption)
-                    .foregroundColor(.irTextSecondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .textCase(.uppercase)
             }
             .padding(.horizontal)
@@ -542,7 +542,7 @@ struct WorkoutAIAssistantView: View {
                         }) {
                             Text(suggestion)
                                 .font(.subheadline)
-                                .foregroundColor(.irTextPrimary)
+                                .foregroundStyle(Color.irTextPrimary)
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
                                 .padding(.horizontal, 12)
@@ -561,7 +561,7 @@ struct WorkoutAIAssistantView: View {
             }
             .padding(.bottom, 8)
         }
-        .background(Color.irCardBackground)
+        .background(.thinMaterial)
     }
 
     // MARK: - Input Area
@@ -580,7 +580,7 @@ struct WorkoutAIAssistantView: View {
                 if !question.isEmpty && !aiService.isStreaming {
                     Button(action: { question = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
@@ -610,11 +610,11 @@ struct WorkoutAIAssistantView: View {
 
                     if aiService.isStreaming {
                         Image(systemName: "stop.fill")
-                            .foregroundColor(.irCardBackground)
+                            .foregroundStyle(Color.irCardBackground)
                             .font(.system(size: 16))
                     } else {
                         Image(systemName: "arrow.up")
-                            .foregroundColor(.irCardBackground)
+                            .foregroundStyle(Color.irCardBackground)
                             .font(.system(size: 16, weight: .semibold))
                     }
                 }
@@ -622,7 +622,7 @@ struct WorkoutAIAssistantView: View {
             .disabled(question.isEmpty && !aiService.isStreaming)
         }
         .padding()
-        .background(Color.irCardBackground)
+        .background(.ultraThinMaterial)
     }
 
     // MARK: - Actions
@@ -905,12 +905,12 @@ struct MessageBubble: View {
                             .padding(12)
                             .background(Color.irCardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+                            .shadow(color: Color.irShadow, radius: 8, y: 4)
                     }
                 } else {
                     Text(message.content)
                         .font(.body)
-                        .foregroundColor(.irCardBackground)
+                        .foregroundStyle(Color.irCardBackground)
                         .padding(12)
                         .background(
                             LinearGradient(
@@ -925,7 +925,7 @@ struct MessageBubble: View {
 
                 Text(formatTime(message.timestamp))
                     .font(.caption2)
-                    .foregroundColor(.irTextSecondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .padding(.horizontal, 4)
                     .opacity(appeared ? 1 : 0)
             }
@@ -1046,7 +1046,7 @@ struct ConversationHistoryView: View {
                 Circle()
                     .fill(Color.irCardBackground)
                     .frame(width: 100, height: 100)
-                    .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
+                    .shadow(color: Color.irShadowStrong, radius: 20, y: 10)
 
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 40))
@@ -1066,7 +1066,7 @@ struct ConversationHistoryView: View {
 
                 Text(String(localized: "Your past conversations will appear here", comment: "Empty state subtitle for conversation history"))
                     .font(.subheadline)
-                    .foregroundColor(.irTextSecondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -1105,21 +1105,21 @@ struct ConversationHistoryRow: View {
                     Text(history.title)
                         .font(.body)
                         .fontWeight(.medium)
-                        .foregroundColor(.irTextPrimary)
+                        .foregroundStyle(Color.irTextPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     HStack(spacing: 8) {
                         Text(formatDate(history.updatedAt))
                             .font(.caption)
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
 
                         Text("•")
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
 
                         Text(String(format: String(localized: "%lld messages", comment: "Number of messages in conversation"), history.messages.count))
                             .font(.caption)
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
 
@@ -1128,7 +1128,7 @@ struct ConversationHistoryRow: View {
                 // Delete button
                 Button(action: onDelete) {
                     Image(systemName: "trash")
-                        .foregroundColor(.irTextSecondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .font(.system(size: 16))
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -1136,7 +1136,7 @@ struct ConversationHistoryRow: View {
             .padding(16)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
     }

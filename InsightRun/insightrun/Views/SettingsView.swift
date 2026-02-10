@@ -36,7 +36,7 @@ struct SettingsView: View {
                                     .font(.headline)
                                 Text(String(localized: "All features unlocked for testing"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             Spacer()
                         }
@@ -67,12 +67,12 @@ struct SettingsView: View {
                                         .font(.headline)
                                     Text(String(localized: "Access all features"))
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.irTextSecondary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                         .buttonStyle(.plain)
@@ -155,10 +155,10 @@ struct SettingsView: View {
                         if notificationManager.isDailyReadinessEnabled {
                             HStack {
                                 Image(systemName: "bed.double.fill")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                                 Text(String(localized: "After wake-up detection", comment: "Wake-up based notification schedule"))
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
 
@@ -178,10 +178,10 @@ struct SettingsView: View {
                         if notificationManager.isWeeklySummaryEnabled {
                             HStack {
                                 Image(systemName: "calendar")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                                 Text(String(localized: "Sunday at 6:00 PM", comment: "Weekly summary schedule"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     }
@@ -206,12 +206,12 @@ struct SettingsView: View {
                                     .foregroundStyle(Color.irTextPrimary)
                                 Text(String(localized: "View scientific references", comment: "Medical sources subtitle"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -234,14 +234,14 @@ struct SettingsView: View {
 
                             Text(String(localized: "Last updated:", comment: "Last update label") + " \(formatDate(summary.indexedAt))")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
 
                             // Refresh indicator
                             let days = HistoricalSummaryStorage.shared.daysUntilRefresh()
                             if days > 0 {
                                 Text(String(localized: "Next update in", comment: "Next update prefix") + " \(days) " + String(localized: "days", comment: "days unit"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             } else {
                                 Text(String(localized: "Update recommended", comment: "Update recommended message"))
                                     .font(.caption)
@@ -264,7 +264,7 @@ struct SettingsView: View {
                         if !HistoricalSummaryStorage.shared.canManualRefresh() {
                             Text(String(localized: "Available 1 month after last update", comment: "Refresh cooldown message"))
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                     } else {
                         VStack(alignment: .leading) {
@@ -303,11 +303,11 @@ struct SettingsView: View {
                                         if let syncResult = lastSyncResult {
                                             Text(syncResult)
                                                 .font(.caption)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(Color.irTextSecondary)
                                         } else {
                                             Text(String(localized: "Activities syncing automatically"))
                                                 .font(.caption)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(Color.irTextSecondary)
                                         }
                                     }
                                     Spacer()
@@ -393,12 +393,12 @@ struct SettingsView: View {
                                     .foregroundStyle(Color.irTextPrimary)
                                 Text(String(localized: "Manage read and write access"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             Spacer()
                             Image(systemName: "arrow.up.forward")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -480,14 +480,14 @@ struct SettingsView: View {
                         Text(String(localized: "Version", comment: "Label for app version"))
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
 
                     HStack {
                         Text(String(localized: "Build", comment: "Label for app build number"))
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 } header: {
                     Text(String(localized: "About", comment: "Section header for app information"))

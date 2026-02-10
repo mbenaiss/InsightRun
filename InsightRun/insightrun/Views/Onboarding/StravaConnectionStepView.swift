@@ -35,11 +35,11 @@ struct StravaConnectionStepView: View {
                 if stravaAuth.isAuthenticated {
                     Image(systemName: "checkmark")
                         .font(.system(size: 50, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 } else {
                     Image(systemName: "figure.run")
                         .font(.system(size: 50, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
             .padding(.bottom, 32)
@@ -60,7 +60,7 @@ struct StravaConnectionStepView: View {
                         if let athleteId = stravaAuth.athleteId {
                             Text(String(localized: "Athlete ID: \(athleteId)", comment: "Strava athlete ID"))
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                     }
                 } else {
@@ -220,7 +220,7 @@ struct StravaFeatureRow: View {
 
                 Text(description)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
         }
     }

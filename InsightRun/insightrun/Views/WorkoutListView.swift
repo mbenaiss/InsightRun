@@ -167,7 +167,7 @@ struct WorkoutListView: View {
                 Circle()
                     .fill(Color.irCardBackground)
                     .frame(width: 120, height: 120)
-                    .shadow(color: .black.opacity(0.1), radius: 20, y: 10)
+                    .shadow(color: Color.irShadowStrong, radius: 20, y: 10)
 
                 Image(systemName: "figure.run.circle.fill")
                     .font(.system(size: 50))
@@ -181,7 +181,7 @@ struct WorkoutListView: View {
 
                 Text(String(localized: "Connect at least one data source to see your running workouts.", comment: "Data source connection description"))
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -255,7 +255,7 @@ struct WorkoutListView: View {
 
                         Text(String(localized: "Subscribe to access all your workouts, AI coaching, and advanced analytics", comment: "Locked workouts preview description"))
                             .font(.body)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 16)
                     }
@@ -297,7 +297,7 @@ struct WorkoutListView: View {
                 .padding()
                 .background(Color.irCardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+                .shadow(color: Color.irShadow, radius: 10, y: 5)
                 .padding(.horizontal)
                 .padding(.top, 16)
             }
@@ -325,7 +325,7 @@ struct WorkoutListView: View {
 
                 Text(String(localized: "Please enable access in Settings → Privacy → Health → Insight Run", comment: "HealthKit access denied instructions"))
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -359,7 +359,7 @@ struct WorkoutListView: View {
 
             Text(String(localized: "Loading...", comment: "Loading indicator"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
     }
 
@@ -380,7 +380,7 @@ struct WorkoutListView: View {
 
                 Text(String(localized: "No running workouts found.\nStart running to see your stats here!", comment: "Empty state description"))
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -460,7 +460,7 @@ struct WorkoutListView: View {
                             ProgressView()
                             Text(String(localized: "Loading more workouts...", comment: "Pagination loading indicator"))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                         Spacer()
                     }
@@ -477,7 +477,7 @@ struct WorkoutListView: View {
                                 .foregroundStyle(.green)
                             Text(String(localized: "All workouts loaded", comment: "End of list indicator"))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                         Spacer()
                     }
@@ -516,7 +516,7 @@ struct WorkoutListView: View {
 
                 Text(String(localized: "Get personalized insights and coaching powered by AI", comment: "Subscription CTA description"))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -545,7 +545,7 @@ struct WorkoutListView: View {
         .padding()
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     // MARK: - Month Header View
@@ -561,7 +561,7 @@ struct WorkoutListView: View {
                 Spacer()
                 Text(String(format: String(localized: "%lld workouts", comment: "Month header workout count"), stats.count))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
 
             HStack(spacing: 0) {
@@ -571,7 +571,7 @@ struct WorkoutListView: View {
                         .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Distance", comment: "Distance stat label"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -584,7 +584,7 @@ struct WorkoutListView: View {
                         .foregroundStyle(Color.irSuccess)
                     Text(String(localized: "Time", comment: "Time stat label"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -597,7 +597,7 @@ struct WorkoutListView: View {
                         .foregroundStyle(Color.irWarning)
                     Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -627,7 +627,7 @@ struct StatItem: View {
 
             Text(label)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -648,7 +648,7 @@ struct StatsRow: View {
 
             Text(label)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
 

@@ -40,7 +40,7 @@ struct FloatingAIButton: View {
                     } else {
                         Image(systemName: "sparkles")
                             .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
             }

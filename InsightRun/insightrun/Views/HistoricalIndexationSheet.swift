@@ -100,7 +100,7 @@ struct HistoricalIndexationSheet: View {
                 Circle()
                     .fill(Color.irCardBackground)
                     .frame(width: 100, height: 100)
-                    .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
+                    .shadow(color: Color.irShadowStrong, radius: 10, y: 5)
 
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.system(size: 40))
@@ -118,7 +118,7 @@ struct HistoricalIndexationSheet: View {
             Text(String(localized: "Analyzing workouts...", comment: "Loading title during indexation"))
                 .font(.title3)
                 .fontWeight(.semibold)
-                .foregroundColor(Color.irTextPrimary)
+                .foregroundStyle(Color.irTextPrimary)
 
             // Progress bar
             VStack(spacing: 12) {
@@ -131,14 +131,14 @@ struct HistoricalIndexationSheet: View {
                 HStack {
                     Text(statusText)
                         .font(.caption)
-                        .foregroundColor(Color.irTextSecondary)
+                        .foregroundStyle(Color.irTextSecondary)
 
                     Spacer()
 
                     if case .loading = manager.state, manager.totalBatches > 0 {
                         Text("\(manager.currentBatch) / \(manager.totalBatches)")
                             .font(.caption)
-                            .foregroundColor(Color.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
@@ -152,7 +152,7 @@ struct HistoricalIndexationSheet: View {
                 Text(String(localized: "Cancel", comment: "Cancel button during indexation"))
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
@@ -186,11 +186,11 @@ struct HistoricalIndexationSheet: View {
                 Text(String(localized: "Profile Updated!", comment: "Success title after indexation"))
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "Your athletic profile has been successfully updated with your latest workouts.", comment: "Success message after indexation"))
                     .font(.body)
-                    .foregroundColor(Color.irTextSecondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -202,7 +202,7 @@ struct HistoricalIndexationSheet: View {
                 Text(String(localized: "Continue", comment: "Continue button after successful indexation"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
@@ -239,12 +239,12 @@ struct HistoricalIndexationSheet: View {
                 Text(String(localized: "Update Failed", comment: "Error title when indexation fails"))
                     .font(.title3)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 if case .failed(let errorMessage) = manager.state {
                     Text(errorMessage)
                         .font(.body)
-                        .foregroundColor(Color.irTextSecondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                 }
@@ -282,7 +282,7 @@ struct HistoricalIndexationSheet: View {
                     }
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
@@ -302,7 +302,7 @@ struct HistoricalIndexationSheet: View {
                     Text(String(localized: "Cancel", comment: "Cancel button after indexation failure"))
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.irTextSecondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Color.irCardBackground)

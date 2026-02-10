@@ -366,5 +366,5 @@ struct CircularProgressView: View {
         }
         .padding()
     }
-    .background(Color.black.opacity(0.95))
+    .background(Color.irBackgroundApp)
 }

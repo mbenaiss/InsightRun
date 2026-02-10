@@ -3,7 +3,7 @@
 //  InsightRun
 //
 //  Color theme system with support for Light/Dark modes
-//  Following Apple Human Interface Guidelines
+//  Inspired by Whoop & Bevel design language
 //
 
 import SwiftUI
@@ -12,136 +12,97 @@ extension Color {
     // MARK: - Custom Adaptive Colors
 
     /// App background color - main screen background
-    /// Light: #EBEBF0 (medium light gray) | Dark: #000000 (black)
+    /// Light: #F5F5F7 (clean light gray) | Dark: #000000 (pure black, OLED)
     static let irBackgroundApp = Color("BackgroundApp", bundle: nil)
 
-    /// Background color for cards - adapts to light/dark mode
-    /// Light: #FFFFFF (white) | Dark: #2D2D2D (dark gray)
+    /// Background color for cards
+    /// Light: #FFFFFF (white) | Dark: #1C1C1E (elevated dark)
     static let irCardBackground = Color("CardBackground", bundle: nil)
 
     /// Surface color for elevated elements
-    /// Light: #F5F5F7 (soft gray) | Dark: #1C1C1C (very dark gray)
+    /// Light: #EEEEF0 (subtle gray) | Dark: #0D0D0F (near-black)
     static let irSurface = Color("Surface", bundle: nil)
 
-    /// Primary accent color with adaptive brightness
-    /// Light: #007AFF (iOS blue) | Dark: #64B0FF (lighter blue for better visibility)
+    /// Primary accent color - teal inspired by Whoop/Bevel
+    /// Light: #00B4D8 (teal) | Dark: #00D4AA (green-teal)
     static let irPrimaryAccent = Color("PrimaryAccent", bundle: nil)
 
     // MARK: - Text Colors
 
-    /// Primary text color - main readable text
-    /// Light: #1C1E21 (soft black) | Dark: #FFFFFF (white)
+    /// Primary text color
+    /// Light: #111827 (near-black) | Dark: #F9FAFB (near-white)
     static let irTextPrimary = Color("TextPrimary", bundle: nil)
 
-    /// Secondary text color - less prominent text
-    /// Light: #8E8E93 (iOS secondary label gray) | Dark: #B0B3B8 (light gray)
+    /// Secondary text color
+    /// Light: #6B7280 (medium gray) | Dark: #9CA3AF (soft gray)
     static let irTextSecondary = Color("TextSecondary", bundle: nil)
 
     // MARK: - Border & Dividers
 
-    /// Border color for elements
-    /// Light: #E4E4E7 (light gray) | Dark: #3A3A3C (dark gray)
+    /// Border color
+    /// Light: #E5E7EB (light gray) | Dark: #2D2D30 (dark border)
     static let irBorder = Color("Border", bundle: nil)
 
     // MARK: - Semantic Colors
 
-    /// Success state color
-    /// Light: #34C759 (iOS green) | Dark: #30D158 (lighter green)
+    /// Success state color (emerald)
+    /// Light: #10B981 | Dark: #34D399
     static let irSuccess = Color("Success", bundle: nil)
 
-    /// Warning state color
-    /// Light: #FF9500 (iOS orange) | Dark: #FF9F0A (lighter orange)
+    /// Warning state color (amber)
+    /// Light: #F59E0B | Dark: #FBBF24
     static let irWarning = Color("Warning", bundle: nil)
 
     /// Error state color
-    /// Light: #FF3B30 (iOS red) | Dark: #FF453A (lighter red)
+    /// Light: #EF4444 | Dark: #F87171
     static let irError = Color("Error", bundle: nil)
 
     // MARK: - Shadow Colors
 
-    /// Adaptive shadow color for cards and elevated elements
-    /// Light: black 8% opacity | Dark: white 6% opacity
+    /// Light shadow (transparent in dark mode for flat look)
     static let irShadow = Color("Shadow", bundle: nil)
 
-    /// Stronger adaptive shadow for prominent elements
-    /// Light: black 12% opacity | Dark: white 9% opacity
+    /// Stronger shadow (transparent in dark mode)
     static let irShadowStrong = Color("ShadowStrong", bundle: nil)
 }
 
 // MARK: - Theme Guidelines
 /*
  # InsightRun Color Theme System
+ # Inspired by Whoop & Bevel design language
 
- ## Apple Human Interface Guidelines Compliance
+ ## Design Principles
+ - Dark mode: Pure black backgrounds, subtle borders instead of shadows
+ - Light mode: Clean whites and light grays with minimal shadows
+ - Accent: Teal/green tones for a distinctive, premium feel
+ - Typography: .rounded design for numbers, clean hierarchy
 
- This app follows Apple's recommendations for supporting Light and Dark modes:
-
- ### Custom Adaptive Colors (Preferred)
- Always use InsightRun's `ir*` colors for consistency:
- - `Color.irTextPrimary` instead of `.primary`
- - `Color.irTextSecondary` instead of `.secondary`
- - `.blue`, `.green`, `.red`, etc. - System colors with gradients (OK for accents)
-
- ### Materials (Preferred for Overlays)
- - `.ultraThinMaterial` - For toolbars and overlay headers
- - `.thinMaterial` - For suggestion bars and floating panels
- - `.regularMaterial`, `.thickMaterial` - For more opacity
-
- ### Shadows (Adaptive)
- - `Color.irShadow` - Light shadow for cards
- - `Color.irShadowStrong` - Stronger shadow for prominent elements
-
- ### Color Definitions
- All colors defined in Assets.xcassets/Colors/:
+ ## Color Definitions (Assets.xcassets/Colors/)
 
  **Backgrounds:**
- - `Color.irBackgroundApp` - For main app background (#EBEBF0 light)
- - `Color.irCardBackground` - For card backgrounds (#FFFFFF light)
- - `Color.irSurface` - For elevated surfaces (#F5F5F7 light)
+ - `Color.irBackgroundApp` - Main background (#F5F5F7 light / #000000 dark)
+ - `Color.irCardBackground` - Card surfaces (#FFFFFF light / #1C1C1E dark)
+ - `Color.irSurface` - Elevated surfaces (#EEEEF0 light / #0D0D0F dark)
 
  **Accent:**
- - `Color.irPrimaryAccent` - For primary accent elements (#007AFF light)
+ - `Color.irPrimaryAccent` - Primary teal (#00B4D8 light / #00D4AA dark)
 
  **Text:**
- - `Color.irTextPrimary` - For primary text (#1C1E21 light)
- - `Color.irTextSecondary` - For secondary text (#8E8E93 light)
+ - `Color.irTextPrimary` - Primary text (#111827 light / #F9FAFB dark)
+ - `Color.irTextSecondary` - Secondary text (#6B7280 light / #9CA3AF dark)
 
  **Borders:**
- - `Color.irBorder` - For borders and dividers (#E4E4E7 light)
+ - `Color.irBorder` - Borders/dividers (#E5E7EB light / #2D2D30 dark)
 
  **Semantic:**
- - `Color.irSuccess` - For success states (#34C759 light)
- - `Color.irWarning` - For warning states (#FF9500 light)
- - `Color.irError` - For error states (#FF3B30 light)
+ - `Color.irSuccess` - Success (#10B981 light / #34D399 dark)
+ - `Color.irWarning` - Warning (#F59E0B light / #FBBF24 dark)
+ - `Color.irError` - Error (#EF4444 light / #F87171 dark)
 
- ### Best Practices
- 1. **Never use** `Color.white` or `Color.black` directly
- 2. **Always use** `Color.ir*` colors — not `.primary`/`.secondary`
- 3. **Use** `.ultraThinMaterial` for overlay headers, `.thinMaterial` for floating panels
- 4. **Use** `Color.irShadow`/`Color.irShadowStrong` for shadows — not `.black.opacity()`
- 5. **Use** `.foregroundStyle()` instead of `.foregroundColor()`
- 6. **Test** your UI in both Light and Dark modes
-
- ### Testing Dark Mode
- - In SwiftUI Preview: Use `.preferredColorScheme(.dark)`
- - In Simulator: Settings → Developer → Dark Appearance
- - In Xcode: Environment Overrides button in Debug bar
-
- ### Automatic Mode Detection
- The app automatically detects and responds to system appearance changes.
- No additional code needed - SwiftUI handles this automatically!
-
- Example:
- ```swift
- Text("Hello")
-     .foregroundStyle(Color.irTextPrimary) // ✅ Adapts automatically
-
- VStack {
-     // Content
- }
- .background(.ultraThinMaterial) // ✅ Adapts automatically
-
- Circle()
-     .fill(Color.irCardBackground) // ✅ Uses adaptive color from Assets
- ```
+ ## Best Practices
+ 1. Never use `Color.white` or `Color.black` directly
+ 2. Always use `Color.ir*` colors
+ 3. In dark mode, prefer borders over shadows for depth
+ 4. Use `.foregroundStyle()` instead of `.foregroundColor()`
+ 5. Use `.rounded` design for numeric displays
  */

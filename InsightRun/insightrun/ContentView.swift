@@ -1,7 +1,7 @@
 //  ContentView.swift
 //  InsightRun
 //
-//  Main navigation with tabs
+//  Main navigation with 3 tabs: Dashboard, Courses, Statistics
 //
 
 import SwiftUI
@@ -27,49 +27,32 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selectedTab) {
-            // Workouts Tab - Always visible
-            WorkoutListView()
-                .tabItem {
-                    Label(String(localized: "tab.workouts"), systemImage: "figure.run")
-                }
-                .tag(0)
+                // Dashboard Tab - Recovery, health & coaching merged
+                DashboardView()
+                    .tabItem {
+                        Label(String(localized: "tab.dashboard", comment: "Dashboard tab"), systemImage: "gauge.open.with.lines.needle.33percent.and.arrowtriangle")
+                    }
+                    .tag(0)
 
-            // Statistics Tab
-            StatisticsView()
-                .tabItem {
-                    Label(String(localized: "tab.statistics"), systemImage: "chart.bar.fill")
-                }
-                .tag(1)
+                // Courses Tab (Runs)
+                WorkoutListView()
+                    .tabItem {
+                        Label(String(localized: "tab.courses", comment: "Courses tab"), systemImage: "figure.run")
+                    }
+                    .tag(1)
 
-            // Workout Plan Tab (AI Generator)
-            WorkoutPlanView()
-                .tabItem {
-                    Label(String(localized: "tab.plan"), systemImage: "sparkles")
-                }
-                .tag(2)
-
-            // Recovery Tab
-            RecoveryDashboardView()
-                .tabItem {
-                    Label(String(localized: "tab.recovery"), systemImage: "heart.fill")
-                }
-                .tag(3)
-
-            // Health Profile Tab
-            HealthProfileView()
-                .tabItem {
-                    Label(String(localized: "tab.health"), systemImage: "person.fill")
-                }
-                .tag(4)
+                // Statistics Tab
+                StatisticsView()
+                    .tabItem {
+                        Label(String(localized: "tab.statistics", comment: "Statistics tab"), systemImage: "chart.bar.fill")
+                    }
+                    .tag(2)
             }
             .onChange(of: selectedTab) { _, newTab in
-                // Update context provider's current page based on selected tab
                 let page: AIContextPage = switch newTab {
-                case 0: .workouts
-                case 1: .statistics
-                case 2: .plan
-                case 3: .recovery
-                case 4: .profile
+                case 0: .recovery
+                case 1: .workouts
+                case 2: .statistics
                 default: .workouts
                 }
                 contextProvider.currentPage = page
@@ -96,7 +79,6 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showSuuntoImport) {
             SuuntoImportFromShareView(fileURL: importedFileURL) {
-                // On dismiss, stop security-scoped resource access and clear URL
                 if let url = importedFileURL {
                     url.stopAccessingSecurityScopedResource()
                 }
@@ -109,8 +91,6 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // Inject shared ModelContext into cache singletons
-            // This ensures all caches use the unified persistent container
             Task { @MainActor in
                 StravaCache.shared.setModelContext(modelContext)
                 UnifiedWorkoutCache.shared.setModelContext(modelContext)
@@ -118,20 +98,16 @@ struct ContentView: View {
             }
         }
         .task {
-            // Check if we should prompt for App Store review
             ReviewManager.shared.checkAndRequestReview()
 
-            // Pre-load AI context data in background for faster AI assistant access
             if revenueCatManager.hasAIAccess {
                 await contextProvider.loadAllData()
             }
 
-            // Check notification permissions and trigger proactive alerts
             let notificationManager = NotificationManager.shared
             await notificationManager.checkPermissionStatus()
 
             if notificationManager.isNotificationsEnabled {
-                // Start sleep observer for wake-up based notifications
                 if notificationManager.isDailyReadinessEnabled {
                     SleepObserverService.shared.startObserving()
                 }
@@ -147,7 +123,6 @@ struct ContentView: View {
                     notificationManager.sendInactivityReminder(daysSinceLastRun: days)
                 }
 
-                // Update training load widget
                 let calendar = Calendar.current
                 if let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())),
                    let prevWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart) {

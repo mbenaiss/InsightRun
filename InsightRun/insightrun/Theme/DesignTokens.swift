@@ -3,6 +3,7 @@
 //  InsightRun
 //
 //  Centralized design tokens for consistent spacing, sizing, and styling
+//  Inspired by Whoop & Bevel design language
 //
 
 import SwiftUI
@@ -18,6 +19,7 @@ enum Spacing {
     static let lg: CGFloat = 20
     static let xl: CGFloat = 24
     static let xxl: CGFloat = 32
+    static let xxxl: CGFloat = 40
 }
 
 // MARK: - Corner Radius
@@ -28,9 +30,10 @@ enum Radius {
     static let md: CGFloat = 12
     static let lg: CGFloat = 16
     static let xl: CGFloat = 20
+    static let xxl: CGFloat = 24
 }
 
-// MARK: - Card Style ViewModifier
+// MARK: - Card Style ViewModifier (border-based, no shadows in dark mode)
 
 struct CardStyle: ViewModifier {
     var padding: CGFloat = Spacing.lg
@@ -41,7 +44,10 @@ struct CardStyle: ViewModifier {
             .padding(padding)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .shadow(color: Color.irShadow, radius: 10, y: 5)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.irBorder, lineWidth: 0.5)
+            )
     }
 }
 

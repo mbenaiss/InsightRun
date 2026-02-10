@@ -9,6 +9,29 @@ import SwiftUI
 import Combine
 import HealthKit
 
+// MARK: - Progression Data
+
+struct ProgressionDataPoint: Identifiable {
+    var id: UUID { workoutId }
+    let workoutId: UUID
+    let date: Date
+    // Performance
+    let averagePace: Double?
+    let minPace: Double?
+    let maxSpeed: Double?
+    let averageCadence: Double?
+    let strideLength: Double?
+    let runningPower: Double?
+    let vo2Max: Double?
+    // Advanced
+    let groundContactTime: Double?
+    let verticalOscillation: Double?
+    let walkingAsymmetry: Double?
+    let doubleSupportPercentage: Double?
+    let walkingSpeed: Double?
+    let stairDescentSpeed: Double?
+}
+
 @MainActor
 class StatisticsViewModel: ObservableObject {
     @Published var workouts: [WorkoutModel] = []
@@ -17,7 +40,14 @@ class StatisticsViewModel: ObservableObject {
     @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
     @Published var chartGranularity: ChartGranularity = .week
 
+    // Progression
+    @Published var progressionData: [ProgressionDataPoint] = []
+    @Published var isLoadingProgression = false
+    @Published var progressionLoadingProgress: Double = 0
+
     private let healthKitManager = HealthKitManager.shared
+    private var progressionCache: [UUID: ProgressionDataPoint] = [:]
+    private var progressionTask: Task<Void, Never>?
 
     enum TimePeriod: Equatable, CaseIterable {
         case thisMonth
@@ -697,6 +727,205 @@ class StatisticsViewModel: ObservableObject {
             thisYearAvgPace: thisYearAvgPace,
             lastYearAvgPace: lastYearAvgPace
         )
+    }
+
+    // MARK: - Progression Loading
+
+    func loadProgressionMetrics() {
+        progressionTask?.cancel()
+        progressionTask = Task {
+            isLoadingProgression = true
+            progressionLoadingProgress = 0
+
+            let workoutsToLoad = filteredWorkouts.sorted { $0.startDate < $1.startDate }
+            guard !workoutsToLoad.isEmpty else {
+                progressionData = []
+                isLoadingProgression = false
+                return
+            }
+
+            // Check cache first
+            let uncached = workoutsToLoad.filter { progressionCache[$0.id] == nil }
+            let totalToLoad = uncached.count
+
+            if totalToLoad == 0 {
+                progressionData = workoutsToLoad.compactMap { progressionCache[$0.id] }
+                isLoadingProgression = false
+                return
+            }
+
+            var loaded = 0
+
+            // Process in batches of 8
+            let batchSize = 8
+            for batchStart in Swift.stride(from: 0, to: uncached.count, by: batchSize) {
+                if Task.isCancelled { return }
+
+                let batchEnd = min(batchStart + batchSize, uncached.count)
+                let batch = Array(uncached[batchStart..<batchEnd])
+
+                await withTaskGroup(of: ProgressionDataPoint.self) { group in
+                    for workout in batch {
+                        group.addTask {
+                            await self.healthKitManager.fetchProgressionMetrics(for: workout)
+                        }
+                    }
+
+                    for await result in group {
+                        if Task.isCancelled { return }
+                        self.progressionCache[result.workoutId] = result
+                        loaded += 1
+                        self.progressionLoadingProgress = Double(loaded) / Double(totalToLoad)
+                    }
+                }
+
+                // Update progressionData incrementally
+                if !Task.isCancelled {
+                    progressionData = workoutsToLoad.compactMap { progressionCache[$0.id] }
+                }
+            }
+
+            isLoadingProgression = false
+        }
+    }
+
+    // MARK: - Progression Series
+
+    struct MetricSeries: Identifiable {
+        let id: String
+        let name: String
+        let icon: String
+        let color: Color
+        let unit: String
+        let lowerIsBetter: Bool
+        let metricInfoKey: String?
+        let points: [(date: Date, value: Double)]
+
+        var average: Double {
+            guard !points.isEmpty else { return 0 }
+            return points.map(\.value).reduce(0, +) / Double(points.count)
+        }
+
+        var trendPercentage: Double? {
+            guard points.count >= 4 else { return nil }
+            let mid = points.count / 2
+            let firstHalf = points.prefix(mid).map(\.value)
+            let secondHalf = points.suffix(mid).map(\.value)
+            let firstAvg = firstHalf.reduce(0, +) / Double(firstHalf.count)
+            let secondAvg = secondHalf.reduce(0, +) / Double(secondHalf.count)
+            guard firstAvg > 0 else { return nil }
+            return ((secondAvg - firstAvg) / firstAvg) * 100
+        }
+    }
+
+    var performanceMetrics: [MetricSeries] {
+        let data = progressionData
+        var series: [MetricSeries] = []
+
+        let bestPace = data.compactMap { p in p.minPace.map { (p.date, $0) } }
+        if bestPace.count >= 2 {
+            series.append(MetricSeries(
+                id: "minPace", name: String(localized: "progression.metric.bestPace", defaultValue: "Best pace", comment: "Best pace metric"),
+                icon: "hare.fill", color: .green, unit: String(localized: "progression.unit.minKm", defaultValue: "min/km", comment: "Pace unit"), lowerIsBetter: true, metricInfoKey: "metric.best_pace", points: bestPace
+            ))
+        }
+
+        let maxSpd = data.compactMap { p in p.maxSpeed.map { (p.date, $0) } }
+        if maxSpd.count >= 2 {
+            series.append(MetricSeries(
+                id: "maxSpeed", name: String(localized: "progression.metric.maxSpeed", defaultValue: "Max speed", comment: "Max speed metric"),
+                icon: "bolt.fill", color: .yellow, unit: String(localized: "progression.unit.kmh", defaultValue: "km/h", comment: "Speed unit"), lowerIsBetter: false, metricInfoKey: "metric.max_speed", points: maxSpd
+            ))
+        }
+
+        let cadence = data.compactMap { p in p.averageCadence.map { (p.date, $0) } }
+        if cadence.count >= 2 {
+            series.append(MetricSeries(
+                id: "cadence", name: String(localized: "progression.metric.cadence", defaultValue: "Avg cadence", comment: "Cadence metric"),
+                icon: "metronome.fill", color: .indigo, unit: String(localized: "progression.unit.spm", defaultValue: "spm", comment: "Steps per minute"), lowerIsBetter: false, metricInfoKey: "metric.avg_cadence", points: cadence
+            ))
+        }
+
+        let stride = data.compactMap { p in p.strideLength.map { (p.date, $0) } }
+        if stride.count >= 2 {
+            series.append(MetricSeries(
+                id: "stride", name: String(localized: "progression.metric.strideLength", defaultValue: "Stride length", comment: "Stride length metric"),
+                icon: "figure.walk", color: .cyan, unit: String(localized: "progression.unit.m", defaultValue: "m", comment: "Meters unit"), lowerIsBetter: false, metricInfoKey: "metric.stride_length", points: stride
+            ))
+        }
+
+        let power = data.compactMap { p in p.runningPower.map { (p.date, $0) } }
+        if power.count >= 2 {
+            series.append(MetricSeries(
+                id: "power", name: String(localized: "progression.metric.power", defaultValue: "Power", comment: "Running power metric"),
+                icon: "bolt.circle.fill", color: .orange, unit: "W", lowerIsBetter: false, metricInfoKey: "metric.running_power", points: power
+            ))
+        }
+
+        let vo2 = data.compactMap { p in p.vo2Max.map { (p.date, $0) } }
+        if vo2.count >= 2 {
+            series.append(MetricSeries(
+                id: "vo2max", name: "VO2 Max",
+                icon: "lungs.fill", color: .red, unit: String(localized: "progression.unit.vo2", defaultValue: "ml/kg/min", comment: "VO2 Max unit"), lowerIsBetter: false, metricInfoKey: "metric.vo2_max", points: vo2
+            ))
+        }
+
+        return series
+    }
+
+    var advancedMetrics: [MetricSeries] {
+        let data = progressionData
+        var series: [MetricSeries] = []
+
+        let gct = data.compactMap { p in p.groundContactTime.map { (p.date, $0) } }
+        if gct.count >= 2 {
+            series.append(MetricSeries(
+                id: "gct", name: String(localized: "progression.metric.groundContactTime", defaultValue: "Ground contact", comment: "Ground contact time metric"),
+                icon: "timer", color: .indigo, unit: "ms", lowerIsBetter: true, metricInfoKey: "metric.ground_contact_time", points: gct
+            ))
+        }
+
+        let vo = data.compactMap { p in p.verticalOscillation.map { (p.date, $0) } }
+        if vo.count >= 2 {
+            series.append(MetricSeries(
+                id: "vertOsc", name: String(localized: "progression.metric.verticalOscillation", defaultValue: "Vertical osc.", comment: "Vertical oscillation metric"),
+                icon: "arrow.up.and.down", color: .cyan, unit: "cm", lowerIsBetter: true, metricInfoKey: "metric.vertical_oscillation", points: vo
+            ))
+        }
+
+        let asym = data.compactMap { p in p.walkingAsymmetry.map { (p.date, $0) } }
+        if asym.count >= 2 {
+            series.append(MetricSeries(
+                id: "asymmetry", name: String(localized: "progression.metric.walkingAsymmetry", defaultValue: "Walking asymmetry", comment: "Walking asymmetry metric"),
+                icon: "figure.walk.arrival", color: .orange, unit: "%", lowerIsBetter: true, metricInfoKey: "metric.walking_asymmetry", points: asym
+            ))
+        }
+
+        let ds = data.compactMap { p in p.doubleSupportPercentage.map { (p.date, $0) } }
+        if ds.count >= 2 {
+            series.append(MetricSeries(
+                id: "doubleSupport", name: String(localized: "progression.metric.doubleSupport", defaultValue: "Double support", comment: "Double support metric"),
+                icon: "figure.2.arms.open", color: .blue, unit: "%", lowerIsBetter: false, metricInfoKey: "metric.double_support", points: ds
+            ))
+        }
+
+        let ws = data.compactMap { p in p.walkingSpeed.map { (p.date, $0) } }
+        if ws.count >= 2 {
+            series.append(MetricSeries(
+                id: "walkSpeed", name: String(localized: "progression.metric.walkingSpeed", defaultValue: "Walking speed", comment: "Walking speed metric"),
+                icon: "figure.walk.circle", color: .cyan, unit: String(localized: "progression.unit.kmh", defaultValue: "km/h", comment: "Speed unit"), lowerIsBetter: false, metricInfoKey: "metric.walking_speed", points: ws
+            ))
+        }
+
+        let sds = data.compactMap { p in p.stairDescentSpeed.map { (p.date, $0) } }
+        if sds.count >= 2 {
+            series.append(MetricSeries(
+                id: "stairDescent", name: String(localized: "progression.metric.stairDescentSpeed", defaultValue: "Stair descent", comment: "Stair descent speed metric"),
+                icon: "figure.stairs", color: .indigo, unit: String(localized: "progression.unit.kmh", defaultValue: "km/h", comment: "Speed unit"), lowerIsBetter: false, metricInfoKey: "metric.stair_descent_speed", points: sds
+            ))
+        }
+
+        return series
     }
 
     // MARK: - Formatting

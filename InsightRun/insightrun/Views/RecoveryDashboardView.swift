@@ -184,7 +184,7 @@ struct RecoveryDayView: View {
                 .scaleEffect(1.5)
             Text(String(localized: "Loading...", comment: "Loading indicator text"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 100)
@@ -203,7 +203,7 @@ struct RecoveryDayView: View {
 
                 Text(message)
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -362,7 +362,7 @@ struct RecoveryDayView: View {
 
                 Text(String(localized: "Sleep stages", comment: "Section header for sleep stages breakdown"))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                 VStack(spacing: 8) {
                     SleepStageRow(stage: String(localized: "Deep", comment: "Deep sleep stage label"), duration: deep, color: .blue)
@@ -374,7 +374,7 @@ struct RecoveryDayView: View {
         .padding(20)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     private var medicalSourcesSection: some View {
@@ -400,7 +400,7 @@ struct RecoveryDayView: View {
         .padding(20)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     

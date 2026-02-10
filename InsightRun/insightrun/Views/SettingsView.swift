@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var isSyncing = false
     @State private var lastSyncResult: String?
     @State private var notificationsEnabled = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -36,7 +37,7 @@ struct SettingsView: View {
                                     .font(.headline)
                                 Text(String(localized: "All features unlocked for testing"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             Spacer()
                         }
@@ -67,12 +68,12 @@ struct SettingsView: View {
                                         .font(.headline)
                                     Text(String(localized: "Access all features"))
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.irTextSecondary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                         .buttonStyle(.plain)
@@ -155,10 +156,10 @@ struct SettingsView: View {
                         if notificationManager.isDailyReadinessEnabled {
                             HStack {
                                 Image(systemName: "bed.double.fill")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                                 Text(String(localized: "After wake-up detection", comment: "Wake-up based notification schedule"))
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
 
@@ -178,10 +179,10 @@ struct SettingsView: View {
                         if notificationManager.isWeeklySummaryEnabled {
                             HStack {
                                 Image(systemName: "calendar")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                                 Text(String(localized: "Sunday at 6:00 PM", comment: "Weekly summary schedule"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     }
@@ -206,12 +207,12 @@ struct SettingsView: View {
                                     .foregroundStyle(Color.irTextPrimary)
                                 Text(String(localized: "View scientific references", comment: "Medical sources subtitle"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -219,6 +220,44 @@ struct SettingsView: View {
                     Text(String(localized: "Medical Information", comment: "Medical information section header"))
                 } footer: {
                     Text(String(localized: "Health metrics and recovery recommendations are based on published scientific research. Tap to view all sources.", comment: "Medical information footer"))
+                }
+
+                // Feedback Section
+                Section {
+                    Button {
+                        if let url = ReviewManager.shared.reviewURL {
+                            openURL(url)
+                            AnalyticsService.shared.trackReviewManualTap()
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "star.fill")
+                                .foregroundStyle(Color.irWarning)
+                            Text(String(localized: "Rate InsightRun", comment: "Rate app button in settings"))
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        openFeedbackEmail()
+                    } label: {
+                        HStack {
+                            Image(systemName: "envelope.fill")
+                                .foregroundStyle(Color.irPrimaryAccent)
+                            Text(String(localized: "Send Feedback", comment: "Send feedback button in settings"))
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text(String(localized: "Feedback", comment: "Feedback section header"))
                 }
 
                 // Training Data Section
@@ -234,14 +273,14 @@ struct SettingsView: View {
 
                             Text(String(localized: "Last updated:", comment: "Last update label") + " \(formatDate(summary.indexedAt))")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
 
                             // Refresh indicator
                             let days = HistoricalSummaryStorage.shared.daysUntilRefresh()
                             if days > 0 {
                                 Text(String(localized: "Next update in", comment: "Next update prefix") + " \(days) " + String(localized: "days", comment: "days unit"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             } else {
                                 Text(String(localized: "Update recommended", comment: "Update recommended message"))
                                     .font(.caption)
@@ -264,7 +303,7 @@ struct SettingsView: View {
                         if !HistoricalSummaryStorage.shared.canManualRefresh() {
                             Text(String(localized: "Available 1 month after last update", comment: "Refresh cooldown message"))
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                     } else {
                         VStack(alignment: .leading) {
@@ -303,11 +342,11 @@ struct SettingsView: View {
                                         if let syncResult = lastSyncResult {
                                             Text(syncResult)
                                                 .font(.caption)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(Color.irTextSecondary)
                                         } else {
                                             Text(String(localized: "Activities syncing automatically"))
                                                 .font(.caption)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(Color.irTextSecondary)
                                         }
                                     }
                                     Spacer()
@@ -393,12 +432,12 @@ struct SettingsView: View {
                                     .foregroundStyle(Color.irTextPrimary)
                                 Text(String(localized: "Manage read and write access"))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                             Spacer()
                             Image(systemName: "arrow.up.forward")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -480,14 +519,14 @@ struct SettingsView: View {
                         Text(String(localized: "Version", comment: "Label for app version"))
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
 
                     HStack {
                         Text(String(localized: "Build", comment: "Label for app build number"))
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 } header: {
                     Text(String(localized: "About", comment: "Section header for app information"))
@@ -546,6 +585,26 @@ struct SettingsView: View {
             }
 
             isSyncing = false
+        }
+    }
+
+    private func openFeedbackEmail() {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A"
+        let iosVersion = UIDevice.current.systemVersion
+        let subject = "InsightRun Feedback (v\(appVersion))"
+        let body = "\n\n---\nApp: \(appVersion) (\(buildNumber))\niOS: \(iosVersion)"
+
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "support@altcode.studio"
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+
+        if let url = components.url {
+            openURL(url)
         }
     }
 

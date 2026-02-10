@@ -306,17 +306,11 @@ struct SuuntoParser {
                 altitudeSamples.append((date: sampleDate, meters: alt))
             }
 
-            // GPS coordinates (FitFileParser converts semicircles → CLLocationCoordinate2D)
-            if let latField = fields["position_lat"],
-               let lonField = fields["position_long"] {
-                if let coord = latField.coordinate {
-                    // FitFileParser returns full coordinate from position_lat
-                    routeCoordinates.append(coord)
-                } else if let latVal = latField.valueUnit?.value,
-                          let lonVal = lonField.valueUnit?.value,
-                          latVal >= -90, latVal <= 90, lonVal >= -180, lonVal <= 180 {
-                    routeCoordinates.append(CLLocationCoordinate2D(latitude: latVal, longitude: lonVal))
-                }
+            // GPS coordinates — FitFileParser merges position_lat + position_long
+            // into a single "position" field with .coordinate type
+            if let posField = fields["position"],
+               let coord = posField.coordinate {
+                routeCoordinates.append(coord)
             }
 
             // Distance for split calculation

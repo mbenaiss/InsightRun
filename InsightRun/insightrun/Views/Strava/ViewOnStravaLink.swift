@@ -43,11 +43,11 @@ private extension Text {
         case .bold:
             return self
                 .fontWeight(.bold)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
         case .underline:
             return self
                 .underline()
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
         case .orange:
             return self
                 .foregroundStyle(Color(hex: "FC5200"))

@@ -43,12 +43,12 @@ struct MarkdownNodeView: View {
             Text(LocalizedStringKey(text))
                 .font(headerFont(for: level))
                 .fontWeight(.bold)
-                .foregroundColor(.irTextPrimary)
+                .foregroundStyle(Color.irTextPrimary)
                 .padding(.top, level == 1 ? 8 : 4)
             
         case .paragraph(let text):
             Text(LocalizedStringKey(text))
-                .foregroundColor(.irTextPrimary)
+                .foregroundStyle(Color.irTextPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             
         case .list(let items):
@@ -56,9 +56,9 @@ struct MarkdownNodeView: View {
                 ForEach(items, id: \.self) { item in
                     HStack(alignment: .top, spacing: 8) {
                         Text("•")
-                            .foregroundColor(.irTextSecondary)
+                            .foregroundStyle(Color.irTextSecondary)
                         Text(LocalizedStringKey(item))
-                            .foregroundColor(.irTextPrimary)
+                            .foregroundStyle(Color.irTextPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -101,7 +101,7 @@ struct MarkdownTableView: View {
                             Text(LocalizedStringKey(headers[index]))
                                 .font(.caption)
                                 .fontWeight(.bold)
-                                .foregroundColor(.irTextSecondary)
+                                .foregroundStyle(Color.irTextSecondary)
                                 .textCase(.uppercase)
                                 .frame(minWidth: 100, alignment: .leading)
                                 .padding(12)
@@ -120,7 +120,7 @@ struct MarkdownTableView: View {
                             if colIndex < row.count {
                                 Text(LocalizedStringKey(row[colIndex]))
                                     .font(.callout)
-                                    .foregroundColor(.irTextPrimary)
+                                    .foregroundStyle(Color.irTextPrimary)
                                     .frame(minWidth: 100, alignment: .leading)
                                     .padding(12)
                             } else {

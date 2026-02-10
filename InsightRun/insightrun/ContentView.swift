@@ -118,6 +118,9 @@ struct ContentView: View {
             }
         }
         .task {
+            // Check if we should prompt for App Store review
+            ReviewManager.shared.checkAndRequestReview()
+
             // Pre-load AI context data in background for faster AI assistant access
             if revenueCatManager.hasAIAccess {
                 await contextProvider.loadAllData()

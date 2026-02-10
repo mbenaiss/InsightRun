@@ -196,7 +196,7 @@ struct HealthProfileView: View {
             .padding(20)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+            .shadow(color: Color.irShadow, radius: 10, y: 5)
         }
     }
 
@@ -269,7 +269,7 @@ struct HealthProfileView: View {
             .padding(20)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+            .shadow(color: Color.irShadow, radius: 10, y: 5)
         }
     }
 
@@ -323,7 +323,7 @@ struct HealthProfileView: View {
             .padding(20)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+            .shadow(color: Color.irShadow, radius: 10, y: 5)
         }
     }
 

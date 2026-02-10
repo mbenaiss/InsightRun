@@ -56,6 +56,16 @@ extension Color {
     /// Error state color
     /// Light: #FF3B30 (iOS red) | Dark: #FF453A (lighter red)
     static let irError = Color("Error", bundle: nil)
+
+    // MARK: - Shadow Colors
+
+    /// Adaptive shadow color for cards and elevated elements
+    /// Light: black 8% opacity | Dark: white 6% opacity
+    static let irShadow = Color("Shadow", bundle: nil)
+
+    /// Stronger adaptive shadow for prominent elements
+    /// Light: black 12% opacity | Dark: white 9% opacity
+    static let irShadowStrong = Color("ShadowStrong", bundle: nil)
 }
 
 // MARK: - Theme Guidelines
@@ -66,20 +76,23 @@ extension Color {
 
  This app follows Apple's recommendations for supporting Light and Dark modes:
 
- ### System Colors (Preferred)
- Use these whenever possible - they automatically adapt:
- - `.primary` - Primary text
- - `.secondary` - Secondary text
- - `.tertiary` - Tertiary text
- - `.blue`, `.green`, `.red`, etc. - System colors with gradients
+ ### Custom Adaptive Colors (Preferred)
+ Always use InsightRun's `ir*` colors for consistency:
+ - `Color.irTextPrimary` instead of `.primary`
+ - `Color.irTextSecondary` instead of `.secondary`
+ - `.blue`, `.green`, `.red`, etc. - System colors with gradients (OK for accents)
 
- ### Materials (Preferred for Backgrounds)
- - `.ultraThinMaterial` - Used for cards and overlays
- - `.thinMaterial` - For lighter backgrounds
+ ### Materials (Preferred for Overlays)
+ - `.ultraThinMaterial` - For toolbars and overlay headers
+ - `.thinMaterial` - For suggestion bars and floating panels
  - `.regularMaterial`, `.thickMaterial` - For more opacity
 
- ### Custom Adaptive Colors
- Use the colors defined in Assets.xcassets/Colors/:
+ ### Shadows (Adaptive)
+ - `Color.irShadow` - Light shadow for cards
+ - `Color.irShadowStrong` - Stronger shadow for prominent elements
+
+ ### Color Definitions
+ All colors defined in Assets.xcassets/Colors/:
 
  **Backgrounds:**
  - `Color.irBackgroundApp` - For main app background (#EBEBF0 light)
@@ -103,10 +116,11 @@ extension Color {
 
  ### Best Practices
  1. **Never use** `Color.white` or `Color.black` directly
- 2. **Always use** semantic colors like `.primary`, `.secondary`
- 3. **Prefer** `.ultraThinMaterial` for glass morphism effects
- 4. **Test** your UI in both Light and Dark modes
+ 2. **Always use** `Color.ir*` colors — not `.primary`/`.secondary`
+ 3. **Use** `.ultraThinMaterial` for overlay headers, `.thinMaterial` for floating panels
+ 4. **Use** `Color.irShadow`/`Color.irShadowStrong` for shadows — not `.black.opacity()`
  5. **Use** `.foregroundStyle()` instead of `.foregroundColor()`
+ 6. **Test** your UI in both Light and Dark modes
 
  ### Testing Dark Mode
  - In SwiftUI Preview: Use `.preferredColorScheme(.dark)`
@@ -120,7 +134,7 @@ extension Color {
  Example:
  ```swift
  Text("Hello")
-     .foregroundStyle(.primary) // ✅ Adapts automatically
+     .foregroundStyle(Color.irTextPrimary) // ✅ Adapts automatically
 
  VStack {
      // Content

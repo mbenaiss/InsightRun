@@ -102,7 +102,7 @@ struct StravaNavigationRow: View {
 
                 Text("Strava")
                     .font(.body)
-                    .foregroundStyle(Color.primary)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
 
@@ -112,7 +112,7 @@ struct StravaNavigationRow: View {
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
             .contentShape(Rectangle())

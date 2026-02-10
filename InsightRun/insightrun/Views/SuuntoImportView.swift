@@ -33,7 +33,7 @@ struct SuuntoImportView: View {
 
                     Text(String(localized: "Import a FIT file exported from the Suunto app to enrich your workout data with advanced metrics.", comment: "Description for Suunto import screen"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 }
@@ -83,7 +83,7 @@ struct SuuntoImportView: View {
                 if let count = try? importService.getCachedWorkoutCount(), count > 0 {
                     Text(String(localized: "\(count) Suunto workouts imported", comment: "Count of imported Suunto workouts"))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -134,7 +134,7 @@ struct SuuntoImportView: View {
 
             Text(text)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
     }
 
@@ -301,7 +301,7 @@ struct SuuntoImportFromShareView: View {
             if let url = fileURL {
                 Text(url.lastPathComponent)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
         }
     }
@@ -325,18 +325,18 @@ struct SuuntoImportFromShareView: View {
                         Label(formattedDuration(workout.duration), systemImage: "clock")
                     }
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
 
                     if isMatched {
                         Text(String(localized: "Suunto data has been merged with the existing HealthKit workout.", comment: "Detail message when workout enriched"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.top, 8)
                     } else if isSavedToHealthKit {
                         Text(String(localized: "Workout imported and saved to Apple Health!", comment: "Detail message when saved to HealthKit"))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.top, 8)
                     }
@@ -364,7 +364,7 @@ struct SuuntoImportFromShareView: View {
             if let error = errorMessage {
                 Text(error)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
 

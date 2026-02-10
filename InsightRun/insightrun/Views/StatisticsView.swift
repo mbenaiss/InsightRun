@@ -8,9 +8,24 @@
 import SwiftUI
 import Charts
 
+enum StatisticsTab: String, CaseIterable {
+    case overview
+    case progression
+
+    var localizedTitle: String {
+        switch self {
+        case .overview:
+            return String(localized: "statistics.tab.overview", defaultValue: "Overview", comment: "Overview tab")
+        case .progression:
+            return String(localized: "statistics.tab.progression", defaultValue: "Progression", comment: "Progression tab")
+        }
+    }
+}
+
 struct StatisticsView: View {
     @StateObject private var viewModel = StatisticsViewModel()
     @Environment(\.colorScheme) var colorScheme
+    @State private var selectedTab: StatisticsTab = .overview
     @State private var selectedPeriodDate: Date?
     @State private var selectedPaceDistributionId: UUID?
     @State private var selectedDistanceDistributionId: UUID?
@@ -31,6 +46,14 @@ struct StatisticsView: View {
                     // Section 1: Personal records (always at top)
                     personalRecordsSection
 
+                    // Tab picker
+                    Picker("", selection: $selectedTab) {
+                        ForEach(StatisticsTab.allCases, id: \.self) { tab in
+                            Text(tab.localizedTitle).tag(tab)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
                     // Period selector
                     periodSelector
 
@@ -40,23 +63,13 @@ struct StatisticsView: View {
                     } else if viewModel.workouts.isEmpty {
                         emptyState
                     } else {
-                        // Section 2: Overview metrics
-                        overviewMetricsSection
+                        switch selectedTab {
+                        case .overview:
+                            overviewContent
 
-                        // Section 3: Performance averages
-                        performanceAveragesSection
-
-                        // Section 4: Monthly comparison
-                        monthlyComparisonSection
-
-                        // Section 5: Distance over time chart
-                        distanceChartSection
-
-                        // Section 6: Pace distribution
-                        paceDistributionSection
-
-                        // Section 7: Distance distribution
-                        distanceDistributionSection
+                        case .progression:
+                            MetricsProgressionView(viewModel: viewModel)
+                        }
                     }
                 }
                 .padding()
@@ -69,6 +82,45 @@ struct StatisticsView: View {
         .task {
             await viewModel.loadWorkouts()
             AnalyticsService.shared.trackStatisticsViewed()
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .progression {
+                viewModel.loadProgressionMetrics()
+            }
+        }
+        .onChange(of: viewModel.selectedPeriod) { _, _ in
+            if selectedTab == .progression {
+                viewModel.loadProgressionMetrics()
+            }
+        }
+        .onChange(of: viewModel.selectedYear) { _, _ in
+            if selectedTab == .progression {
+                viewModel.loadProgressionMetrics()
+            }
+        }
+    }
+
+    // MARK: - Overview Content
+
+    private var overviewContent: some View {
+        Group {
+            // Section 2: Overview metrics
+            overviewMetricsSection
+
+            // Section 3: Performance averages
+            performanceAveragesSection
+
+            // Section 4: Monthly comparison
+            monthlyComparisonSection
+
+            // Section 5: Distance over time chart
+            distanceChartSection
+
+            // Section 6: Pace distribution
+            paceDistributionSection
+
+            // Section 7: Distance distribution
+            distanceDistributionSection
         }
     }
 
@@ -121,7 +173,7 @@ struct StatisticsView: View {
                     HStack {
                         Text(String(localized: "statistics.year"))
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
 
                         Spacer()
 
@@ -132,7 +184,7 @@ struct StatisticsView: View {
 
                         Image(systemName: "chevron.down")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -233,7 +285,7 @@ struct StatisticsView: View {
             .padding()
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
     }
 
@@ -326,7 +378,7 @@ struct StatisticsView: View {
             .padding()
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
     }
 
@@ -423,83 +475,139 @@ struct StatisticsView: View {
                 distanceChartContent
             } else {
                 Text(String(localized: "statistics.charts.noData"))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .frame(height: 100)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(Color.irCardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+                    .shadow(color: Color.irShadow, radius: 8, y: 4)
             }
         }
     }
 
     private var distanceChartContent: some View {
+        let sortedData = viewModel.periodDistanceData.sorted { $0.date < $1.date }
         let selectedData = selectedPeriodDate.flatMap { selectedDate in
-            viewModel.periodDistanceData.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
+            sortedData.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
         }
 
-        return ZStack(alignment: .top) {
-            distanceChart(selectedData: selectedData)
-
+        return VStack(alignment: .leading, spacing: 8) {
+            // Value display
             if let selected = selectedData {
-                distanceChartTooltip(selected: selected)
-                    .padding(.top, 16)
-            }
-        }
-    }
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(viewModel.formatDistance(selected.distance))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.irPrimaryAccent)
 
-    private func distanceChart(selectedData: StatisticsViewModel.PeriodData?) -> some View {
-        Chart {
-            ForEach(viewModel.periodDistanceData) { data in
-                BarMark(
-                    x: .value(String(localized: "statistics.charts.period", defaultValue: "Period", comment: "Chart period label"), data.date, unit: viewModel.chartGranularity == .week ? .weekOfYear : .month),
-                    y: .value(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label"), data.distance / 1000.0)
-                )
-                .foregroundStyle(selectedData?.id == data.id ? Color.irPrimaryAccent : Color.irPrimaryAccent.opacity(0.5))
-                .opacity(selectedData == nil || selectedData?.id == data.id ? 1.0 : 0.5)
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(formatChartDate(selected.date))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                        if selected.workoutCount > 0 {
+                            Text("\(selected.workoutCount) " + (selected.workoutCount == 1 ? String(localized: "statistics.charts.workout", defaultValue: "workout", comment: "Singular workout") : String(localized: "statistics.charts.workouts", defaultValue: "workouts", comment: "Plural workouts")))
+                                .font(.caption2)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                }
+            } else {
+                let totalDistance = sortedData.map(\.distance).reduce(0, +)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(viewModel.formatDistance(totalDistance))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.irPrimaryAccent)
+
+                    Text(String(localized: "statistics.charts.total", defaultValue: "total", comment: "Total label"))
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
             }
-        }
-        .frame(height: 250)
-        .chartYAxis {
-            AxisMarks(position: .leading) { value in
-                AxisValueLabel {
-                    if let distance = value.as(Double.self) {
-                        Text("\(Int(distance)) \(String(localized: "km", comment: "Kilometer abbreviation"))")
+
+            // Line chart
+            Chart {
+                ForEach(sortedData) { data in
+                    AreaMark(
+                        x: .value("Date", data.date),
+                        y: .value("Distance", data.distance / 1000.0)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.irPrimaryAccent.opacity(0.3), Color.irPrimaryAccent.opacity(0.05)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .interpolationMethod(.catmullRom)
+                }
+
+                ForEach(sortedData) { data in
+                    LineMark(
+                        x: .value("Date", data.date),
+                        y: .value("Distance", data.distance / 1000.0)
+                    )
+                    .foregroundStyle(Color.irPrimaryAccent)
+                    .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                }
+
+                if let selected = selectedData {
+                    PointMark(
+                        x: .value("Date", selected.date),
+                        y: .value("Distance", selected.distance / 1000.0)
+                    )
+                    .foregroundStyle(Color.irPrimaryAccent)
+                    .symbolSize(50)
+
+                    RuleMark(x: .value("Date", selected.date))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                }
+            }
+            .frame(height: 200)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text(formatChartAxisDate(date))
+                        }
                     }
                 }
             }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.2))
+                    AxisValueLabel {
+                        if let distance = value.as(Double.self) {
+                            Text("\(Int(distance)) \(String(localized: "km", comment: "Kilometer abbreviation"))")
+                                .font(.caption2)
+                        }
+                    }
+                }
+            }
+            .chartXSelection(value: $selectedPeriodDate)
         }
-        .chartXSelection(value: $selectedPeriodDate)
         .padding()
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 
-    private func distanceChartTooltip(selected: StatisticsViewModel.PeriodData) -> some View {
-        return VStack(spacing: 6) {
-            Text(String(localized: "statistics.charts.distance", defaultValue: "Distance", comment: "Chart distance label").uppercased())
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .tracking(0.5)
+    private func formatChartDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.locale = Locale.current
+        return formatter.string(from: date)
+    }
 
-            Text(viewModel.formatDistance(selected.distance))
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.irPrimaryAccent)
-
-            if selected.workoutCount > 0 {
-                Text("\(selected.workoutCount) " + (selected.workoutCount == 1 ? String(localized: "statistics.charts.workout", defaultValue: "workout", comment: "Singular workout") : String(localized: "statistics.charts.workouts", defaultValue: "workouts", comment: "Plural workouts")))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: 180)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+    private func formatChartAxisDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM"
+        formatter.locale = Locale.current
+        return formatter.string(from: date)
     }
 
     // MARK: - Pace Distribution Section
@@ -547,7 +655,7 @@ struct StatisticsView: View {
 
                             Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), dist.count))
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
 
                             Text("(\(Int(dist.percentage))%)")
                                 .font(.subheadline)
@@ -562,7 +670,7 @@ struct StatisticsView: View {
             .padding(.vertical)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
     }
 
@@ -615,7 +723,7 @@ struct StatisticsView: View {
         .padding()
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 
     private func paceChartDetails(selected: StatisticsViewModel.PaceDistribution) -> some View {
@@ -629,14 +737,14 @@ struct StatisticsView: View {
 
                 Button(action: { selectedPaceDistributionId = nil }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Spacer()
                     Text("\(Int(selected.percentage))%")
                         .fontWeight(.semibold)
@@ -644,7 +752,7 @@ struct StatisticsView: View {
 
                 HStack {
                     Text(String(localized: "statistics.charts.workouts"))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Spacer()
                     Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.count))
                         .fontWeight(.semibold)
@@ -697,7 +805,7 @@ struct StatisticsView: View {
 
                             Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), dist.count))
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.irTextSecondary)
 
                             Text("(\(Int(dist.percentage))%)")
                                 .font(.subheadline)
@@ -712,7 +820,7 @@ struct StatisticsView: View {
             .padding(.vertical)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
     }
 
@@ -747,7 +855,7 @@ struct StatisticsView: View {
         .padding()
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 
     private func distanceDistributionDetails(selected: StatisticsViewModel.DistanceDistribution) -> some View {
@@ -761,14 +869,14 @@ struct StatisticsView: View {
 
                 Button(action: { selectedDistanceDistributionId = nil }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Spacer()
                     Text("\(Int(selected.percentage))%")
                         .fontWeight(.semibold)
@@ -776,7 +884,7 @@ struct StatisticsView: View {
 
                 HStack {
                     Text(String(localized: "statistics.charts.workouts"))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Spacer()
                     Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.count))
                         .fontWeight(.semibold)
@@ -795,7 +903,7 @@ struct StatisticsView: View {
         VStack(spacing: 20) {
             Image(systemName: "chart.bar.xaxis")
                 .font(.system(size: 60))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
 
             Text(String(localized: "statistics.empty.title"))
                 .font(.title2)
@@ -803,7 +911,7 @@ struct StatisticsView: View {
 
             Text(String(localized: "statistics.empty.message"))
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
         }
@@ -865,7 +973,7 @@ struct StatMetricCard: View {
 
                 Text(title)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(1)
 
                 Spacer()
@@ -889,7 +997,7 @@ struct StatMetricCard: View {
                 if let subtitle = subtitle {
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
@@ -900,7 +1008,7 @@ struct StatMetricCard: View {
         .frame(maxWidth: .infinity, minHeight: 100)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 }
 
@@ -923,7 +1031,7 @@ struct PerformanceRow: View {
             Text(value)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
         }
     }
 }
@@ -948,7 +1056,7 @@ struct RecordRow: View {
 
                 Text(formatDate(date))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
 
             Spacer()
@@ -989,7 +1097,7 @@ struct ComparisonCard: View {
 
                 Text(title)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(1)
 
                 Spacer()
@@ -1002,7 +1110,7 @@ struct ComparisonCard: View {
                 HStack {
                     Text(String(localized: "statistics.comparison.thisMonth", defaultValue: "This month", comment: "This month label"))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Spacer()
                     Text(thisMonthValue)
                         .font(.caption)
@@ -1012,7 +1120,7 @@ struct ComparisonCard: View {
                 HStack {
                     Text(String(localized: "statistics.comparison.lastMonth", defaultValue: "Last month", comment: "Last month label"))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                     Spacer()
                     Text(lastMonthValue)
                         .font(.caption)
@@ -1035,7 +1143,7 @@ struct ComparisonCard: View {
         .frame(maxWidth: .infinity, minHeight: 140)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+        .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 
     @ViewBuilder

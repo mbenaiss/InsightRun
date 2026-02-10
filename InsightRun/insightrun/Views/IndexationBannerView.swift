@@ -34,11 +34,11 @@ struct IndexationBannerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "Update Athletic Profile", comment: "Banner title for profile update"))
                         .font(.headline)
-                        .foregroundColor(Color.irTextPrimary)
+                        .foregroundStyle(Color.irTextPrimary)
 
                     Text(String(localized: "Sync your recent workouts for better AI insights", comment: "Banner description for profile update"))
                         .font(.caption)
-                        .foregroundColor(Color.irTextSecondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .lineLimit(2)
                 }
 
@@ -48,7 +48,7 @@ struct IndexationBannerView: View {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
 
@@ -59,7 +59,7 @@ struct IndexationBannerView: View {
                     Text(String(localized: "Later", comment: "Dismiss banner button"))
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.irTextSecondary)
+                        .foregroundStyle(Color.irTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(Color.irCardBackground)
@@ -74,7 +74,7 @@ struct IndexationBannerView: View {
                     }
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(
@@ -91,7 +91,7 @@ struct IndexationBannerView: View {
         .padding()
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+        .shadow(color: Color.irShadowStrong, radius: 8, y: 4)
     }
 }
 

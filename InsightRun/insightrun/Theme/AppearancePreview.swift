@@ -65,13 +65,13 @@ struct AppearancePreview<Content: View>: View {
     VStack(spacing: 20) {
         Text("Insight Run")
             .font(.title)
-            .foregroundStyle(.primary)
+            .foregroundStyle(Color.irTextPrimary)
 
         VStack(spacing: 12) {
             Text("Primary Text")
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
             Text("Secondary Text")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
             Text("Tertiary Text")
                 .foregroundStyle(.tertiary)
         }
@@ -118,13 +118,13 @@ struct AppearancePreview<Content: View>: View {
     VStack(spacing: 20) {
         Text("Insight Run")
             .font(.title)
-            .foregroundStyle(.primary)
+            .foregroundStyle(Color.irTextPrimary)
 
         VStack(spacing: 12) {
             Text("Primary Text")
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.irTextPrimary)
             Text("Secondary Text")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.irTextSecondary)
             Text("Tertiary Text")
                 .foregroundStyle(.tertiary)
         }

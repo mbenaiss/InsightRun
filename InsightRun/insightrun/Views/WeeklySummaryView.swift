@@ -108,7 +108,7 @@ struct WeeklySummaryView: View {
         .padding(20)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     // MARK: - Running Section
@@ -168,7 +168,7 @@ struct WeeklySummaryView: View {
         .padding(20)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     // MARK: - Sleep Section
@@ -209,7 +209,7 @@ struct WeeklySummaryView: View {
         .padding(20)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     private var sleepStagesBar: some View {
@@ -311,7 +311,7 @@ struct WeeklySummaryView: View {
         .padding(20)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+        .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     private func recoveryMetricRow(icon: String, color: Color, label: String, value: String) -> some View {
@@ -375,7 +375,7 @@ struct WeeklySummaryView: View {
             .padding(20)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+            .shadow(color: Color.irShadow, radius: 10, y: 5)
         }
     }
 

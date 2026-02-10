@@ -36,7 +36,7 @@ struct MedicalSourcesView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
@@ -210,7 +210,7 @@ struct SourceCard: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.irCardBackground)
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                .shadow(color: Color.irShadow, radius: 8, y: 2)
         )
     }
 }

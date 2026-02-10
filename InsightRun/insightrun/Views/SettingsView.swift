@@ -221,6 +221,41 @@ struct SettingsView: View {
                     Text(String(localized: "Health metrics and recovery recommendations are based on published scientific research. Tap to view all sources.", comment: "Medical information footer"))
                 }
 
+                // Feedback Section
+                Section {
+                    Button {
+                        ReviewManager.shared.requestReviewManually()
+                    } label: {
+                        HStack {
+                            Image(systemName: "star.fill")
+                                .foregroundStyle(Color.irWarning)
+                            Text(String(localized: "Rate InsightRun", comment: "Rate app button in settings"))
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        openFeedbackEmail()
+                    } label: {
+                        HStack {
+                            Image(systemName: "envelope.fill")
+                                .foregroundStyle(Color.irPrimaryAccent)
+                            Text(String(localized: "Send Feedback", comment: "Send feedback button in settings"))
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text(String(localized: "Feedback", comment: "Feedback section header"))
+                }
+
                 // Training Data Section
                 Section {
                     if let summary = HistoricalSummaryStorage.shared.load() {
@@ -546,6 +581,21 @@ struct SettingsView: View {
             }
 
             isSyncing = false
+        }
+    }
+
+    private func openFeedbackEmail() {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A"
+        let iosVersion = UIDevice.current.systemVersion
+        let subject = "InsightRun Feedback (v\(appVersion))"
+        let body = "\n\n---\nApp: \(appVersion) (\(buildNumber))\niOS: \(iosVersion)"
+
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+
+        if let url = URL(string: "mailto:contact@insightrun.ai?subject=\(encodedSubject)&body=\(encodedBody)") {
+            UIApplication.shared.open(url)
         }
     }
 

@@ -490,6 +490,16 @@ final class AnalyticsService {
         track(.settingsRefreshDataClicked)
     }
 
+    // MARK: - Review Events
+
+    func trackReviewPromptShown() {
+        track(.reviewPromptShown)
+    }
+
+    func trackReviewManualTap() {
+        track(.reviewManualTap)
+    }
+
     // MARK: - Health Profile Events
 
     func trackHealthProfileViewed() {
@@ -597,6 +607,10 @@ enum AnalyticsEvent: String {
     case settingsAppearanceChanged = "settings_appearance_changed"
     case settingsMedicalSourcesViewed = "settings_medical_sources_viewed"
     case settingsRefreshDataClicked = "settings_refresh_data_clicked"
+
+    // Review
+    case reviewPromptShown = "review_prompt_shown"
+    case reviewManualTap = "review_manual_tap"
 
     // Health Profile
     case healthProfileViewed = "health_profile_viewed"

@@ -2675,6 +2675,18 @@
         }
       }
     },
+    "Feedback" : {
+      "comment" : "Feedback section header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feedback"
+          }
+        }
+      }
+    },
     "File too large. Maximum size is 50MB." : {
       "comment" : "Error message when selected file exceeds maximum size",
       "extractionState" : "manual",
@@ -6530,6 +6542,18 @@
     "Race-specific workouts and peak fitness" : {
       "comment" : "Training phase description - peak"
     },
+    "Rate InsightRun" : {
+      "comment" : "Rate app button in settings",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noter InsightRun"
+          }
+        }
+      }
+    },
     "Ready" : {
       "comment" : "Status: ready",
       "extractionState" : "manual",
@@ -7154,6 +7178,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sélectionner un fichier FIT"
+          }
+        }
+      }
+    },
+    "Send Feedback" : {
+      "comment" : "Send feedback button in settings",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyer un feedback"
           }
         }
       }

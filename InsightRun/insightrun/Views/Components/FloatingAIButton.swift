@@ -26,13 +26,13 @@ struct FloatingAIButton: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [Color.irPrimaryAccent, .cyan],
+                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 60, height: 60)
-                        .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 12, y: 6)
+                        .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 12, y: 6)
 
                     if isLoading || contextProvider.isLoading {
                         ProgressView()

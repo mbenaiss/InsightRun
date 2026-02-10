@@ -13,6 +13,7 @@ struct WorkoutListView: View {
     @StateObject private var unifiedViewModel = UnifiedWorkoutViewModel()
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
     @State private var showInitialPaywall = false
+    @State private var showWorkoutPlan = false
     @State private var showIndexationBanner = false
     @State private var showIndexationSheet = false
     @Environment(\.scenePhase) private var scenePhase
@@ -93,6 +94,19 @@ struct WorkoutListView: View {
             mainContent
                 .navigationTitle(String(localized: "Workouts", comment: "Main list screen title"))
                 .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            showWorkoutPlan = true
+                        } label: {
+                            Image(systemName: "sparkles")
+                        }
+                    }
+                }
+                .sheet(isPresented: $showWorkoutPlan) {
+                    WorkoutPlanView()
+                        .environmentObject(revenueCatManager)
+                }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         viewModel.refreshAuthorizationStatus()
@@ -503,7 +517,7 @@ struct WorkoutListView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [.blue, .cyan],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -534,7 +548,7 @@ struct WorkoutListView: View {
                 .padding(.vertical, 12)
                 .background(
                     LinearGradient(
-                        colors: [Color.irPrimaryAccent, .cyan],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )

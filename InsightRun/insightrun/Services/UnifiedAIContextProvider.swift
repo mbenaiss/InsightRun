@@ -17,6 +17,7 @@ enum AIContextPage: String, CaseIterable {
     case recovery
     case profile
     case workoutDetail
+    case dashboard
 }
 
 @MainActor
@@ -186,6 +187,13 @@ class UnifiedAIContextProvider: ObservableObject {
                 String(localized: "What was my best pace?", comment: "AI suggestion for workout detail"),
                 String(localized: "Give me improvement tips", comment: "AI suggestion for workout detail")
             ]
+        case .dashboard:
+            return [
+                String(localized: "Can I train today?", comment: "AI suggestion for dashboard"),
+                String(localized: "How is my recovery?", comment: "AI suggestion for dashboard"),
+                String(localized: "What workout should I do?", comment: "AI suggestion for dashboard"),
+                String(localized: "Analyze my recent performance", comment: "AI suggestion for dashboard")
+            ]
         }
     }
 
@@ -204,6 +212,8 @@ class UnifiedAIContextProvider: ObservableObject {
             return String(localized: "Health Advisor", comment: "AI context title for profile")
         case .workoutDetail:
             return String(localized: "Workout Analyst", comment: "AI context title for workout detail")
+        case .dashboard:
+            return String(localized: "Recovery Coach", comment: "AI context title for dashboard")
         }
     }
 

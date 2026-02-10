@@ -29,6 +29,7 @@ struct StatisticsView: View {
     @State private var selectedPeriodDate: Date?
     @State private var selectedPaceDistributionId: UUID?
     @State private var selectedDistanceDistributionId: UUID?
+    @StateObject private var healthProfileVM = HealthProfileViewModel()
 
     // Optional injected viewModel for testing - replaces the default one
     init(injectedViewModel: StatisticsViewModel? = nil) {
@@ -82,6 +83,7 @@ struct StatisticsView: View {
         .task {
             await viewModel.loadWorkouts()
             AnalyticsService.shared.trackStatisticsViewed()
+            await healthProfileVM.loadHealthProfile()
         }
         .onChange(of: selectedTab) { _, newTab in
             if newTab == .progression {
@@ -121,6 +123,9 @@ struct StatisticsView: View {
 
             // Section 7: Distance distribution
             distanceDistributionSection
+
+            // Section 8: Health profile
+            healthProfileSection
         }
     }
 
@@ -896,6 +901,53 @@ struct StatisticsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+
+    // MARK: - Health Profile Section
+
+    private var healthProfileSection: some View {
+        Group {
+            if let profile = healthProfileVM.healthProfile {
+                VStack(spacing: 16) {
+                    Text(String(localized: "statistics.health.title", defaultValue: "Health Profile", comment: "Health profile section title"))
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(spacing: 12) {
+                        if let bodyMass = profile.bodyMass {
+                            PerformanceRow(
+                                icon: "scalemass.fill",
+                                title: String(localized: "Weight", comment: "Weight label"),
+                                value: String(format: "%.1f kg", bodyMass)
+                            )
+                            Divider()
+                        }
+
+                        if let bodyFat = profile.bodyFatPercentage {
+                            PerformanceRow(
+                                icon: "percent",
+                                title: String(localized: "Body Fat", comment: "Body fat label"),
+                                value: String(format: "%.1f%%", bodyFat)
+                            )
+                            Divider()
+                        }
+
+                        if let age = profile.age {
+                            PerformanceRow(
+                                icon: "person.fill",
+                                title: String(localized: "Age", comment: "Age label"),
+                                value: "\(age)"
+                            )
+                        }
+                    }
+                    .padding()
+                    .background(Color.irCardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .shadow(color: Color.irShadow, radius: 8, y: 4)
+                }
+            }
+        }
+    }
 
     // MARK: - Empty State
 

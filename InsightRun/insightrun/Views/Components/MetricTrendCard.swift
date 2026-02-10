@@ -256,7 +256,7 @@ struct CircularProgressView: View {
         ZStack {
             // Background circle
             Circle()
-                .stroke(Color.gray.opacity(0.2), lineWidth: lineWidth)
+                .stroke(Color.gray.opacity(0.15), lineWidth: lineWidth)
 
             // Progress arc
             Circle()
@@ -294,13 +294,13 @@ struct CircularProgressView: View {
     private var gradientColors: [Color] {
         switch score {
         case 80...100:
-            return [.green.opacity(0.7), .green]
+            return [Color.irPrimaryAccent.opacity(0.7), Color.irPrimaryAccent]
         case 60..<80:
-            return [.yellow.opacity(0.7), .yellow]
+            return [Color.irWarning.opacity(0.7), Color.irWarning]
         case 40..<60:
             return [.orange.opacity(0.7), .orange]
         default:
-            return [.red.opacity(0.7), .red]
+            return [Color.irError.opacity(0.7), Color.irError]
         }
     }
 }

@@ -12,19 +12,19 @@ extension Color {
     // MARK: - Custom Adaptive Colors
 
     /// App background color - main screen background
-    /// Light: #EBEBF0 (medium light gray) | Dark: #000000 (black)
+    /// Light: #EBEBF0 (medium light gray) | Dark: #0B0B0B (Whoop Cod Gray)
     static let irBackgroundApp = Color("BackgroundApp", bundle: nil)
 
     /// Background color for cards - adapts to light/dark mode
-    /// Light: #FFFFFF (white) | Dark: #2D2D2D (dark gray)
+    /// Light: #FFFFFF (white) | Dark: #1A1A1A (subtle elevation)
     static let irCardBackground = Color("CardBackground", bundle: nil)
 
     /// Surface color for elevated elements
-    /// Light: #F5F5F7 (soft gray) | Dark: #1C1C1C (very dark gray)
+    /// Light: #F5F5F7 (soft gray) | Dark: #141414 (intermediate surface)
     static let irSurface = Color("Surface", bundle: nil)
 
     /// Primary accent color with adaptive brightness
-    /// Light: #007AFF (iOS blue) | Dark: #64B0FF (lighter blue for better visibility)
+    /// Light: #16A34A (Whoop green) | Dark: #1DB954 (Spotify/Whoop green)
     static let irPrimaryAccent = Color("PrimaryAccent", bundle: nil)
 
     // MARK: - Text Colors
@@ -40,7 +40,7 @@ extension Color {
     // MARK: - Border & Dividers
 
     /// Border color for elements
-    /// Light: #E4E4E7 (light gray) | Dark: #3A3A3C (dark gray)
+    /// Light: #E4E4E7 (light gray) | Dark: #252525 (subtle border)
     static let irBorder = Color("Border", bundle: nil)
 
     // MARK: - Semantic Colors
@@ -100,7 +100,7 @@ extension Color {
  - `Color.irSurface` - For elevated surfaces (#F5F5F7 light)
 
  **Accent:**
- - `Color.irPrimaryAccent` - For primary accent elements (#007AFF light)
+ - `Color.irPrimaryAccent` - For primary accent elements (#16A34A light)
 
  **Text:**
  - `Color.irTextPrimary` - For primary text (#1C1E21 light)

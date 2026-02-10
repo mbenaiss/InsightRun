@@ -519,8 +519,8 @@ struct WorkoutPlanView: View {
                 LinearGradient(
                     colors: [
                         Color(.systemBackground),
-                        Color.blue.opacity(0.02),
-                        Color.blue.opacity(0.01)
+                        Color.irPrimaryAccent.opacity(0.02),
+                        Color.irPrimaryAccent.opacity(0.01)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -613,7 +613,7 @@ struct WorkoutPlanView: View {
                     .font(.system(size: 44))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -661,7 +661,7 @@ struct WorkoutPlanView: View {
                 .padding(.vertical, 12)
                 .background(
                     LinearGradient(
-                        colors: [.blue, .cyan],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -682,7 +682,7 @@ struct WorkoutPlanView: View {
             }) {
                 Text(String(localized: "Restore Purchases", comment: "Restore button"))
                     .font(.subheadline)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.irPrimaryAccent)
             }
             .padding(.bottom, 16)
         }
@@ -784,7 +784,7 @@ struct WorkoutPlanView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -841,7 +841,7 @@ struct WorkoutPlanView: View {
                                 .font(.caption)
                                 .foregroundStyle(
                                     LinearGradient(
-                                        colors: [.blue, .cyan],
+                                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
@@ -872,8 +872,8 @@ struct WorkoutPlanView: View {
                             // Gradient background to differentiate
                             LinearGradient(
                                 colors: [
-                                    Color.blue.opacity(0.08),
-                                    Color.cyan.opacity(0.08)
+                                    Color.irPrimaryAccent.opacity(0.08),
+                                    Color.irPrimaryAccent.opacity(0.05)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -885,7 +885,7 @@ struct WorkoutPlanView: View {
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(
                                     LinearGradient(
-                                        colors: [.blue.opacity(0.3), .cyan.opacity(0.3)],
+                                        colors: [Color.irPrimaryAccent.opacity(0.3), Color.irPrimaryAccent.opacity(0.2)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -966,10 +966,10 @@ struct WorkoutPlanView: View {
                 .background(
                     viewModel.promptText.isEmpty || viewModel.isGenerating ?
                     LinearGradient(colors: [.gray, .gray], startPoint: .leading, endPoint: .trailing) :
-                    LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)], startPoint: .leading, endPoint: .trailing)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: viewModel.promptText.isEmpty ? .clear : .blue.opacity(0.4), radius: 8, y: 4)
+                .shadow(color: viewModel.promptText.isEmpty ? .clear : Color.irPrimaryAccent.opacity(0.4), radius: 8, y: 4)
             }
             .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
 
@@ -1097,10 +1097,10 @@ struct WorkoutPlanView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(
-                            LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)], startPoint: .leading, endPoint: .trailing)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
+                        .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 8, y: 4)
                     }
                     .disabled(WorkoutKitManager.shared.isExporting || isEditing)
                     .padding(.top, 8)
@@ -1681,7 +1681,7 @@ struct WorkoutFeatureRow: View {
                 .font(.title3)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [.blue, .cyan],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -1707,7 +1707,7 @@ struct WorkoutExportSuccessView: View {
             // Background gradient matching app style
             LinearGradient(
                 colors: [
-                    Color.blue.opacity(0.05),
+                    Color.irPrimaryAccent.opacity(0.05),
                     Color(.systemBackground)
                 ],
                 startPoint: .top,
@@ -1758,13 +1758,13 @@ struct WorkoutExportSuccessView: View {
                         .padding(.vertical, 16)
                         .background(
                             LinearGradient(
-                                colors: [.blue, .cyan],
+                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent.opacity(0.7)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
+                        .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 8, y: 4)
                 }
                 .padding(.horizontal, 32)
                 .padding(.bottom, 32)

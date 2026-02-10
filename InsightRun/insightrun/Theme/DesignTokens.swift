@@ -41,7 +41,23 @@ struct CardStyle: ViewModifier {
             .padding(padding)
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .shadow(color: Color.irShadow, radius: 10, y: 5)
+            .shadow(color: Color.irShadow, radius: 6, y: 3)
+    }
+}
+
+struct DarkCardStyle: ViewModifier {
+    var padding: CGFloat = Spacing.lg
+    var cornerRadius: CGFloat = Radius.xl
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(Color.irCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.irBorder, lineWidth: 0.5)
+            )
     }
 }
 
@@ -51,5 +67,12 @@ extension View {
         cornerRadius: CGFloat = Radius.xl
     ) -> some View {
         modifier(CardStyle(padding: padding, cornerRadius: cornerRadius))
+    }
+
+    func darkCardStyle(
+        padding: CGFloat = Spacing.lg,
+        cornerRadius: CGFloat = Radius.xl
+    ) -> some View {
+        modifier(DarkCardStyle(padding: padding, cornerRadius: cornerRadius))
     }
 }

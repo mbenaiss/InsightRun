@@ -45,11 +45,33 @@ struct CardStyle: ViewModifier {
     }
 }
 
+struct DashboardCardStyle: ViewModifier {
+    var padding: CGFloat = Spacing.lg
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.xl)
+                    .fill(Color.irCardBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.xl)
+                    .stroke(Color.irBorder.opacity(0.35), lineWidth: 1)
+            )
+            .shadow(color: Color.irShadow.opacity(0.8), radius: 14, y: 8)
+    }
+}
+
 extension View {
     func cardStyle(
         padding: CGFloat = Spacing.lg,
         cornerRadius: CGFloat = Radius.xl
     ) -> some View {
         modifier(CardStyle(padding: padding, cornerRadius: cornerRadius))
+    }
+
+    func dashboardCard(padding: CGFloat = Spacing.lg) -> some View {
+        modifier(DashboardCardStyle(padding: padding))
     }
 }

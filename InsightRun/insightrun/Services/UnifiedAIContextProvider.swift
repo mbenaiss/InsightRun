@@ -11,6 +11,7 @@ import Combine
 
 /// Represents the current page/context for contextual suggestions
 enum AIContextPage: String, CaseIterable {
+    case dashboard
     case workouts
     case statistics
     case plan
@@ -144,6 +145,13 @@ class UnifiedAIContextProvider: ObservableObject {
     /// Get sample questions based on current page
     func getSampleQuestions() -> [String] {
         switch currentPage {
+        case .dashboard:
+            return [
+                String(localized: "How is my recovery today?", comment: "AI suggestion for dashboard page"),
+                String(localized: "What should I focus on this week?", comment: "AI suggestion for dashboard page"),
+                String(localized: "Do I need an easy day?", comment: "AI suggestion for dashboard page"),
+                String(localized: "Summarize my current fitness", comment: "AI suggestion for dashboard page")
+            ]
         case .workouts:
             return [
                 String(localized: "How have my performances evolved?", comment: "AI suggestion for workouts page"),
@@ -192,6 +200,8 @@ class UnifiedAIContextProvider: ObservableObject {
     /// Get the page-specific title for the AI assistant
     func getContextTitle() -> String {
         switch currentPage {
+        case .dashboard:
+            return String(localized: "Daily Overview", comment: "AI context title for dashboard")
         case .workouts:
             return String(localized: "Training Coach", comment: "AI context title for workouts")
         case .statistics:

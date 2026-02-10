@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var isSyncing = false
     @State private var lastSyncResult: String?
     @State private var notificationsEnabled = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -224,7 +225,10 @@ struct SettingsView: View {
                 // Feedback Section
                 Section {
                     Button {
-                        ReviewManager.shared.requestReviewManually()
+                        if let url = ReviewManager.shared.reviewURL {
+                            openURL(url)
+                            AnalyticsService.shared.trackReviewManualTap()
+                        }
                     } label: {
                         HStack {
                             Image(systemName: "star.fill")
@@ -591,11 +595,16 @@ struct SettingsView: View {
         let subject = "InsightRun Feedback (v\(appVersion))"
         let body = "\n\n---\nApp: \(appVersion) (\(buildNumber))\niOS: \(iosVersion)"
 
-        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "contact@insightrun.ai"
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
 
-        if let url = URL(string: "mailto:contact@insightrun.ai?subject=\(encodedSubject)&body=\(encodedBody)") {
-            UIApplication.shared.open(url)
+        if let url = components.url {
+            openURL(url)
         }
     }
 

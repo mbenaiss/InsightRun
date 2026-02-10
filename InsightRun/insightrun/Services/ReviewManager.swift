@@ -6,7 +6,7 @@
 //
 
 import StoreKit
-import SwiftUI
+import UIKit
 
 @MainActor
 final class ReviewManager {
@@ -51,13 +51,8 @@ final class ReviewManager {
 
     // MARK: - Manual Review (opens App Store page)
 
-    func requestReviewManually() {
-        guard let url = URL(
-            string: "https://apps.apple.com/app/id\(Self.appStoreID)?action=write-review"
-        ) else { return }
-
-        UIApplication.shared.open(url)
-        AnalyticsService.shared.trackReviewManualTap()
+    var reviewURL: URL? {
+        URL(string: "https://apps.apple.com/app/id\(Self.appStoreID)?action=write-review")
     }
 
     // MARK: - Conditions

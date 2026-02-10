@@ -597,7 +597,7 @@ struct SettingsView: View {
 
         var components = URLComponents()
         components.scheme = "mailto"
-        components.path = "contact@insightrun.ai"
+        components.path = "support@altcode.studio"
         components.queryItems = [
             URLQueryItem(name: "subject", value: subject),
             URLQueryItem(name: "body", value: body)

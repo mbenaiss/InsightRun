@@ -34,7 +34,7 @@ class StravaViewModel: ObservableObject {
     /// Strategy: Cache-first for instant loading, sync in background
     func loadRecentActivities() async {
         guard authService.isAuthenticated else {
-            errorMessage = "Not authenticated with Strava"
+            errorMessage = String(localized: "Not authenticated with Strava")
             return
         }
 
@@ -84,7 +84,7 @@ class StravaViewModel: ObservableObject {
             }
             print("📊 Total Strava activities: \(response.total)")
         } catch {
-            errorMessage = "Failed to load activities: \(error.localizedDescription)"
+            errorMessage = String(localized: "Failed to load activities: \(error.localizedDescription)")
             print("❌ Error: \(error)")
         }
 
@@ -172,7 +172,7 @@ class StravaViewModel: ObservableObject {
 
             print("✅ Synced \(activities.count) activities")
         } catch {
-            errorMessage = "Failed to sync activities: \(error.localizedDescription)"
+            errorMessage = String(localized: "Failed to sync activities: \(error.localizedDescription)")
             print("❌ Error: \(error)")
         }
     }
@@ -189,7 +189,7 @@ class StravaViewModel: ObservableObject {
 
         // Safety: Check rate limits before making request
         guard apiClient.canMakeRequest() else {
-            errorMessage = "Rate limit reached. Please wait a few minutes."
+            errorMessage = String(localized: "Rate limit reached. Please wait a few minutes.")
             print("⚠️ Rate limit safety check failed")
             return
         }
@@ -215,7 +215,7 @@ class StravaViewModel: ObservableObject {
 
             print("✅ Loaded \(newActivities.count) more activities (total: \(activities.count))")
         } catch {
-            errorMessage = "Failed to load more: \(error.localizedDescription)"
+            errorMessage = String(localized: "Failed to load more: \(error.localizedDescription)")
             currentPage -= 1 // Reset page on error
             print("❌ Error loading more: \(error)")
         }
@@ -320,7 +320,7 @@ class StravaViewModel: ObservableObject {
             guard let date = activity.startDateParsed else { return "Unknown" }
             let formatter = DateFormatter()
             formatter.dateFormat = "MMMM yyyy"
-            formatter.locale = Locale(identifier: "fr_FR")
+            formatter.locale = Locale.current
             return formatter.string(from: date).capitalized
         }
 

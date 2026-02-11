@@ -32,9 +32,8 @@ class WorkoutAnalysisViewModel: ObservableObject {
         aiService.$streamedResponse
             .receive(on: DispatchQueue.main)
             .sink { [weak self] response in
-                // Filter out system messages (connection, indexation, etc.)
+                // Filter out system messages (indexation, etc.)
                 let isSystemMessage = response.isEmpty ||
-                                     response == "🌐 Connexion au serveur..." ||
                                      response.contains("Analyse de votre historique") ||
                                      response.contains("Analyzing your training history") ||
                                      response.contains("Updating your athletic profile") ||
@@ -75,7 +74,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
             print("   - First 100 chars: \(String(cached.analysisText.prefix(100)))")
 
             // Validate that the cached analysis is not empty
-            if !cached.analysisText.isEmpty && cached.analysisText != "🌐 Connexion au serveur..." {
+            if !cached.analysisText.isEmpty {
                 analysisText = cached.analysisText
                 analyzedAt = cached.analyzedAt
                 print("✅ WorkoutAnalysisViewModel: Loaded valid cached analysis")
@@ -206,7 +205,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         // Check if we got a response (analysisText is already set by Combine observer)
         guard let finalAnalysis = analysisText, !finalAnalysis.isEmpty, aiService.error == nil else {
-            error = aiService.error ?? "Erreur lors de l'analyse"
+            error = aiService.error ?? String(localized: "Error during analysis")
             print("❌ WorkoutAnalysisViewModel: No response received")
             return
         }
@@ -229,7 +228,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
             print("✅ WorkoutAnalysisViewModel: Saved to SwiftData with ID: \(analysis.workoutId)")
 
         } catch {
-            self.error = "Erreur lors de la sauvegarde: \(error.localizedDescription)"
+            self.error = String(localized: "Error saving: \(error.localizedDescription)")
             print("❌ WorkoutAnalysisViewModel: Save failed: \(error)")
         }
     }

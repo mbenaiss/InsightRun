@@ -165,7 +165,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
             print("")
 
         } catch {
-            errorMessage = "Failed to load workouts: \(error.localizedDescription)"
+            errorMessage = String(localized: "Failed to load workouts: \(error.localizedDescription)")
             print("❌ Error loading workouts: \(error)")
         }
 

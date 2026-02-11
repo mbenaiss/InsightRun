@@ -27,49 +27,33 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selectedTab) {
-            // Workouts Tab - Always visible
+            // Dashboard Tab
+            DashboardView()
+                .tabItem {
+                    Label(String(localized: "tab.dashboard", defaultValue: "Dashboard"), systemImage: "house.fill")
+                }
+                .tag(0)
+
+            // Workouts Tab
             WorkoutListView()
                 .tabItem {
                     Label(String(localized: "tab.workouts"), systemImage: "figure.run")
                 }
-                .tag(0)
+                .tag(1)
 
             // Statistics Tab
             StatisticsView()
                 .tabItem {
                     Label(String(localized: "tab.statistics"), systemImage: "chart.bar.fill")
                 }
-                .tag(1)
-
-            // Workout Plan Tab (AI Generator)
-            WorkoutPlanView()
-                .tabItem {
-                    Label(String(localized: "tab.plan"), systemImage: "sparkles")
-                }
                 .tag(2)
-
-            // Recovery Tab
-            RecoveryDashboardView()
-                .tabItem {
-                    Label(String(localized: "tab.recovery"), systemImage: "heart.fill")
-                }
-                .tag(3)
-
-            // Health Profile Tab
-            HealthProfileView()
-                .tabItem {
-                    Label(String(localized: "tab.health"), systemImage: "person.fill")
-                }
-                .tag(4)
             }
             .onChange(of: selectedTab) { _, newTab in
                 // Update context provider's current page based on selected tab
                 let page: AIContextPage = switch newTab {
-                case 0: .workouts
-                case 1: .statistics
-                case 2: .plan
-                case 3: .recovery
-                case 4: .profile
+                case 0: .recovery  // Dashboard is recovery-focused
+                case 1: .workouts
+                case 2: .statistics
                 default: .workouts
                 }
                 contextProvider.currentPage = page

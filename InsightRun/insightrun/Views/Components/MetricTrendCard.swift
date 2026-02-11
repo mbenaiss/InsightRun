@@ -83,6 +83,7 @@ struct MetricTrendCard: View {
     let metricType: MetricType
     let trendData: [TrendDataPoint]?
     let baseline: PersonalBaseline?
+    let recoveryMetrics: RecoveryMetrics?
 
     @State private var showingDetail = false
 
@@ -95,7 +96,8 @@ struct MetricTrendCard: View {
         deviationStatus: DeviationStatus? = nil,
         metricType: MetricType = .hrv,
         trendData: [TrendDataPoint]? = nil,
-        baseline: PersonalBaseline? = nil
+        baseline: PersonalBaseline? = nil,
+        recoveryMetrics: RecoveryMetrics? = nil
     ) {
         self.icon = icon
         self.iconColor = iconColor
@@ -106,6 +108,7 @@ struct MetricTrendCard: View {
         self.metricType = metricType
         self.trendData = trendData
         self.baseline = baseline
+        self.recoveryMetrics = recoveryMetrics
     }
 
     var body: some View {
@@ -175,12 +178,13 @@ struct MetricTrendCard: View {
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showingDetail) {
-            MetricDetailView(
+            ScoreExplanationSheet(
                 metricType: metricType,
                 currentValue: value,
                 unit: unit,
                 deviationStatus: deviationStatus,
-                baseline: baseline
+                baseline: baseline,
+                recoveryMetrics: recoveryMetrics
             )
         }
     }

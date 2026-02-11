@@ -157,10 +157,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode) async {
         do {
-            await MainActor.run {
-                self.streamedResponse = String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server")
-            }
-
             let payload = await buildAgentPayload(question: question, mode: mode)
             let stream = try await backendClient.agentChatStream(payload: payload)
 
@@ -168,16 +164,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 await MainActor.run {
                     switch event {
                     case .content(let chunk):
-                        if self.streamedResponse == String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server") {
-                            self.streamedResponse = ""
-                        }
                         self.streamedResponse += chunk
 
                     case .functionResult(let result):
                         self.lastFunctionResult = result
-                        if self.streamedResponse == String(localized: "🌐 Connecting to server...", comment: "Message while connecting to remote server") {
-                            self.streamedResponse = ""
-                        }
                     }
                 }
             }

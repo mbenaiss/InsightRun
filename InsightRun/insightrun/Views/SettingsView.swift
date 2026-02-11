@@ -470,12 +470,14 @@ struct SettingsView: View {
                     Button(String(localized: "Simuler non-abonné")) {
                         revenueCatManager.debugTestFlightOverride = false
                         revenueCatManager.isSubscriptionActive = false
+                        revenueCatManager.debugExhaustFreeRequests()
                     }
                     .foregroundStyle(.red)
 
                     Button(String(localized: "Simuler abonné")) {
                         revenueCatManager.debugTestFlightOverride = false
                         revenueCatManager.isSubscriptionActive = true
+                        revenueCatManager.resetFreeRequestCount()
                     }
                     .foregroundStyle(Color.irSuccess)
 

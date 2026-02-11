@@ -377,15 +377,15 @@ enum IndexationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noWorkoutsFound:
-            return "No workouts found in HealthKit"
+            return String(localized: "No workouts found in HealthKit")
         case .noWorkoutsToConsolidate:
-            return "No workout data to consolidate"
+            return String(localized: "No workout data to consolidate")
         case .cancelled:
-            return "Indexation was cancelled"
+            return String(localized: "Indexation was cancelled")
         case .batchProcessingFailed(let message):
-            return "Batch processing failed: \(message)"
+            return String(localized: "Batch processing failed: \(message)")
         case .consolidationFailed(let message):
-            return "Consolidation failed: \(message)"
+            return String(localized: "Consolidation failed: \(message)")
         }
     }
 }

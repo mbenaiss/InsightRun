@@ -200,7 +200,7 @@ class RecoveryViewModel: ObservableObject {
             metricsCache.removeAll() // Invalidate all cached metrics as baseline changed
             await loadRecoveryMetrics()
         } catch {
-            errorMessage = "Unable to refresh baseline: \(error.localizedDescription)"
+            errorMessage = String(localized: "Unable to refresh baseline: \(error.localizedDescription)")
         }
     }
 

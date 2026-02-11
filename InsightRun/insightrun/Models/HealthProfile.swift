@@ -132,7 +132,7 @@ struct HealthProfile: Identifiable {
         guard daysDifference > 7 else { return nil }
 
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale.current
         formatter.dateFormat = "d MMM"
         return formatter.string(from: date)
     }

@@ -14,12 +14,12 @@ import HealthKit
 extension HKWorkoutActivityType {
     var name: String {
         switch self {
-        case .running: return "Running"
-        case .cycling: return "Cycling"
-        case .walking: return "Walking"
-        case .swimming: return "Swimming"
-        case .hiking: return "Hiking"
-        default: return "Workout"
+        case .running: return String(localized: "Running")
+        case .cycling: return String(localized: "Cycling")
+        case .walking: return String(localized: "Walking")
+        case .swimming: return String(localized: "Swimming")
+        case .hiking: return String(localized: "Hiking")
+        default: return String(localized: "Workout")
         }
     }
 }

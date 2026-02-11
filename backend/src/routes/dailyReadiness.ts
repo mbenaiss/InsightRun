@@ -33,7 +33,7 @@ const app = new Hono<{ Bindings: Bindings }>()
 // Metric-specific coefficients of variation for fallback stdDev calculation
 // Based on typical physiological variability (aligned with iOS RecoveryMetrics.swift)
 const MetricCV = {
-  hrv: 0.30, // HRV: 20-40% CV, use 30%
+  hrv: 0.3, // HRV: 20-40% CV, use 30%
   restingHR: 0.08, // RHR: 5-10% CV, use 8%
   respiratoryRate: 0.12, // Resp: 10-15% CV, use 12%
 } as const
@@ -43,10 +43,10 @@ const MetricCV = {
 // Hirshkowitz et al. (Sleep Health, 2015), Bouzat et al. (BJSM, 2018)
 const RecoveryWeights = {
   hrv: 0.25, // 25% - Primary recovery indicator (higher is better)
-  restingHeartRate: 0.20, // 20% - Cardiovascular stress indicator (lower is better)
+  restingHeartRate: 0.2, // 20% - Cardiovascular stress indicator (lower is better)
   oxygenSaturation: 0.15, // 15% - Oxygen saturation (higher is better, clinical thresholds)
-  respiratoryRate: 0.10, // 10% - Stress indicator (lower is better)
-  sleep: 0.30, // 30% - Sleep quality (duration + efficiency)
+  respiratoryRate: 0.1, // 10% - Stress indicator (lower is better)
+  sleep: 0.3, // 30% - Sleep quality (duration + efficiency)
 } as const
 
 // Convert z-score deviation to a 0-1 score (aligned with iOS scoreFromDeviation)

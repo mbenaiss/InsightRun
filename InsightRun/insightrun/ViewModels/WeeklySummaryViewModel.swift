@@ -21,6 +21,9 @@ class WeeklySummaryViewModel: ObservableObject {
     @Published var totalElevation: Double = 0
     @Published var averageHeartRate: Double?
     @Published var averagePace: Double? // min/km
+    @Published var longestRunDistance: Double = 0 // meters
+    @Published var bestPace: Double? // min/km
+    @Published var maxHeartRate: Double?
 
     // Sleep
     @Published var averageSleepDuration: TimeInterval = 0
@@ -84,6 +87,20 @@ class WeeklySummaryViewModel: ObservableObject {
         return "\(minutes)'\(String(format: "%02d", seconds))\"\(unit)"
     }
 
+    var formattedLongestRun: String {
+        let km = longestRunDistance / 1000.0
+        let unit = String(localized: "km", comment: "Unit abbreviation for kilometers")
+        return String(format: "%.1f %@", km, unit)
+    }
+
+    var formattedBestPace: String {
+        guard let pace = bestPace, pace.isFinite else { return "--" }
+        let minutes = Int(pace)
+        let seconds = Int((pace - Double(minutes)) * 60)
+        let unit = String(localized: "/km", comment: "Pace unit per kilometer")
+        return "\(minutes)'\(String(format: "%02d", seconds))\"\(unit)"
+    }
+
     var formattedAverageSleep: String {
         let hours = Int(averageSleepDuration) / 3600
         let minutes = Int(averageSleepDuration) / 60 % 60
@@ -131,6 +148,18 @@ class WeeklySummaryViewModel: ObservableObject {
 
         let heartRates = workouts.compactMap(\.averageHeartRate)
         averageHeartRate = heartRates.isEmpty ? nil : heartRates.reduce(0, +) / Double(heartRates.count)
+
+        let maxHRs = workouts.compactMap(\.maxHeartRate)
+        maxHeartRate = maxHRs.max()
+
+        longestRunDistance = workouts.compactMap(\.distance).max() ?? 0
+
+        let paces: [Double] = workouts.compactMap { w in
+            guard let dist = w.distance, dist > 0 else { return nil }
+            let pace = (w.duration / 60.0) / (dist / 1000.0)
+            return pace.isFinite ? pace : nil
+        }
+        bestPace = paces.min()
 
         if totalDistance > 0, totalDuration > 0 {
             averagePace = (totalDuration / 60.0) / (totalDistance / 1000.0)

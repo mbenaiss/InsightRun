@@ -618,10 +618,10 @@ class StatisticsViewModel: ObservableObject {
 
         // Define pace zones (min/km)
         let zones = [
-            (range: "< 5:00", min: 0.0, max: 5.0, color: Color.green),
-            (range: "5:00-6:00", min: 5.0, max: 6.0, color: Color.yellow),
-            (range: "6:00-7:00", min: 6.0, max: 7.0, color: Color.orange),
-            (range: "> 7:00", min: 7.0, max: 100.0, color: Color.red)
+            (range: "< 5:00", min: 0.0, max: 5.0, color: Color.irSuccess),
+            (range: "5:00-6:00", min: 5.0, max: 6.0, color: Color.irPrimaryAccent),
+            (range: "6:00-7:00", min: 6.0, max: 7.0, color: Color.irWarning),
+            (range: "> 7:00", min: 7.0, max: 100.0, color: Color.irError)
         ]
 
         var distribution: [PaceDistribution] = []

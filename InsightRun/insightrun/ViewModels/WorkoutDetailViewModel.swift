@@ -49,9 +49,9 @@ class WorkoutDetailViewModel: ObservableObject {
             } catch let error as HealthKitError {
                 switch error {
                 case .notAvailable:
-                    errorMessage = "HealthKit n'est pas disponible sur cet appareil"
+                    errorMessage = String(localized: "HealthKit is not available on this device")
                 case .authorizationDenied:
-                    errorMessage = "Accès aux données HealthKit refusé. Veuillez autoriser l'accès dans Réglages"
+                    errorMessage = String(localized: "HealthKit data access denied. Please grant access in Settings")
                 case .dataNotAvailable, .queryFailed:
                     // Fallback to basic metrics from WorkoutModel
                     // This can happen for indoor workouts or when detailed data is unavailable

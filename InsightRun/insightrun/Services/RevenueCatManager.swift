@@ -124,6 +124,14 @@ class RevenueCatManager: NSObject, ObservableObject {
         UserDefaults.standard.set(0, forKey: freeRequestsKey)
     }
 
+    #if DEBUG
+    /// Exhaust all free requests (for testing non-subscriber state)
+    func debugExhaustFreeRequests() {
+        freeAIRequestsUsed = maxFreeRequests
+        UserDefaults.standard.set(freeAIRequestsUsed, forKey: freeRequestsKey)
+    }
+    #endif
+
     /// Update hasSeenInitialPaywall and persist to UserDefaults
     func markPaywallAsSeen() {
         hasSeenInitialPaywall = true

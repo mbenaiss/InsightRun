@@ -23,7 +23,7 @@ class HealthProfileViewModel: ObservableObject {
         do {
             healthProfile = try await healthKitManager.fetchHealthProfile()
         } catch {
-            errorMessage = "Impossible de charger le profil de santé: \(error.localizedDescription)"
+            errorMessage = String(localized: "Unable to load health profile: \(error.localizedDescription)")
         }
 
         isLoading = false

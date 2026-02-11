@@ -8,6 +8,152 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Shared Gradient
+
+extension LinearGradient {
+    static let irAccent = LinearGradient(
+        colors: [.blue, .cyan],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
+// MARK: - Chat Bubble Shape (asymmetric corners like iMessage)
+
+struct ChatBubbleShape: Shape {
+    let isUser: Bool
+
+    func path(in rect: CGRect) -> Path {
+        let radius: CGFloat = 16
+        let tailRadius: CGFloat = 4
+
+        let topLeft = isUser ? radius : radius
+        let topRight = isUser ? radius : radius
+        let bottomLeft = isUser ? radius : tailRadius
+        let bottomRight = isUser ? tailRadius : radius
+
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + topLeft, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - topRight, y: rect.minY))
+        path.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.minY),
+                     tangent2End: CGPoint(x: rect.maxX, y: rect.minY + topRight),
+                     radius: topRight)
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - bottomRight))
+        path.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
+                     tangent2End: CGPoint(x: rect.maxX - bottomRight, y: rect.maxY),
+                     radius: bottomRight)
+        path.addLine(to: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY))
+        path.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
+                     tangent2End: CGPoint(x: rect.minX, y: rect.maxY - bottomLeft),
+                     radius: bottomLeft)
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + topLeft))
+        path.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.minY),
+                     tangent2End: CGPoint(x: rect.minX + topLeft, y: rect.minY),
+                     radius: topLeft)
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Shimmer Effect
+
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                LinearGradient(
+                    stops: {
+                        let low = max(0, min(phase - 0.3, 1))
+                        let mid = max(0, min(phase, 1))
+                        let high = max(0, min(phase + 0.3, 1))
+                        return [
+                            .init(color: .clear, location: low),
+                            .init(color: .white.opacity(0.3), location: mid),
+                            .init(color: .clear, location: high)
+                        ]
+                    }(),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .mask(content)
+            )
+            .onAppear {
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    phase = 1.3
+                }
+            }
+    }
+}
+
+extension View {
+    func shimmer() -> some View {
+        modifier(ShimmerModifier())
+    }
+}
+
+// MARK: - Skeleton Loader for Streaming Bubble
+
+struct SkeletonBubbleView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.irTextSecondary.opacity(0.15))
+                .frame(height: 12)
+                .frame(maxWidth: .infinity)
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.irTextSecondary.opacity(0.15))
+                .frame(height: 12)
+                .frame(width: 180)
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.irTextSecondary.opacity(0.15))
+                .frame(height: 12)
+                .frame(width: 120)
+        }
+        .shimmer()
+        .padding(12)
+        .frame(maxWidth: 260, alignment: .leading)
+        .background(Color.irCardBackground)
+        .clipShape(ChatBubbleShape(isUser: false))
+        .shadow(color: Color.irShadow, radius: 8, y: 4)
+    }
+}
+
+// MARK: - Temporal Separator
+
+struct TimeSeparatorView: View {
+    let date: Date
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
+
+    var body: some View {
+        HStack {
+            line
+            Text(Self.dateFormatter.string(from: date))
+                .font(.caption2)
+                .foregroundStyle(Color.irTextSecondary)
+                .padding(.horizontal, 8)
+            line
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 4)
+    }
+
+    private var line: some View {
+        Rectangle()
+            .fill(Color.irTextSecondary.opacity(0.2))
+            .frame(height: 0.5)
+    }
+}
+
+// MARK: - Data Models
+
 struct ChatMessage: Identifiable, Equatable, Codable {
     let id: UUID
     let role: MessageRole
@@ -129,6 +275,8 @@ struct WorkoutAIAssistantView: View {
     @State private var showIndexationBanner = false
     @State private var showIndexationSheet = false
     @State private var lastHapticDate = Date.distantPast
+    @State private var emptyStateIconScale: CGFloat = 0.9
+    @State private var sendButtonPulse = false
 
     // Haptic feedback generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -184,26 +332,33 @@ struct WorkoutAIAssistantView: View {
                                     emptyStateView
                                         .padding(.top, 40)
                                 } else {
-                                    ForEach(messages) { message in
-                                        MessageBubble(message: message)
-                                            .transition(.asymmetric(
-                                                insertion: .move(edge: .bottom).combined(with: .opacity),
-                                                removal: .opacity
-                                            ))
+                                    ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                                        // Temporal separator if gap > 5 minutes
+                                        if index > 0, shouldShowTimeSeparator(between: messages[index - 1], and: message) {
+                                            TimeSeparatorView(date: message.timestamp)
+                                        }
+
+                                        MessageBubble(
+                                            message: message,
+                                            isStreaming: message.id == streamingMessageId
+                                        )
+                                        .transition(.asymmetric(
+                                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                                            removal: .opacity
+                                        ))
                                     }
                                 }
 
-                                // Typing Indicator (only before streaming starts)
+                                // Skeleton loader before streaming starts
                                 if isTyping && !aiService.isStreaming {
                                     HStack {
-                                        TypingIndicator()
+                                        SkeletonBubbleView()
                                         Spacer()
                                     }
                                     .padding(.horizontal)
                                     .transition(.move(edge: .bottom).combined(with: .opacity))
                                 }
 
-                                // Always have a bottom anchor
                                 Color.clear
                                     .frame(height: 1)
                                     .id(bottomID)
@@ -332,36 +487,45 @@ struct WorkoutAIAssistantView: View {
     private var headerView: some View {
         HStack {
             Image(systemName: "sparkles")
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.blue, .cyan],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .foregroundStyle(.linearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing))
                 .font(.title3)
+                .symbolEffect(.pulse, isActive: aiService.isStreaming)
 
-            // Show contextual title in unified mode, generic title otherwise
-            Text(headerTitle)
-                .font(.headline)
+            if aiService.isStreaming {
+                Text(String(localized: "Thinking...", comment: "Header title while AI is generating a response"))
+                    .font(.headline)
+                    .foregroundStyle(Color.irTextSecondary)
+                    .shimmer()
+            } else {
+                Text(headerTitle)
+                    .font(.headline)
+            }
 
             Spacer()
 
             if !messages.isEmpty {
                 HStack(spacing: 16) {
-                    // New conversation button
                     Button(action: startNewConversation) {
                         Image(systemName: "square.and.pencil")
                             .foregroundStyle(Color.irTextSecondary)
                     }
 
-                    // Conversation history button
                     Button(action: showConversationHistory) {
                         Image(systemName: "clock.arrow.circlepath")
                             .foregroundStyle(Color.irTextSecondary)
+                            .overlay(alignment: .topTrailing) {
+                                if !conversationHistories.isEmpty {
+                                    Text("\(min(conversationHistories.count, 99))")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .padding(3)
+                                        .background(Color.irPrimaryAccent)
+                                        .clipShape(Circle())
+                                        .offset(x: 6, y: -6)
+                                }
+                            }
                     }
 
-                    // Clear chat button
                     Button(action: clearChat) {
                         Image(systemName: "trash")
                             .foregroundStyle(Color.irTextSecondary)
@@ -378,7 +542,6 @@ struct WorkoutAIAssistantView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 24) {
-            // Animated Icon with Liquid Glass effect
             ZStack {
                 Circle()
                     .fill(Color.irCardBackground)
@@ -387,13 +550,13 @@ struct WorkoutAIAssistantView: View {
 
                 Image(systemName: "sparkles")
                     .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(.linearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .scaleEffect(emptyStateIconScale)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                            emptyStateIconScale = 1.1
+                        }
+                    }
             }
 
             VStack(spacing: 8) {
@@ -407,7 +570,7 @@ struct WorkoutAIAssistantView: View {
                     .multilineTextAlignment(.center)
             }
 
-            // Sample Questions
+            // 2-column grid for sample questions
             VStack(alignment: .leading, spacing: 12) {
                 Text(String(localized: "Quick questions", comment: "Section header for sample questions"))
                     .font(.caption)
@@ -415,27 +578,26 @@ struct WorkoutAIAssistantView: View {
                     .textCase(.uppercase)
                     .padding(.horizontal, 4)
 
-                VStack(spacing: 8) {
-                    ForEach(sampleQuestions, id: \.self) { sample in
+                let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(Array(sampleQuestions.enumerated()), id: \.offset) { index, sample in
                         Button(action: {
                             impactLight.impactOccurred()
                             question = sample
                             isTextFieldFocused = false
                         }) {
-                            HStack {
-                                Image(systemName: "lightbulb.fill")
+                            HStack(spacing: 6) {
+                                Image(systemName: sampleQuestionIcon(for: index))
                                     .font(.caption)
-                                    .foregroundStyle(Color.irWarning)
+                                    .foregroundStyle(.linearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing))
                                 Text(sample)
-                                    .font(.subheadline)
+                                    .font(.caption)
                                     .foregroundStyle(Color.irTextPrimary)
                                     .multilineTextAlignment(.leading)
-                                Spacer()
-                                Image(systemName: "arrow.up.right")
-                                    .font(.caption)
-                                    .foregroundStyle(Color.irTextSecondary)
+                                    .lineLimit(2)
                             }
-                            .padding(12)
+                            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                            .padding(10)
                             .background(Color.irCardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .shadow(color: Color.irShadow, radius: 4, y: 2)
@@ -447,6 +609,11 @@ struct WorkoutAIAssistantView: View {
             .padding()
         }
         .padding()
+    }
+
+    private func sampleQuestionIcon(for index: Int) -> String {
+        let icons = ["bolt.fill", "heart.fill", "chart.bar.fill", "figure.run", "moon.fill"]
+        return icons[index % icons.count]
     }
 
     private var headerTitle: String {
@@ -534,25 +701,30 @@ struct WorkoutAIAssistantView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(aiService.suggestedQuestions, id: \.self) { suggestion in
+                    ForEach(Array(aiService.suggestedQuestions.enumerated()), id: \.element) { index, suggestion in
                         Button(action: {
                             impactLight.impactOccurred()
                             question = suggestion
                             askQuestion()
                         }) {
-                            Text(suggestion)
-                                .font(.subheadline)
-                                .foregroundStyle(Color.irTextPrimary)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.irCardBackground)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(Color.irPrimaryAccent.opacity(0.3), lineWidth: 1)
-                                )
+                            HStack(spacing: 6) {
+                                Image(systemName: sampleQuestionIcon(for: index))
+                                    .font(.caption2)
+                                    .foregroundStyle(.linearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing))
+                                Text(suggestion)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.irCardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(Color.irPrimaryAccent.opacity(0.3), lineWidth: 1)
+                            )
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -588,36 +760,47 @@ struct WorkoutAIAssistantView: View {
             .background(Color.irCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
 
-            // Send Button
             Button(action: askQuestion) {
                 ZStack {
+                    // Pulse ring during streaming
+                    if aiService.isStreaming {
+                        Circle()
+                            .stroke(LinearGradient.irAccent, lineWidth: 2)
+                            .frame(width: 52, height: 52)
+                            .scaleEffect(sendButtonPulse ? 1.2 : 1.0)
+                            .opacity(sendButtonPulse ? 0 : 0.6)
+                            .onAppear {
+                                withAnimation(.easeOut(duration: 1.0).repeatForever(autoreverses: false)) {
+                                    sendButtonPulse = true
+                                }
+                            }
+                            .onDisappear { sendButtonPulse = false }
+                    }
+
                     Circle()
                         .fill(
-                            question.isEmpty || aiService.isStreaming ?
-                            LinearGradient(
-                                colors: [Color.irTextSecondary, Color.irTextSecondary],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ) :
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                            aiService.isStreaming ? LinearGradient.irAccent :
+                            (question.isEmpty ?
+                                LinearGradient(colors: [Color.irTextSecondary, Color.irTextSecondary], startPoint: .topLeading, endPoint: .bottomTrailing) :
+                                LinearGradient.irAccent)
                         )
                         .frame(width: 44, height: 44)
-                        .shadow(color: question.isEmpty ? .clear : .blue.opacity(0.3), radius: 8, y: 4)
+                        .shadow(color: (question.isEmpty && !aiService.isStreaming) ? .clear : .blue.opacity(0.3), radius: 8, y: 4)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: question.isEmpty)
 
                     if aiService.isStreaming {
                         Image(systemName: "stop.fill")
                             .foregroundStyle(Color.irCardBackground)
                             .font(.system(size: 16))
+                            .transition(.scale.combined(with: .opacity))
                     } else {
                         Image(systemName: "arrow.up")
                             .foregroundStyle(Color.irCardBackground)
                             .font(.system(size: 16, weight: .semibold))
+                            .transition(.scale.combined(with: .opacity))
                     }
                 }
+                .animation(.spring(response: 0.3), value: aiService.isStreaming)
             }
             .disabled(question.isEmpty && !aiService.isStreaming)
         }
@@ -868,6 +1051,10 @@ struct WorkoutAIAssistantView: View {
         }
     }
 
+    private func shouldShowTimeSeparator(between previous: ChatMessage, and current: ChatMessage) -> Bool {
+        current.timestamp.timeIntervalSince(previous.timestamp) > 300 // 5 minutes
+    }
+
     private func modeToString(_ mode: AIAssistantMode) -> String {
         switch mode {
         case .singleWorkout:
@@ -886,12 +1073,33 @@ struct WorkoutAIAssistantView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
+    var isStreaming: Bool = false
     @State private var appeared = false
 
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+
     var body: some View {
-        HStack {
+        HStack(alignment: .bottom, spacing: 6) {
             if message.role == .user {
                 Spacer(minLength: 60)
+            }
+
+            // Assistant avatar
+            if message.role == .assistant {
+                ZStack {
+                    Circle()
+                        .fill(Color.irCardBackground)
+                        .frame(width: 28, height: 28)
+                        .shadow(color: Color.irShadow, radius: 4, y: 2)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.linearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
+                .offset(y: -16)
             }
 
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
@@ -900,11 +1108,13 @@ struct MessageBubble: View {
                         WorkoutCardView(workout: workoutResult, message: message.functionMessage)
                     } else if let trendResult = message.trendResult {
                         TrendAnalysisCardView(trend: trendResult, message: message.functionMessage)
+                    } else if message.content.isEmpty && isStreaming {
+                        SkeletonBubbleView()
                     } else {
                         MarkdownView(message.content)
                             .padding(12)
                             .background(Color.irCardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .clipShape(ChatBubbleShape(isUser: false))
                             .shadow(color: Color.irShadow, radius: 8, y: 4)
                     }
                 } else {
@@ -912,42 +1122,30 @@ struct MessageBubble: View {
                         .font(.body)
                         .foregroundStyle(Color.irCardBackground)
                         .padding(12)
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .background(LinearGradient.irAccent)
+                        .clipShape(ChatBubbleShape(isUser: true))
                         .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
                 }
 
-                Text(formatTime(message.timestamp))
+                Text(Self.timeFormatter.string(from: message.timestamp))
                     .font(.caption2)
                     .foregroundStyle(Color.irTextSecondary)
                     .padding(.horizontal, 4)
                     .opacity(appeared ? 1 : 0)
             }
-            .scaleEffect(appeared ? 1 : 0.95)
+            .offset(y: appeared ? 0 : 12)
             .opacity(appeared ? 1 : 0)
 
             if message.role == .assistant {
-                Spacer(minLength: 60)
+                Spacer(minLength: 40)
             }
         }
         .padding(.horizontal)
         .onAppear {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                 appeared = true
             }
         }
-    }
-
-    private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
     }
 }
 
@@ -1050,13 +1248,7 @@ struct ConversationHistoryView: View {
 
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.irAccent)
             }
 
             VStack(spacing: 8) {
@@ -1091,13 +1283,7 @@ struct ConversationHistoryRow: View {
                         .frame(width: 44, height: 44)
 
                     Image(systemName: modeIcon)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .foregroundStyle(LinearGradient.irAccent)
                         .font(.system(size: 18))
                 }
 

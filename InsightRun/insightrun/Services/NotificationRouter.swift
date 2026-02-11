@@ -38,11 +38,11 @@ extension NotificationRouter: UNUserNotificationCenterDelegate {
         Task { @MainActor in
             switch category {
             case "DAILY_READINESS", "LOW_READINESS":
-                pendingTab = 3 // Recovery tab
+                pendingTab = 0 // Dashboard (includes recovery)
             case "OVERTRAINING_ALERT", "INACTIVITY_REMINDER":
-                pendingTab = 0 // Workouts tab
+                pendingTab = 1 // Workouts tab
             case "WEEKLY_SUMMARY":
-                pendingTab = 4 // Health tab
+                pendingTab = 0 // Dashboard
                 showWeeklySummary = true
             default:
                 break

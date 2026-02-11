@@ -50,7 +50,7 @@ class WorkoutListViewModel: ObservableObject {
                 await loadWorkouts()
             }
         } catch {
-            errorMessage = "Erreur lors de la demande d'autorisation: \(error.localizedDescription)"
+            errorMessage = String(localized: "Authorization request error: \(error.localizedDescription)")
         }
 
         isLoading = false
@@ -89,7 +89,7 @@ class WorkoutListViewModel: ObservableObject {
             }
 
             if workouts.isEmpty {
-                errorMessage = "Aucun workout de course trouvé."
+                errorMessage = String(localized: "No running workouts found.")
             } else if isFirstSync {
                 // Track first workout sync only once
                 AnalyticsService.shared.trackFirstWorkoutSynced(
@@ -101,7 +101,7 @@ class WorkoutListViewModel: ObservableObject {
                 print("✅ Lazy Loading: Loaded \(workouts.count) workouts (hasMore: \(hasMoreWorkouts))")
             }
         } catch {
-            errorMessage = "Impossible de charger les workouts: \(error.localizedDescription)"
+            errorMessage = String(localized: "Unable to load workouts: \(error.localizedDescription)")
 
             // Track first sync failure if it's the first time
             if isFirstSync {
@@ -144,7 +144,7 @@ class WorkoutListViewModel: ObservableObject {
 
             print("📄 Loaded page: +\(result.workouts.count) workouts (total: \(workouts.count), hasMore: \(hasMoreWorkouts))")
         } catch {
-            errorMessage = "Impossible de charger plus de workouts: \(error.localizedDescription)"
+            errorMessage = String(localized: "Unable to load more workouts: \(error.localizedDescription)")
         }
 
         isLoadingMore = false
@@ -169,7 +169,7 @@ class WorkoutListViewModel: ObservableObject {
         let grouped = Dictionary(grouping: workouts) { workout -> String in
             let formatter = DateFormatter()
             formatter.dateFormat = "MMMM yyyy"
-            formatter.locale = Locale(identifier: "fr_FR")
+            formatter.locale = Locale.current
             return formatter.string(from: workout.startDate).capitalized
         }
         return grouped.sorted { $0.value.first!.startDate > $1.value.first!.startDate }

@@ -48,7 +48,7 @@ class FoundationModelsService: ObservableObject {
 
             if !isLocaleSupported {
                 print("⚠️ FoundationModels: Current locale not supported")
-                error = "La langue actuelle (\(currentLocale.identifier)) n'est pas encore supportée par Apple Intelligence"
+                error = String(localized: "Current language (\(currentLocale.identifier)) is not yet supported by Apple Intelligence")
             }
 
             // Log supported languages
@@ -58,16 +58,16 @@ class FoundationModelsService: ObservableObject {
 
         case .unavailable(.deviceNotEligible):
             print("❌ FoundationModels: Device not eligible for Apple Intelligence")
-            error = "This device doesn't support Apple Intelligence"
+            error = String(localized: "This device doesn't support Apple Intelligence")
         case .unavailable(.appleIntelligenceNotEnabled):
             print("⚠️ FoundationModels: Apple Intelligence not enabled")
-            error = "Please enable Apple Intelligence in Settings"
+            error = String(localized: "Please enable Apple Intelligence in Settings")
         case .unavailable(.modelNotReady):
             print("⏳ FoundationModels: Model downloading or not ready")
-            error = "Model is downloading, please try again later"
+            error = String(localized: "Model is downloading, please try again later")
         case .unavailable(let other):
             print("❌ FoundationModels: Unavailable - \(other)")
-            error = "Model unavailable: \(other)"
+            error = String(localized: "Model unavailable: \(String(describing: other))")
         }
     }
 
@@ -279,7 +279,7 @@ class FoundationModelsService: ObservableObject {
                     print("❌ FoundationModels: Unexpected error - \(error)")
 
                     await MainActor.run {
-                        self.error = "Erreur inattendue: \(error.localizedDescription)"
+                        self.error = String(localized: "Unexpected error: \(error.localizedDescription)")
                         self.isLoading = false
                         self.isStreaming = false
                         self.currentTask = nil

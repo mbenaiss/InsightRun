@@ -69,12 +69,12 @@ struct WorkoutListView: View {
     @ViewBuilder
     private var mainContent: some View {
         if canShowWorkouts {
-            if isLoadingWorkouts && !hasWorkouts {
-                loadingView
-            } else if !hasWorkouts {
-                emptyView
-            } else {
+            if hasWorkouts {
                 workoutList
+            } else if isLoadingWorkouts || viewModel.errorMessage == nil {
+                loadingView
+            } else {
+                emptyView
             }
         } else {
             switch viewModel.authorizationStatus {
@@ -118,12 +118,12 @@ struct WorkoutListView: View {
                 .onChange(of: unifiedViewModel.isLoading) { _, isLoading in
                     if !isLoading { updateContextProvider() }
                 }
-                .task {
+                .task(id: viewModel.authorizationStatus) {
                     if viewModel.authorizationStatus == .authorized && viewModel.workouts.isEmpty {
                         await viewModel.loadWorkouts()
                     }
                 }
-                .task {
+                .task(id: viewModel.authorizationStatus) {
                     if canShowWorkouts || stravaAuth.isAuthenticated {
                         await unifiedViewModel.loadUnifiedWorkouts()
                     }

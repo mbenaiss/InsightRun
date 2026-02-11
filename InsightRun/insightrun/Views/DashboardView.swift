@@ -25,10 +25,13 @@ struct DashboardView: View {
 
     // MARK: - Computed Properties
 
+    /// Effort score: WHO-adjusted active minutes vs 150 min/week target
+    /// Vigorous intensity (pace < 6:00/km) counts double per WHO 2020 guidelines
+    /// Source: WHO Guidelines on Physical Activity and Sedentary Behaviour (2020)
     private var effortPercentage: Int {
-        let weeklyMinutes = weeklySummaryVM.totalDuration / 60.0
+        let adjustedMinutes = weeklySummaryVM.whoAdjustedMinutes
         let target: Double = 150
-        return Int(min(weeklyMinutes / target * 100, 100))
+        return Int(min(adjustedMinutes / target * 100, 100))
     }
 
     // MARK: - Body

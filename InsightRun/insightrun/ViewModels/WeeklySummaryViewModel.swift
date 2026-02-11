@@ -25,6 +25,10 @@ class WeeklySummaryViewModel: ObservableObject {
     @Published var bestPace: Double? // min/km
     @Published var maxHeartRate: Double?
 
+    /// WHO-adjusted active minutes: vigorous intensity (pace < 6:00/km) counts double
+    /// Source: WHO Guidelines on Physical Activity (2020) - 150 min moderate OR 75 min vigorous
+    @Published var whoAdjustedMinutes: Double = 0
+
     // Sleep
     @Published var averageSleepDuration: TimeInterval = 0
     @Published var averageSleepEfficiency: Double = 0
@@ -163,6 +167,17 @@ class WeeklySummaryViewModel: ObservableObject {
 
         if totalDistance > 0, totalDuration > 0 {
             averagePace = (totalDuration / 60.0) / (totalDistance / 1000.0)
+        }
+
+        // WHO-adjusted minutes: vigorous intensity counts double
+        // WHO (2020): 150 min moderate-intensity OR 75 min vigorous-intensity per week
+        // Vigorous threshold: pace < 6:00/km (Garmin/Polar convention)
+        whoAdjustedMinutes = workouts.reduce(0.0) { total, workout in
+            let minutes = workout.duration / 60.0
+            guard let dist = workout.distance, dist > 0 else { return total + minutes }
+            let paceMinPerKm = (workout.duration / 60.0) / (dist / 1000.0)
+            let isVigorous = paceMinPerKm.isFinite && paceMinPerKm < 6.0
+            return total + (isVigorous ? minutes * 2.0 : minutes)
         }
     }
 

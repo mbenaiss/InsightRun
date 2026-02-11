@@ -67,6 +67,8 @@ export const personalBaselineDataSchema = z.object({
   sleepEfficiencyAverage: z.number().min(0).max(100).optional(),
   respiratoryRateAverage: z.number().positive().optional(),
   respiratoryRateStdDev: z.number().nonnegative().optional(),
+  oxygenSaturationAverage: z.number().min(0).max(100).optional(),
+  oxygenSaturationStdDev: z.number().nonnegative().optional(),
   dataPointCount: z.number().int().nonnegative(),
   isReliable: z.boolean(),
 })
@@ -111,6 +113,7 @@ export interface RecoveryData {
   hrv?: number
   walkingHeartRate?: number
   respiratoryRate?: number
+  oxygenSaturation?: number
   sleepData?: {
     totalDuration: number
     efficiency: number
@@ -138,6 +141,8 @@ export interface PersonalBaselineData {
   sleepEfficiencyAverage?: number // percentage
   respiratoryRateAverage?: number
   respiratoryRateStdDev?: number
+  oxygenSaturationAverage?: number
+  oxygenSaturationStdDev?: number
   dataPointCount: number
   isReliable: boolean // true when dataPointCount >= 7
 }

@@ -31,6 +31,7 @@ enum MedicalSourceCategory: String, CaseIterable, Identifiable {
     case restingHeartRate = "Resting Heart Rate"
     case sleepRecovery = "Sleep & Recovery"
     case respiratoryRate = "Respiratory Rate"
+    case trainingLoad = "Training Load & Cardiac Stress"
     case runningMetrics = "Running Metrics"
     case general = "General Guidelines"
 
@@ -46,6 +47,8 @@ enum MedicalSourceCategory: String, CaseIterable, Identifiable {
             return String(localized: "Sleep & Recovery", comment: "Medical source category: Sleep")
         case .respiratoryRate:
             return String(localized: "Respiratory Rate", comment: "Medical source category: Respiratory")
+        case .trainingLoad:
+            return String(localized: "Training Load & Cardiac Stress", comment: "Medical source category: Training Load")
         case .runningMetrics:
             return String(localized: "Running Metrics", comment: "Medical source category: Running")
         case .general:
@@ -208,6 +211,51 @@ struct MedicalSourcesDatabase {
         )
     ]
 
+    // MARK: - Training Load & Cardiac Stress Sources
+
+    static let trainingLoadSources: [MedicalSource] = [
+        MedicalSource(
+            title: "A Systems Model of the Effects of Training on Physical Performance",
+            authors: "Banister EW, Calvert TW, Savage MV, Bach T",
+            journal: "IEEE Transactions on Systems, Man, and Cybernetics",
+            year: 1975,
+            url: "https://ieeexplore.ieee.org/document/4082542",
+            summary: "Foundational paper introducing the impulse-response model for training load quantification. Training produces dual fitness and fatigue responses that decay exponentially. TRIMP (Training IMPulse) = duration × intensity. Fatigue decays ~3× faster than fitness (τ_fatigue ≈ 7 days, τ_fitness ≈ 42 days). This model underpins modern training load metrics including TSS, ATL/CTL, and the performance management chart."
+        ),
+        MedicalSource(
+            title: "The training—injury prevention paradox: should athletes be training smarter and harder?",
+            authors: "Gabbett TJ",
+            journal: "British Journal of Sports Medicine",
+            year: 2016,
+            url: "https://pubmed.ncbi.nlm.nih.gov/26758673/",
+            summary: "Introduces the Acute:Chronic Workload Ratio (ACWR) as a predictor of training-related injuries. The 'sweet spot' for injury prevention is an ACWR of 0.8–1.3. Rapid load increases (>10% week-over-week) increase injury risk significantly. Well-developed chronic training loads protect against injury, supporting the principle that appropriately graded progressive overload is safer than undertraining."
+        ),
+        MedicalSource(
+            title: "Monitoring Athlete Training Loads: Consensus Statement",
+            authors: "Bourdon PC, Cardinale M, Murray A, et al.",
+            journal: "International Journal of Sports Physiology and Performance",
+            year: 2017,
+            url: "https://pubmed.ncbi.nlm.nih.gov/28463642/",
+            summary: "IOC-endorsed consensus statement on monitoring athlete training loads. Recommends tracking both internal (physiological: HR, RPE) and external (mechanical: distance, pace, power) training loads. Weekly load monitoring with rolling averages helps detect overtraining risk. Exponentially weighted moving averages (EWMA) provide better sensitivity to load changes than simple rolling averages."
+        ),
+        MedicalSource(
+            title: "Monitoring Training Load to Understand Fatigue in Athletes",
+            authors: "Halson SL",
+            journal: "Sports Medicine",
+            year: 2014,
+            url: "https://pubmed.ncbi.nlm.nih.gov/25315456/",
+            summary: "Comprehensive review of training load monitoring methods. Recommends combining internal and external load measures for a complete picture. Identifies TRIMP and session-RPE as practical internal load measures. Highlights the importance of monitoring load changes over time rather than absolute values, as individual responses to training vary significantly."
+        ),
+        MedicalSource(
+            title: "Training and Racing Using a Power Meter: An Introduction",
+            authors: "Coggan AR, Allen H",
+            journal: "Training and Racing with a Power Meter (Velopress)",
+            year: 2010,
+            url: nil,
+            summary: "Introduced the Training Stress Score (TSS) framework and Performance Management Chart (PMC). Defined Acute Training Load (ATL, τ=7 days) and Chronic Training Load (CTL, τ=42 days) as exponentially weighted moving averages. Training Stress Balance (TSB = CTL - ATL) predicts form and readiness. This framework is the practical consumer implementation of Banister's impulse-response model."
+        )
+    ]
+
     // MARK: - Running Metrics Sources
 
     static let runningMetricsSources: [MedicalSource] = [
@@ -241,12 +289,44 @@ struct MedicalSourcesDatabase {
 
     static let generalSources: [MedicalSource] = [
         MedicalSource(
+            title: "WHO Guidelines on Physical Activity and Sedentary Behaviour",
+            authors: "Bull FC, Al-Ansari SS, Biddle S, et al.",
+            journal: "British Journal of Sports Medicine",
+            year: 2020,
+            url: "https://pubmed.ncbi.nlm.nih.gov/33239350/",
+            summary: "WHO recommends 150–300 min/week of moderate-intensity aerobic activity, or 75–150 min/week of vigorous-intensity activity for adults. Vigorous activity counts double versus moderate (2:1 ratio). Any duration of MVPA counts toward recommendations (removing the previous 10-min bout requirement). More activity provides additional health benefits with a curvilinear dose-response relationship."
+        ),
+        MedicalSource(
+            title: "Physical Activity and Public Health: Updated Recommendation for Adults",
+            authors: "Haskell WL, Lee IM, Pate RR, et al.",
+            journal: "Medicine & Science in Sports & Exercise",
+            year: 2007,
+            url: "https://pubmed.ncbi.nlm.nih.gov/17762377/",
+            summary: "Landmark ACSM/AHA joint recommendation establishing the 150 min/week moderate-intensity threshold for substantial health benefits in adults aged 18-65. Vigorous-intensity aerobic activity for 75 min/week provides equivalent benefits. Combinations of moderate and vigorous are acceptable. This paper established the evidence base later adopted by WHO (2020)."
+        ),
+        MedicalSource(
             title: "Physical Activity Guidelines for Americans",
             authors: "U.S. Department of Health and Human Services",
             journal: "2nd Edition - Federal Guidelines",
             year: 2018,
             url: "https://health.gov/paguidelines/second-edition/",
             summary: "Comprehensive federal guidelines for physical activity, including recommendations for aerobic exercise, intensity levels, and recovery. Provides evidence-based recommendations for all age groups and fitness levels."
+        ),
+        MedicalSource(
+            title: "Training adaptation and heart rate variability in elite endurance athletes: opening the door to effective monitoring",
+            authors: "Plews DJ, Laursen PB, Stanley J, Kilding AE, Buchheit M",
+            journal: "Sports Medicine",
+            year: 2013,
+            url: "https://pubmed.ncbi.nlm.nih.gov/23852425/",
+            summary: "Demonstrates that weekly averaged LnRMSSD (log of root mean square of successive differences) is the most reliable and practically applicable HRV measure for day-to-day monitoring. Individual HRV baseline tracking is more meaningful than population norms. Provides the scientific foundation for personalized z-score-based recovery scoring used in consumer wearables (WHOOP, Oura)."
+        ),
+        MedicalSource(
+            title: "Monitoring training status with HR measures: do all roads lead to Rome?",
+            authors: "Buchheit M",
+            journal: "International Journal of Sports Physiology and Performance",
+            year: 2014,
+            url: "https://pubmed.ncbi.nlm.nih.gov/24334285/",
+            summary: "Comprehensive review on using heart rate-derived metrics (RHR, HRV, HR recovery) for monitoring training status. Recommends combining HRV with RHR and subjective measures for robust readiness assessment. Establishes that a minimum of 3 valid HRV measurements per week is needed for reliable weekly averages."
         ),
         MedicalSource(
             title: "Athletes and Sleep Issues: New Insights Into Translating Laboratory Findings",
@@ -270,6 +350,8 @@ struct MedicalSourcesDatabase {
             return sleepSources
         case .respiratoryRate:
             return respiratorySources
+        case .trainingLoad:
+            return trainingLoadSources
         case .runningMetrics:
             return runningMetricsSources
         case .general:
@@ -278,6 +360,6 @@ struct MedicalSourcesDatabase {
     }
 
     static var allSources: [MedicalSource] {
-        hrvSources + restingHRSources + sleepSources + respiratorySources + runningMetricsSources + generalSources
+        hrvSources + restingHRSources + sleepSources + respiratorySources + trainingLoadSources + runningMetricsSources + generalSources
     }
 }

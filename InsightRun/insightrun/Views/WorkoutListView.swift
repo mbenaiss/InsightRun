@@ -88,11 +88,26 @@ struct WorkoutListView: View {
         }
     }
 
+    @State private var showWorkoutPlan = false
+
     var body: some View {
         NavigationStack {
             mainContent
-                .navigationTitle(String(localized: "Workouts", comment: "Main list screen title"))
+                .navigationTitle(String(localized: "Courses", defaultValue: "Activities", comment: "Main list screen title renamed to Courses"))
                 .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            showWorkoutPlan = true
+                        } label: {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(Color.irPrimaryAccent.gradient)
+                        }
+                    }
+                }
+                .sheet(isPresented: $showWorkoutPlan) {
+                    WorkoutPlanView()
+                }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         viewModel.refreshAuthorizationStatus()

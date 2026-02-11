@@ -707,6 +707,23 @@
         }
       }
     },
+    "150 minutes corresponds to the WHO-recommended weekly moderate-intensity aerobic physical activity for adults (WHO, 2020). Running at a pace faster than 6:00/km is classified as vigorous intensity and counts double (equivalent to 75 min vigorous = 150 min moderate)." : {
+      "comment" : "Effort calculation detail",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "150 minutes corresponds to the WHO-recommended weekly moderate-intensity aerobic physical activity for adults (WHO, 2020). Running at a pace faster than 6:00/km is classified as vigorous intensity and counts double (equivalent to 75 min vigorous = 150 min moderate)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "150 minutes correspondent à l'activité physique aérobie d'intensité modérée hebdomadaire recommandée par l'OMS pour les adultes (OMS, 2020). Courir à une allure inférieure à 6:00/km est classé comme intensité vigoureuse et compte double (équivalent de 75 min vigoureuse = 150 min modérée)."
+          }
+        }
+      }
+    },
     "A composite score based on your sleep duration and sleep efficiency. It evaluates both how long you slept and how effectively you used your time in bed." : {
       "comment" : "Sleep description",
       "localizations" : {
@@ -825,6 +842,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Minutes actives cette semaine / objectif 150 min x 100"
+          }
+        }
+      }
+    },
+    "WHO-adjusted minutes this week / 150 min target x 100" : {
+      "comment" : "Effort score formula",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHO-adjusted minutes this week / 150 min target x 100"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minutes ajustées OMS cette semaine / objectif 150 min x 100"
           }
         }
       }
@@ -1692,6 +1726,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Basé sur Halson (Sports Medicine, 2014) sur le suivi de la charge d'entraînement et de la fatigue, Bourdon et al. (IJSPP, 2017) consensus sur le suivi des charges d'entraînement des athlètes, et Gabbett (BJSM, 2016) sur le paradoxe prévention entraînement-blessure."
+          }
+        }
+      }
+    },
+    "Based on Banister's impulse-response model (1975) for training load quantification, Halson (Sports Medicine, 2014) on monitoring training load, Bourdon et al. (IJSPP, 2017) consensus on monitoring athlete training loads, Gabbett (BJSM, 2016) on the training-injury prevention paradox, and Coggan & Allen's TSS framework for exponential decay (τ=7 days ATL)." : {
+      "comment" : "Cardiac load reference",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on Banister's impulse-response model (1975) for training load quantification, Halson (Sports Medicine, 2014) on monitoring training load, Bourdon et al. (IJSPP, 2017) consensus on monitoring athlete training loads, Gabbett (BJSM, 2016) on the training-injury prevention paradox, and Coggan & Allen's TSS framework for exponential decay (τ=7 days ATL)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur le modèle impulsion-réponse de Banister (1975) pour la quantification de la charge d'entraînement, Halson (Sports Medicine, 2014) sur le suivi de la charge d'entraînement, Bourdon et al. (IJSPP, 2017) consensus sur le suivi des charges des athlètes, Gabbett (BJSM, 2016) sur le paradoxe prévention entraînement-blessure, et le cadre TSS de Coggan & Allen pour la décroissance exponentielle (τ=7 jours ATL)."
           }
         }
       }
@@ -12403,6 +12454,23 @@
         }
       }
     },
+    "Training Load & Cardiac Stress" : {
+      "comment" : "Medical source category: Training Load",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Training Load & Cardiac Stress"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge d'entraînement et stress cardiaque"
+          }
+        }
+      }
+    },
     "Training Load Alert ⚠️" : {
       "comment" : "Overtraining alert notification title",
       "localizations" : {
@@ -12734,6 +12802,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Utilise une décroissance exponentielle (λ=0.1) pour pondérer davantage les jours récents. Score normalisé de 0 à 100 (référence max : 500 unités de charge)."
+          }
+        }
+      }
+    },
+    "Uses exponential decay (τ=7 days, per Banister ATL model) to weight recent days more heavily. Score normalized to 0-100 (reference: 400 load units)." : {
+      "comment" : "Cardiac load rolling explanation",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses exponential decay (τ=7 days, per Banister ATL model) to weight recent days more heavily. Score normalized to 0-100 (reference: 400 load units)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilise une décroissance exponentielle (τ=7 jours, modèle ATL de Banister) pour pondérer davantage les jours récents. Score normalisé de 0 à 100 (référence : 400 unités de charge)."
           }
         }
       }

@@ -925,7 +925,7 @@ struct ScoreExplanationSheet: View {
                 Text(String(localized: "Formula", comment: "Calculation formula label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
 
-                Text(String(localized: "Active minutes this week / 150 min target x 100", comment: "Effort score formula"))
+                Text(String(localized: "WHO-adjusted minutes this week / 150 min target x 100", comment: "Effort score formula"))
                     .font(.subheadline).foregroundStyle(Color.irPrimaryAccent)
                     .padding(Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -943,7 +943,7 @@ struct ScoreExplanationSheet: View {
 
             Divider()
 
-            Text(String(localized: "150 minutes corresponds to the WHO-recommended weekly moderate-intensity aerobic physical activity for adults. Activities above vigorous intensity count double.", comment: "Effort calculation detail"))
+            Text(String(localized: "150 minutes corresponds to the WHO-recommended weekly moderate-intensity aerobic physical activity for adults (WHO, 2020). Running at a pace faster than 6:00/km is classified as vigorous intensity and counts double (equivalent to 75 min vigorous = 150 min moderate).", comment: "Effort calculation detail"))
                 .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
         }
     }
@@ -1046,7 +1046,7 @@ struct ScoreExplanationSheet: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "7-Day Rolling Load", comment: "Cardiac load rolling window label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                Text(String(localized: "Uses exponential decay (λ=0.1) to weight recent days more heavily. Score normalized to 0-100 (max reference: 500 load units).", comment: "Cardiac load rolling explanation"))
+                Text(String(localized: "Uses exponential decay (τ=7 days, per Banister ATL model) to weight recent days more heavily. Score normalized to 0-100 (reference: 400 load units).", comment: "Cardiac load rolling explanation"))
                     .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
             }
 
@@ -1176,7 +1176,7 @@ struct ScoreExplanationSheet: View {
         case .readiness:
             return String(localized: "Based on research from Plews et al. (IJSPP, 2013) on HRV-guided recovery monitoring, Buchheit (IJSPP, 2014) on HR measures for training status, Flatt & Esco (JSCR, 2016) on nocturnal HRV, and Bouzat et al. (BJSM, 2018) on pulse oximetry.", comment: "Readiness reference")
         case .cardiacLoad:
-            return String(localized: "Based on Halson (Sports Medicine, 2014) on monitoring training load and fatigue, Bourdon et al. (IJSPP, 2017) consensus on monitoring athlete training loads, and Gabbett (BJSM, 2016) on the training-injury prevention paradox.", comment: "Cardiac load reference")
+            return String(localized: "Based on Banister's impulse-response model (1975) for training load quantification, Halson (Sports Medicine, 2014) on monitoring training load, Bourdon et al. (IJSPP, 2017) consensus on monitoring athlete training loads, Gabbett (BJSM, 2016) on the training-injury prevention paradox, and Coggan & Allen's TSS framework for exponential decay (τ=7 days ATL).", comment: "Cardiac load reference")
         }
     }
 

@@ -26,7 +26,18 @@ class TrainingLoadService: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
     private let volumeIncreaseThreshold = 10.0 // 10% increase triggers warning
     private let inactivityThreshold = 4 // 4+ days without workout
-    private let maxLoadNormalization: Double = 500
+
+    /// Normalization reference for load-to-score conversion
+    /// Derived from typical weekly training: 5 sessions × 50 min × 1.2 avg intensity = 300
+    /// Using 400 allows headroom for high-volume athletes
+    /// Scientific basis: Banister impulse-response model (1975), adapted for consumer use
+    private let maxLoadNormalization: Double = 400
+
+    /// Exponential decay rate for rolling load calculation
+    /// λ = 1/7 ≈ 0.143 corresponds to τ = 7 days (ATL time constant)
+    /// Source: Banister (1975) fitness-fatigue model, Coggan/Allen TSS framework
+    /// TrainingPeaks uses τ=7 for Acute Training Load (ATL)
+    private let decayLambda: Double = 1.0 / 7.0
 
     private init() {}
 
@@ -131,11 +142,13 @@ class TrainingLoadService: ObservableObject {
                 guard let targetDay = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
                 let targetStart = calendar.startOfDay(for: targetDay)
 
+                // Rolling 7-day exponentially weighted load
+                // Uses λ = 1/7 (τ = 7 days) per Banister ATL time constant
                 var rollingLoad: Double = 0
                 for lookback in 0..<7 {
                     guard let lookbackDay = calendar.date(byAdding: .day, value: -lookback, to: targetStart) else { continue }
                     let dayLoad = dailyLoad[calendar.startOfDay(for: lookbackDay)] ?? 0
-                    let decay = exp(-0.1 * Double(lookback))
+                    let decay = exp(-decayLambda * Double(lookback))
                     rollingLoad += dayLoad * decay
                 }
 

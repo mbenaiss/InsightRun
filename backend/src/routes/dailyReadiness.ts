@@ -30,36 +30,91 @@ interface ReadinessInsight {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
+// Metric-specific coefficients of variation for fallback stdDev calculation
+// Based on typical physiological variability (aligned with iOS RecoveryMetrics.swift)
+const MetricCV = {
+  hrv: 0.3, // HRV: 20-40% CV, use 30%
+  restingHR: 0.08, // RHR: 5-10% CV, use 8%
+  respiratoryRate: 0.12, // Resp: 10-15% CV, use 12%
+} as const
+
+// Recovery weights aligned with iOS RecoveryMetrics.swift
+// Sources: Plews et al. (Sports Medicine, 2013), Buchheit (IJSPP, 2014),
+// Hirshkowitz et al. (Sleep Health, 2015), Bouzat et al. (BJSM, 2018)
+const RecoveryWeights = {
+  hrv: 0.25, // 25% - Primary recovery indicator (higher is better)
+  restingHeartRate: 0.2, // 20% - Cardiovascular stress indicator (lower is better)
+  oxygenSaturation: 0.15, // 15% - Oxygen saturation (higher is better, clinical thresholds)
+  respiratoryRate: 0.1, // 10% - Stress indicator (lower is better)
+  sleep: 0.3, // 30% - Sleep quality (duration + efficiency)
+} as const
+
+// Convert z-score deviation to a 0-1 score (aligned with iOS scoreFromDeviation)
+// Maps [-2, +2] stddev range to [0, 1]
+function scoreFromDeviation(
+  value: number,
+  average: number | undefined,
+  stdDev: number | undefined,
+  isHigherBetter: boolean,
+  defaultCV: number
+): number {
+  if (average === undefined) return 0.5 // No baseline, neutral
+
+  const std = stdDev && stdDev > 0 ? stdDev : average * defaultCV
+  if (std <= 0) return 0.5
+
+  const zScore = (value - average) / std
+  const clampedZ = Math.max(-3, Math.min(3, zScore))
+
+  if (isHigherBetter) {
+    // Higher is better: +2 stddev = 1.0, baseline = 0.5, -2 stddev = 0.0
+    return Math.min(Math.max((clampedZ + 2) / 4, 0), 1)
+  } else {
+    // Lower is better: -2 stddev = 1.0, baseline = 0.5, +2 stddev = 0.0
+    return Math.min(Math.max((2 - clampedZ) / 4, 0), 1)
+  }
+}
+
+// SpO2 scoring with clinical thresholds (aligned with iOS scoreSpO2)
+// Source: WHO pulse oximetry guidelines, clinical consensus
+function scoreSpO2(spo2: number): number {
+  if (spo2 >= 98) return 1.0
+  if (spo2 >= 96) return 0.9
+  if (spo2 >= 95) return 0.75
+  if (spo2 >= 93) return 0.5
+  if (spo2 >= 90) return 0.25
+  return 0.0
+}
+
 // Calculate readiness score based on recovery metrics and personal baseline
+// Aligned with iOS RecoveryMetrics.calculateRecoveryScore()
+// Uses z-score deviation from personal baseline when available (Whoop/Oura style)
+// Scientific basis: Plews et al. (2013), Buchheit (2014), Flatt & Esco (2016)
 function calculateReadinessScore(
   recovery: RecoveryData,
   baseline?: PersonalBaselineData
 ): { score: number; insights: ReadinessInsight[] } {
   const insights: ReadinessInsight[] = []
+  const useBaseline = baseline?.isReliable === true
   let totalScore = 0
   let totalWeight = 0
 
   // HRV Score (25% weight) - Higher is better
+  // Source: Frontiers in Sports and Active Living (2025), PMC (2024)
   if (recovery.hrv !== undefined) {
-    const weight = 0.25
-    let hrvScore: number
+    const weight = RecoveryWeights.hrv
+    let hrvRawScore: number
 
-    if (baseline?.hrvAverage && baseline.isReliable) {
+    if (useBaseline && baseline?.hrvAverage) {
+      hrvRawScore = scoreFromDeviation(
+        recovery.hrv,
+        baseline.hrvAverage,
+        baseline.hrvStdDev,
+        true,
+        MetricCV.hrv
+      )
+
       const deviation = ((recovery.hrv - baseline.hrvAverage) / baseline.hrvAverage) * 100
-      const stdDevs = baseline.hrvStdDev
-        ? (recovery.hrv - baseline.hrvAverage) / baseline.hrvStdDev
-        : 0
-
-      if (stdDevs >= 1) {
-        hrvScore = 100
-      } else if (stdDevs >= 0) {
-        hrvScore = 70 + stdDevs * 30
-      } else if (stdDevs >= -1) {
-        hrvScore = 50 + (stdDevs + 1) * 20
-      } else {
-        hrvScore = Math.max(20, 50 + stdDevs * 15)
-      }
-
       insights.push({
         metric: 'HRV',
         value: recovery.hrv,
@@ -73,8 +128,8 @@ function calculateReadinessScore(
               : 'Your HRV is within your normal range',
       })
     } else {
-      // Fixed range scoring without baseline
-      hrvScore = recovery.hrv >= 50 ? 90 : recovery.hrv >= 35 ? 70 : recovery.hrv >= 20 ? 50 : 30
+      // Fixed range scoring: 20-100ms range (PMC, 2024)
+      hrvRawScore = Math.min(Math.max((recovery.hrv - 20) / 80, 0), 1)
 
       insights.push({
         metric: 'HRV',
@@ -89,36 +144,29 @@ function calculateReadinessScore(
       })
     }
 
-    totalScore += hrvScore * weight
+    totalScore += hrvRawScore * weight
     totalWeight += weight
   }
 
   // Resting Heart Rate Score (20% weight) - Lower is better
+  // Source: PubMed (2018), Jensen et al. (Heart, 2013)
   if (recovery.restingHeartRate !== undefined) {
-    const weight = 0.2
-    let rhrScore: number
+    const weight = RecoveryWeights.restingHeartRate
+    let rhrRawScore: number
 
-    if (baseline?.restingHeartRateAverage && baseline.isReliable) {
+    if (useBaseline && baseline?.restingHeartRateAverage) {
+      rhrRawScore = scoreFromDeviation(
+        recovery.restingHeartRate,
+        baseline.restingHeartRateAverage,
+        baseline.restingHeartRateStdDev,
+        false,
+        MetricCV.restingHR
+      )
+
       const deviation =
         ((recovery.restingHeartRate - baseline.restingHeartRateAverage) /
           baseline.restingHeartRateAverage) *
         100
-      const stdDevs = baseline.restingHeartRateStdDev
-        ? (recovery.restingHeartRate - baseline.restingHeartRateAverage) /
-          baseline.restingHeartRateStdDev
-        : 0
-
-      // Lower is better, so negative deviation is good
-      if (stdDevs <= -1) {
-        rhrScore = 100
-      } else if (stdDevs <= 0) {
-        rhrScore = 70 + (1 - Math.abs(stdDevs)) * 30
-      } else if (stdDevs <= 1) {
-        rhrScore = 50 + (1 - stdDevs) * 20
-      } else {
-        rhrScore = Math.max(20, 50 - stdDevs * 15)
-      }
-
       insights.push({
         metric: 'Resting Heart Rate',
         value: recovery.restingHeartRate,
@@ -132,15 +180,8 @@ function calculateReadinessScore(
               : 'Resting HR is within your normal range',
       })
     } else {
-      // Fixed range scoring
-      rhrScore =
-        recovery.restingHeartRate <= 50
-          ? 95
-          : recovery.restingHeartRate <= 60
-            ? 80
-            : recovery.restingHeartRate <= 70
-              ? 60
-              : 40
+      // Fixed range scoring: 40-80 bpm range
+      rhrRawScore = Math.min(Math.max((80 - recovery.restingHeartRate) / 40, 0), 1)
 
       insights.push({
         metric: 'Resting Heart Rate',
@@ -160,43 +201,63 @@ function calculateReadinessScore(
       })
     }
 
-    totalScore += rhrScore * weight
+    totalScore += rhrRawScore * weight
+    totalWeight += weight
+  }
+
+  // SpO2 Score (15% weight) - Clinical thresholds
+  // Source: WHO pulse oximetry guidelines, Bouzat et al. (BJSM, 2018)
+  if (recovery.oxygenSaturation !== undefined) {
+    const weight = RecoveryWeights.oxygenSaturation
+    const spo2RawScore = scoreSpO2(recovery.oxygenSaturation)
+
+    insights.push({
+      metric: 'Oxygen Saturation',
+      value: recovery.oxygenSaturation,
+      comparison:
+        recovery.oxygenSaturation >= 96
+          ? 'above'
+          : recovery.oxygenSaturation >= 95
+            ? 'at'
+            : 'below',
+      message:
+        recovery.oxygenSaturation >= 96
+          ? 'Excellent oxygen saturation'
+          : recovery.oxygenSaturation >= 95
+            ? 'Normal oxygen saturation'
+            : 'Oxygen saturation is below optimal range',
+    })
+
+    totalScore += spo2RawScore * weight
     totalWeight += weight
   }
 
   // Sleep Score (30% weight)
+  // Source: Hirshkowitz et al. (Sleep Health, 2015), Sleep Foundation (2024)
   if (recovery.sleepData) {
-    const weight = 0.3
+    const weight = RecoveryWeights.sleep
     const hours = recovery.sleepData.totalDuration / 3600
     const efficiency = recovery.sleepData.efficiency
 
-    let sleepScore = 0
-
-    // Duration score (optimal 7-9h)
+    // Duration score (optimal 7-9h per Hirshkowitz et al., 2015)
+    let durationScore: number
     if (hours >= 7 && hours <= 9) {
-      sleepScore += 50
+      durationScore = 0.9 + 0.1 * Math.min(hours / 8, 1)
     } else if (hours >= 6 && hours < 7) {
-      sleepScore += 30
+      durationScore = 0.6
     } else if (hours >= 5 && hours < 6) {
-      sleepScore += 15
-    } else if (hours > 9) {
-      sleepScore += 40 // Oversleep
+      durationScore = 0.3
+    } else if (hours < 5) {
+      durationScore = 0.1
     } else {
-      sleepScore += 5 // <5h
+      durationScore = 0.7 // Oversleep (>9h)
     }
 
-    // Efficiency score
-    if (efficiency >= 90) {
-      sleepScore += 50
-    } else if (efficiency >= 85) {
-      sleepScore += 40
-    } else if (efficiency >= 80) {
-      sleepScore += 30
-    } else if (efficiency >= 75) {
-      sleepScore += 20
-    } else {
-      sleepScore += 10
-    }
+    // Efficiency score (85-95% normal, >95% optimal per PMC, 2020)
+    const efficiencyScore = Math.min(Math.max((efficiency - 75) / 20, 0), 1)
+
+    // Combined: 70% duration, 30% efficiency (aligned with iOS)
+    const sleepRawScore = durationScore * 0.7 + efficiencyScore * 0.3
 
     insights.push({
       metric: 'Sleep',
@@ -210,32 +271,29 @@ function calculateReadinessScore(
             : `Sleep duration: ${hours.toFixed(1)}h with ${efficiency}% efficiency`,
     })
 
-    totalScore += sleepScore * weight
+    totalScore += sleepRawScore * weight
     totalWeight += weight
   }
 
-  // Respiratory Rate Score (15% weight)
+  // Respiratory Rate Score (10% weight) - Lower is better
+  // Source: Johns Hopkins Medicine (2024), British Journal of Nursing (2017)
   if (recovery.respiratoryRate !== undefined) {
-    const weight = 0.15
-    let rrScore: number
+    const weight = RecoveryWeights.respiratoryRate
+    let rrRawScore: number
 
-    if (baseline?.respiratoryRateAverage && baseline.isReliable) {
+    if (useBaseline && baseline?.respiratoryRateAverage) {
+      rrRawScore = scoreFromDeviation(
+        recovery.respiratoryRate,
+        baseline.respiratoryRateAverage,
+        baseline.respiratoryRateStdDev,
+        false,
+        MetricCV.respiratoryRate
+      )
+
       const deviation =
         ((recovery.respiratoryRate - baseline.respiratoryRateAverage) /
           baseline.respiratoryRateAverage) *
         100
-
-      // Lower respiratory rate at rest is generally better
-      if (deviation <= -5) {
-        rrScore = 90
-      } else if (deviation <= 5) {
-        rrScore = 75
-      } else if (deviation <= 15) {
-        rrScore = 55
-      } else {
-        rrScore = 35
-      }
-
       insights.push({
         metric: 'Respiratory Rate',
         value: recovery.respiratoryRate,
@@ -249,15 +307,14 @@ function calculateReadinessScore(
               : 'Respiratory rate is within your normal range',
       })
     } else {
-      // Fixed range scoring (normal adult: 12-20 breaths/min)
-      rrScore =
-        recovery.respiratoryRate <= 14
-          ? 85
-          : recovery.respiratoryRate <= 18
-            ? 70
-            : recovery.respiratoryRate <= 22
-              ? 50
-              : 35
+      // Fixed range scoring: 12-16 optimal (Johns Hopkins Medicine, 2024)
+      if (recovery.respiratoryRate >= 12 && recovery.respiratoryRate <= 16) {
+        rrRawScore = 1.0
+      } else if (recovery.respiratoryRate < 12) {
+        rrRawScore = Math.min(Math.max((recovery.respiratoryRate - 8) / 4, 0.5), 1)
+      } else {
+        rrRawScore = Math.min(Math.max((22 - recovery.respiratoryRate) / 6, 0), 1)
+      }
 
       insights.push({
         metric: 'Respiratory Rate',
@@ -277,26 +334,13 @@ function calculateReadinessScore(
       })
     }
 
-    totalScore += rrScore * weight
+    totalScore += rrRawScore * weight
     totalWeight += weight
   }
 
-  // Walking Heart Rate Score (10% weight)
+  // Walking Heart Rate - informational insight only (not part of core score)
+  // Kept for user feedback but excluded from weighted score to match iOS
   if (recovery.walkingHeartRate !== undefined) {
-    const weight = 0.1
-    let whrScore: number
-
-    // Lower walking HR indicates better cardiovascular fitness/recovery
-    if (recovery.walkingHeartRate <= 80) {
-      whrScore = 90
-    } else if (recovery.walkingHeartRate <= 95) {
-      whrScore = 75
-    } else if (recovery.walkingHeartRate <= 110) {
-      whrScore = 55
-    } else {
-      whrScore = 35
-    }
-
     insights.push({
       metric: 'Walking Heart Rate',
       value: recovery.walkingHeartRate,
@@ -313,22 +357,30 @@ function calculateReadinessScore(
             ? 'Normal walking heart rate'
             : 'Elevated walking HR - may indicate fatigue',
     })
-
-    totalScore += whrScore * weight
-    totalWeight += weight
   }
 
-  // Calculate final score
-  const finalScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50
+  // Calculate final score (aligned with iOS formula)
+  // Normalize by total weight, then map to 0-100 scale
+  // Score 0.5 (at baseline) = 70%, perfect deviation = 100%, -2 stddev = 40%
+  const rawScore = totalWeight > 0 ? totalScore / totalWeight : 0.5
 
-  return { score: finalScore, insights }
+  let finalScore: number
+  if (useBaseline) {
+    // Baseline-aware: map 0-1 raw score to 40-100 range (center at 70%)
+    finalScore = 40 + rawScore * 60
+  } else {
+    // Fixed range: map 0-1 raw score to 0-100
+    finalScore = rawScore * 100
+  }
+
+  return { score: Math.max(0, Math.min(100, Math.round(finalScore))), insights }
 }
 
-// Determine status from score
+// Determine status from score (aligned with iOS RecoveryStatus thresholds)
 function getStatusFromScore(score: number): 'excellent' | 'good' | 'fair' | 'poor' {
   if (score >= 80) return 'excellent'
-  if (score >= 65) return 'good'
-  if (score >= 50) return 'fair'
+  if (score >= 60) return 'good'
+  if (score >= 40) return 'fair'
   return 'poor'
 }
 

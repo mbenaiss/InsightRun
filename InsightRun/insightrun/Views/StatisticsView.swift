@@ -27,8 +27,7 @@ struct StatisticsView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedTab: StatisticsTab = .overview
     @State private var selectedPeriodDate: Date?
-    @State private var selectedPaceDistributionId: UUID?
-    @State private var selectedDistanceDistributionId: UUID?
+    @State private var isRecordsExpanded: Bool = false
 
     // Optional injected viewModel for testing - replaces the default one
     init(injectedViewModel: StatisticsViewModel? = nil) {
@@ -293,93 +292,110 @@ struct StatisticsView: View {
 
     private var personalRecordsSection: some View {
         VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "trophy.fill")
-                    .foregroundStyle(.yellow)
-                Text(String(localized: "statistics.records.title"))
-                    .font(.headline)
-                    .fontWeight(.bold)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(spacing: 12) {
-                if let longestRun = viewModel.longestRun {
-                    RecordRow(
-                        icon: "figure.run",
-                        title: String(localized: "statistics.records.longestDistance"),
-                        value: viewModel.formatDistance(longestRun.distance ?? 0),
-                        date: longestRun.startDate
-                    )
-                    Divider()
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isRecordsExpanded.toggle()
                 }
+            } label: {
+                HStack {
+                    Image(systemName: "trophy.fill")
+                        .foregroundStyle(.yellow)
+                    Text(String(localized: "statistics.records.title"))
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.irTextPrimary)
 
-                if let fastestRun = viewModel.fastestRun {
-                    RecordRow(
-                        icon: "bolt.fill",
-                        title: String(localized: "statistics.records.fastestPace"),
-                        value: viewModel.formatPace(fastestRun.averagePace ?? 0),
-                        date: fastestRun.startDate
-                    )
-                    Divider()
-                }
+                    Spacer()
 
-                if let longestDuration = viewModel.longestDuration {
-                    RecordRow(
-                        icon: "clock.fill",
-                        title: String(localized: "statistics.records.longestDuration"),
-                        value: viewModel.formatDuration(longestDuration.duration),
-                        date: longestDuration.startDate
-                    )
-                }
-
-                // Distance records
-                Group {
-                    if let best5K = viewModel.best5K {
-                        Divider()
-                        RecordRow(
-                            icon: "5.circle.fill",
-                            title: String(localized: "statistics.records.best5k"),
-                            value: viewModel.formatDuration(best5K.duration),
-                            date: best5K.startDate
-                        )
-                    }
-
-                    if let best10K = viewModel.best10K {
-                        Divider()
-                        RecordRow(
-                            icon: "10.circle.fill",
-                            title: String(localized: "statistics.records.best10k"),
-                            value: viewModel.formatDuration(best10K.duration),
-                            date: best10K.startDate
-                        )
-                    }
-
-                    if let bestHalf = viewModel.bestHalfMarathon {
-                        Divider()
-                        RecordRow(
-                            icon: "figure.run.circle.fill",
-                            title: String(localized: "statistics.records.bestHalf"),
-                            value: viewModel.formatDuration(bestHalf.duration),
-                            date: bestHalf.startDate
-                        )
-                    }
-
-                    if let bestMarathon = viewModel.bestMarathon {
-                        Divider()
-                        RecordRow(
-                            icon: "medal.fill",
-                            title: String(localized: "statistics.records.bestMarathon"),
-                            value: viewModel.formatDuration(bestMarathon.duration),
-                            date: bestMarathon.startDate
-                        )
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .rotationEffect(.degrees(isRecordsExpanded ? 90 : 0))
                 }
             }
-            .padding()
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color.irShadow, radius: 8, y: 4)
+
+            if isRecordsExpanded {
+                VStack(spacing: 12) {
+                    if let longestRun = viewModel.longestRun {
+                        RecordRow(
+                            icon: "figure.run",
+                            title: String(localized: "statistics.records.longestDistance"),
+                            value: viewModel.formatDistance(longestRun.distance ?? 0),
+                            date: longestRun.startDate
+                        )
+                        Divider()
+                    }
+
+                    if let fastestRun = viewModel.fastestRun {
+                        RecordRow(
+                            icon: "bolt.fill",
+                            title: String(localized: "statistics.records.fastestPace"),
+                            value: viewModel.formatPace(fastestRun.averagePace ?? 0),
+                            date: fastestRun.startDate
+                        )
+                        Divider()
+                    }
+
+                    if let longestDuration = viewModel.longestDuration {
+                        RecordRow(
+                            icon: "clock.fill",
+                            title: String(localized: "statistics.records.longestDuration"),
+                            value: viewModel.formatDuration(longestDuration.duration),
+                            date: longestDuration.startDate
+                        )
+                    }
+
+                    // Distance records
+                    Group {
+                        if let best5K = viewModel.best5K {
+                            Divider()
+                            RecordRow(
+                                icon: "5.circle.fill",
+                                title: String(localized: "statistics.records.best5k"),
+                                value: viewModel.formatDuration(best5K.duration),
+                                date: best5K.startDate
+                            )
+                        }
+
+                        if let best10K = viewModel.best10K {
+                            Divider()
+                            RecordRow(
+                                icon: "10.circle.fill",
+                                title: String(localized: "statistics.records.best10k"),
+                                value: viewModel.formatDuration(best10K.duration),
+                                date: best10K.startDate
+                            )
+                        }
+
+                        if let bestHalf = viewModel.bestHalfMarathon {
+                            Divider()
+                            RecordRow(
+                                icon: "figure.run.circle.fill",
+                                title: String(localized: "statistics.records.bestHalf"),
+                                value: viewModel.formatDuration(bestHalf.duration),
+                                date: bestHalf.startDate
+                            )
+                        }
+
+                        if let bestMarathon = viewModel.bestMarathon {
+                            Divider()
+                            RecordRow(
+                                icon: "medal.fill",
+                                title: String(localized: "statistics.records.bestMarathon"),
+                                value: viewModel.formatDuration(bestMarathon.duration),
+                                date: bestMarathon.startDate
+                            )
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.irCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: Color.irShadow, radius: 8, y: 4)
+            }
         }
+        .clipped()
     }
 
     // MARK: - Monthly Comparison Section
@@ -614,286 +630,86 @@ struct StatisticsView: View {
 
     private var paceDistributionSection: some View {
         VStack(spacing: 16) {
-            Text(String(localized: "statistics.distribution.pace.title"))
-                .font(.headline)
-                .fontWeight(.bold)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Image(systemName: "speedometer")
+                    .foregroundStyle(Color.irPrimaryAccent)
+                Text(String(localized: "statistics.distribution.pace.title"))
+                    .font(.headline)
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if !viewModel.paceDistributionData.isEmpty {
-                paceChartContent
-            }
-        }
-    }
+                VStack(spacing: 0) {
+                    ForEach(Array(viewModel.paceDistributionData.enumerated()), id: \.element.id) { index, dist in
+                        DistributionRow(
+                            label: "\(dist.range) \(String(localized: "/km", comment: "Pace unit suffix"))",
+                            count: dist.count,
+                            percentage: dist.percentage,
+                            maxPercentage: viewModel.paceDistributionData.map(\.percentage).max() ?? 100,
+                            color: paceZoneColor(for: index, total: viewModel.paceDistributionData.count)
+                        )
 
-    private var paceChartContent: some View {
-        let selectedData = selectedPaceDistributionId.flatMap { selectedId in
-            viewModel.paceDistributionData.first { $0.id == selectedId }
-        }
-
-        return VStack(spacing: 12) {
-            paceChart(selectedData: selectedData)
-
-            if let selected = selectedData {
-                paceChartDetails(selected: selected)
-            }
-
-            // Details list
-            VStack(spacing: 8) {
-                ForEach(viewModel.paceDistributionData) { dist in
-                    Button(action: {
-                        selectedPaceDistributionId = dist.id
-                    }) {
-                        HStack {
-                            Circle()
-                                .fill(dist.color)
-                                .frame(width: 10, height: 10)
-
-                            Text("\(dist.range) \(String(localized: "/km", comment: "Pace unit suffix"))")
-                                .font(.subheadline)
-
-                            Spacer()
-
-                            Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), dist.count))
-                                .font(.subheadline)
-                                .foregroundStyle(Color.irTextSecondary)
-
-                            Text("(\(Int(dist.percentage))%)")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                        if index < viewModel.paceDistributionData.count - 1 {
+                            Divider()
+                                .padding(.horizontal)
                         }
-                        .padding(.horizontal)
-                        .foregroundStyle(Color.irTextPrimary)
-                        .contentShape(Rectangle())
                     }
                 }
+                .padding(.vertical, 12)
+                .background(Color.irCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: Color.irShadow, radius: 8, y: 4)
             }
-            .padding(.vertical)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
     }
 
-    private func paceChart(selectedData: StatisticsViewModel.PaceDistribution?) -> some View {
-        Chart {
-            ForEach(viewModel.paceDistributionData) { dist in
-                BarMark(
-                    x: .value(String(localized: "statistics.charts.zone", defaultValue: "Zone", comment: "Chart zone label"), dist.range),
-                    y: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage)
-                )
-                .foregroundStyle(selectedData?.id == dist.id ? dist.color : dist.color.opacity(0.5))
-                .opacity(selectedData == nil || selectedData?.id == dist.id ? 1.0 : 0.5)
-                .annotation(position: .top) {
-                    Text("\(Int(dist.percentage))%")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                }
-            }
-        }
-        .frame(height: 200)
-        .chartYAxis {
-            AxisMarks(position: .leading) { value in
-                AxisValueLabel {
-                    if let pct = value.as(Double.self) {
-                        Text("\(Int(pct))%")
-                    }
-                }
-            }
-        }
-        .chartBackground { chartProxy in
-            VStack {
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(Color.clear)
-                        .contentShape(Rectangle())
-                        .onTapGesture { location in
-                            let frame = geometry.frame(in: .local)
-                            let xPosition = location.x / frame.width
-
-                            let sortedData = viewModel.paceDistributionData.sorted { $0.range < $1.range }
-                            if !sortedData.isEmpty {
-                                let index = Int(xPosition * Double(sortedData.count))
-                                let clampedIndex = max(0, min(index, sortedData.count - 1))
-                                selectedPaceDistributionId = sortedData[clampedIndex].id
-                            }
-                        }
-                }
-            }
-        }
-        .padding()
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.irShadow, radius: 8, y: 4)
-    }
-
-    private func paceChartDetails(selected: StatisticsViewModel.PaceDistribution) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(selected.range)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button(action: { selectedPaceDistributionId = nil }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"))
-                        .foregroundStyle(Color.irTextSecondary)
-                    Spacer()
-                    Text("\(Int(selected.percentage))%")
-                        .fontWeight(.semibold)
-                }
-
-                HStack {
-                    Text(String(localized: "statistics.charts.workouts"))
-                        .foregroundStyle(Color.irTextSecondary)
-                    Spacer()
-                    Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.count))
-                        .fontWeight(.semibold)
-                }
-            }
-        }
-        .padding()
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+    private func paceZoneColor(for index: Int, total: Int) -> Color {
+        let colors: [Color] = [.irSuccess, Color.irPrimaryAccent, .irWarning, .irError]
+        return colors[min(index, colors.count - 1)]
     }
 
     // MARK: - Distance Distribution Section
 
     private var distanceDistributionSection: some View {
         VStack(spacing: 16) {
-            Text(String(localized: "statistics.distribution.distance.title"))
-                .font(.headline)
-                .fontWeight(.bold)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Image(systemName: "ruler")
+                    .foregroundStyle(Color.irPrimaryAccent)
+                Text(String(localized: "statistics.distribution.distance.title"))
+                    .font(.headline)
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if !viewModel.distanceDistributionData.isEmpty {
-                distanceDistributionContent
-            }
-        }
-    }
+                VStack(spacing: 0) {
+                    ForEach(Array(viewModel.distanceDistributionData.enumerated()), id: \.element.id) { index, dist in
+                        DistributionRow(
+                            label: dist.category,
+                            count: dist.count,
+                            percentage: dist.percentage,
+                            maxPercentage: viewModel.distanceDistributionData.map(\.percentage).max() ?? 100,
+                            color: distanceZoneColor(for: index, total: viewModel.distanceDistributionData.count)
+                        )
 
-    private var distanceDistributionContent: some View {
-        let selectedData = selectedDistanceDistributionId.flatMap { selectedId in
-            viewModel.distanceDistributionData.first { $0.id == selectedId }
-        }
-
-        return VStack(spacing: 12) {
-            distanceDistributionChart(selectedData: selectedData)
-
-            if let selected = selectedData {
-                distanceDistributionDetails(selected: selected)
-            }
-
-            // Details list
-            VStack(spacing: 8) {
-                ForEach(viewModel.distanceDistributionData) { dist in
-                    Button(action: {
-                        selectedDistanceDistributionId = dist.id
-                    }) {
-                        HStack {
-                            Text(dist.category)
-                                .font(.subheadline)
-
-                            Spacer()
-
-                            Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), dist.count))
-                                .font(.subheadline)
-                                .foregroundStyle(Color.irTextSecondary)
-
-                            Text("(\(Int(dist.percentage))%)")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                        if index < viewModel.distanceDistributionData.count - 1 {
+                            Divider()
+                                .padding(.horizontal)
                         }
-                        .padding(.horizontal)
-                        .foregroundStyle(Color.irTextPrimary)
-                        .contentShape(Rectangle())
                     }
                 }
+                .padding(.vertical, 12)
+                .background(Color.irCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: Color.irShadow, radius: 8, y: 4)
             }
-            .padding(.vertical)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
     }
 
-    private func distanceDistributionChart(selectedData: StatisticsViewModel.DistanceDistribution?) -> some View {
-        Chart {
-            ForEach(viewModel.distanceDistributionData) { dist in
-                SectorMark(
-                    angle: .value(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"), dist.percentage),
-                    innerRadius: .ratio(0.5),
-                    angularInset: 2
-                )
-                .foregroundStyle(by: .value(String(localized: "statistics.charts.category", defaultValue: "Category", comment: "Chart category label"), dist.category))
-                .opacity(selectedData == nil || selectedData?.id == dist.id ? 1.0 : 0.3)
-                .annotation(position: .overlay) {
-                    Text("\(Int(dist.percentage))%")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.irTextPrimary)
-                }
-            }
-        }
-        .frame(height: 250)
-        .contentShape(Circle())
-        .onTapGesture { location in
-            // For pie charts, tapping toggles selection
-            if selectedData != nil {
-                selectedDistanceDistributionId = nil
-            } else if !viewModel.distanceDistributionData.isEmpty {
-                selectedDistanceDistributionId = viewModel.distanceDistributionData[0].id
-            }
-        }
-        .padding()
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.irShadow, radius: 8, y: 4)
-    }
-
-    private func distanceDistributionDetails(selected: StatisticsViewModel.DistanceDistribution) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(selected.category)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button(action: { selectedDistanceDistributionId = nil }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(String(localized: "statistics.charts.percentage", defaultValue: "Percentage", comment: "Chart percentage label"))
-                        .foregroundStyle(Color.irTextSecondary)
-                    Spacer()
-                    Text("\(Int(selected.percentage))%")
-                        .fontWeight(.semibold)
-                }
-
-                HStack {
-                    Text(String(localized: "statistics.charts.workouts"))
-                        .foregroundStyle(Color.irTextSecondary)
-                    Spacer()
-                    Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), selected.count))
-                        .fontWeight(.semibold)
-                }
-            }
-        }
-        .padding()
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+    private func distanceZoneColor(for index: Int, total: Int) -> Color {
+        let colors: [Color] = [Color.irPrimaryAccent, .irSuccess, .irWarning, .irError]
+        return colors[min(index, colors.count - 1)]
     }
 
 
@@ -1162,6 +978,51 @@ struct ComparisonCard: View {
                 .font(.caption)
                 .foregroundStyle(.gray)
         }
+    }
+}
+
+struct DistributionRow: View {
+    let label: String
+    let count: Int
+    let percentage: Double
+    let maxPercentage: Double
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(label)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.irTextPrimary)
+
+                Spacer()
+
+                Text("\(Int(percentage))%")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(color)
+            }
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(color.opacity(0.15))
+                        .frame(height: 8)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(color.gradient)
+                        .frame(width: max(4, geometry.size.width * (percentage / max(maxPercentage, 1))), height: 8)
+                }
+            }
+            .frame(height: 8)
+
+            Text(String(format: String(localized: "statistics.distribution.workoutsCount", defaultValue: "%d workouts", comment: "Number of workouts in a distribution category"), count))
+                .font(.caption)
+                .foregroundStyle(Color.irTextSecondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 }
 

@@ -21,7 +21,6 @@ class NotificationManager: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let dailyReadinessKey = "com.insightrun.dailyReadinessNotification"
     private let weeklySummaryKey = "com.insightrun.weeklySummaryNotification"
-    private let lastOvertrainingAlertKey = "com.insightrun.lastOvertrainingAlert"
     private let lastInactivityReminderKey = "com.insightrun.lastInactivityReminder"
     private let lastLowReadinessAlertKey = "com.insightrun.lastLowReadinessAlert"
     private let lastDailyReadinessKey = "com.insightrun.lastDailyReadiness"
@@ -151,39 +150,6 @@ class NotificationManager: ObservableObject {
     }
 
     // MARK: - Immediate Alerts
-
-    /// Send overtraining alert when volume increases too much (throttled to once per 24h)
-    func sendOvertrainingAlert(volumeIncrease: Double) {
-        guard isNotificationsEnabled else { return }
-        guard !isThrottled(key: lastOvertrainingAlertKey) else {
-            print("⏱️ NotificationManager: Overtraining alert throttled (24h)")
-            return
-        }
-
-        let content = UNMutableNotificationContent()
-        content.title = String(localized: "Training Load Alert ⚠️", comment: "Overtraining alert notification title")
-        content.body = String(
-            localized: "Your volume increased \(Int(volumeIncrease))% this week. Consider reducing intensity.",
-            comment: "Overtraining alert notification body"
-        )
-        content.sound = .default
-        content.categoryIdentifier = "OVERTRAINING_ALERT"
-
-        let request = UNNotificationRequest(
-            identifier: "overtraining-\(Date().timeIntervalSince1970)",
-            content: content,
-            trigger: nil // Immediate delivery
-        )
-
-        Task {
-            do {
-                try await UNUserNotificationCenter.current().add(request)
-                self.markSent(key: self.lastOvertrainingAlertKey)
-            } catch {
-                print("❌ NotificationManager: Failed to send overtraining alert: \(error)")
-            }
-        }
-    }
 
     /// Send inactivity reminder when user hasn't trained recently (throttled to once per 24h)
     func sendInactivityReminder(daysSinceLastRun: Int) {

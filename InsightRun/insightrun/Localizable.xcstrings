@@ -12668,17 +12668,6 @@
         }
       }
     },
-    "Training Load Alert ⚠️" : {
-      "comment" : "Overtraining alert notification title",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alerte charge d'entraînement ⚠️"
-          }
-        }
-      }
-    },
     "Trends" : {
       "comment" : "Section header for trends",
       "localizations" : {
@@ -14560,17 +14549,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Votre valeur"
-          }
-        }
-      }
-    },
-    "Your volume increased %lld%% this week. Consider reducing intensity." : {
-      "comment" : "Overtraining alert notification body",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre volume a augmenté de %lld%% cette semaine. Envisagez de réduire l'intensité."
           }
         }
       }

@@ -123,10 +123,6 @@ struct ContentView: View {
                 let trainingLoad = TrainingLoadService.shared
                 await trainingLoad.analyzeTrainingLoad()
 
-                if trainingLoad.isOvertrainingRisk, let volumeChange = trainingLoad.weeklyVolumeChange {
-                    notificationManager.sendOvertrainingAlert(volumeIncrease: volumeChange)
-                }
-
                 if trainingLoad.isInactive, let days = trainingLoad.daysSinceLastWorkout {
                     notificationManager.sendInactivityReminder(daysSinceLastRun: days)
                 }

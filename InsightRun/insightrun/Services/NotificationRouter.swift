@@ -39,7 +39,7 @@ extension NotificationRouter: UNUserNotificationCenterDelegate {
             switch category {
             case "DAILY_READINESS", "LOW_READINESS":
                 pendingTab = 0 // Dashboard (includes recovery)
-            case "OVERTRAINING_ALERT", "INACTIVITY_REMINDER":
+            case "INACTIVITY_REMINDER":
                 pendingTab = 1 // Workouts tab
             case "WEEKLY_SUMMARY":
                 pendingTab = 0 // Dashboard

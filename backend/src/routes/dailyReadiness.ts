@@ -1,5 +1,10 @@
 import { Hono } from 'hono'
-import type { PersonalBaselineData, RecoveryData } from '../types'
+import type {
+  CardiacLoadData,
+  DailyActivityData,
+  PersonalBaselineData,
+  RecoveryData,
+} from '../types'
 
 type Bindings = {
   APP_SECRET: string
@@ -9,6 +14,8 @@ type Bindings = {
 interface DailyReadinessRequest {
   recovery: RecoveryData
   baseline?: PersonalBaselineData
+  dailyActivity?: DailyActivityData
+  cardiacLoad?: CardiacLoadData
   language: string
 }
 
@@ -339,7 +346,6 @@ function calculateReadinessScore(
   }
 
   // Walking Heart Rate - informational insight only (not part of core score)
-  // Kept for user feedback but excluded from weighted score to match iOS
   if (recovery.walkingHeartRate !== undefined) {
     insights.push({
       metric: 'Walking Heart Rate',
@@ -398,65 +404,68 @@ function getWorkoutType(status: string): 'intense' | 'moderate' | 'easy' | 'rest
   }
 }
 
-// Get recommendation text based on status and language
-function getRecommendation(status: string, language: string): string {
-  const recommendations: Record<string, Record<string, string>> = {
+// Get recommendation text based on status, daily context, and language
+function getRecommendation(
+  status: string,
+  language: string,
+  activity?: DailyActivityData,
+  cardiacLoad?: CardiacLoadData
+): string {
+  const lang = language.toLowerCase().slice(0, 2)
+  const isFr = lang === 'fr'
+
+  // Base recommendations
+  const base: Record<string, Record<string, string>> = {
     excellent: {
       en: "You're fully recovered! Perfect day for high-intensity training like intervals or tempo runs.",
       fr: 'Vous êtes complètement récupéré ! Journée idéale pour un entraînement intense comme des intervalles ou du tempo.',
-      es: '¡Estás completamente recuperado! Día perfecto para entrenamiento de alta intensidad como intervalos o tempo.',
-      de: 'Du bist vollständig erholt! Perfekter Tag für intensives Training wie Intervalle oder Tempoläufe.',
-      it: 'Sei completamente recuperato! Giornata perfetta per allenamento ad alta intensità come intervalli o tempo.',
-      pt: 'Você está totalmente recuperado! Dia perfeito para treino de alta intensidade como intervalos ou tempo.',
-      nl: 'Je bent volledig hersteld! Perfecte dag voor intensieve training zoals intervallen of temporuns.',
-      ja: '完全に回復しています！インターバルやテンポランなどの高強度トレーニングに最適な日です。',
-      zh: '您已完全恢复！非常适合进行间歇跑或节奏跑等高强度训练。',
-      ko: '완전히 회복되었습니다! 인터벌이나 템포런 같은 고강도 훈련에 완벽한 날입니다.',
-      ar: 'أنت متعافٍ تمامًا! يوم مثالي للتدريب عالي الكثافة مثل الفترات أو جري التيمبو.',
     },
     good: {
       en: 'Good recovery. A moderate workout like a steady-state run would be beneficial.',
       fr: 'Bonne récupération. Une séance modérée comme une course à allure régulière serait bénéfique.',
-      es: 'Buena recuperación. Un entrenamiento moderado como una carrera a ritmo constante sería beneficioso.',
-      de: 'Gute Erholung. Ein moderates Training wie ein gleichmäßiger Lauf wäre vorteilhaft.',
-      it: 'Buon recupero. Un allenamento moderato come una corsa a ritmo costante sarebbe benefico.',
-      pt: 'Boa recuperação. Um treino moderado como uma corrida em ritmo constante seria benéfico.',
-      nl: 'Goed herstel. Een matige training zoals een steady-state run zou gunstig zijn.',
-      ja: '良好な回復状態です。ステディランのような中程度のトレーニングが効果的です。',
-      zh: '恢复良好。建议进行中等强度训练，如匀速跑。',
-      ko: '좋은 회복 상태입니다. 일정한 페이스의 달리기 같은 중강도 운동이 좋겠습니다.',
-      ar: 'تعافٍ جيد. تمرين معتدل مثل الجري بوتيرة ثابتة سيكون مفيدًا.',
     },
     fair: {
       en: 'Partial recovery. Consider an easy run or cross-training today.',
       fr: "Récupération partielle. Envisagez une course facile ou du cross-training aujourd'hui.",
-      es: 'Recuperación parcial. Considera una carrera fácil o entrenamiento cruzado hoy.',
-      de: 'Teilweise erholt. Erwäge einen leichten Lauf oder Cross-Training heute.',
-      it: 'Recupero parziale. Considera una corsa facile o cross-training oggi.',
-      pt: 'Recuperação parcial. Considere uma corrida leve ou treino cruzado hoje.',
-      nl: 'Gedeeltelijk herstel. Overweeg een rustige loop of cross-training vandaag.',
-      ja: '部分的な回復です。今日は軽いランニングかクロストレーニングを検討してください。',
-      zh: '部分恢复。建议今天进行轻松跑或交叉训练。',
-      ko: '부분적으로 회복되었습니다. 오늘은 가벼운 달리기나 크로스트레이닝을 고려하세요.',
-      ar: 'تعافٍ جزئي. فكر في جري خفيف أو تدريب متعدد اليوم.',
     },
     poor: {
       en: 'Rest recommended. Your body needs more recovery time. Light stretching or walking is okay.',
       fr: 'Repos recommandé. Votre corps a besoin de plus de récupération. Étirements légers ou marche sont OK.',
-      es: 'Se recomienda descanso. Tu cuerpo necesita más tiempo de recuperación. Estiramientos ligeros o caminar está bien.',
-      de: 'Ruhe empfohlen. Dein Körper braucht mehr Erholungszeit. Leichtes Dehnen oder Spazierengehen ist okay.',
-      it: 'Riposo consigliato. Il tuo corpo ha bisogno di più tempo per recuperare. Stretching leggero o camminata vanno bene.',
-      pt: 'Descanso recomendado. Seu corpo precisa de mais tempo de recuperação. Alongamento leve ou caminhada estão OK.',
-      nl: 'Rust aanbevolen. Je lichaam heeft meer hersteltijd nodig. Licht stretchen of wandelen is prima.',
-      ja: '休息をおすすめします。体にもっと回復時間が必要です。軽いストレッチやウォーキングは問題ありません。',
-      zh: '建议休息。您的身体需要更多恢复时间。轻度拉伸或散步是可以的。',
-      ko: '휴식을 권장합니다. 몸이 더 많은 회복 시간이 필요합니다. 가벼운 스트레칭이나 걷기는 괜찮습니다.',
-      ar: 'يُنصح بالراحة. جسمك يحتاج إلى مزيد من وقت التعافي. تمارين الإطالة الخفيفة أو المشي مقبولان.',
     },
   }
 
-  const lang = language.toLowerCase().slice(0, 2)
-  return recommendations[status]?.[lang] || recommendations[status]?.en || ''
+  let text = base[status]?.[lang] || base[status]?.en || ''
+
+  // Append cardiac load context
+  if (cardiacLoad) {
+    if (cardiacLoad.status === 'increasing' && (status === 'fair' || status === 'poor')) {
+      text += isFr
+        ? ' Votre charge cardiaque est en hausse — privilégiez la récupération.'
+        : ' Your cardiac load is increasing — prioritize recovery.'
+    } else if (
+      cardiacLoad.status === 'detraining' &&
+      (status === 'excellent' || status === 'good')
+    ) {
+      text += isFr
+        ? " Votre charge cardiaque est en baisse — bon moment pour relancer l'entraînement."
+        : ' Your cardiac load is declining — good time to ramp up training.'
+    }
+  }
+
+  // Append daily activity context
+  if (activity) {
+    if (activity.effortScore >= 70) {
+      text += isFr
+        ? ` Journée déjà active (${Math.round(activity.steps)} pas, ${Math.round(activity.exerciseMinutes)} min d'exercice).`
+        : ` Already an active day (${Math.round(activity.steps)} steps, ${Math.round(activity.exerciseMinutes)} min exercise).`
+    } else if (activity.effortScore <= 20 && (status === 'excellent' || status === 'good')) {
+      text += isFr
+        ? ' Journée peu active pour le moment — idéal pour bouger.'
+        : ' Low activity so far — a great time to get moving.'
+    }
+  }
+
+  return text
 }
 
 // POST /api/daily-readiness
@@ -472,9 +481,33 @@ app.post('/', async (c) => {
 
     // Calculate readiness score
     const { score, insights } = calculateReadinessScore(body.recovery, body.baseline)
+
+    // Add daily activity insights
+    if (body.dailyActivity) {
+      const a = body.dailyActivity
+      insights.push({
+        metric: 'Daily Activity',
+        value: a.effortScore,
+        comparison: a.effortScore >= 60 ? 'above' : a.effortScore >= 30 ? 'at' : 'below',
+        message: `${Math.round(a.steps)} steps, ${Math.round(a.activeCalories)} kcal, ${Math.round(a.exerciseMinutes)} min exercise`,
+      })
+    }
+
+    // Add cardiac load insight
+    if (body.cardiacLoad) {
+      const cl = body.cardiacLoad
+      insights.push({
+        metric: 'Cardiac Load',
+        value: cl.score,
+        comparison:
+          cl.status === 'maintaining' ? 'at' : cl.status === 'increasing' ? 'above' : 'below',
+        message: `Training load is ${cl.status}`,
+      })
+    }
+
     const status = getStatusFromScore(score)
     const suggestedWorkoutType = getWorkoutType(status)
-    const recommendation = getRecommendation(status, language)
+    const recommendation = getRecommendation(status, language, body.dailyActivity, body.cardiacLoad)
 
     const response: ReadinessResponse = {
       score,

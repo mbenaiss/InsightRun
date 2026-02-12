@@ -105,6 +105,14 @@ struct MedicalSourcesDatabase {
             year: 2020,
             url: "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2020.576308/full",
             summary: "HR and HRV indices are established tools to detect abnormal recovery status in athletes, with low HR and vagally mediated HRV index changes between supine and standing positions reflecting a maladaptive training stress-recovery status."
+        ),
+        MedicalSource(
+            title: "Cardiac parasympathetic reactivation following exercise: implications for training prescription",
+            authors: "Stanley J, Peake JM, Buchheit M",
+            journal: "Sports Medicine",
+            year: 2013,
+            url: "https://pubmed.ncbi.nlm.nih.gov/23580393/",
+            summary: "Post-exercise cardiac parasympathetic reactivation reflects autonomic recovery capacity. Faster heart rate recovery and HRV restoration after exercise indicate better cardiovascular fitness and training adaptation. Used to inform recovery weight distribution in composite readiness scoring models."
         )
     ]
 
@@ -155,6 +163,14 @@ struct MedicalSourcesDatabase {
             year: 2015,
             url: "https://pubmed.ncbi.nlm.nih.gov/29073412/",
             summary: "The National Sleep Foundation produced guidelines regarding sleep duration for adults (recommended 7-9 hours). Evidence-based recommendations for sleep duration: 7-9 hours per night for adults aged 18-64 years for optimal health and performance."
+        ),
+        MedicalSource(
+            title: "National Sleep Foundation's sleep quality recommendations: first report",
+            authors: "Ohayon M, Wickwire EM, Hirshkowitz M, et al.",
+            journal: "Sleep Health: Journal of the National Sleep Foundation",
+            year: 2017,
+            url: "https://pubmed.ncbi.nlm.nih.gov/28346153/",
+            summary: "First evidence-based sleep quality recommendations from the National Sleep Foundation. Key indicators: sleep efficiency ≥85%, sleep latency ≤20 min, awakenings ≤1/night, wake after sleep onset ≤20 min. These thresholds are used to compute the sleep quality score in InsightRun."
         ),
         MedicalSource(
             title: "The Sleep and Recovery Practices of Athletes",
@@ -208,6 +224,14 @@ struct MedicalSourcesDatabase {
             year: 2024,
             url: "https://www.lung.org/blog/respiratory-rate-vital-signs",
             summary: "The normal respiratory rate for healthy adults at rest is between 12 to 20 breaths per minute. A respiratory rate under 12 or over 25 breaths per minute is cause for concern and may indicate inadequate recovery or underlying health issues."
+        ),
+        MedicalSource(
+            title: "Pulse oximetry",
+            authors: "Jubran A",
+            journal: "Critical Care",
+            year: 1999,
+            url: "https://pubmed.ncbi.nlm.nih.gov/11094477/",
+            summary: "Clinical reference for SpO2 interpretation. Normal arterial oxygen saturation ≥95%. Values 90-94% indicate mild hypoxemia requiring attention. Below 90% is clinically significant hypoxemia. These clinical thresholds are used for the SpO2 scoring component in the recovery score."
         )
     ]
 
@@ -253,6 +277,78 @@ struct MedicalSourcesDatabase {
             year: 2010,
             url: nil,
             summary: "Introduced the Training Stress Score (TSS) framework and Performance Management Chart (PMC). Defined Acute Training Load (ATL, τ=7 days) and Chronic Training Load (CTL, τ=42 days) as exponentially weighted moving averages. Training Stress Balance (TSB = CTL - ATL) predicts form and readiness. This framework is the practical consumer implementation of Banister's impulse-response model."
+        ),
+        MedicalSource(
+            title: "Modeling elite athletic performance",
+            authors: "Banister EW",
+            journal: "Physiological Testing of Elite Athletes (Human Kinetics)",
+            year: 1991,
+            url: nil,
+            summary: "Extended TRIMP model chapter formalizing Training IMPulse as duration × intensity factor. Established the impulse-response framework adopted by TrainingPeaks, Garmin, and consumer wearables. The daily TRIMP metric used in InsightRun's effort score is derived from this model."
+        ),
+        MedicalSource(
+            title: "Modeling human performance in running",
+            authors: "Morton RH, Fitz-Clarke JR, Banister EW",
+            journal: "Journal of Applied Physiology",
+            year: 1990,
+            url: "https://pubmed.ncbi.nlm.nih.gov/2347774/",
+            summary: "Validated the Banister impulse-response model specifically for running performance. Demonstrated that TRIMP-based load quantification predicts running performance changes with high accuracy. Provides the mathematical framework for exponentially weighted training load used in cardiac load analysis."
+        ),
+        MedicalSource(
+            title: "The acute:chronic workload ratio predicts injury: high chronic workload may decrease injury risk in elite rugby league players",
+            authors: "Hulin BT, Gabbett TJ, Blanch P, Chapman P, Bailey D, Orchard JW",
+            journal: "British Journal of Sports Medicine",
+            year: 2016,
+            url: "https://pubmed.ncbi.nlm.nih.gov/26511006/",
+            summary: "Validated ACWR for injury prediction. ACWR = ATL/CTL. Sweet spot 0.8-1.3, high risk ≥1.5, detraining <0.5. High chronic workloads protect against injury even at higher absolute loads."
+        ),
+        MedicalSource(
+            title: "HR-based training impulse and its impact on marathon performance",
+            authors: "Lucia A, Hoyos J, Santalla A, Earnest C, Chicharro JL",
+            journal: "Medicine & Science in Sports & Exercise",
+            year: 2003,
+            url: "https://pubmed.ncbi.nlm.nih.gov/12750596/",
+            summary: "Validated HR-based TRIMP for endurance performance prediction. TRIMP = duration × ΔHR × gender-specific weighting. ΔHR = (HR_avg - HR_rest)/(HR_max - HR_rest). Demonstrated superiority over RPE-based methods for monitoring endurance training load."
+        ),
+        MedicalSource(
+            title: "The use of the EWMA to model acute:chronic load ratios in sport",
+            authors: "Williams S, West S, Cross MJ, Stokes KA",
+            journal: "British Journal of Sports Medicine",
+            year: 2017,
+            url: "https://pubmed.ncbi.nlm.nih.gov/27935857/",
+            summary: "Demonstrated EWMA-based ACWR is superior to simple rolling averages for injury prediction. EWMA assigns decreasing weighting to older values. ATL alpha=2/(7+1), CTL alpha=2/(42+1). Better accounts for the time-varying nature of training loads."
+        ),
+        MedicalSource(
+            title: "Internal and External Training Load: 15 Years On",
+            authors: "Impellizzeri FM, Marcora SM, Coutts AJ",
+            journal: "International Journal of Sports Physiology and Performance",
+            year: 2019,
+            url: "https://pubmed.ncbi.nlm.nih.gov/30614348/",
+            summary: "Landmark 15-year review establishing that training load monitoring must be individualized. Absolute load values are meaningless without personal context — the same load can be undertraining for one athlete and overtraining for another. Chronic Training Load (CTL) serves as the individual reference against which acute load should be evaluated. Supports ACWR-based scoring where CTL normalizes the athlete's own training history."
+        ),
+        MedicalSource(
+            title: "Training-Injury Prevention Paradox: How Training Load Monitoring Can Improve Athlete Welfare",
+            authors: "Windt J, Gabbett TJ",
+            journal: "British Journal of Sports Medicine",
+            year: 2017,
+            url: "https://pubmed.ncbi.nlm.nih.gov/27535989/",
+            summary: "Demonstrates that injury risk is best predicted by relative load changes (ACWR), not absolute load values. Athletes with high chronic loads tolerate higher acute loads with lower injury risk. Recommends using each athlete's own CTL as the denominator for load evaluation, making monitoring inherently individualized across all fitness levels."
+        ),
+        MedicalSource(
+            title: "Quantifying training intensity distribution in elite endurance athletes: is there evidence for an optimal distribution?",
+            authors: "Seiler S, Kjerland GØ",
+            journal: "Scandinavian Journal of Medicine & Science in Sports",
+            year: 2006,
+            url: "https://pubmed.ncbi.nlm.nih.gov/16430681/",
+            summary: "Established the three-zone intensity model for endurance training. Zone 1 (below lactate threshold): recovery/base. Zone 2 (threshold): tempo. Zone 3 (above threshold): high-intensity. Elite athletes follow ~80/20 polarized distribution. Pace-based intensity zones used in InsightRun's intensity factor are derived from this framework."
+        ),
+        MedicalSource(
+            title: "A new approach to monitoring exercise training",
+            authors: "Foster C, Florhaug JA, Franklin J, et al.",
+            journal: "Journal of Strength and Conditioning Research",
+            year: 2001,
+            url: "https://pubmed.ncbi.nlm.nih.gov/11710410/",
+            summary: "Introduced session-RPE method for quantifying training load as an alternative to HR-based TRIMP. Session load = duration × RPE. Validated against HR-based methods with high correlation (r=0.75-0.90). Demonstrated practical utility for monitoring training load across different exercise modalities."
         )
     ]
 
@@ -335,6 +431,38 @@ struct MedicalSourcesDatabase {
             year: 2024,
             url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC12035355/",
             summary: "Recent insights into sleep issues specific to athletes. Elite athletes may require more quality sleep than non-athletes for proper recovery and performance optimization. Addresses translation of laboratory findings into real-world athlete training settings."
+        ),
+        MedicalSource(
+            title: "2011 Compendium of Physical Activities: a second update of codes and MET values",
+            authors: "Ainsworth BE, Haskell WL, Herrmann SD, et al.",
+            journal: "Medicine & Science in Sports & Exercise",
+            year: 2011,
+            url: "https://pubmed.ncbi.nlm.nih.gov/21681120/",
+            summary: "Standardized MET (Metabolic Equivalent of Task) values for 821 activities. Running METs range from 6.0 (jogging) to 23.0 (racing pace). Active calorie targets (~400 kcal/day for moderately active adults) are derived from this compendium."
+        ),
+        MedicalSource(
+            title: "How many steps/day are enough? Preliminary pedometer indices for public health",
+            authors: "Tudor-Locke C, Bassett DR",
+            journal: "Sports Medicine",
+            year: 2004,
+            url: "https://pubmed.ncbi.nlm.nih.gov/14715035/",
+            summary: "Established step-based activity classification: <5,000 steps/day = sedentary, 5,000-7,499 = low active, 7,500-9,999 = somewhat active, ≥10,000 = active, ≥12,500 = highly active. The 10,000 steps/day target is used as the step component in InsightRun's daily effort score."
+        ),
+        MedicalSource(
+            title: "Evaluating nocturnal heart rate variability with smartphone-derived HRV in college-age females",
+            authors: "Flatt AA, Esco MR",
+            journal: "Journal of Strength and Conditioning Research",
+            year: 2016,
+            url: "https://pubmed.ncbi.nlm.nih.gov/26049792/",
+            summary: "Validated nocturnal HRV as a practical recovery metric. Weekly LnRMSSD coefficient of variation (CV) tracks training adaptation. Lower CV indicates stable autonomic recovery. Supports using HRV trends rather than single-day values for readiness assessment."
+        ),
+        MedicalSource(
+            title: "Peripheral chemosensitivity and arterial pressure at high altitude in elite athletes and subjects susceptible to high-altitude pulmonary edema",
+            authors: "Bouzat P, Walther G, Rupp T, Levy P, Wuyam B, Esteve F, Verges S",
+            journal: "British Journal of Sports Medicine",
+            year: 2018,
+            url: "https://pubmed.ncbi.nlm.nih.gov/29203489/",
+            summary: "Investigated SpO2 variability in athletes. Oxygen saturation below 95% at rest may indicate respiratory compromise or incomplete recovery. Supports SpO2 as a component in multi-metric readiness scoring, weighted at 15% alongside HRV, RHR, sleep, and respiratory rate."
         )
     ]
 

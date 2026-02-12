@@ -113,6 +113,9 @@ class HealthKitManager: ObservableObject {
 
         typesToRead.formUnion(characteristicTypes)
 
+        // Activity Summary (ring goals)
+        typesToRead.insert(HKObjectType.activitySummaryType())
+
         do {
             try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
 
@@ -240,6 +243,11 @@ class HealthKitManager: ObservableObject {
                     let energyType = HKQuantityType(.activeEnergyBurned)
                     let energyBurned = workout.statistics(for: energyType)?.sumQuantity()?.doubleValue(for: .kilocalorie())
 
+                    let hrType = HKQuantityType(.heartRate)
+                    let hrUnit = HKUnit.count().unitDivided(by: .minute())
+                    let avgHR = workout.statistics(for: hrType)?.averageQuantity()?.doubleValue(for: hrUnit)
+                    let maxHR = workout.statistics(for: hrType)?.maximumQuantity()?.doubleValue(for: hrUnit)
+
                     return WorkoutModel(
                         id: workout.uuid,
                         workoutType: workout.workoutActivityType,
@@ -251,8 +259,8 @@ class HealthKitManager: ObservableObject {
                         sourceName: workout.sourceRevision.source.name,
                         sourceVersion: workout.sourceRevision.version,
                         metadata: workout.metadata,
-                        averageHeartRate: nil,
-                        maxHeartRate: nil,
+                        averageHeartRate: avgHR,
+                        maxHeartRate: maxHR,
                         elevationGain: nil,
                         hasRoute: workout.workoutActivities.contains { $0.allStatistics[.init(.distanceWalkingRunning)] != nil }
                     )
@@ -2637,6 +2645,59 @@ class HealthKitManager: ObservableObject {
             }
 
             healthStore.execute(query)
+        }
+    }
+
+    // MARK: - Daily Activity Data
+
+    /// Fetch daily activity metrics (steps, active calories, exercise minutes) and personal ring goals
+    func fetchDailyActivityData(for date: Date) async -> DailyActivityData {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? date
+
+        async let steps = fetchSumQuantitySafe(
+            for: .stepCount, start: start, end: end, unit: .count()
+        )
+        async let activeCalories = fetchSumQuantitySafe(
+            for: .activeEnergyBurned, start: start, end: end, unit: .kilocalorie()
+        )
+        async let exerciseMinutes = fetchSumQuantitySafe(
+            for: .appleExerciseTime, start: start, end: end, unit: .minute()
+        )
+        async let goals = fetchActivityGoals(for: date)
+
+        let resolvedGoals = await goals
+        return DailyActivityData(
+            steps: await steps ?? 0,
+            activeCalories: await activeCalories ?? 0,
+            exerciseMinutes: await exerciseMinutes ?? 0,
+            activeCaloriesGoal: resolvedGoals.activeCaloriesGoal,
+            exerciseMinutesGoal: resolvedGoals.exerciseMinutesGoal
+        )
+    }
+
+    /// Fetch personal Apple Activity Ring goals from HKActivitySummary
+    private func fetchActivityGoals(for date: Date) async -> (activeCaloriesGoal: Double?, exerciseMinutesGoal: Double?) {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day, .era], from: date)
+        components.calendar = calendar
+        let predicate = HKQuery.predicateForActivitySummary(with: components)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKActivitySummaryQuery(predicate: predicate) { _, summaries, _ in
+                guard let summary = summaries?.first else {
+                    continuation.resume(returning: (nil, nil))
+                    return
+                }
+                let caloriesGoal = summary.activeEnergyBurnedGoal.doubleValue(for: .kilocalorie())
+                let exerciseGoal = summary.exerciseTimeGoal?.doubleValue(for: .minute())
+                continuation.resume(returning: (
+                    caloriesGoal > 0 ? caloriesGoal : nil,
+                    exerciseGoal.flatMap { $0 > 0 ? $0 : nil }
+                ))
+            }
+            self.healthStore.execute(query)
         }
     }
 

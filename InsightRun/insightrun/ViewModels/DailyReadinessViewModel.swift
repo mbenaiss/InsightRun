@@ -20,37 +20,73 @@ class DailyReadinessViewModel: ObservableObject {
 
     private let backendClient = BackendAPIClient.shared
     private let healthKitManager = HealthKitManager.shared
+    private let dailyCache = DailyMetricsCache.shared
 
     // MARK: - Fetch Daily Readiness
 
-    /// Fetch today's readiness score from backend
-    func fetchDailyReadiness() async {
+    /// Fetch today's readiness score from backend (cached for the day after first call)
+    /// - Parameters:
+    ///   - activityData: Daily steps/calories/exercise from HealthKit
+    ///   - effortScore: Computed daily effort score (0-100)
+    ///   - cardiacLoadScore: Current cardiac load score (0-20)
+    ///   - cardiacLoadStatus: Current cardiac load trend status
+    func fetchDailyReadiness(
+        activityData: DailyActivityData? = nil,
+        effortScore: Int = 0,
+        cardiacLoadScore: Int? = nil,
+        cardiacLoadStatus: CardiacLoadStatus = .detraining
+    ) async {
+        // Return cached readiness if available for today
+        if let cached = dailyCache.getCachedReadiness() {
+            readinessScore = cached.score
+            status = ReadinessStatus(from: cached.status)
+            recommendation = cached.recommendation
+            suggestedWorkoutType = SuggestedWorkoutType(from: cached.suggestedWorkoutType)
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
         do {
-            // Fetch current recovery metrics
             let recoveryMetrics = try await healthKitManager.fetchRecoveryMetrics(for: Date())
-
-            // Load personal baseline
             let baseline = PersonalBaselineStorage.shared.load()
 
-            // Build request
+            let activityPayload: DailyActivityPayload? = activityData.map {
+                DailyActivityPayload(
+                    steps: $0.steps,
+                    activeCalories: $0.activeCalories,
+                    exerciseMinutes: $0.exerciseMinutes,
+                    effortScore: effortScore
+                )
+            }
+
+            let cardiacPayload: CardiacLoadPayload? = cardiacLoadScore.map {
+                CardiacLoadPayload(score: $0, status: cardiacLoadStatus.rawValue)
+            }
+
             let request = DailyReadinessRequest(
                 recovery: buildRecoveryPayload(from: recoveryMetrics),
                 baseline: baseline.map { buildBaselinePayload(from: $0) },
+                dailyActivity: activityPayload,
+                cardiacLoad: cardiacPayload,
                 language: Locale.current.language.languageCode?.identifier ?? "en"
             )
 
-            // Call backend
             let response = try await backendClient.fetchDailyReadiness(request: request)
 
-            // Update state
             readinessScore = response.score
             status = ReadinessStatus(from: response.status)
             recommendation = response.recommendation
             suggestedWorkoutType = SuggestedWorkoutType(from: response.suggestedWorkoutType)
             insights = response.insights.map { ReadinessInsight(from: $0) }
+
+            dailyCache.cacheReadiness(
+                score: response.score,
+                status: response.status,
+                recommendation: response.recommendation,
+                workoutType: response.suggestedWorkoutType
+            )
 
         } catch {
             print("❌ DailyReadinessViewModel: Failed to fetch readiness: \(error)")
@@ -103,6 +139,8 @@ class DailyReadinessViewModel: ObservableObject {
 struct DailyReadinessRequest: Encodable {
     let recovery: RecoveryData
     let baseline: PersonalBaselineData?
+    let dailyActivity: DailyActivityPayload?
+    let cardiacLoad: CardiacLoadPayload?
     let language: String
 }
 

@@ -22,60 +22,25 @@ struct DashboardView: View {
     @State private var showWorkoutPlan = false
     @State private var showSubscriptionPaywall = false
     @State private var selectedScoreType: ScoreType?
-
-    // MARK: - Computed Properties
-
-    /// Effort score: WHO-adjusted active minutes vs 150 min/week target
-    /// Vigorous intensity (pace < 6:00/km) counts double per WHO 2020 guidelines
-    /// Source: WHO Guidelines on Physical Activity and Sedentary Behaviour (2020)
-    private var effortPercentage: Int {
-        let adjustedMinutes = weeklySummaryVM.whoAdjustedMinutes
-        let target: Double = 150
-        return Int(min(adjustedMinutes / target * 100, 100))
-    }
+    @State private var currentPage = 1
+    @State private var hasForwardPage = false
+    @State private var currentNavID = UUID()
 
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color.irBackgroundApp.ignoresSafeArea()
-
-                ScrollView {
-                    VStack(spacing: Spacing.lg) {
-                        dateHeader
-                            .padding(.horizontal)
-
-                        recoveryHeader
-                            .padding(.horizontal)
-
-                        if revenueCatManager.hasAIAccess {
-                            coachingSection
-                                .padding(.horizontal)
-                        } else {
-                            subscriptionCTACard
-                                .padding(.horizontal)
-                        }
-
-                        weeklyActivitySection
-
-                        weeklySummaryLink
-
-                        cardiacLoadSection
-                            .padding(.horizontal)
-
-                        trendsSection
-                            .padding(.horizontal)
-
-                        sleepSection
-                            .padding(.horizontal)
-                    }
-                    .padding(.top, Spacing.sm)
-                    .padding(.bottom, 100)
+            TabView(selection: $currentPage) {
+                dayPage.tag(0)
+                dayPage.tag(1)
+                if hasForwardPage {
+                    dayPage.tag(2)
                 }
-                .refreshable {
-                    await refreshAll()
-                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .background(Color.irBackgroundApp.ignoresSafeArea())
+            .onChange(of: currentPage) { _, newValue in
+                handlePageChange(to: newValue)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -99,7 +64,11 @@ struct DashboardView: View {
                     selectedDate: $recoveryVM.selectedDate,
                     isPresented: $showingCalendar,
                     onDateSelected: { date in
-                        Task { await recoveryVM.loadRecoveryMetrics(for: date) }
+                        hasForwardPage = !Calendar.current.isDateInToday(date)
+                        Task {
+                            await recoveryVM.loadRecoveryMetrics(for: date)
+                            await TrainingLoadService.shared.analyzeDailyEffort(for: date)
+                        }
                     }
                 )
                 .presentationDetents([.large])
@@ -112,7 +81,7 @@ struct DashboardView: View {
             .sheet(item: $selectedScoreType) { type in
                 let score: Int = {
                     switch type {
-                    case .effort: return effortPercentage
+                    case .effort: return trainingLoadService.dailyEffortScore
                     case .sleep: return recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0
                     case .readiness: return readinessVM.readinessScore ?? 0
                     case .cardiacLoad: return trainingLoadService.cardiacLoadScore ?? 0
@@ -123,7 +92,7 @@ struct DashboardView: View {
                     case .cardiacLoad:
                         return trainingLoadService.cardiacLoadTrendData
                     case .effort:
-                        return generateTrendData(baseValue: Double(effortPercentage), variance: 15)
+                        return generateTrendData(baseValue: Double(trainingLoadService.dailyEffortScore), variance: 15)
                     case .sleep:
                         let sleepScore = Double(recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0)
                         return generateTrendData(baseValue: sleepScore, variance: 10)
@@ -164,11 +133,101 @@ struct DashboardView: View {
     // MARK: - Data Loading
 
     private func refreshAll() async {
+        let tls = TrainingLoadService.shared
+        let selectedDate = recoveryVM.selectedDate
+
+        // Phase 1: Load metrics that readiness depends on (in parallel)
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await recoveryVM.loadRecoveryMetrics() }
-            group.addTask { await readinessVM.fetchDailyReadiness() }
             group.addTask { await weeklySummaryVM.load() }
-            group.addTask { await TrainingLoadService.shared.analyzeCardiacLoad() }
+            group.addTask { await tls.analyzeCardiacLoad() }
+            group.addTask { await tls.analyzeDailyEffort(for: selectedDate) }
+        }
+
+        // Phase 2: Fetch readiness with full daily context
+        let activityData = await HealthKitManager.shared.fetchDailyActivityData(for: selectedDate)
+        await readinessVM.fetchDailyReadiness(
+            activityData: activityData,
+            effortScore: tls.dailyEffortScore,
+            cardiacLoadScore: tls.cardiacLoadScore,
+            cardiacLoadStatus: tls.cardiacLoadStatus
+        )
+    }
+
+    // MARK: - Day Page
+
+    private var dayPage: some View {
+        ScrollView {
+            VStack(spacing: Spacing.lg) {
+                dateHeader
+                    .padding(.horizontal)
+
+                recoveryHeader
+                    .padding(.horizontal)
+
+                if revenueCatManager.hasAIAccess {
+                    coachingSection
+                        .padding(.horizontal)
+                } else {
+                    subscriptionCTACard
+                        .padding(.horizontal)
+                }
+
+                weeklyActivitySection
+
+                weeklySummaryLink
+
+                cardiacLoadSection
+                    .padding(.horizontal)
+
+                trendsSection
+                    .padding(.horizontal)
+
+                sleepSection
+                    .padding(.horizontal)
+            }
+            .padding(.top, Spacing.sm)
+            .padding(.bottom, 100)
+        }
+        .refreshable {
+            await refreshAll()
+        }
+    }
+
+    // MARK: - Day Navigation
+
+    private func handlePageChange(to newValue: Int) {
+        guard newValue != 1 else { return }
+
+        let dayOffset = newValue == 0 ? -1 : 1
+        let calendar = Calendar.current
+        let currentDate = recoveryVM.selectedDate
+
+        guard let newDate = calendar.date(byAdding: .day, value: dayOffset, to: currentDate),
+              newDate <= Date() else {
+            // Can't navigate (e.g. already at today): snap back
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { currentPage = 1 }
+            return
+        }
+
+        let navID = UUID()
+        currentNavID = navID
+        recoveryVM.selectedDate = newDate
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Task { await refreshAll() }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            guard currentNavID == navID else { return }
+
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { currentPage = 1 }
+
+            DispatchQueue.main.async {
+                hasForwardPage = !calendar.isDateInToday(newDate)
+            }
         }
     }
 
@@ -180,7 +239,7 @@ struct DashboardView: View {
                 selectedScoreType = .effort
             } label: {
                 circleColumn(
-                    score: effortPercentage,
+                    score: trainingLoadService.dailyEffortScore,
                     label: String(localized: "Effort", comment: "Dashboard effort circle label")
                 )
             }
@@ -379,18 +438,15 @@ struct DashboardView: View {
 
     // MARK: - Cardiac Load Section
 
-    @ViewBuilder
     private var cardiacLoadSection: some View {
-        if let score = trainingLoadService.cardiacLoadScore {
-            CardiacLoadCard(
-                score: score,
-                status: trainingLoadService.cardiacLoadStatus,
-                trendData: trainingLoadService.cardiacLoadTrendData,
-                onTap: {
-                    selectedScoreType = .cardiacLoad
-                }
-            )
-        }
+        CardiacLoadCard(
+            score: trainingLoadService.cardiacLoadScore ?? 0,
+            status: trainingLoadService.cardiacLoadStatus,
+            trendData: trainingLoadService.cardiacLoadTrendData,
+            onTap: {
+                selectedScoreType = .cardiacLoad
+            }
+        )
     }
 
     // MARK: - Trends Section

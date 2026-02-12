@@ -9,6 +9,16 @@
 import Foundation
 
 /// Weight configuration for recovery score calculation (total = 100%)
+/// Sources:
+/// - HRV as recovery marker: Plews DJ et al. (2013). "Training adaptation and heart rate variability
+///   in elite endurance athletes." Int J Sports Physiol Perform 8(6):688-94.
+/// - RHR for cardiovascular stress: Buchheit M (2014). "Monitoring training status with HR measures."
+///   Int J Sports Physiol Perform 9(5):883-93.
+/// - SpO2 clinical thresholds: Jubran A (1999). "Pulse oximetry." Crit Care 3(2):R11-R17.
+/// - Sleep for recovery: Halson SL (2014). "Sleep in elite athletes and nutritional interventions
+///   to enhance sleep." Sports Med 44(S1):13-23.
+/// - Weight distribution: Adapted from Whoop recovery model and Stanley et al. (2013).
+///   "Cardiac parasympathetic reactivation following exercise." Sports Med 43(12):1259-77.
 private enum RecoveryWeights {
     static let hrv = 0.25              // 25% - Primary recovery indicator (higher is better)
     static let restingHeartRate = 0.20 // 20% - Cardiovascular stress indicator (lower is better)
@@ -43,6 +53,21 @@ struct RecoveryMetrics: Identifiable {
     // Computed recovery score (0-100)
     var recoveryScore: Int {
         calculateRecoveryScore()
+    }
+
+    func withSleepData(_ sleepData: SleepData?) -> RecoveryMetrics {
+        RecoveryMetrics(
+            date: date,
+            restingHeartRate: restingHeartRate,
+            hrvAverage: hrvAverage,
+            hrvMin: hrvMin,
+            hrvMax: hrvMax,
+            walkingHeartRate: walkingHeartRate,
+            sleepData: sleepData,
+            respiratoryRate: respiratoryRate,
+            oxygenSaturation: oxygenSaturation,
+            baseline: baseline
+        )
     }
 
     var recoveryStatus: RecoveryStatus {

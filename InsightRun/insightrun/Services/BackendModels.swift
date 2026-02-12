@@ -101,6 +101,20 @@ struct SleepDataPayload: Encodable {
     let remDuration: Double?
 }
 
+// MARK: - Daily Activity & Cardiac Load
+
+struct DailyActivityPayload: Encodable {
+    let steps: Double
+    let activeCalories: Double
+    let exerciseMinutes: Double
+    let effortScore: Int
+}
+
+struct CardiacLoadPayload: Encodable {
+    let score: Int
+    let status: String
+}
+
 // MARK: - Health Profile Data
 
 struct HealthProfileData: Encodable {

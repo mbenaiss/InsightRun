@@ -160,3 +160,14 @@ struct DailyActivity: Identifiable {
         return min((standHours / 12.0) * 100, 100)
     }
 }
+
+/// Daily activity data for effort score calculation (steps, calories, exercise minutes)
+struct DailyActivityData {
+    let steps: Double
+    let activeCalories: Double
+    let exerciseMinutes: Double
+
+    /// Personal goals from Apple Activity Rings (nil = use fixed fallback)
+    let activeCaloriesGoal: Double?
+    let exerciseMinutesGoal: Double?
+}

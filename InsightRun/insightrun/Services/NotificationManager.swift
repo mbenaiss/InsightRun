@@ -266,6 +266,24 @@ class NotificationManager: ObservableObject {
 
     // MARK: - Cleanup
 
+    /// Remove legacy scheduled notifications from previous app versions
+    func removeLegacyNotifications() {
+        let knownIds: Set<String> = ["weekly-summary"]
+
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let requests = await center.pendingNotificationRequests()
+            let legacyIds = requests
+                .filter { $0.trigger is UNCalendarNotificationTrigger }
+                .map(\.identifier)
+                .filter { !knownIds.contains($0) }
+
+            guard !legacyIds.isEmpty else { return }
+            center.removePendingNotificationRequests(withIdentifiers: legacyIds)
+            print("🧹 NotificationManager: Removed \(legacyIds.count) legacy notification(s): \(legacyIds)")
+        }
+    }
+
     /// Remove all pending notifications
     func removeAllPendingNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()

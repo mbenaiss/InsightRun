@@ -74,9 +74,10 @@ struct InsightRunApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
 
-        // Setup notification tap handling
+        // Setup notification tap handling + clean up legacy scheduled notifications
         Task { @MainActor in
             NotificationRouter.shared.setup()
+            NotificationManager.shared.removeLegacyNotifications()
         }
 
         // Track app opened event - non-blocking

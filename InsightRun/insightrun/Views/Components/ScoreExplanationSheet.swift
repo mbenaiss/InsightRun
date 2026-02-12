@@ -417,7 +417,7 @@ struct ScoreExplanationSheet: View {
                     .font(.system(size: 56, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.irTextPrimary)
 
-                Text("/100")
+                Text("/20")
                     .font(.title2)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.irTextSecondary)
@@ -925,25 +925,32 @@ struct ScoreExplanationSheet: View {
                 Text(String(localized: "Formula", comment: "Calculation formula label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
 
-                Text(String(localized: "WHO-adjusted minutes this week / 150 min target x 100", comment: "Effort score formula"))
-                    .font(.subheadline).foregroundStyle(Color.irPrimaryAccent)
-                    .padding(Spacing.md)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.irPrimaryAccent.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "Steps × 30% + Calories × 35% + Exercise × 35%", comment: "Effort score formula"))
+                        .font(.subheadline).foregroundStyle(Color.irPrimaryAccent)
+                    Text(String(localized: "Each component = actual / personal goal, capped at 100%", comment: "Effort score formula detail"))
+                        .font(.caption).foregroundStyle(Color.irTextSecondary)
+                }
+                .padding(Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.irPrimaryAccent.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                calculationRow(color: .green, label: String(localized: "Target", comment: "Effort target label"), value: String(localized: "150 min/week", comment: "Effort weekly target value"))
-                calculationRow(color: .blue, label: String(localized: "Source", comment: "Effort data source label"), value: String(localized: "WHO recommendation", comment: "WHO recommendation label"))
-                calculationRow(color: .orange, label: String(localized: "Cap", comment: "Effort score cap label"), value: String(localized: "Maximum 100%", comment: "Effort score cap value"))
+                Text(String(localized: "Components & Targets", comment: "Effort components label"))
+                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: .green, label: String(localized: "Steps", comment: "Effort steps label"), value: String(localized: "10,000 steps/day", comment: "Effort steps target"))
+                calculationRow(color: .orange, label: String(localized: "Active Calories", comment: "Effort calories label"), value: String(localized: "Apple Ring goal", comment: "Effort calories target"))
+                calculationRow(color: .red, label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), value: String(localized: "Apple Ring goal", comment: "Effort exercise target"))
+                calculationRow(color: .blue, label: String(localized: "Cap", comment: "Effort score cap label"), value: String(localized: "Maximum 100%", comment: "Effort score cap value"))
             }
 
             Divider()
 
-            Text(String(localized: "150 minutes corresponds to the WHO-recommended weekly moderate-intensity aerobic physical activity for adults (WHO, 2020). Running at a pace faster than 6:00/km is classified as vigorous intensity and counts double (equivalent to 75 min vigorous = 150 min moderate).", comment: "Effort calculation detail"))
+            Text(String(localized: "Calories and exercise targets use your personal Apple Activity Ring goals. If unavailable, defaults to 400 kcal and 30 min (WHO, 2020). Steps target is 10,000/day (Tudor-Locke, 2004).", comment: "Effort calculation detail"))
                 .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
         }
     }
@@ -1021,18 +1028,32 @@ struct ScoreExplanationSheet: View {
                 Text(String(localized: "Formula", comment: "Calculation formula label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
 
-                Text(String(localized: "Daily Load = Duration (min) × Intensity Factor", comment: "Cardiac load formula"))
-                    .font(.subheadline).foregroundStyle(.purple)
-                    .padding(Spacing.md)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.purple.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "TRIMP = Duration × \u{0394}HR × Weight(\u{0394}HR)", comment: "Cardiac load TRIMP formula"))
+                        .font(.subheadline).foregroundStyle(.purple)
+                    Text(String(localized: "Falls back to pace × intensity when HR unavailable", comment: "Cardiac load TRIMP fallback note"))
+                        .font(.caption).foregroundStyle(Color.irTextSecondary)
+                }
+                .padding(Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.purple.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text(String(localized: "Intensity Factor (pace-based)", comment: "Cardiac load intensity label"))
+                Text(String(localized: "HR-based TRIMP (primary)", comment: "Cardiac load HR TRIMP label"))
+                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: .red, label: "\u{0394}HR", value: "(HR_avg - HR_rest) / (HR_max - HR_rest)")
+                calculationRow(color: .blue, label: String(localized: "Male", comment: "TRIMP male label"), value: "0.64 × e^(1.92 × \u{0394}HR)")
+                calculationRow(color: .pink, label: String(localized: "Female", comment: "TRIMP female label"), value: "0.86 × e^(1.67 × \u{0394}HR)")
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text(String(localized: "Pace-based (fallback)", comment: "Cardiac load pace fallback label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
                 calculationRow(color: .red, label: String(localized: "< 4:00 /km"), value: "1.8×")
                 calculationRow(color: .orange, label: String(localized: "4:00–5:00 /km"), value: "1.4–1.6×")
@@ -1044,21 +1065,21 @@ struct ScoreExplanationSheet: View {
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text(String(localized: "7-Day Rolling Load", comment: "Cardiac load rolling window label"))
+                Text(String(localized: "ATL / CTL / ACWR", comment: "Cardiac load EWMA section label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                Text(String(localized: "Uses exponential decay (τ=7 days, per Banister ATL model) to weight recent days more heavily. Score normalized to 0-100 (reference: 400 load units).", comment: "Cardiac load rolling explanation"))
+                Text(String(localized: "ATL (7 days) & CTL (42 days) via EWMA. ACWR = ATL/CTL. Score 0-20 personalized: ATL/CTL × 10 (maintaining = 10/20).", comment: "Cardiac load EWMA explanation"))
                     .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text(String(localized: "Status Thresholds", comment: "Cardiac load status thresholds label"))
+                Text(String(localized: "Status Thresholds (ACWR)", comment: "Cardiac load ACWR status thresholds label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .orange, label: String(localized: "Increasing", comment: "Cardiac load status"), value: "> +10%")
-                calculationRow(color: .purple, label: String(localized: "Maintaining", comment: "Cardiac load status"), value: "± 10%")
-                calculationRow(color: .blue, label: String(localized: "Decreasing", comment: "Cardiac load status"), value: "> -10%")
-                calculationRow(color: .red, label: String(localized: "Detraining", comment: "Cardiac load status"), value: "> -30%")
+                calculationRow(color: .orange, label: String(localized: "Increasing", comment: "Cardiac load status"), value: "ACWR > 1.3")
+                calculationRow(color: .purple, label: String(localized: "Maintaining", comment: "Cardiac load status"), value: String(localized: "ACWR 0.8–1.3", comment: "ACWR maintaining range"))
+                calculationRow(color: .blue, label: String(localized: "Decreasing", comment: "Cardiac load status"), value: String(localized: "ACWR 0.5–0.8", comment: "ACWR decreasing range"))
+                calculationRow(color: .red, label: String(localized: "Detraining", comment: "Cardiac load status"), value: "ACWR < 0.5")
             }
         }
     }
@@ -1157,26 +1178,26 @@ struct ScoreExplanationSheet: View {
     private func scoreDescription(_ scoreType: ScoreType) -> String {
         switch scoreType {
         case .effort:
-            return String(localized: "Your weekly training volume compared to WHO recommendations. This score reflects how much active exercise you've completed this week relative to the 150-minute target.", comment: "Effort description")
+            return String(localized: "A daily score measuring how close you are to your personal activity goals. Combines steps (30%), active calories (35%), and exercise minutes (35%). Calories and exercise targets are read from your Apple Activity Rings for a personalized score.", comment: "Effort description")
         case .sleep:
             return String(localized: "A composite score based on your sleep duration and sleep efficiency. It evaluates both how long you slept and how effectively you used your time in bed.", comment: "Sleep description")
         case .readiness:
             return String(localized: "An AI-enhanced score combining recovery metrics and your personal baseline. It indicates how ready your body is for physical activity by analyzing multiple physiological signals.", comment: "Readiness description")
         case .cardiacLoad:
-            return String(localized: "Cardiac Load measures the cumulative cardiovascular stress from your running workouts over the past 7 days. It combines workout duration and intensity to give you a single score (0-100) reflecting how much strain your heart has been under.", comment: "Cardiac load description")
+            return String(localized: "Cardiac Load measures cumulative cardiovascular stress using HR-based TRIMP (with pace fallback). Calculates Acute (7-day ATL) and Chronic (42-day CTL) training loads. Status based on the ACWR ratio (Gabbett 2016).", comment: "Cardiac load description")
         }
     }
 
     private func scoreReferenceText(_ scoreType: ScoreType) -> String {
         switch scoreType {
         case .effort:
-            return String(localized: "Based on WHO Guidelines on Physical Activity and Sedentary Behaviour (2020) recommending 150\u{2013}300 min of moderate-intensity aerobic activity per week, and Haskell et al., Medicine & Science in Sports & Exercise (2007).", comment: "Effort reference")
+            return String(localized: "Steps target based on Tudor-Locke C, Bassett DR, Sports Medicine (2004). Default calorie target from Ainsworth BE et al., Compendium of Physical Activities, MSSE (2011). Exercise minutes from WHO Guidelines on Physical Activity (2020), 150 min/week \u{2248} 30 min/day. Personal targets from Apple Activity Rings when available.", comment: "Effort reference")
         case .sleep:
-            return String(localized: "Based on National Sleep Foundation's sleep duration recommendations (Hirshkowitz et al., Sleep Health, 2015) recommending 7\u{2013}9 hours for adults, and research on sleep efficiency thresholds from Matthew Walker's \"Why We Sleep\" (2017).", comment: "Sleep reference")
+            return String(localized: "Based on National Sleep Foundation's sleep duration recommendations (Hirshkowitz et al., Sleep Health, 2015) recommending 7\u{2013}9 hours for adults, and sleep quality indicators from Ohayon M et al., Sleep Health (2017) defining \u{2265}85% efficiency as good sleep quality.", comment: "Sleep reference")
         case .readiness:
             return String(localized: "Based on research from Plews et al. (IJSPP, 2013) on HRV-guided recovery monitoring, Buchheit (IJSPP, 2014) on HR measures for training status, Flatt & Esco (JSCR, 2016) on nocturnal HRV, and Bouzat et al. (BJSM, 2018) on pulse oximetry.", comment: "Readiness reference")
         case .cardiacLoad:
-            return String(localized: "Based on Banister's impulse-response model (1975) for training load quantification, Halson (Sports Medicine, 2014) on monitoring training load, Bourdon et al. (IJSPP, 2017) consensus on monitoring athlete training loads, Gabbett (BJSM, 2016) on the training-injury prevention paradox, and Coggan & Allen's TSS framework for exponential decay (τ=7 days ATL).", comment: "Cardiac load reference")
+            return String(localized: "Based on Banister's impulse-response model (1975, 1991) for TRIMP, Lucia et al. (MSSE, 2003) on HR-based TRIMP validation, Williams et al. (BJSM, 2017) on EWMA-based ACWR, Hulin et al. (BJSM, 2016) on ACWR injury prediction, Gabbett (BJSM, 2016) on the training-injury prevention paradox, Impellizzeri et al. (IJSPP, 2019) on individualized load monitoring via CTL, Windt & Gabbett (BJSM, 2017) on CTL-based personal normalization, and Coggan & Allen's ATL/CTL framework.", comment: "Cardiac load reference")
         }
     }
 

@@ -45,6 +45,7 @@ class RecoveryViewModel: ObservableObject {
     }
 
     private let healthKitManager = HealthKitManager.shared
+    private let dailyCache = DailyMetricsCache.shared
 
     var recoveryMetrics: RecoveryMetrics? {
         let dateKey = Calendar.current.startOfDay(for: selectedDate)
@@ -69,7 +70,18 @@ class RecoveryViewModel: ObservableObject {
         }
 
         do {
-            let metrics = try await healthKitManager.fetchRecoveryMetrics(for: targetDate)
+            var metrics = try await healthKitManager.fetchRecoveryMetrics(for: targetDate)
+
+            // For today: freeze sleep data after first calculation
+            if Calendar.current.isDateInToday(targetDate) {
+                if let cachedSleep = dailyCache.getCachedSleepData() {
+                    let frozenSleep = dailyCache.toSleepData(cachedSleep)
+                    metrics = metrics.withSleepData(frozenSleep)
+                } else if let freshSleep = metrics.sleepData {
+                    dailyCache.cacheSleepData(freshSleep)
+                }
+            }
+
             metricsCache[dateKey] = metrics
 
             // Update baseline status for UI if this is the selected date

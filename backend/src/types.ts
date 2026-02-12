@@ -132,6 +132,18 @@ export interface HealthProfileData {
   swimmingDistance?: number
 }
 
+export interface DailyActivityData {
+  steps: number
+  activeCalories: number
+  exerciseMinutes: number
+  effortScore: number // 0-100
+}
+
+export interface CardiacLoadData {
+  score: number // 0-20
+  status: 'increasing' | 'maintaining' | 'decreasing' | 'detraining'
+}
+
 export interface PersonalBaselineData {
   restingHeartRateAverage?: number
   restingHeartRateStdDev?: number

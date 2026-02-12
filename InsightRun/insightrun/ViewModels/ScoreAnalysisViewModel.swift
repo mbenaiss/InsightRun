@@ -165,7 +165,7 @@ class ScoreAnalysisViewModel: ObservableObject {
     private func buildPrompt(scoreType: ScoreType, score: Int, trendData: [TrendDataPoint]? = nil) -> String {
         switch scoreType {
         case .effort:
-            return String(localized: "My effort score is \(score)%. Briefly analyze this score based on my training volume vs the WHO 150 min/week recommendation. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for effort score analysis")
+            return String(localized: "My daily effort score is \(score)% (composite: steps 30%, active calories 35%, exercise minutes 35%, each vs personal Apple Ring goals, capped at 100%). Briefly analyze my daily activity level and what this score means. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for effort score analysis")
 
         case .sleep:
             return String(localized: "My sleep score is \(score)%. Briefly analyze my sleep quality (duration and efficiency). Give me 1 tip to improve my sleep. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for sleep score analysis")
@@ -175,9 +175,9 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         case .cardiacLoad:
             if let trendSummary = formatTrendSummary(trendData) {
-                return String(localized: "My cardiac load is \(score)/100. Here is my 14-day trend: [\(trendSummary)]. Analyze the trend evolution and current load. Is my training load progressing well? Give me 1 actionable tip on load management. Reply in 3-4 sentences max, no markdown.", comment: "AI prompt for cardiac load analysis with trend")
+                return String(localized: "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Here is my 14-day trend: [\(trendSummary)]. Analyze the trend evolution and current load. Is my training load progressing well? Give me 1 actionable tip on load management. Reply in 3-4 sentences max, no markdown.", comment: "AI prompt for cardiac load analysis with trend")
             }
-            return String(localized: "My cardiac load is \(score)/100. Briefly analyze this cardiovascular load over the last 7 days. Give me 1 tip on load management. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for cardiac load analysis")
+            return String(localized: "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Briefly analyze this cardiovascular load. Give me 1 tip on load management. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for cardiac load analysis")
         }
     }
 

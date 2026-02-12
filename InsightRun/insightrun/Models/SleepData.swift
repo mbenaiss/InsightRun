@@ -37,7 +37,11 @@ struct SleepData: Identifiable {
         return (totalSleepDuration / timeInBed) * 100
     }
 
-    // Sleep quality score (0-100)
+    /// Sleep quality score (0-100)
+    /// Duration thresholds: Hirshkowitz M et al. (2015). "National Sleep Foundation's sleep time
+    /// duration recommendations." Sleep Health 1(1):40-43. (7-9h optimal for adults)
+    /// Efficiency thresholds: Ohayon M et al. (2017). "National Sleep Foundation's sleep quality
+    /// recommendations." Sleep Health 3(1):6-19. (≥85% = good efficiency)
     var qualityScore: Int {
         var score = 50
 

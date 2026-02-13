@@ -708,6 +708,17 @@
         }
       }
     },
+    "A request is already in progress. Please wait for it to finish." : {
+      "comment" : "Error: concurrent requests",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une requête est déjà en cours. Veuillez attendre qu'elle se termine."
+          }
+        }
+      }
+    },
     "About" : {
       "comment" : "Section header for app information",
       "extractionState" : "manual",
@@ -797,7 +808,7 @@
       }
     },
     "Active Calories" : {
-      "comment" : "Effort calories label",
+      "comment" : "Active calories metric label\nEffort calories label",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -849,42 +860,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fait"
-          }
-        }
-      }
-    },
-    "ACWR < 0.5" : {
-      "comment" : "ACWR threshold value",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ACWR < 0.5"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ACWR < 0.5"
-          }
-        }
-      }
-    },
-    "ACWR > 1.3" : {
-      "comment" : "ACWR threshold value",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ACWR > 1.3"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ACWR > 1.3"
           }
         }
       }
@@ -1328,17 +1303,6 @@
         }
       }
     },
-    "Analyze this health metric: %@ %@. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for generic metric analysis",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyse cette métrique de santé : %@ %@. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
     "Analyze with AI" : {
       "comment" : "Analyze button",
       "extractionState" : "manual",
@@ -1423,12 +1387,34 @@
         }
       }
     },
+    "Apple Foundation Model is not available on this device" : {
+      "comment" : "Error: model not available",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le modèle Apple Foundation n'est pas disponible sur cet appareil"
+          }
+        }
+      }
+    },
     "Apple Health" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple Santé"
+          }
+        }
+      }
+    },
+    "Apple Intelligence model is not available. Check that Apple Intelligence is enabled and models are downloaded." : {
+      "comment" : "Error: AI model assets unavailable",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le modèle Apple Intelligence n'est pas disponible. Vérifiez qu'Apple Intelligence est activé et que les modèles sont téléchargés."
           }
         }
       }
@@ -1751,6 +1737,9 @@
         }
       }
     },
+    "Awake" : {
+      "comment" : "Sleep stage: awake"
+    },
     "Base Building" : {
       "comment" : "Training phase - base",
       "localizations" : {
@@ -1803,18 +1792,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Basé sur le modèle impulsion-réponse de Banister (1975, 1991) pour le TRIMP, Lucia et al. (MSSE, 2003) sur la validation du TRIMP basé FC, Williams et al. (BJSM, 2017) sur l'ACWR basé EWMA, Hulin et al. (BJSM, 2016) sur la prédiction de blessures par ACWR, Gabbett (BJSM, 2016) sur le paradoxe entraînement-prévention des blessures, Impellizzeri et al. (IJSPP, 2019) sur le monitoring individualisé via CTL, Windt & Gabbett (BJSM, 2017) sur la normalisation personnelle par CTL, et le framework ATL/CTL de Coggan & Allen."
-          }
-        }
-      }
-    },
-    "Based on Halson (Sports Medicine, 2014) on monitoring training load and fatigue, Bourdon et al. (IJSPP, 2017) consensus on monitoring athlete training loads, and Gabbett (BJSM, 2016) on the training-injury prevention paradox." : {
-      "comment" : "Cardiac load reference",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basé sur Halson (Sports Medicine, 2014) sur le suivi de la charge d'entraînement et de la fatigue, Bourdon et al. (IJSPP, 2017) consensus sur le suivi des charges d'entraînement des athlètes, et Gabbett (BJSM, 2016) sur le paradoxe prévention entraînement-blessure."
           }
         }
       }
@@ -1952,42 +1929,6 @@
         }
       }
     },
-    "Bourdon, P.C. et al. International Journal of Sports Physiology and Performance, 12(S2), 161-170, 2017" : {
-      "comment" : "Cardiac load reference 2 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bourdon, P.C. et al. International Journal of Sports Physiology and Performance, 12(S2), 161-170, 2017"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bourdon, P.C. et al. International Journal of Sports Physiology and Performance, 12(S2), 161-170, 2017"
-          }
-        }
-      }
-    },
-    "Bouzat et al., British Journal of Sports Medicine, 2018" : {
-      "comment" : "Readiness reference 4 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bouzat et al., British Journal of Sports Medicine, 2018"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bouzat et al., British Journal of Sports Medicine, 2018"
-          }
-        }
-      }
-    },
     "bpm" : {
       "comment" : "Heart rate unit",
       "extractionState" : "manual",
@@ -2018,14 +1959,13 @@
         }
       }
     },
-    "Breathing" : {
-      "comment" : "Section header for respiratory metrics",
-      "extractionState" : "stale",
+    "breaths/min" : {
+      "comment" : "Recovery context: respiratory rate unit",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Respiration"
+            "value" : "respirations/min"
           }
         }
       }
@@ -2038,24 +1978,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vif"
-          }
-        }
-      }
-    },
-    "Buchheit, International Journal of Sports Physiology and Performance, 2014" : {
-      "comment" : "Readiness reference 2 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Buchheit, International Journal of Sports Physiology and Performance, 2014"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Buchheit, International Journal of Sports Physiology and Performance, 2014"
           }
         }
       }
@@ -2243,24 +2165,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La Charge Cardiaque mesure le stress cardiovasculaire cumulé via le TRIMP basé sur la FC (avec secours par allure). Calcule les charges d'entraînement aiguë (ATL 7 jours) et chronique (CTL 42 jours). Statut basé sur le ratio ACWR (Gabbett 2016)."
-          }
-        }
-      }
-    },
-    "Cardiac Load measures the cumulative cardiovascular stress from your running workouts over the past 7 days. It combines workout duration and intensity to give you a single score (0-100) reflecting how much strain your heart has been under. This helps you balance training stimulus with adequate recovery." : {
-      "comment" : "Cardiac load score description",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cardiac Load measures the cumulative cardiovascular stress from your running workouts over the past 7 days. It combines workout duration and intensity to give you a single score (0-100) reflecting how much strain your heart has been under. This helps you balance training stimulus with adequate recovery."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La charge cardiaque mesure le stress cardiovasculaire cumulé de vos entraînements de course sur les 7 derniers jours. Elle combine la durée et l'intensité de l'entraînement pour vous donner un score unique (0-100) reflétant la contrainte subie par votre cœur. Cela vous aide à équilibrer le stimulus d'entraînement avec une récupération adéquate."
           }
         }
       }
@@ -2824,6 +2728,31 @@
         }
       }
     },
+    "Could not parse FIT file" : {
+      "comment" : "Suunto error: FIT parse failure",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lire le fichier FIT"
+          }
+        }
+      }
+    },
+    "Could not parse workout date '%@'. Expected ISO8601 format." : {
+      "comment" : "Suunto error: invalid date"
+    },
+    "Could not read file '%@': %@" : {
+      "comment" : "Suunto error: file read failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Could not read file '%1$@': %2$@"
+          }
+        }
+      }
+    },
     "Create a 5K training plan" : {
       "comment" : "AI suggestion for plan page",
       "localizations" : {
@@ -3141,6 +3070,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Profond"
+          }
+        }
+      }
+    },
+    "Deep Sleep" : {
+      "comment" : "Sleep stage: deep sleep",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sommeil profond"
           }
         }
       }
@@ -3704,7 +3644,15 @@
     },
     "Excellent shape! This is the ideal time for intensive training or a quality workout." : {
       "comment" : "Message displayed in a recovery insight when the user has an excellent recovery score.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excellente forme ! C'est le moment idéal pour un entraînement intensif ou une séance de qualité."
+          }
+        }
+      }
     },
     "Excellent sleep (%@) - optimal recovery" : {
       "comment" : "A description of a user's sleep duration, formatted to one decimal place. The argument is the string “%.1fh”.",
@@ -3730,7 +3678,7 @@
       }
     },
     "Exercise Minutes" : {
-      "comment" : "Effort exercise label",
+      "comment" : "Effort exercise label\nExercise minutes metric label",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3822,6 +3770,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Échec"
+          }
+        }
+      }
+    },
+    "Failed to create language model session" : {
+      "comment" : "Error: session creation failed",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de créer la session du modèle de langage"
           }
         }
       }
@@ -3921,7 +3880,15 @@
     },
     "Fair shape but be careful. Opt for light to moderate training today." : {
       "comment" : "Recommendation for recovery insights when the user has a fair shape but should be cautious with training.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forme correcte mais soyez prudent. Optez pour un entraînement léger à modéré aujourd'hui."
+          }
+        }
+      }
     },
     "Falls back to pace × intensity when HR unavailable" : {
       "comment" : "Cardiac load TRIMP fallback note",
@@ -4045,24 +4012,6 @@
         }
       }
     },
-    "Flatt & Esco, Journal of Strength and Conditioning Research, 2016" : {
-      "comment" : "Readiness reference 3 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Flatt & Esco, Journal of Strength and Conditioning Research, 2016"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Flatt & Esco, Journal of Strength and Conditioning Research, 2016"
-          }
-        }
-      }
-    },
     "Floors" : {
       "comment" : "Label for flights of stairs climbed",
       "extractionState" : "manual",
@@ -4106,24 +4055,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Le service FoundationModels n'est pas disponible"
-          }
-        }
-      }
-    },
-    "Gabbett, T.J. British Journal of Sports Medicine, 50(5), 273-280, 2016" : {
-      "comment" : "Cardiac load reference 3 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gabbett, T.J. British Journal of Sports Medicine, 50(5), 273-280, 2016"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gabbett, T.J. British Journal of Sports Medicine, 50(5), 273-280, 2016"
           }
         }
       }
@@ -4392,7 +4323,15 @@
     },
     "Good overall shape. You can train normally with moderate to high intensity." : {
       "comment" : "Message displayed in a recovery insight when the user has a good overall shape and can train normally.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonne forme générale. Vous pouvez vous entraîner normalement avec une intensité modérée à élevée."
+          }
+        }
+      }
     },
     "Good recovery. You can do a moderate to intense workout." : {
       "comment" : "Recovery recommendation - good status",
@@ -4458,24 +4397,6 @@
         }
       }
     },
-    "Halson, S.L. Sports Medicine, 44(S2), 139-147, 2014" : {
-      "comment" : "Cardiac load reference 1 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Halson, S.L. Sports Medicine, 44(S2), 139-147, 2014"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Halson, S.L. Sports Medicine, 44(S2), 139-147, 2014"
-          }
-        }
-      }
-    },
     "Hard" : {
       "comment" : "Workout intensity - hard",
       "localizations" : {
@@ -4483,24 +4404,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Difficile"
-          }
-        }
-      }
-    },
-    "Haskell et al., Medicine & Science in Sports & Exercise, 2007" : {
-      "comment" : "Effort reference 2 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Haskell et al., Medicine & Science in Sports & Exercise, 2007"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Haskell et al., Medicine & Science in Sports & Exercise, 2007"
           }
         }
       }
@@ -4675,47 +4578,6 @@
         }
       }
     },
-    "Heart Rate Variability (HRV) measures the variation in time between heartbeats. Higher HRV generally indicates better cardiovascular fitness and recovery. It’s influenced by stress, sleep quality, and overall health." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La variabilité de la fréquence cardiaque (VFC) mesure la variation du temps entre les battements cardiaques. Une VFC plus élevée indique généralement une meilleure forme cardiovasculaire et récupération. Elle est influencée par le stress, la qualité du sommeil et la santé globale."
-          }
-        }
-      }
-    },
-    "Heart Rate Variability (HRV) measures the variation in time between heartbeats. Higher HRV generally indicates better cardiovascular fitness and recovery. It's influenced by stress, sleep quality, and overall health. Your HRV is most accurate when measured during sleep." : {
-      "comment" : "HRV explanation",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La variabilité de la fréquence cardiaque (VFC) mesure la variation du temps entre les battements cardiaques. Une VFC plus élevée indique généralement une meilleure condition cardiovasculaire et une meilleure récupération. Elle est influencée par le stress, la qualité du sommeil et l'état de santé général. Votre VFC est plus précise lorsqu'elle est mesurée pendant le sommeil."
-          }
-        }
-      }
-    },
-    "Heart Rate Variability as a Tool to Monitor Recovery Status" : {
-      "comment" : "Readiness reference 1 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Heart Rate Variability as a Tool to Monitor Recovery Status"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Heart Rate Variability as a Tool to Monitor Recovery Status"
-          }
-        }
-      }
-    },
     "High" : {
       "comment" : "Cadence range: High\nGCT range: High\nPower range: High\nRHR range: High\nVO range: High",
       "extractionState" : "manual",
@@ -4799,7 +4661,15 @@
     },
     "Hiking" : {
       "comment" : "Name of a workout activity type when the user is hiking.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Randonnée"
+          }
+        }
+      }
     },
     "Hill Repeats" : {
       "comment" : "Workout type\nWorkout type - hill repeats",
@@ -4808,24 +4678,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Répétitions en côte"
-          }
-        }
-      }
-    },
-    "Hirshkowitz et al., Sleep Health, 2015 — 7–9 hours recommended for adults" : {
-      "comment" : "Sleep reference 1 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hirshkowitz et al., Sleep Health, 2015 — 7–9 hours recommended for adults"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hirshkowitz et al., Sleep Health, 2015 — 7–9 heures recommandées pour les adultes"
           }
         }
       }
@@ -4906,18 +4758,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Combien de jours de repos ai-je besoin ?"
-          }
-        }
-      }
-    },
-    "How ready are you today?" : {
-      "comment" : "Daily readiness header question",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comment vous sentez-vous aujourd'hui ?"
           }
         }
       }
@@ -5090,12 +4930,23 @@
       }
     },
     "HRV" : {
-      "comment" : "HRV scoring\nLabel for heart rate variability\nReadiness HRV weight",
+      "comment" : "HRV metric label\nHRV scoring\nLabel for heart rate variability\nReadiness HRV weight",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "VFC"
+          }
+        }
+      }
+    },
+    "HRV (SDNN) average" : {
+      "comment" : "Recovery context: HRV average label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV (SDNN) moyenne"
           }
         }
       }
@@ -5239,17 +5090,6 @@
         }
       }
     },
-    "Import your activities" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Importer vos activités"
-          }
-        }
-      }
-    },
     "Import your running history from Strava to get AI-powered insights based on years of training data." : {
       "comment" : "Strava onboarding description",
       "localizations" : {
@@ -5308,6 +5148,9 @@
         }
       }
     },
+    "In Bed" : {
+      "comment" : "Sleep stage: in bed"
+    },
     "Increasing" : {
       "comment" : "Cardiac load status\nCardiac load status - increasing",
       "localizations" : {
@@ -5362,7 +5205,15 @@
     },
     "Indexation was cancelled" : {
       "comment" : "Error description when the indexation is cancelled.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'indexation a été annulée"
+          }
+        }
+      }
     },
     "Indexing workouts..." : {
       "comment" : "Status: indexing",
@@ -5375,6 +5226,9 @@
           }
         }
       }
+    },
+    "Inference error: %@" : {
+      "comment" : "Error: inference error with details"
     },
     "Information" : {
       "comment" : "Section header for user information",
@@ -5412,21 +5266,28 @@
         }
       }
     },
-    "Insights" : {
-      "comment" : "Insights section title",
-      "extractionState" : "stale",
+    "Insufficient" : {
+      "comment" : "Sleep quality: insufficient (<40)",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Analyses"
+            "value" : "Insuffisant"
           }
         }
       }
     },
     "Insufficient recovery. Active rest or a rest day is recommended." : {
       "comment" : "Message displayed in a recovery insight when the user's recovery score is below 40.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération insuffisante. Le repos actif ou un jour de repos est recommandé."
+          }
+        }
+      }
     },
     "Insufficient recovery. Rest or active recovery recommended." : {
       "comment" : "Recovery recommendation - poor status",
@@ -5541,6 +5402,9 @@
         }
       }
     },
+    "Invalid FIT file: %@. Ensure the file was exported from the Suunto app." : {
+      "comment" : "Suunto error: invalid FIT file"
+    },
     "Invalid response from server" : {
       "comment" : "Error message for invalid server responses",
       "extractionState" : "manual",
@@ -5601,7 +5465,15 @@
     },
     "Keep monitoring your recovery metrics" : {
       "comment" : "General recommendation to keep monitoring recovery metrics.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuez à surveiller vos métriques de récupération"
+          }
+        }
+      }
     },
     "km" : {
       "comment" : "Kilometers unit abbreviation",
@@ -5632,6 +5504,9 @@
           }
         }
       }
+    },
+    "Language %@ is not yet supported" : {
+      "comment" : "Error when locale is not supported"
     },
     "Last 3 Months" : {
       "comment" : "Trend period",
@@ -5700,6 +5575,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clair"
+          }
+        }
+      }
+    },
+    "Light Sleep" : {
+      "comment" : "Sleep stage: core/light sleep",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sommeil léger"
           }
         }
       }
@@ -5962,7 +5848,15 @@
     },
     "Maintain a regular sleep routine" : {
       "comment" : "General recommendation to maintain a regular sleep routine.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenez une routine de sommeil régulière"
+          }
+        }
+      }
     },
     "Maintaining" : {
       "comment" : "Cardiac load status\nCardiac load status - maintaining",
@@ -6028,7 +5922,15 @@
       }
     },
     "Max HR" : {
-      "comment" : "Label for max heart rate"
+      "comment" : "Label for max heart rate",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FC max"
+          }
+        }
+      }
     },
     "Max Speed" : {
       "comment" : "Maximum speed performance metric",
@@ -6088,24 +5990,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sources médicales"
-          }
-        }
-      }
-    },
-    "Mendelson et al., Journal of Sports Sciences, 2016" : {
-      "comment" : "Sleep reference 3 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mendelson et al., Journal of Sports Sciences, 2016"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mendelson et al., Journal of Sports Sciences, 2016"
           }
         }
       }
@@ -7345,6 +7229,9 @@
         }
       }
     },
+    "Missing required fields: %@" : {
+      "comment" : "Suunto error: missing fields"
+    },
     "ml/kg/min" : {
       "comment" : "VO2 Max unit",
       "extractionState" : "manual",
@@ -7426,60 +7313,6 @@
         }
       }
     },
-    "Monitoring Athlete Training Loads: Consensus Statement" : {
-      "comment" : "Cardiac load reference 2 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monitoring Athlete Training Loads: Consensus Statement"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monitoring Athlete Training Loads: Consensus Statement"
-          }
-        }
-      }
-    },
-    "Monitoring Training Load to Understand Fatigue in Athletes" : {
-      "comment" : "Cardiac load reference 1 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monitoring Training Load to Understand Fatigue in Athletes"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monitoring Training Load to Understand Fatigue in Athletes"
-          }
-        }
-      }
-    },
-    "Monitoring Training Status With HR Measures" : {
-      "comment" : "Readiness reference 2 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monitoring Training Status With HR Measures"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monitoring Training Status With HR Measures"
-          }
-        }
-      }
-    },
     "ms" : {
       "comment" : "Milliseconds unit abbreviation",
       "extractionState" : "manual",
@@ -7498,121 +7331,6 @@
         }
       }
     },
-    "My cardiac load is %lld/20 (ACWR-based, 10/20 = maintaining). Briefly analyze this cardiovascular load. Give me 1 tip on load management. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for cardiac load analysis",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "My cardiac load is %lld/20 (ACWR-based, 10/20 = maintaining). Briefly analyze this cardiovascular load. Give me 1 tip on load management. Reply in 2-3 sentences max, no markdown."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ma charge cardiaque est de %lld/20 (basée sur l'ACWR, 10/20 = maintien). Analyse brièvement cette charge cardiovasculaire. Donne-moi 1 conseil sur la gestion de la charge. Réponds en 2-3 phrases max, pas de markdown."
-          }
-        }
-      }
-    },
-    "My cardiac load is %lld/20 (ACWR-based, 10/20 = maintaining). Here is my 14-day trend: [%@]. Analyze the trend evolution and current load. Is my training load progressing well? Give me 1 actionable tip on load management. Reply in 3-4 sentences max, no markdown." : {
-      "comment" : "AI prompt for cardiac load analysis with trend",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "My cardiac load is %lld/20 (ACWR-based, 10/20 = maintaining). Here is my 14-day trend: [%@]. Analyze the trend evolution and current load. Is my training load progressing well? Give me 1 actionable tip on load management. Reply in 3-4 sentences max, no markdown."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ma charge cardiaque est de %lld/20 (basée sur l'ACWR, 10/20 = maintien). Voici ma tendance sur 14 jours : [%@]. Analyse l'évolution de la tendance et la charge actuelle. Ma charge d'entraînement progresse-t-elle bien ? Donne-moi 1 conseil actionnable sur la gestion de la charge. Réponds en 3-4 phrases max, pas de markdown."
-          }
-        }
-      }
-    },
-    "My daily effort score is %lld%% (composite: steps 30%, active calories 35%, exercise minutes 35%, each vs personal Apple Ring goals, capped at 100%). Briefly analyze my daily activity level and what this score means. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for effort score analysis",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mon score d'effort quotidien est de %lld%% (composite : pas 30%%, calories actives 35%%, minutes d'exercice 35%%, chacun par rapport à mes objectifs Apple Ring personnels, plafonné à 100%%). Analyse brièvement mon niveau d'activité quotidien et ce que ce score signifie. Donne-moi 1 conseil actionnable. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
-    "My daily effort score is %lld%% (composite: steps 30%%, active calories 35%%, exercise minutes 35%%, each vs personal Apple Ring goals, capped at 100%%). Briefly analyze my daily activity level and what this score means. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for effort score analysis"
-    },
-    "My HRV is %@ ms. Briefly analyze my heart rate variability and what it means for my recovery. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for HRV analysis",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mon HRV est de %@ ms. Analyse brièvement ma variabilité de fréquence cardiaque et ce que cela signifie pour ma récupération. Donne-moi 1 conseil actionnable. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
-    "My oxygen saturation is %@%%. Briefly analyze my blood oxygenation level. Give me 1 tip. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for oxygen saturation analysis",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ma saturation en oxygène est de %@%%. Analyse brièvement mon niveau d'oxygénation sanguine. Donne-moi 1 conseil. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
-    "My readiness score is %lld%%. Briefly analyze my overall recovery and training preparedness. Give me 1 tip for today. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for readiness score analysis",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mon score de disponibilité est de %lld%%. Analyse brièvement ma récupération globale et ma préparation à l'entraînement. Donne-moi 1 conseil pour aujourd'hui. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
-    "My respiratory rate is %@ rpm. Briefly analyze what this means for my recovery state. Give me 1 tip. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for respiratory rate analysis",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ma fréquence respiratoire est de %@ rpm. Analyse brièvement ce que cela signifie pour mon état de récupération. Donne-moi 1 conseil. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
-    "My resting heart rate is %@ bpm. Briefly analyze what this means for my cardiovascular health. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for resting heart rate analysis",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ma fréquence cardiaque au repos est de %@ bpm. Analyse brièvement ce que cela signifie pour ma santé cardiovasculaire. Donne-moi 1 conseil actionnable. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
-    "My sleep score is %lld%%. Briefly analyze my sleep quality (duration and efficiency). Give me 1 tip to improve my sleep. Reply in 2-3 sentences max, no markdown." : {
-      "comment" : "AI prompt for sleep score analysis",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mon score de sommeil est de %lld%%. Analyse brièvement la qualité de mon sommeil (durée et efficacité). Donne-moi 1 conseil pour améliorer mon sommeil. Réponds en 2-3 phrases max, sans markdown."
-          }
-        }
-      }
-    },
     "Naps" : {
       "comment" : "Label for nap duration",
       "extractionState" : "manual",
@@ -7621,24 +7339,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Siestes"
-          }
-        }
-      }
-    },
-    "National Sleep Foundation's Sleep Duration Recommendations" : {
-      "comment" : "Sleep reference 1 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "National Sleep Foundation's Sleep Duration Recommendations"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recommandations de durée de sommeil de la National Sleep Foundation"
           }
         }
       }
@@ -7830,7 +7530,15 @@
     },
     "No workout data to consolidate" : {
       "comment" : "Error message when there is no workout data to consolidate.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée d'entraînement à consolider"
+          }
+        }
+      }
     },
     "No Workouts" : {
       "comment" : "Empty state title",
@@ -7845,22 +7553,11 @@
       }
     },
     "No workouts found in HealthKit" : {
-
-    },
-    "Nocturnal Heart Rate Variability and Morning Readiness to Train" : {
-      "comment" : "Readiness reference 3 title",
-      "extractionState" : "stale",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nocturnal Heart Rate Variability and Morning Readiness to Train"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nocturnal Heart Rate Variability and Morning Readiness to Train"
+            "value" : "Aucun entraînement trouvé dans HealthKit"
           }
         }
       }
@@ -7923,7 +7620,15 @@
     },
     "Not authenticated with Strava" : {
       "comment" : "Error message when the user is not authenticated with Strava.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non authentifié avec Strava"
+          }
+        }
+      }
     },
     "Not enough data for personal baseline" : {
       "comment" : "Baseline status - not available",
@@ -8092,18 +7797,6 @@
         }
       }
     },
-    "out of 100" : {
-      "comment" : "Score denominator",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "sur 100"
-          }
-        }
-      }
-    },
     "Outils de test pour simuler différents états d'abonnement. Redémarrez l'app après avoir réinitialisé." : {
       "comment" : "A footer in the \"Debug\" section of the settings view, providing instructions on how to use the debug features.",
       "isCommentAutoGenerated" : true
@@ -8116,23 +7809,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Statistiques globales"
-          }
-        }
-      }
-    },
-    "Overview" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Overview"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vue d'ensemble"
           }
         }
       }
@@ -8184,18 +7860,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La saturation en oxygène (SpO2) mesure le pourcentage d'hémoglobine transportant l'oxygène dans votre sang. Les niveaux normaux sont généralement de 95-100 %. Des niveaux plus bas peuvent indiquer des problèmes respiratoires ou des effets d'altitude."
-          }
-        }
-      }
-    },
-    "Oxygen saturation (SpO2) measures the percentage of oxygen-carrying hemoglobin in your blood. Normal levels are typically 95-100%. Lower levels may indicate respiratory issues or altitude effects. Athletes may see slight variations during recovery." : {
-      "comment" : "SpO2 explanation",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La saturation en oxygène (SpO2) mesure le pourcentage d'hémoglobine transportant l'oxygène dans votre sang. Les niveaux normaux sont généralement de 95-100 %. Des niveaux plus bas peuvent indiquer des problèmes respiratoires ou des effets d'altitude. Les athlètes peuvent observer de légères variations pendant la récupération."
           }
         }
       }
@@ -8375,24 +8039,6 @@
         }
       }
     },
-    "Physical Activity and Public Health: Updated Recommendation for Adults" : {
-      "comment" : "Effort reference 2 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Physical Activity and Public Health: Updated Recommendation for Adults"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Physical Activity and Public Health: Updated Recommendation for Adults"
-          }
-        }
-      }
-    },
     "Plan my next long run" : {
       "comment" : "AI suggestion for plan page",
       "localizations" : {
@@ -8419,24 +8065,6 @@
     "Please enable Apple Intelligence in Settings" : {
       "comment" : "Warning message to guide the user to enable Apple Intelligence in Settings.",
       "isCommentAutoGenerated" : true
-    },
-    "Plews et al., International Journal of Sports Physiology and Performance, 2013" : {
-      "comment" : "Readiness reference 1 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plews et al., International Journal of Sports Physiology and Performance, 2013"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plews et al., International Journal of Sports Physiology and Performance, 2013"
-          }
-        }
-      }
     },
     "Poor" : {
       "comment" : "Recovery status description - poor",
@@ -8975,24 +8603,6 @@
         }
       }
     },
-    "Pulse Oximetry in Athletic Training" : {
-      "comment" : "Readiness reference 4 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pulse Oximetry in Athletic Training"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pulse Oximetry in Athletic Training"
-          }
-        }
-      }
-    },
     "Pyramid workout (400-800-1200-800-400)" : {
       "comment" : "Sample workout prompt",
       "localizations" : {
@@ -9045,6 +8655,17 @@
         }
       }
     },
+    "range" : {
+      "comment" : "Recovery context: range label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "plage"
+          }
+        }
+      }
+    },
     "Rate InsightRun" : {
       "comment" : "Rate app button in settings",
       "extractionState" : "manual",
@@ -9053,6 +8674,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Noter InsightRun"
+          }
+        }
+      }
+    },
+    "Rate limit exceeded. Please try again later." : {
+      "comment" : "Backend error: rate limit",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite de requêtes dépassée. Veuillez réessayer plus tard."
           }
         }
       }
@@ -9074,6 +8706,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disponibilité"
+          }
+        }
+      }
+    },
+    "Readiness Score" : {
+      "comment" : "Recovery context: readiness score label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score de préparation"
           }
         }
       }
@@ -9126,6 +8769,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recommandation"
+          }
+        }
+      }
+    },
+    "Recommendations" : {
+      "comment" : "Recovery context: recommendations header",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recommandations"
           }
         }
       }
@@ -9236,18 +8890,6 @@
         }
       }
     },
-    "Recovery metrics are based on research from the American College of Sports Medicine and studies on HRV-guided training published in the Journal of Sports Sciences." : {
-      "comment" : "Recovery score reference",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les métriques de récupération sont basées sur les recherches de l'American College of Sports Medicine et des études sur l'entraînement guidé par la VFC publiées dans le Journal of Sports Sciences."
-          }
-        }
-      }
-    },
     "Recovery recommendations are based on published scientific research. Tap below to view all medical sources." : {
       "comment" : "Medical sources disclaimer text",
       "localizations" : {
@@ -9278,6 +8920,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Score de récupération"
+          }
+        }
+      }
+    },
+    "Recovery Status" : {
+      "comment" : "Recovery context header",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "État de récupération"
           }
         }
       }
@@ -9384,11 +9037,22 @@
         }
       }
     },
+    "REM Sleep" : {
+      "comment" : "Sleep stage: REM/paradoxical sleep",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sommeil paradoxal"
+          }
+        }
+      }
+    },
     "Reset environnement" : {
 
     },
     "Respiratory rate" : {
-      "comment" : "Label for respiratory rate\nRespiratory rate metric title",
+      "comment" : "Label for respiratory rate\nRecovery context: respiratory rate label\nRespiratory rate metric title",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -9421,14 +9085,13 @@
         }
       }
     },
-    "Respiratory rate is the number of breaths you take per minute. Normal range is 12-20 breaths per minute for adults at rest. Changes in respiratory rate can indicate stress, illness, or changes in fitness level." : {
-      "comment" : "Respiratory rate explanation",
-      "extractionState" : "stale",
+    "Response decoding error. Please try again." : {
+      "comment" : "Error: decoding failure",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La fréquence respiratoire est le nombre de respirations par minute. La plage normale est de 12 à 20 respirations par minute pour les adultes au repos. Les changements de fréquence respiratoire peuvent indiquer du stress, une maladie ou des changements de niveau de forme physique."
+            "value" : "Erreur de décodage de la réponse. Veuillez réessayer."
           }
         }
       }
@@ -9502,29 +9165,6 @@
     },
     "Resting heart rate is the number of heartbeats per minute when you're completely at rest. A lower resting heart rate typically indicates better cardiovascular fitness. An elevated rate can signal stress or insufficient recovery." : {
       "comment" : "RHR explanation",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La fréquence cardiaque au repos est le nombre de battements cardiaques par minute lorsque vous êtes complètement au repos. Une fréquence cardiaque au repos plus basse indique généralement une meilleure condition cardiovasculaire. Une fréquence cardiaque au repos élevée peut signaler du stress, une maladie ou une récupération insuffisante."
-          }
-        }
-      }
-    },
-    "Resting heart rate is the number of heartbeats per minute when you’re completely at rest. A lower resting heart rate typically indicates better cardiovascular fitness. An elevated rate can signal stress or insufficient recovery." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La fréquence cardiaque au repos est le nombre de battements par minute lorsque vous êtes complètement au repos. Une fréquence plus basse indique généralement une meilleure forme cardiovasculaire. Une fréquence élevée peut signaler du stress ou une récupération insuffisante."
-          }
-        }
-      }
-    },
-    "Resting heart rate is the number of heartbeats per minute when you're completely at rest. A lower resting heart rate typically indicates better cardiovascular fitness. An elevated resting heart rate can signal stress, illness, or insufficient recovery." : {
-      "comment" : "RHR explanation",
-      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -9735,7 +9375,15 @@
       }
     },
     "Runs" : {
-      "comment" : "Label for number of runs"
+      "comment" : "Label for number of runs",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Courses"
+          }
+        }
+      }
     },
     "s" : {
       "comment" : "Seconds unit abbreviation",
@@ -9799,24 +9447,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enregistré dans Apple Santé !"
-          }
-        }
-      }
-    },
-    "Scientific Reference" : {
-      "comment" : "Medical reference header",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scientific Reference"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Référence scientifique"
           }
         }
       }
@@ -9898,7 +9528,7 @@
       }
     },
     "Server error. Please try again." : {
-      "comment" : "Workout generation error",
+      "comment" : "Backend error: server error\nWorkout generation error",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10042,6 +9672,17 @@
         }
       }
     },
+    "Sleep Details" : {
+      "comment" : "Sleep data card header",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détails du sommeil"
+          }
+        }
+      }
+    },
     "Sleep duration" : {
       "comment" : "Label for total sleep duration",
       "extractionState" : "manual",
@@ -10065,20 +9706,8 @@
         }
       }
     },
-    "Sleep duration is the total time spent sleeping. Adults typically need 7-9 hours of sleep per night for optimal recovery and health. Both too little and too much sleep can negatively impact performance and well-being." : {
-      "comment" : "Sleep duration explanation",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La durée du sommeil est le temps total passé à dormir. Les adultes ont généralement besoin de 7 à 9 heures de sommeil par nuit pour une récupération et une santé optimales. Trop peu ou trop de sommeil peut avoir un impact négatif sur les performances et le bien-être."
-          }
-        }
-      }
-    },
     "Sleep Efficiency" : {
-      "comment" : "Sleep efficiency title",
+      "comment" : "Sleep efficiency label\nSleep efficiency title",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -10095,18 +9724,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "L'efficacité du sommeil est le pourcentage du temps au lit réellement passé à dormir. Une bonne efficacité du sommeil est supérieure à 85 %."
-          }
-        }
-      }
-    },
-    "Sleep efficiency is the percentage of time in bed actually spent sleeping. Good sleep efficiency is above 85%. Lower efficiency may indicate sleep disturbances or spending too much time awake in bed." : {
-      "comment" : "Sleep efficiency explanation",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L'efficacité du sommeil est le pourcentage du temps passé au lit réellement consacré au sommeil. Une bonne efficacité du sommeil est supérieure à 85 %. Une efficacité plus faible peut indiquer des troubles du sommeil ou trop de temps passé éveillé au lit."
           }
         }
       }
@@ -10128,36 +9745,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Qualité du sommeil"
-          }
-        }
-      }
-    },
-    "Sleep quality, sleep duration, and physical activity in obese adolescents" : {
-      "comment" : "Sleep reference 3 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sleep quality, sleep duration, and physical activity in obese adolescents"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sleep quality, sleep duration, and physical activity in obese adolescents"
-          }
-        }
-      }
-    },
-    "Sleep recommendations are based on National Sleep Foundation guidelines (2015) and research published in Sleep Health journal. 7-9 hours is recommended for adults aged 18-64." : {
-      "comment" : "Sleep reference",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les recommandations de sommeil sont basées sur les directives de la National Sleep Foundation (2015) et les recherches publiées dans la revue Sleep Health. 7-9 heures sont recommandées pour les adultes de 18 à 64 ans."
           }
         }
       }
@@ -10263,24 +9850,12 @@
       }
     },
     "SpO2" : {
-      "comment" : "Label for blood oxygen saturation\nSpO2 scoring",
+      "comment" : "Label for blood oxygen saturation\nOxygen saturation label\nSpO2 scoring",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "SpO2"
-          }
-        }
-      }
-    },
-    "SpO2 guidelines are based on WHO recommendations. Normal range is 95-100%. Values below 94% may warrant medical attention according to NHS guidelines." : {
-      "comment" : "SpO2 reference",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les recommandations de SpO2 sont basées sur les recommandations de l'OMS. La plage normale est de 95-100 %. Les valeurs inférieures à 94 % peuvent nécessiter une attention médicale selon les directives du NHS."
           }
         }
       }
@@ -10372,42 +9947,6 @@
         }
       }
     },
-    "statistics.charts.category" : {
-      "comment" : "Chart category label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Category"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Catégorie"
-          }
-        }
-      }
-    },
-    "statistics.charts.distance" : {
-      "comment" : "Chart distance label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Distance"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Distance"
-          }
-        }
-      }
-    },
     "statistics.charts.distance.title" : {
       "comment" : "Distance chart title",
       "extractionState" : "manual",
@@ -10440,42 +9979,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucune donnée disponible pour cette période"
-          }
-        }
-      }
-    },
-    "statistics.charts.percentage" : {
-      "comment" : "Chart percentage label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Percentage"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pourcentage"
-          }
-        }
-      }
-    },
-    "statistics.charts.period" : {
-      "comment" : "Chart period label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Period"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Période"
           }
         }
       }
@@ -10530,24 +10033,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Entraînements"
-          }
-        }
-      }
-    },
-    "statistics.charts.zone" : {
-      "comment" : "Chart zone label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zone"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zone"
           }
         }
       }
@@ -10977,24 +10462,6 @@
         }
       }
     },
-    "statistics.overview.streakValue" : {
-      "comment" : "Current streak value with number of days",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d days"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d jours"
-          }
-        }
-      }
-    },
     "statistics.overview.title" : {
       "comment" : "Overview section title",
       "extractionState" : "manual",
@@ -11204,60 +10671,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "6 mois"
-          }
-        }
-      }
-    },
-    "statistics.period.30days" : {
-      "comment" : "30 days period filter",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "30d"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "30j"
-          }
-        }
-      }
-    },
-    "statistics.period.90days" : {
-      "comment" : "90 days period filter",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "90d"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "90j"
-          }
-        }
-      }
-    },
-    "statistics.period.allTime" : {
-      "comment" : "All time period filter",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tout"
           }
         }
       }
@@ -11478,24 +10891,6 @@
         }
       }
     },
-    "statistics.thisMonth" : {
-      "comment" : "Change this month with percentage",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ this month"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ ce mois"
-          }
-        }
-      }
-    },
     "statistics.title" : {
       "comment" : "Statistics view title",
       "extractionState" : "manual",
@@ -11604,23 +10999,8 @@
         }
       }
     },
-    "Status Thresholds" : {
-      "comment" : "Cardiac load status thresholds label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Status Thresholds"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seuils de statut"
-          }
-        }
-      }
+    "Status" : {
+      "comment" : "Recovery context: status label"
     },
     "Status Thresholds (ACWR)" : {
       "comment" : "Cardiac load ACWR status thresholds label",
@@ -11653,7 +11033,15 @@
     },
     "Stay well hydrated throughout the day" : {
       "comment" : "Recommendation to stay well-hydrated throughout the day.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restez bien hydraté tout au long de la journée"
+          }
+        }
+      }
     },
     "Steady" : {
       "comment" : "Workout step type",
@@ -11713,7 +11101,7 @@
       }
     },
     "Steps" : {
-      "comment" : "Effort steps label",
+      "comment" : "Effort steps label\nSteps metric label",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -12260,20 +11648,46 @@
         }
       }
     },
-    "The training-injury prevention paradox" : {
-      "comment" : "Cardiac load reference 3 title",
-      "extractionState" : "stale",
+    "The language or locale is not supported by the model." : {
+      "comment" : "Error: unsupported language",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The training-injury prevention paradox"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The training-injury prevention paradox"
+            "value" : "La langue ou locale n'est pas supportée par le modèle."
+          }
+        }
+      }
+    },
+    "The model cannot respond to this request. Please try another question." : {
+      "comment" : "Error: model refused request",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le modèle ne peut pas répondre à cette demande. Veuillez essayer une autre question."
+          }
+        }
+      }
+    },
+    "The prompt cannot be empty" : {
+      "comment" : "Error when user submits empty prompt",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le prompt ne peut pas être vide"
+          }
+        }
+      }
+    },
+    "The prompt must contain at least 3 characters" : {
+      "comment" : "Error when prompt is too short",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le prompt doit contenir au moins 3 caractères"
           }
         }
       }
@@ -12302,7 +11716,15 @@
       }
     },
     "Thinking..." : {
-      "comment" : "Header title while AI is generating a response"
+      "comment" : "Header title while AI is generating a response",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réflexion en cours..."
+          }
+        }
+      }
     },
     "This app needs access to your running workouts from HealthKit to display your history." : {
       "comment" : "HealthKit permission request description",
@@ -12534,6 +11956,28 @@
         }
       }
     },
+    "Today's Activity" : {
+      "comment" : "Effort activity card header",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activité du jour"
+          }
+        }
+      }
+    },
+    "Today's Metrics" : {
+      "comment" : "Readiness metrics card header",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Métriques du jour"
+          }
+        }
+      }
+    },
     "Too many requests. Please try again later." : {
       "comment" : "Workout generation error",
       "localizations" : {
@@ -12547,6 +11991,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trop de demandes. Veuillez réessayer plus tard."
+          }
+        }
+      }
+    },
+    "Too many requests. Please wait a moment before trying again." : {
+      "comment" : "Error: rate limited",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop de requêtes. Veuillez patienter quelques instants avant de réessayer."
           }
         }
       }
@@ -12565,6 +12020,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trop de requêtes. Réessayez dans quelques minutes."
+          }
+        }
+      }
+    },
+    "Too much data in the conversation. Please start a new session." : {
+      "comment" : "Error: context window exceeded",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop de données dans la conversation. Veuillez démarrer une nouvelle session."
           }
         }
       }
@@ -12798,6 +12264,17 @@
       "comment" : "Error message that might be shown to the user when refreshing the personal baseline fails. The error description will be inserted here.",
       "isCommentAutoGenerated" : true
     },
+    "Unauthorized - Invalid app key" : {
+      "comment" : "Backend error: unauthorized",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non autorisé - Clé d'application invalide"
+          }
+        }
+      }
+    },
     "Unexpected error: %@" : {
       "comment" : "A user-visible error message that can be shown to the user when an unexpected error occurs during the inference process.",
       "isCommentAutoGenerated" : true
@@ -12813,6 +12290,12 @@
           }
         }
       }
+    },
+    "Unknown error (HTTP %lld)" : {
+      "comment" : "Backend error: unknown HTTP error"
+    },
+    "Unknown error: %@" : {
+      "comment" : "Error: unknown"
     },
     "Unlimited workouts" : {
       "comment" : "Onboarding paywall feature: unlimited",
@@ -12903,6 +12386,9 @@
         }
       }
     },
+    "Unsupported generation format: %@" : {
+      "comment" : "Error: unsupported guide"
+    },
     "Untitled Conversation" : {
       "comment" : "Default title for conversation without messages",
       "extractionState" : "manual",
@@ -12988,24 +12474,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mise à jour de votre analyse d'entraînement avec les dernières données pour maintenir vos conseils précis."
-          }
-        }
-      }
-    },
-    "Uses exponential decay (λ=0.1) to weight recent days more heavily. Score normalized to 0-100 (max reference: 500 load units)." : {
-      "comment" : "Cardiac load rolling explanation",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uses exponential decay (λ=0.1) to weight recent days more heavily. Score normalized to 0-100 (max reference: 500 load units)."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilise une décroissance exponentielle (λ=0.1) pour pondérer davantage les jours récents. Score normalisé de 0 à 100 (référence max : 500 unités de charge)."
           }
         }
       }
@@ -13116,18 +12584,6 @@
         }
       }
     },
-    "View details" : {
-      "comment" : "Button to view full readiness details",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Voir les détails"
-          }
-        }
-      }
-    },
     "View Medical Sources" : {
       "comment" : "Button to view medical sources from metric sheet",
       "extractionState" : "manual",
@@ -13159,18 +12615,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher les références scientifiques"
-          }
-        }
-      }
-    },
-    "View Scientific Sources" : {
-      "comment" : "Button to view medical sources",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher les sources scientifiques"
           }
         }
       }
@@ -13642,24 +13086,6 @@
         }
       }
     },
-    "WHO Guidelines on Physical Activity and Sedentary Behaviour" : {
-      "comment" : "Effort reference 1 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WHO Guidelines on Physical Activity and Sedentary Behaviour"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WHO Guidelines on Physical Activity and Sedentary Behaviour"
-          }
-        }
-      }
-    },
     "Why is my HRV low?" : {
       "comment" : "Sample question about low HRV",
       "extractionState" : "manual",
@@ -13668,24 +13094,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pourquoi ma VFC est-elle basse ?"
-          }
-        }
-      }
-    },
-    "Why We Sleep" : {
-      "comment" : "Sleep reference 2 title",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why We Sleep"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why We Sleep"
           }
         }
       }
@@ -14128,24 +13536,6 @@
         }
       }
     },
-    "World Health Organization, 2020 — Adults should do 150–300 min of moderate-intensity aerobic activity per week. who.int/publications" : {
-      "comment" : "Effort reference 1 source",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "World Health Organization, 2020 — Adults should do 150–300 min of moderate-intensity aerobic activity per week. who.int/publications"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Organisation mondiale de la santé, 2020 — Les adultes devraient pratiquer 150 à 300 min d'activité aérobie d'intensité modérée par semaine. who.int/publications"
-          }
-        }
-      }
-    },
     "Yesterday" : {
       "comment" : "Label for yesterday's date",
       "extractionState" : "manual",
@@ -14235,7 +13625,7 @@
       }
     },
     "Your account has been blocked. Please contact support." : {
-      "comment" : "Error message for blocked users\nWorkout generation error",
+      "comment" : "Backend error: account blocked\nError message for blocked users\nWorkout generation error",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -14299,7 +13689,15 @@
     },
     "Your body needs recovery. Prioritize light training or complete rest today." : {
       "comment" : "Message displayed in a recovery insight when the user's recovery score is below 80, advising them to prioritize light training or rest.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre corps a besoin de récupération. Privilégiez un entraînement léger ou un repos complet aujourd'hui."
+          }
+        }
+      }
     },
     "Your data is being refreshed with recent workouts." : {
       "comment" : "Indexation screen description - refresh",
@@ -14387,18 +13785,6 @@
         }
       }
     },
-    "Your oxygen saturation is lower than optimal. Ensure good ventilation, consider deep breathing exercises, and monitor for any respiratory symptoms." : {
-      "comment" : "Low SpO2 recommendation",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre saturation en oxygène est inférieure à l'optimum. Assurez une bonne ventilation, envisagez des exercices de respiration profonde et surveillez tout symptôme respiratoire."
-          }
-        }
-      }
-    },
     "Your past conversations will appear here" : {
       "comment" : "Empty state subtitle for conversation history",
       "extractionState" : "manual",
@@ -14439,14 +13825,13 @@
         }
       }
     },
-    "Your recovery score reflects how well your body has recovered from recent stress and training. It's calculated from multiple factors including HRV, resting heart rate, sleep quality, and oxygen saturation. A higher score indicates better readiness for intense physical activity." : {
-      "comment" : "Recovery score explanation",
-      "extractionState" : "stale",
+    "Your request contains content that cannot be processed for safety reasons. Please rephrase your question." : {
+      "comment" : "Error: content blocked by safety guardrails",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Votre score de récupération reflète la qualité de récupération de votre corps après le stress et l'entraînement récents. Il est calculé à partir de plusieurs facteurs, notamment la VFC, la fréquence cardiaque au repos, la qualité du sommeil et la saturation en oxygène. Un score plus élevé indique une meilleure disponibilité pour une activité physique intense."
+            "value" : "Votre demande contient du contenu qui ne peut pas être traité pour des raisons de sécurité. Veuillez reformuler votre question."
           }
         }
       }
@@ -14480,18 +13865,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Votre fréquence cardiaque au repos est plus basse que d'habitude, indiquant une bonne récupération cardiovasculaire."
-          }
-        }
-      }
-    },
-    "Your resting heart rate is lower than usual, indicating good cardiovascular recovery. Your body is well-rested." : {
-      "comment" : "Low RHR recommendation",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre fréquence cardiaque au repos est plus basse que d'habitude, indiquant une bonne récupération cardiovasculaire. Votre corps est bien reposé."
           }
         }
       }

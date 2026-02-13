@@ -43,6 +43,7 @@ struct ScoreExplanationSheet: View {
     private let sleepDurationHours: Double?
     private let sleepEfficiency: Double?
     private let cardiacLoadStatus: CardiacLoadStatus?
+    private let activityData: DailyActivityData?
 
     // Metric properties
     private let metricValue: Double
@@ -72,7 +73,8 @@ struct ScoreExplanationSheet: View {
         sleepEfficiency: Double? = nil,
         trendData: [TrendDataPoint]? = nil,
         cardiacLoadStatus: CardiacLoadStatus? = nil,
-        recoveryMetrics: RecoveryMetrics? = nil
+        recoveryMetrics: RecoveryMetrics? = nil,
+        activityData: DailyActivityData? = nil
     ) {
         self.mode = .score(scoreType)
         self.score = score
@@ -81,6 +83,7 @@ struct ScoreExplanationSheet: View {
         self.trendData = trendData
         self.cardiacLoadStatus = cardiacLoadStatus
         self.recoveryMetrics = recoveryMetrics
+        self.activityData = activityData
         self.metricValue = 0
         self.metricUnit = ""
         self.deviationStatus = nil
@@ -108,6 +111,7 @@ struct ScoreExplanationSheet: View {
         self.sleepEfficiency = nil
         self.trendData = nil
         self.cardiacLoadStatus = nil
+        self.activityData = nil
     }
 
     // MARK: - Body
@@ -183,6 +187,19 @@ struct ScoreExplanationSheet: View {
     private func scoreBody(_ scoreType: ScoreType) -> some View {
         VStack(spacing: 24) {
             scoreValueCard(scoreType)
+
+            if scoreType == .effort, let activity = activityData {
+                effortActivityCard(activity)
+            }
+
+            if scoreType == .sleep, let sleep = recoveryMetrics?.sleepData {
+                sleepDataCard(sleep)
+            }
+
+            if scoreType == .readiness, let metrics = recoveryMetrics {
+                readinessMetricsCard(metrics)
+            }
+
             aiInsightCard
 
             if let data = trendData, !data.isEmpty {
@@ -230,6 +247,198 @@ struct ScoreExplanationSheet: View {
             metricReferenceCard
         }
         .padding()
+    }
+
+    // MARK: - Effort Activity Card
+
+    private func effortActivityCard(_ activity: DailyActivityData) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Image(systemName: "figure.run")
+                    .foregroundStyle(Color.orange.gradient)
+
+                Text(String(localized: "Today's Activity", comment: "Effort activity card header"))
+                    .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
+
+                Spacer()
+            }
+
+            HealthMetricRow(
+                icon: "figure.walk",
+                iconColor: .green,
+                title: String(localized: "Steps", comment: "Steps metric label"),
+                value: String(format: "%.0f", activity.steps)
+            )
+
+            HealthMetricRow(
+                icon: "flame.fill",
+                iconColor: .orange,
+                title: String(localized: "Active Calories", comment: "Active calories metric label"),
+                value: String(format: "%.0f kcal", activity.activeCalories)
+            )
+
+            HealthMetricRow(
+                icon: "timer",
+                iconColor: .red,
+                title: String(localized: "Exercise Minutes", comment: "Exercise minutes metric label"),
+                value: String(format: "%.0f min", activity.exerciseMinutes)
+            )
+        }
+        .padding(20)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: - Sleep Data Card
+
+    private func sleepDataCard(_ sleep: SleepData) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Image(systemName: "moon.fill")
+                    .foregroundStyle(Color.indigo.gradient)
+
+                Text(String(localized: "Sleep Details", comment: "Sleep data card header"))
+                    .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
+
+                Spacer()
+            }
+
+            HealthMetricRow(
+                icon: "moon.fill",
+                iconColor: .indigo,
+                title: String(localized: "Sleep session", comment: "Label for time of sleep session"),
+                value: sleep.formattedSleepTime
+            )
+
+            HealthMetricRow(
+                icon: "bed.double.fill",
+                iconColor: .blue,
+                title: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
+                value: sleep.formattedTotalSleep
+            )
+
+            if let napDuration = sleep.formattedNapDuration {
+                HealthMetricRow(
+                    icon: "powersleep",
+                    iconColor: .orange,
+                    title: String(localized: "Naps", comment: "Label for nap duration"),
+                    value: napDuration
+                )
+            }
+
+            HealthMetricRow(
+                icon: "chart.bar.fill",
+                iconColor: .teal,
+                title: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
+                value: String(format: "%.0f%%", sleep.sleepEfficiency)
+            )
+
+            if let deep = sleep.deepSleepDuration,
+               let core = sleep.coreSleepDuration,
+               let rem = sleep.remSleepDuration {
+                Divider()
+                    .padding(.vertical, Spacing.xxs)
+
+                Text(String(localized: "Sleep stages", comment: "Section header for sleep stages breakdown"))
+                    .font(.subheadline)
+                    .foregroundStyle(Color.irTextSecondary)
+
+                SleepStageRow(
+                    stage: String(localized: "Deep", comment: "Deep sleep stage label"),
+                    duration: deep,
+                    color: .blue
+                )
+                SleepStageRow(
+                    stage: String(localized: "Light", comment: "Light sleep stage label"),
+                    duration: core,
+                    color: .cyan
+                )
+                SleepStageRow(
+                    stage: String(localized: "REM", comment: "REM sleep stage label"),
+                    duration: rem,
+                    color: .indigo
+                )
+            }
+        }
+        .padding(20)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: - Readiness Metrics Card
+
+    private func readinessMetricsCard(_ metrics: RecoveryMetrics) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Image(systemName: "heart.text.clipboard")
+                    .foregroundStyle(Color.purple.gradient)
+
+                Text(String(localized: "Today's Metrics", comment: "Readiness metrics card header"))
+                    .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
+
+                Spacer()
+            }
+
+            if let hrv = metrics.hrvAverage {
+                HealthMetricRow(
+                    icon: "waveform.path.ecg",
+                    iconColor: .blue,
+                    title: String(localized: "HRV", comment: "HRV metric label"),
+                    value: String(format: "%.0f ms", hrv)
+                )
+            }
+
+            if let rhr = metrics.restingHeartRate {
+                HealthMetricRow(
+                    icon: "heart.fill",
+                    iconColor: .red,
+                    title: String(localized: "Resting HR", comment: "Resting heart rate label"),
+                    value: String(format: "%.0f bpm", rhr)
+                )
+            }
+
+            if let respRate = metrics.respiratoryRate {
+                HealthMetricRow(
+                    icon: "lungs.fill",
+                    iconColor: .teal,
+                    title: String(localized: "Respiratory Rate", comment: "Respiratory rate label"),
+                    value: String(format: "%.1f rpm", respRate)
+                )
+            }
+
+            if let spo2 = metrics.oxygenSaturation {
+                HealthMetricRow(
+                    icon: "drop.fill",
+                    iconColor: .cyan,
+                    title: String(localized: "SpO2", comment: "Oxygen saturation label"),
+                    value: String(format: "%.0f%%", spo2)
+                )
+            }
+
+            if let sleep = metrics.sleepData {
+                Divider()
+
+                HealthMetricRow(
+                    icon: "bed.double.fill",
+                    iconColor: .indigo,
+                    title: String(localized: "Sleep", comment: "Sleep metric label"),
+                    value: sleep.formattedTotalSleep
+                )
+
+                HealthMetricRow(
+                    icon: "chart.bar.fill",
+                    iconColor: .green,
+                    title: String(localized: "Sleep Efficiency", comment: "Sleep efficiency label"),
+                    value: String(format: "%.0f%%", sleep.sleepEfficiency)
+                )
+            }
+        }
+        .padding(20)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
     // MARK: - Shared AI Insight Card

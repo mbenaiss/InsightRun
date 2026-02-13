@@ -82,20 +82,7 @@ class FoundationModelsService: ObservableObject {
 
     /// Get human-readable language name from locale
     private func getLanguageName(for locale: Locale) -> String {
-        switch locale.identifier {
-        case "fr_FR", "fr":
-            return "French"
-        case "es_ES", "es":
-            return "Spanish"
-        case "de_DE", "de":
-            return "German"
-        case "it_IT", "it":
-            return "Italian"
-        case "pt_PT", "pt":
-            return "Portuguese"
-        default:
-            return locale.localizedString(forLanguageCode: locale.language.languageCode?.identifier ?? "en") ?? "English"
-        }
+        locale.englishLanguageName
     }
 
     /// Generate locale-specific instructions following Apple's documentation
@@ -108,22 +95,7 @@ class FoundationModelsService: ObservableObject {
             // Use the EXACT phrase from Apple's training
             let localePhrase = "The person's locale is \(locale.identifier)."
 
-            // Map locale to language name
-            let languageName: String
-            switch locale.identifier {
-            case "fr_FR", "fr":
-                languageName = "French"
-            case "es_ES", "es":
-                languageName = "Spanish"
-            case "de_DE", "de":
-                languageName = "German"
-            case "it_IT", "it":
-                languageName = "Italian"
-            case "pt_PT", "pt":
-                languageName = "Portuguese"
-            default:
-                languageName = locale.localizedString(forLanguageCode: locale.language.languageCode?.identifier ?? "en") ?? "English"
-            }
+            let languageName = locale.englishLanguageName
 
             let languageInstruction = "You MUST respond in \(languageName) and be mindful of \(languageName) spelling, vocabulary, entities, and other cultural contexts."
 
@@ -158,12 +130,12 @@ class FoundationModelsService: ObservableObject {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty else {
             print("❌ FoundationModels: Empty prompt")
-            throw FoundationModelsError.inferenceError("Le prompt ne peut pas être vide")
+            throw FoundationModelsError.inferenceError(String(localized: "The prompt cannot be empty", comment: "Error when user submits empty prompt"))
         }
 
         guard trimmedPrompt.count >= 3 else {
             print("❌ FoundationModels: Prompt too short (\(trimmedPrompt.count) chars)")
-            throw FoundationModelsError.inferenceError("Le prompt doit contenir au moins 3 caractères")
+            throw FoundationModelsError.inferenceError(String(localized: "The prompt must contain at least 3 characters", comment: "Error when prompt is too short"))
         }
 
         // Wrap user's prompt with strong language instruction if not English
@@ -193,7 +165,7 @@ class FoundationModelsService: ObservableObject {
         let currentLocale = Locale.current
         guard model.supportsLocale(currentLocale) else {
             print("❌ FoundationModels: Locale \(currentLocale.identifier) not supported")
-            throw FoundationModelsError.inferenceError("La langue \(currentLocale.identifier) n'est pas encore supportée")
+            throw FoundationModelsError.inferenceError(String(localized: "Language \(currentLocale.identifier) is not yet supported", comment: "Error when locale is not supported"))
         }
 
         // Create new session for each request with locale
@@ -319,43 +291,43 @@ class FoundationModelsService: ObservableObject {
         switch error {
         case .assetsUnavailable:
             print("🔴 FoundationModels: Assets unavailable - Model assets may be deleted or downloading")
-            return "⏳ Le modèle Apple Intelligence n'est pas disponible. Vérifiez qu'Apple Intelligence est activé et que les modèles sont téléchargés."
+            return String(localized: "Apple Intelligence model is not available. Check that Apple Intelligence is enabled and models are downloaded.", comment: "Error: AI model assets unavailable")
 
         case .guardrailViolation:
             print("🛡️ FoundationModels: Guardrail violation - Content blocked by safety guardrails")
-            return "🛡️ Votre demande contient du contenu qui ne peut pas être traité pour des raisons de sécurité. Veuillez reformuler votre question."
+            return String(localized: "Your request contains content that cannot be processed for safety reasons. Please rephrase your question.", comment: "Error: content blocked by safety guardrails")
 
         case .refusal(_, _):
             print("🚫 FoundationModels: Refusal - Model refused the request")
-            return "🚫 Le modèle ne peut pas répondre à cette demande. Veuillez essayer une autre question."
+            return String(localized: "The model cannot respond to this request. Please try another question.", comment: "Error: model refused request")
 
         case .exceededContextWindowSize:
             print("📏 FoundationModels: Context window exceeded - Too much data in session")
-            return "📏 Trop de données dans la conversation. Veuillez démarrer une nouvelle session."
+            return String(localized: "Too much data in the conversation. Please start a new session.", comment: "Error: context window exceeded")
 
         case .rateLimited:
             print("⏱️ FoundationModels: Rate limited - Too many requests")
-            return "⏱️ Trop de requêtes. Veuillez patienter quelques instants avant de réessayer."
+            return String(localized: "Too many requests. Please wait a moment before trying again.", comment: "Error: rate limited")
 
         case .concurrentRequests:
             print("🔄 FoundationModels: Concurrent requests - Multiple requests at once")
-            return "🔄 Une requête est déjà en cours. Veuillez attendre qu'elle se termine."
+            return String(localized: "A request is already in progress. Please wait for it to finish.", comment: "Error: concurrent requests")
 
         case .decodingFailure:
             print("🔧 FoundationModels: Decoding failure - Failed to decode response")
-            return "🔧 Erreur de décodage de la réponse. Veuillez réessayer."
+            return String(localized: "Response decoding error. Please try again.", comment: "Error: decoding failure")
 
         case .unsupportedLanguageOrLocale:
             print("🌐 FoundationModels: Unsupported language/locale")
-            return "🌐 La langue ou locale n'est pas supportée par le modèle."
+            return String(localized: "The language or locale is not supported by the model.", comment: "Error: unsupported language")
 
         case .unsupportedGuide:
             print("⚠️ FoundationModels: Unsupported guide - \(error)")
-            return "⚠️ Format de génération non supporté: \(error.localizedDescription)"
+            return String(localized: "Unsupported generation format: \(error.localizedDescription)", comment: "Error: unsupported guide")
 
         @unknown default:
             print("❓ FoundationModels: Unknown error - \(error)")
-            return "❓ Erreur inconnue: \(error.localizedDescription)"
+            return String(localized: "Unknown error: \(error.localizedDescription)", comment: "Error: unknown")
         }
     }
 }
@@ -370,11 +342,11 @@ enum FoundationModelsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelNotAvailable:
-            return "Apple Foundation Model is not available on this device"
+            return String(localized: "Apple Foundation Model is not available on this device", comment: "Error: model not available")
         case .sessionNotCreated:
-            return "Failed to create language model session"
+            return String(localized: "Failed to create language model session", comment: "Error: session creation failed")
         case .inferenceError(let message):
-            return "Inference error: \(message)"
+            return String(localized: "Inference error: \(message)", comment: "Error: inference error with details")
         }
     }
 }

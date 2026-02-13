@@ -15,6 +15,7 @@ struct DashboardView: View {
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
     @ObservedObject private var trainingLoadService = TrainingLoadService.shared
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
     @State private var showSettings = false
@@ -25,6 +26,7 @@ struct DashboardView: View {
     @State private var currentPage = 1
     @State private var hasForwardPage = false
     @State private var currentNavID = UUID()
+    @State private var latestActivityData: DailyActivityData?
 
     // MARK: - Body
 
@@ -108,7 +110,8 @@ struct DashboardView: View {
                     sleepEfficiency: recoveryVM.recoveryMetrics?.sleepData?.sleepEfficiency,
                     trendData: trend,
                     cardiacLoadStatus: type == .cardiacLoad ? trainingLoadService.cardiacLoadStatus : nil,
-                    recoveryMetrics: recoveryVM.recoveryMetrics
+                    recoveryMetrics: recoveryVM.recoveryMetrics,
+                    activityData: type == .effort ? latestActivityData : nil
                 )
                 .environmentObject(revenueCatManager)
                 .presentationDetents([.large])
@@ -125,6 +128,21 @@ struct DashboardView: View {
 
                 if let recovery = recoveryVM.recoveryMetrics {
                     contextProvider.recoveryMetrics = recovery
+                }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                let today = Calendar.current.startOfDay(for: Date())
+                if recoveryVM.selectedDate != today {
+                    // Day changed while app was in background — full reset
+                    recoveryVM.selectedDate = today
+                    recoveryVM.metricsCache.removeAll()
+                    hasForwardPage = false
+                    currentPage = 1
+                    Task { await refreshAll() }
+                } else {
+                    // Same day — refresh coaching with latest data
+                    Task { await refreshCoaching() }
                 }
             }
         }
@@ -146,6 +164,28 @@ struct DashboardView: View {
 
         // Phase 2: Fetch readiness with full daily context
         let activityData = await HealthKitManager.shared.fetchDailyActivityData(for: selectedDate)
+        latestActivityData = activityData
+        await readinessVM.fetchDailyReadiness(
+            activityData: activityData,
+            effortScore: tls.dailyEffortScore,
+            cardiacLoadScore: tls.cardiacLoadScore,
+            cardiacLoadStatus: tls.cardiacLoadStatus
+        )
+    }
+
+    /// Refresh metrics with latest data (called on each foreground return)
+    private func refreshCoaching() async {
+        let tls = TrainingLoadService.shared
+        let selectedDate = recoveryVM.selectedDate
+
+        // Reload recovery metrics and effort in parallel
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await recoveryVM.loadRecoveryMetrics() }
+            group.addTask { await tls.analyzeDailyEffort(for: selectedDate) }
+        }
+
+        let activityData = await HealthKitManager.shared.fetchDailyActivityData(for: selectedDate)
+        latestActivityData = activityData
         await readinessVM.fetchDailyReadiness(
             activityData: activityData,
             effortScore: tls.dailyEffortScore,
@@ -376,6 +416,10 @@ struct DashboardView: View {
     }
 
     private var coachingRecommendation: String {
+        // Wait for today's data before showing coaching
+        guard recoveryVM.isToday else {
+            return String(localized: "Loading your coaching insights...", comment: "Coaching loading placeholder")
+        }
         if !readinessVM.recommendation.isEmpty {
             return readinessVM.recommendation
         }

@@ -175,38 +175,38 @@ class RecoveryCoachingService {
         let insight = analyzeRecovery(metrics: metrics)
 
         var context = """
-        📊 État de Récupération:
-        - Score de Préparation: \(insight.readinessScore)/100 \(insight.status.emoji)
-        - Statut: \(insight.status)
+        \(String(localized: "Recovery Status", comment: "Recovery context header")):
+        - \(String(localized: "Readiness Score", comment: "Recovery context: readiness score label")): \(insight.readinessScore)/100 \(insight.status.emoji)
+        - \(String(localized: "Status", comment: "Recovery context: status label")): \(insight.status)
 
         """
 
         if let restingHR = metrics.restingHeartRate {
-            context += "- FC au repos: \(Int(restingHR)) bpm\n"
+            context += "- \(String(localized: "Resting HR", comment: "Recovery context: resting heart rate label")): \(Int(restingHR)) bpm\n"
         }
 
         if let hrv = metrics.hrvAverage {
-            context += "- HRV (SDNN) moyenne: \(Int(hrv)) ms"
+            context += "- \(String(localized: "HRV (SDNN) average", comment: "Recovery context: HRV average label")): \(Int(hrv)) ms"
             if let hrvMin = metrics.hrvMin, let hrvMax = metrics.hrvMax {
-                context += " (plage: \(Int(hrvMin))-\(Int(hrvMax)) ms)"
+                context += " (\(String(localized: "range", comment: "Recovery context: range label")): \(Int(hrvMin))-\(Int(hrvMax)) ms)"
             }
             context += "\n"
         }
 
         if let walkingHR = metrics.walkingHeartRate {
-            context += "- FC de marche: \(Int(walkingHR)) bpm\n"
+            context += "- \(String(localized: "Walking HR", comment: "Recovery context: walking heart rate label")): \(Int(walkingHR)) bpm\n"
         }
 
         if let respRate = metrics.respiratoryRate {
-            context += "- Fréquence respiratoire: \(Int(respRate)) respirations/min\n"
+            context += "- \(String(localized: "Respiratory rate", comment: "Recovery context: respiratory rate label")): \(Int(respRate)) \(String(localized: "breaths/min", comment: "Recovery context: respiratory rate unit"))\n"
         }
 
         if let sleep = metrics.sleepData {
             let hours = sleep.totalSleepDuration / 3600
-            context += "- Sommeil: \(String(format: "%.1fh", hours)) (efficacité: \(Int(sleep.sleepEfficiency))%)\n"
+            context += "- \(String(localized: "Sleep", comment: "Recovery context: sleep label")): \(String(format: "%.1fh", hours)) (\(String(localized: "Efficiency", comment: "Recovery context: efficiency label")): \(Int(sleep.sleepEfficiency))%)\n"
         }
 
-        context += "\n💡 Recommandations:\n"
+        context += "\n\(String(localized: "Recommendations", comment: "Recovery context: recommendations header")):\n"
         for rec in insight.recommendations {
             context += "- \(rec)\n"
         }

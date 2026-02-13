@@ -222,18 +222,6 @@ extension Locale {
     /// Returns the English name of the user's language (e.g. "French", "Spanish")
     var englishLanguageName: String {
         let code = language.languageCode?.identifier ?? "en"
-        switch code {
-        case "fr": return "French"
-        case "es": return "Spanish"
-        case "de": return "German"
-        case "it": return "Italian"
-        case "pt": return "Portuguese"
-        case "nl": return "Dutch"
-        case "ja": return "Japanese"
-        case "zh": return "Chinese"
-        case "ko": return "Korean"
-        case "ar": return "Arabic"
-        default: return "English"
-        }
+        return Locale(identifier: "en").localizedString(forLanguageCode: code) ?? "English"
     }
 }

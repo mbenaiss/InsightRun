@@ -13,9 +13,14 @@ final class DailyMetricsCache {
 
     private let defaults = UserDefaults.standard
     private let sleepKey = "com.insightrun.dailySleepCache"
-    private let readinessKey = "com.insightrun.dailyReadinessCache"
+    private let readinessKeyPrefix = "com.insightrun.dailyReadinessCache"
 
     private init() {}
+
+    private var readinessKey: String {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        return "\(readinessKeyPrefix)_\(lang)"
+    }
 
     // MARK: - Cached Models
 

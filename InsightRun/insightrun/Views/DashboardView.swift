@@ -205,12 +205,14 @@ struct DashboardView: View {
                 recoveryHeader
                     .padding(.horizontal)
 
-                if revenueCatManager.hasAIAccess {
-                    coachingSection
-                        .padding(.horizontal)
-                } else {
-                    subscriptionCTACard
-                        .padding(.horizontal)
+                if recoveryVM.isToday {
+                    if revenueCatManager.hasAIAccess {
+                        coachingSection
+                            .padding(.horizontal)
+                    } else {
+                        subscriptionCTACard
+                            .padding(.horizontal)
+                    }
                 }
 
                 weeklyActivitySection
@@ -416,10 +418,6 @@ struct DashboardView: View {
     }
 
     private var coachingRecommendation: String {
-        // Wait for today's data before showing coaching
-        guard recoveryVM.isToday else {
-            return String(localized: "Loading your coaching insights...", comment: "Coaching loading placeholder")
-        }
         if !readinessVM.recommendation.isEmpty {
             return readinessVM.recommendation
         }

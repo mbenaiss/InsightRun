@@ -24,20 +24,22 @@ class DailyReadinessViewModel: ObservableObject {
 
     // MARK: - Fetch Daily Readiness
 
-    /// Fetch today's readiness score from backend (cached for the day after first call)
+    /// Fetch today's readiness score from backend
     /// - Parameters:
     ///   - activityData: Daily steps/calories/exercise from HealthKit
     ///   - effortScore: Computed daily effort score (0-100)
     ///   - cardiacLoadScore: Current cardiac load score (0-20)
     ///   - cardiacLoadStatus: Current cardiac load trend status
+    ///   - forceRefresh: Skip cache and fetch fresh analysis from backend
     func fetchDailyReadiness(
         activityData: DailyActivityData? = nil,
         effortScore: Int = 0,
         cardiacLoadScore: Int? = nil,
-        cardiacLoadStatus: CardiacLoadStatus = .detraining
+        cardiacLoadStatus: CardiacLoadStatus = .detraining,
+        forceRefresh: Bool = false
     ) async {
-        // Return cached readiness if available for today
-        if let cached = dailyCache.getCachedReadiness() {
+        // Return cached readiness if available for today (unless forced)
+        if !forceRefresh, let cached = dailyCache.getCachedReadiness() {
             readinessScore = cached.score
             status = ReadinessStatus(from: cached.status)
             recommendation = cached.recommendation

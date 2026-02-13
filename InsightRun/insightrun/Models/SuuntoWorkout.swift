@@ -83,13 +83,13 @@ enum SuuntoParserError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidFITFile(let detail):
-            return "Invalid FIT file: \(detail). Ensure the file was exported from the Suunto app."
+            return String(localized: "Invalid FIT file: \(detail). Ensure the file was exported from the Suunto app.", comment: "Suunto error: invalid FIT file")
         case .invalidDate(let dateString):
-            return "Could not parse workout date '\(dateString)'. Expected ISO8601 format."
+            return String(localized: "Could not parse workout date '\(dateString)'. Expected ISO8601 format.", comment: "Suunto error: invalid date")
         case .missingRequiredFields(let fields):
-            return "Missing required fields: \(fields.joined(separator: ", "))"
+            return String(localized: "Missing required fields: \(fields.joined(separator: ", "))", comment: "Suunto error: missing fields")
         case .fileReadFailed(let path, let error):
-            return "Could not read file '\(path)': \(error.localizedDescription)"
+            return String(localized: "Could not read file '\(path)': \(error.localizedDescription)", comment: "Suunto error: file read failed")
         }
     }
 }
@@ -132,7 +132,7 @@ struct SuuntoParser {
         guard let fitFile else {
             throw SuuntoParserError.fileReadFailed(path: url.lastPathComponent, underlying: NSError(
                 domain: "SuuntoParser", code: 0,
-                userInfo: [NSLocalizedDescriptionKey: "Could not parse FIT file"]
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "Could not parse FIT file", comment: "Suunto error: FIT parse failure")]
             ))
         }
         return try convert(fitFile)

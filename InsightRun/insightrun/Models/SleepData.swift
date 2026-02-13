@@ -72,13 +72,13 @@ struct SleepData: Identifiable {
     var qualityDescription: String {
         switch qualityScore {
         case 80...100:
-            return "Excellent"
+            return String(localized: "Excellent", comment: "Sleep quality: excellent (80-100)")
         case 60..<80:
-            return "Bon"
+            return String(localized: "Good", comment: "Sleep quality: good (60-79)")
         case 40..<60:
-            return "Moyen"
+            return String(localized: "Average", comment: "Sleep quality: average (40-59)")
         default:
-            return "Insuffisant"
+            return String(localized: "Insufficient", comment: "Sleep quality: insufficient (<40)")
         }
     }
 
@@ -100,7 +100,7 @@ struct SleepData: Identifiable {
     // Format sleep session time range
     var formattedSleepTime: String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale.current
         formatter.dateFormat = "HH:mm"
 
         let startTime = formatter.string(from: sleepStart)
@@ -140,13 +140,13 @@ enum SleepStageType: String {
         }
     }
 
-    var description: String {
+    var localizedDescription: String {
         switch self {
-        case .awake: return "Éveillé"
-        case .rem: return "Sommeil paradoxal"
-        case .core: return "Sommeil léger"
-        case .deep: return "Sommeil profond"
-        case .inBed: return "Au lit"
+        case .awake: return String(localized: "Awake", comment: "Sleep stage: awake")
+        case .rem: return String(localized: "REM Sleep", comment: "Sleep stage: REM/paradoxical sleep")
+        case .core: return String(localized: "Light Sleep", comment: "Sleep stage: core/light sleep")
+        case .deep: return String(localized: "Deep Sleep", comment: "Sleep stage: deep sleep")
+        case .inBed: return String(localized: "In Bed", comment: "Sleep stage: in bed")
         }
     }
 }

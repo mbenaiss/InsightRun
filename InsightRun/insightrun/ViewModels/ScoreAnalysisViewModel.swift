@@ -43,7 +43,8 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     private static func cacheKey(for identifier: String) -> String {
         let dateString = DateFormatter.cacheDateFormatter.string(from: Date())
-        return "\(cachePrefix)\(identifier)_\(dateString)"
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        return "\(cachePrefix)\(identifier)_\(lang)_\(dateString)"
     }
 
     private static func cachedAnalysis(for identifier: String) -> String? {
@@ -141,43 +142,50 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     // MARK: - Prompts
 
+    private var userLanguageName: String {
+        Locale.current.englishLanguageName
+    }
+
     private func buildMetricPrompt(metricType: MetricType, value: Double, unit: String) -> String {
         let formattedValue = String(format: "%.1f", value)
+        let lang = userLanguageName
 
         switch metricType {
         case .hrv:
-            return String(localized: "My HRV is \(formattedValue) ms. Briefly analyze my heart rate variability and what it means for my recovery. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for HRV analysis")
+            return "My HRV is \(formattedValue) ms. Briefly analyze my heart rate variability and what it means for my recovery. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         case .restingHeartRate:
-            return String(localized: "My resting heart rate is \(formattedValue) bpm. Briefly analyze what this means for my cardiovascular health. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for resting heart rate analysis")
+            return "My resting heart rate is \(formattedValue) bpm. Briefly analyze what this means for my cardiovascular health. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         case .respiratoryRate:
-            return String(localized: "My respiratory rate is \(formattedValue) rpm. Briefly analyze what this means for my recovery state. Give me 1 tip. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for respiratory rate analysis")
+            return "My respiratory rate is \(formattedValue) rpm. Briefly analyze what this means for my recovery state. Give me 1 tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         case .oxygenSaturation:
-            return String(localized: "My oxygen saturation is \(formattedValue)%. Briefly analyze my blood oxygenation level. Give me 1 tip. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for oxygen saturation analysis")
+            return "My oxygen saturation is \(formattedValue)%. Briefly analyze my blood oxygenation level. Give me 1 tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         default:
-            return String(localized: "Analyze this health metric: \(formattedValue) \(unit). Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for generic metric analysis")
+            return "Analyze this health metric: \(formattedValue) \(unit). Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
         }
     }
 
     private func buildPrompt(scoreType: ScoreType, score: Int, trendData: [TrendDataPoint]? = nil) -> String {
+        let lang = userLanguageName
+
         switch scoreType {
         case .effort:
-            return String(localized: "My daily effort score is \(score)% (composite: steps 30%, active calories 35%, exercise minutes 35%, each vs personal Apple Ring goals, capped at 100%). Briefly analyze my daily activity level and what this score means. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for effort score analysis")
+            return "My daily effort score is \(score)% (composite: steps 30%, active calories 35%, exercise minutes 35%, each vs personal Apple Ring goals, capped at 100%). Briefly analyze my daily activity level and what this score means. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         case .sleep:
-            return String(localized: "My sleep score is \(score)%. Briefly analyze my sleep quality (duration and efficiency). Give me 1 tip to improve my sleep. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for sleep score analysis")
+            return "My sleep score is \(score)%. Briefly analyze my sleep quality (duration and efficiency). Give me 1 tip to improve my sleep. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         case .readiness:
-            return String(localized: "My readiness score is \(score)%. Briefly analyze my overall recovery and training preparedness. Give me 1 tip for today. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for readiness score analysis")
+            return "My readiness score is \(score)%. Briefly analyze my overall recovery and training preparedness. Give me 1 tip for today. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         case .cardiacLoad:
             if let trendSummary = formatTrendSummary(trendData) {
-                return String(localized: "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Here is my 14-day trend: [\(trendSummary)]. Analyze the trend evolution and current load. Is my training load progressing well? Give me 1 actionable tip on load management. Reply in 3-4 sentences max, no markdown.", comment: "AI prompt for cardiac load analysis with trend")
+                return "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Here is my 14-day trend: [\(trendSummary)]. Analyze the trend evolution and current load. Is my training load progressing well? Give me 1 actionable tip on load management. Reply in 3-4 sentences max, no markdown. You MUST reply in \(lang)."
             }
-            return String(localized: "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Briefly analyze this cardiovascular load. Give me 1 tip on load management. Reply in 2-3 sentences max, no markdown.", comment: "AI prompt for cardiac load analysis")
+            return "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Briefly analyze this cardiovascular load. Give me 1 tip on load management. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
         }
     }
 
@@ -206,4 +214,14 @@ private extension DateFormatter {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+}
+
+// MARK: - Locale Extension
+
+extension Locale {
+    /// Returns the English name of the user's language (e.g. "French", "Spanish")
+    var englishLanguageName: String {
+        let code = language.languageCode?.identifier ?? "en"
+        return Locale(identifier: "en").localizedString(forLanguageCode: code) ?? "English"
+    }
 }

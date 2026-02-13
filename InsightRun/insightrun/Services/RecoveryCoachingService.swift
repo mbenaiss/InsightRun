@@ -175,38 +175,38 @@ class RecoveryCoachingService {
         let insight = analyzeRecovery(metrics: metrics)
 
         var context = """
-        📊 État de Récupération:
-        - Score de Préparation: \(insight.readinessScore)/100 \(insight.status.emoji)
-        - Statut: \(insight.status)
+        Recovery Status:
+        - Readiness Score: \(insight.readinessScore)/100 \(insight.status.emoji)
+        - Status: \(insight.status)
 
         """
 
         if let restingHR = metrics.restingHeartRate {
-            context += "- FC au repos: \(Int(restingHR)) bpm\n"
+            context += "- Resting HR: \(Int(restingHR)) bpm\n"
         }
 
         if let hrv = metrics.hrvAverage {
-            context += "- HRV (SDNN) moyenne: \(Int(hrv)) ms"
+            context += "- HRV (SDNN) average: \(Int(hrv)) ms"
             if let hrvMin = metrics.hrvMin, let hrvMax = metrics.hrvMax {
-                context += " (plage: \(Int(hrvMin))-\(Int(hrvMax)) ms)"
+                context += " (range: \(Int(hrvMin))-\(Int(hrvMax)) ms)"
             }
             context += "\n"
         }
 
         if let walkingHR = metrics.walkingHeartRate {
-            context += "- FC de marche: \(Int(walkingHR)) bpm\n"
+            context += "- Walking HR: \(Int(walkingHR)) bpm\n"
         }
 
         if let respRate = metrics.respiratoryRate {
-            context += "- Fréquence respiratoire: \(Int(respRate)) respirations/min\n"
+            context += "- Respiratory rate: \(Int(respRate)) breaths/min\n"
         }
 
         if let sleep = metrics.sleepData {
             let hours = sleep.totalSleepDuration / 3600
-            context += "- Sommeil: \(String(format: "%.1fh", hours)) (efficacité: \(Int(sleep.sleepEfficiency))%)\n"
+            context += "- Sleep: \(String(format: "%.1fh", hours)) (Efficiency: \(Int(sleep.sleepEfficiency))%)\n"
         }
 
-        context += "\n💡 Recommandations:\n"
+        context += "\nRecommendations:\n"
         for rec in insight.recommendations {
             context += "- \(rec)\n"
         }

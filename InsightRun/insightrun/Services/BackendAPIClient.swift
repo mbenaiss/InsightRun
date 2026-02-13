@@ -596,17 +596,17 @@ enum BackendError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unauthorized:
-            return "Unauthorized - Invalid app key"
+            return String(localized: "Unauthorized - Invalid app key", comment: "Backend error: unauthorized")
         case .blocked:
-            return "Your account has been blocked. Please contact support."
+            return String(localized: "Your account has been blocked. Please contact support.", comment: "Backend error: account blocked")
         case .rateLimitExceeded:
-            return "Rate limit exceeded. Please try again later."
+            return String(localized: "Rate limit exceeded. Please try again later.", comment: "Backend error: rate limit")
         case .serverError:
-            return "Server error. Please try again."
+            return String(localized: "Server error. Please try again.", comment: "Backend error: server error")
         case .invalidResponse:
-            return "Invalid response from server"
+            return String(localized: "Invalid response from server", comment: "Backend error: invalid response")
         case .unknownError(let code):
-            return "Unknown error (HTTP \(code))"
+            return String(localized: "Unknown error (HTTP \(code))", comment: "Backend error: unknown HTTP error")
         }
     }
 }

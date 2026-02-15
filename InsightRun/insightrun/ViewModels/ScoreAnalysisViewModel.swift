@@ -18,6 +18,11 @@ class ScoreAnalysisViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     private static let cachePrefix = "ai_analysis_"
+    #if DEBUG
+    static var defaults: UserDefaults = .standard
+    #else
+    static let defaults: UserDefaults = .standard
+    #endif
 
     init() {
         aiService.$streamedResponse
@@ -48,19 +53,19 @@ class ScoreAnalysisViewModel: ObservableObject {
     }
 
     private static func cachedAnalysis(for identifier: String) -> String? {
-        UserDefaults.standard.string(forKey: cacheKey(for: identifier))
+        Self.defaults.string(forKey: cacheKey(for: identifier))
     }
 
     private static func saveAnalysis(_ text: String, for identifier: String) {
         let key = cacheKey(for: identifier)
-        UserDefaults.standard.set(text, forKey: key)
+        Self.defaults.set(text, forKey: key)
         cleanOldCache(currentKey: key, identifier: identifier)
     }
 
     private static func cleanOldCache(currentKey: String, identifier: String) {
         let prefix = "\(cachePrefix)\(identifier)_"
-        for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key != currentKey {
-            UserDefaults.standard.removeObject(forKey: key)
+        for key in Self.defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key != currentKey {
+            Self.defaults.removeObject(forKey: key)
         }
     }
 
@@ -81,10 +86,12 @@ class ScoreAnalysisViewModel: ObservableObject {
         analysisText = nil
 
         let prompt = buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
+        let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
 
         await aiService.askQuestion(
             question: prompt,
-            mode: .recoveryCoaching(recoveryMetrics)
+            mode: .recoveryCoaching(recoveryMetrics),
+            language: userLanguage
         )
 
         var attempts = 0
@@ -119,10 +126,12 @@ class ScoreAnalysisViewModel: ObservableObject {
         analysisText = nil
 
         let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit)
+        let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
 
         await aiService.askQuestion(
             question: prompt,
-            mode: .recoveryCoaching(recoveryMetrics)
+            mode: .recoveryCoaching(recoveryMetrics),
+            language: userLanguage
         )
 
         var attempts = 0
@@ -204,6 +213,34 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         return entries.joined(separator: ", ")
     }
+
+    // MARK: - Test Helpers
+
+    #if DEBUG
+    func testCacheKey(for identifier: String) -> String {
+        Self.cacheKey(for: identifier)
+    }
+
+    func testCachedAnalysis(for identifier: String) -> String? {
+        Self.cachedAnalysis(for: identifier)
+    }
+
+    func testSaveAnalysis(_ text: String, for identifier: String) {
+        Self.saveAnalysis(text, for: identifier)
+    }
+
+    func testBuildPrompt(scoreType: ScoreType, score: Int, trendData: [TrendDataPoint]? = nil) -> String {
+        buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
+    }
+
+    func testBuildMetricPrompt(metricType: MetricType, value: Double, unit: String) -> String {
+        buildMetricPrompt(metricType: metricType, value: value, unit: unit)
+    }
+
+    func testFormatTrendSummary(_ trendData: [TrendDataPoint]?) -> String? {
+        formatTrendSummary(trendData)
+    }
+    #endif
 }
 
 // MARK: - DateFormatter Extension

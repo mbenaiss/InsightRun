@@ -19,6 +19,8 @@ struct WorkoutListView: View {
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
     @ObservedObject private var stravaAuth = StravaAuthService.shared
+    @ObservedObject private var notificationRouter = NotificationRouter.shared
+    @State private var navigationPath = NavigationPath()
 
     // Use unified workouts if Strava is enabled and available (HealthKit + Strava), fallback to HealthKit only
     private var viewModel: WorkoutListViewModel { healthKitViewModel }
@@ -89,7 +91,7 @@ struct WorkoutListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             mainContent
                 .navigationTitle(String(localized: "Workouts", comment: "Main list screen title"))
                 .navigationBarTitleDisplayMode(.large)
@@ -138,6 +140,18 @@ struct WorkoutListView: View {
                     }
                     updateContextProvider()
                 }
+                .onChange(of: notificationRouter.pendingWorkoutUUID) { _, uuid in
+                    guard let uuid else { return }
+                    navigateToWorkout(uuid: uuid)
+                }
+                .onChange(of: displayWorkouts) { _, _ in
+                    if let uuid = notificationRouter.pendingWorkoutUUID {
+                        navigateToWorkout(uuid: uuid)
+                    }
+                }
+                .navigationDestination(for: WorkoutModel.self) { workout in
+                    WorkoutDetailView(workout: workout)
+                }
         }
         .fullScreenCover(isPresented: $showInitialPaywall) {
             SubscriptionPaywallView(isInitialFlow: true)
@@ -154,6 +168,15 @@ struct WorkoutListView: View {
         // Get last 10 workouts for AI context
         let last10 = Array(displayWorkouts.prefix(10))
         contextProvider.recentWorkouts = last10
+    }
+
+    private func navigateToWorkout(uuid: String) {
+        guard let targetUUID = UUID(uuidString: uuid),
+              let workout = displayWorkouts.first(where: { $0.id == targetUUID }) else {
+            return
+        }
+        notificationRouter.pendingWorkoutUUID = nil
+        navigationPath.append(workout)
     }
 
     // MARK: - Authorization View
@@ -432,7 +455,7 @@ struct WorkoutListView: View {
 
                         // Workouts in this month
                         ForEach(groupWorkouts) { workout in
-                            NavigationLink(destination: WorkoutDetailView(workout: workout)) {
+                            NavigationLink(value: workout) {
                                 WorkoutRowView(workout: workout)
                             }
                             .buttonStyle(.plain)

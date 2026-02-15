@@ -121,7 +121,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return Locale(identifier: languageCode)
     }
 
-    func askQuestion(question: String, mode: AIAssistantMode) async {
+    func askQuestion(question: String, mode: AIAssistantMode, language: String? = nil) async {
         // Check AI consent (Apple 5.1.2(i) compliance)
         guard await MainActor.run(body: { ConsentService.shared.hasConsentedToAIDataSharing }) else {
             await MainActor.run {
@@ -150,14 +150,14 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         print("🎯 WorkoutAIService: Using requestType: \(requestType.rawValue) → Backend will select appropriate model")
 
         // Backend builds the full prompt from structured data and selects the model
-        await handleRemoteModelInference(question: question, requestType: requestType, mode: mode)
+        await handleRemoteModelInference(question: question, requestType: requestType, mode: mode, language: language)
     }
 
     // MARK: - Remote Model Inference
 
-    private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode) async {
+    private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode, language: String? = nil) async {
         do {
-            let payload = await buildAgentPayload(question: question, mode: mode)
+            let payload = await buildAgentPayload(question: question, mode: mode, languageOverride: language)
             let stream = try await backendClient.agentChatStream(payload: payload)
 
             for try await event in stream {
@@ -228,9 +228,9 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return supportedLanguages.contains(preferredLanguage) ? preferredLanguage : "en"
     }
 
-    private func buildAgentPayload(question: String, mode: AIAssistantMode) async -> AgentChatRequest {
+    private func buildAgentPayload(question: String, mode: AIAssistantMode, languageOverride: String? = nil) async -> AgentChatRequest {
         let chatPayload = await buildChatPayload(question: question, requestType: .complex, mode: mode)
-        let detectedLanguage = detectLanguage(from: question)
+        let detectedLanguage = languageOverride ?? detectLanguage(from: question)
 
         return AgentChatRequest(
             userQuestion: question,

@@ -73,8 +73,12 @@ class WorkoutDetailViewModel: ObservableObject {
         // Retry if metrics are incomplete (e.g. opened from notification before HealthKit sync)
         if !isStravaWorkout && metricsIncomplete && retryCount < maxRetries {
             retryCount += 1
-            try? await Task.sleep(for: .seconds(10))
-            await loadMetrics()
+            do {
+                try await Task.sleep(for: .seconds(10))
+                await loadMetrics()
+            } catch {
+                return
+            }
         }
     }
 

@@ -128,8 +128,8 @@ final class DailyMetricsCache {
 
     func getHistoricalReadinessScore(for date: Date) -> Int? {
         let key = Self.historicalReadinessPrefix + Self.dateFormatter.string(from: date)
-        let value = defaults.integer(forKey: key)
-        return value > 0 ? value : nil
+        guard defaults.object(forKey: key) != nil else { return nil }
+        return defaults.integer(forKey: key)
     }
 
     // MARK: - Conversion

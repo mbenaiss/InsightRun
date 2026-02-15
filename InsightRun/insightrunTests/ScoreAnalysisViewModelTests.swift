@@ -260,14 +260,14 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         XCTAssertNil(score, "Should return nil for dates with no stored score")
     }
 
-    func testGetHistoricalReadinessScoreReturnsNilForZero() {
+    func testGetHistoricalReadinessScoreReturnsZeroWhenExplicitlyStored() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let key = "readiness_score_\(formatter.string(from: Date()))"
         testDefaults.set(0, forKey: key)
 
         let score = testCache.getHistoricalReadinessScore(for: Date())
-        XCTAssertNil(score, "Should return nil when stored score is 0")
+        XCTAssertEqual(score, 0, "Should return 0 when explicitly stored")
     }
 }
 
@@ -385,5 +385,100 @@ final class MetricTrendDataServiceTests: XCTestCase {
         _ = await service.readinessTrend(days: 7, metricsCache: metricsCache)
 
         XCTAssertEqual(service.testCacheCount, 0, "Empty result should not be cached")
+    }
+
+    // MARK: - Cache Expiration Tests
+
+    func testExpiredCacheIsCleanedOnAccess() async {
+        let oldTimestamp = Date().addingTimeInterval(-7200) // 2 hours ago
+        service.testSetCache(key: "old_key", data: [TrendDataPoint(date: Date(), value: 1)], timestamp: oldTimestamp)
+        XCTAssertEqual(service.testCacheCount, 1)
+
+        let metricsCache = DailyMetricsCache.createForTesting(defaults: testDefaults)
+        _ = await service.readinessTrend(days: 7, metricsCache: metricsCache)
+
+        XCTAssertNil(service.testGetCachedData(key: "old_key"), "Expired entry should be cleaned")
+    }
+
+    func testFreshCacheIsNotCleaned() async {
+        let freshTimestamp = Date().addingTimeInterval(-1800) // 30 min ago
+        service.testSetCache(key: "fresh_key", data: [TrendDataPoint(date: Date(), value: 99)], timestamp: freshTimestamp)
+
+        let metricsCache = DailyMetricsCache.createForTesting(defaults: testDefaults)
+        _ = await service.readinessTrend(days: 7, metricsCache: metricsCache)
+
+        XCTAssertNotNil(service.testGetCachedData(key: "fresh_key"), "Fresh entry should not be cleaned")
+        XCTAssertEqual(service.testGetCachedData(key: "fresh_key")?.first?.value, 99)
+    }
+
+    func testMixedCacheOnlyExpiresOld() async {
+        let oldTimestamp = Date().addingTimeInterval(-7200)
+        let freshTimestamp = Date().addingTimeInterval(-600)
+
+        service.testSetCache(key: "old", data: [TrendDataPoint(date: Date(), value: 1)], timestamp: oldTimestamp)
+        service.testSetCache(key: "fresh", data: [TrendDataPoint(date: Date(), value: 2)], timestamp: freshTimestamp)
+        XCTAssertEqual(service.testCacheCount, 2)
+
+        let metricsCache = DailyMetricsCache.createForTesting(defaults: testDefaults)
+        _ = await service.readinessTrend(days: 7, metricsCache: metricsCache)
+
+        XCTAssertNil(service.testGetCachedData(key: "old"), "Expired entry should be removed")
+        XCTAssertNotNil(service.testGetCachedData(key: "fresh"), "Fresh entry should be kept")
+    }
+}
+
+// MARK: - DailyMetricsCache Historical Score Tests
+
+@MainActor
+final class DailyMetricsCacheHistoricalTests: XCTestCase {
+
+    private static let testSuiteName = "com.insightrun.cachescoretest"
+    private var testDefaults: UserDefaults!
+    private var testCache: DailyMetricsCache!
+
+    override func setUp() {
+        super.setUp()
+        testDefaults = UserDefaults(suiteName: Self.testSuiteName)!
+        testCache = DailyMetricsCache.createForTesting(defaults: testDefaults)
+    }
+
+    override func tearDown() {
+        testDefaults.removePersistentDomain(forName: Self.testSuiteName)
+        testDefaults = nil
+        testCache = nil
+        super.tearDown()
+    }
+
+    func testZeroScoreIsReturnedWhenExplicitlyStored() {
+        testCache.cacheReadiness(score: 0, status: "rest", recommendation: "Take a break", workoutType: "none")
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let key = "readiness_score_\(formatter.string(from: Date()))"
+
+        XCTAssertNotNil(testDefaults.object(forKey: key), "Key should exist in UserDefaults")
+        let score = testCache.getHistoricalReadinessScore(for: Date())
+        XCTAssertEqual(score, 0, "Score of 0 should be returned when explicitly stored")
+    }
+
+    func testMissingKeyReturnsNil() {
+        let farFuture = Calendar.current.date(byAdding: .year, value: 10, to: Date())!
+        let score = testCache.getHistoricalReadinessScore(for: farFuture)
+        XCTAssertNil(score, "Missing key should return nil")
+    }
+
+    func testMultipleDaysStoreIndependently() {
+        let calendar = Calendar.current
+        let today = Date()
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        testDefaults.set(80, forKey: "readiness_score_\(formatter.string(from: today))")
+        testDefaults.set(65, forKey: "readiness_score_\(formatter.string(from: yesterday))")
+
+        XCTAssertEqual(testCache.getHistoricalReadinessScore(for: today), 80)
+        XCTAssertEqual(testCache.getHistoricalReadinessScore(for: yesterday), 65)
     }
 }

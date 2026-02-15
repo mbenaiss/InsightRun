@@ -44,7 +44,10 @@ extension NotificationRouter: UNUserNotificationCenterDelegate {
                 pendingTab = 1 // Workouts tab
             case "WORKOUT_SYNC":
                 pendingTab = 1
-                pendingWorkoutUUID = response.notification.request.content.userInfo["workoutUUID"] as? String
+                if let uuidString = response.notification.request.content.userInfo["workoutUUID"] as? String,
+                   UUID(uuidString: uuidString) != nil {
+                    pendingWorkoutUUID = uuidString
+                }
             case "WEEKLY_SUMMARY":
                 pendingTab = 0 // Dashboard
                 showWeeklySummary = true

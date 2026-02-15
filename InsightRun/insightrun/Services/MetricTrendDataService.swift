@@ -10,12 +10,30 @@ import HealthKit
 final class MetricTrendDataService {
     static let shared = MetricTrendDataService()
 
+    private enum Constants {
+        static let cacheDurationSeconds: TimeInterval = 3600
+        static let defaultActiveCaloriesGoal: Double = 400
+        static let defaultExerciseMinutesGoal: Double = 30
+        static let defaultStepsGoal: Double = 10_000
+        static let stepsWeight: Double = 0.30
+        static let caloriesWeight: Double = 0.35
+        static let exerciseWeight: Double = 0.35
+        static let maxScore: Int = 100
+    }
+
     private var cache: [String: (data: [TrendDataPoint], timestamp: Date)] = [:]
-    private let cacheDuration: TimeInterval = 3600
+    private let cacheDuration: TimeInterval = Constants.cacheDurationSeconds
 
     private init() {}
 
+    private func cleanExpiredCache() {
+        cache = cache.filter { _, entry in
+            Date().timeIntervalSince(entry.timestamp) < cacheDuration
+        }
+    }
+
     func metricTrend(for metricType: MetricType, days: Int = 7) async -> [TrendDataPoint] {
+        cleanExpiredCache()
         let cacheKey = "metric_\(metricType)_\(days)"
         if let cached = cache[cacheKey], Date().timeIntervalSince(cached.timestamp) < cacheDuration {
             return cached.data
@@ -50,6 +68,7 @@ final class MetricTrendDataService {
     }
 
     func effortTrend(days: Int = 7) async -> [TrendDataPoint] {
+        cleanExpiredCache()
         let cacheKey = "effort_\(days)"
         if let cached = cache[cacheKey], Date().timeIntervalSince(cached.timestamp) < cacheDuration {
             return cached.data
@@ -87,6 +106,7 @@ final class MetricTrendDataService {
     }
 
     func sleepTrend(days: Int = 7) async -> [TrendDataPoint] {
+        cleanExpiredCache()
         let cacheKey = "sleep_\(days)"
         if let cached = cache[cacheKey], Date().timeIntervalSince(cached.timestamp) < cacheDuration {
             return cached.data
@@ -108,7 +128,8 @@ final class MetricTrendDataService {
         return points
     }
 
-    func readinessTrend(days: Int = 7) async -> [TrendDataPoint] {
+    func readinessTrend(days: Int = 7, metricsCache: DailyMetricsCache? = nil) async -> [TrendDataPoint] {
+        cleanExpiredCache()
         let cacheKey = "readiness_\(days)"
         if let cached = cache[cacheKey], Date().timeIntervalSince(cached.timestamp) < cacheDuration {
             return cached.data
@@ -116,18 +137,18 @@ final class MetricTrendDataService {
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let metricsCache = DailyMetricsCache.shared
+        let cache = metricsCache ?? DailyMetricsCache.shared
 
         var points: [TrendDataPoint] = []
         for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
             guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
-            if let score = metricsCache.getHistoricalReadinessScore(for: date) {
+            if let score = cache.getHistoricalReadinessScore(for: date) {
                 points.append(TrendDataPoint(date: date, value: Double(score)))
             }
         }
 
         if !points.isEmpty {
-            cache[cacheKey] = (points, Date())
+            self.cache[cacheKey] = (points, Date())
         }
         return points
     }
@@ -137,13 +158,13 @@ final class MetricTrendDataService {
     }
 
     private static func computeEffortScore(activity: DailyActivityData) -> Int {
-        let caloriesTarget = activity.activeCaloriesGoal ?? 400
-        let exerciseTarget = activity.exerciseMinutesGoal ?? 30
-        let stepsScore = min(activity.steps / 10_000, 1.0)
+        let caloriesTarget = activity.activeCaloriesGoal ?? Constants.defaultActiveCaloriesGoal
+        let exerciseTarget = activity.exerciseMinutesGoal ?? Constants.defaultExerciseMinutesGoal
+        let stepsScore = min(activity.steps / Constants.defaultStepsGoal, 1.0)
         let caloriesScore = min(activity.activeCalories / caloriesTarget, 1.0)
         let exerciseScore = min(activity.exerciseMinutes / exerciseTarget, 1.0)
-        let composite = stepsScore * 0.30 + caloriesScore * 0.35 + exerciseScore * 0.35
-        return min(100, Int((composite * 100).rounded()))
+        let composite = stepsScore * Constants.stepsWeight + caloriesScore * Constants.caloriesWeight + exerciseScore * Constants.exerciseWeight
+        return min(Constants.maxScore, Int((composite * Double(Constants.maxScore)).rounded()))
     }
 
     #if DEBUG
@@ -163,29 +184,6 @@ final class MetricTrendDataService {
 
     func testGetCachedData(key: String) -> [TrendDataPoint]? {
         cache[key]?.data
-    }
-
-    func readinessTrend(days: Int = 7, metricsCache: DailyMetricsCache) async -> [TrendDataPoint] {
-        let cacheKey = "readiness_\(days)"
-        if let cached = cache[cacheKey], Date().timeIntervalSince(cached.timestamp) < cacheDuration {
-            return cached.data
-        }
-
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-
-        var points: [TrendDataPoint] = []
-        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
-            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
-            if let score = metricsCache.getHistoricalReadinessScore(for: date) {
-                points.append(TrendDataPoint(date: date, value: Double(score)))
-            }
-        }
-
-        if !points.isEmpty {
-            cache[cacheKey] = (points, Date())
-        }
-        return points
     }
     #endif
 }

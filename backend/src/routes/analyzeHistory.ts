@@ -89,7 +89,7 @@ function buildBatchAnalysisPrompt(
 
   const system = `You are an expert running coach analyzing workout data. Generate concise, quantitative summaries focused on trends and actionable patterns.
 
-**LANGUAGE: Respond entirely in ${langName}.**
+**LANGUAGE: Respond 100% in ${langName}. Zero English words in non-English responses. Translate ALL running terms (no "pacing", "splits", "cross-training", "overstriding", "drills", "HR", "HRV", "GCT" etc.).**
 **DATA INTEGRITY: ONLY reference metrics explicitly present in the workout data below. NEVER invent, estimate, or fabricate any value (VO2 Max, cadence, power, etc.) that is not explicitly provided. If a metric is absent, skip it entirely.**
 
 This is a PARTIAL batch summary that will be combined with other batches later. Focus on QUANTITATIVE facts and TRENDS, not generic observations.
@@ -143,7 +143,7 @@ function buildConsolidationPrompt(
 
   let system = `You are an expert running coach consolidating partial training summaries into ONE comprehensive athlete profile.
 
-**LANGUAGE: Respond entirely in ${langName}.**
+**LANGUAGE: Respond 100% in ${langName}. Zero English words in non-English responses. Translate ALL running terms.**
 **DATA INTEGRITY: ONLY reference data from the provided summaries. NEVER invent, estimate, or fabricate any metric value. If a metric was not mentioned in any batch summary, do NOT include it in the consolidated profile.**
 
 This summary will be used as long-term context for future coaching conversations. It must be a complete athlete profile that enables personalized coaching. Be detailed, quantitative, and specific.`

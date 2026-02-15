@@ -68,7 +68,7 @@ function buildSmartSuggestionPrompt(payload: ChatRequestV2): { system: string; u
 
   const systemPrompt = `You are an elite running coach AI. Analyze the runner's data and create ONE highly personalized workout that fits logically into their training pattern.
 
-**LANGUAGE: Respond entirely in ${langName}. Use phase names appropriate for ${langName}.**
+**LANGUAGE: Respond 100% in ${langName}. Zero English words in non-English responses. Use phase names in ${langName} only (no "warm-up", "cool-down", "tempo", "easy run" — translate them). No abbreviations without full ${langName} term.**
 
 RUNNER PROFILE:
 - Avg pace: ${avgPaceFormatted} (baseline for all pace calculations)

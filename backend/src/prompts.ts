@@ -460,7 +460,7 @@ function buildHealthProfileContext(profile: HealthProfileData): string {
   }
 
   if (!hasCrossTraining) {
-    context += `\n💡 No cross-training detected - consider adding cycling/swimming for balanced fitness\n`
+    context += `\n💡 No complementary sport detected (cycling, swimming) - suggest adding for balanced fitness\n`
   }
 
   return context

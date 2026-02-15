@@ -184,6 +184,7 @@ struct MetricTrendCard: View {
                 unit: unit,
                 deviationStatus: deviationStatus,
                 baseline: baseline,
+                trendData: trendData,
                 recoveryMetrics: recoveryMetrics
             )
         }

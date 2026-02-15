@@ -98,6 +98,7 @@ struct ScoreExplanationSheet: View {
         unit: String,
         deviationStatus: DeviationStatus?,
         baseline: PersonalBaseline?,
+        trendData: [TrendDataPoint]? = nil,
         recoveryMetrics: RecoveryMetrics? = nil
     ) {
         self.mode = .metric(metricType)
@@ -106,10 +107,10 @@ struct ScoreExplanationSheet: View {
         self.deviationStatus = deviationStatus
         self.baseline = baseline
         self.recoveryMetrics = recoveryMetrics
+        self.trendData = trendData
         self.score = 0
         self.sleepDurationHours = nil
         self.sleepEfficiency = nil
-        self.trendData = nil
         self.cardiacLoadStatus = nil
         self.activityData = nil
     }
@@ -142,8 +143,8 @@ struct ScoreExplanationSheet: View {
                 }
             }
             .onAppear {
-                if case .metric = mode, historyData.isEmpty {
-                    historyData = generateHistoryData()
+                if case .metric = mode, historyData.isEmpty, let data = trendData, !data.isEmpty {
+                    historyData = data
                 }
             }
             .task {
@@ -1497,17 +1498,6 @@ struct ScoreExplanationSheet: View {
         case .respiratoryRate: return baseline.respiratoryRateAverage
         case .oxygenSaturation: return baseline.oxygenSaturationAverage
         default: return nil
-        }
-    }
-
-    private func generateHistoryData() -> [TrendDataPoint] {
-        let variance = metricValue * 0.15
-        return (0..<7).map { day in
-            let value = day == 6 ? metricValue : metricValue + Double.random(in: -variance...variance)
-            return TrendDataPoint(
-                date: Calendar.current.date(byAdding: .day, value: -6 + day, to: Date())!,
-                value: max(0, value)
-            )
         }
     }
 

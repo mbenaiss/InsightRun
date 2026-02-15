@@ -87,23 +87,24 @@ function buildBatchAnalysisPrompt(
 ): { system: string; user: string } {
   const langName = getLanguageName(language)
 
-  const system = `You are an expert running coach analyzing workout data. Generate concise, factual summaries.
+  const system = `You are an expert running coach analyzing workout data. Generate concise, quantitative summaries focused on trends and actionable patterns.
 
-**LANGUAGE: Respond entirely in ${langName}.**
-**DATA INTEGRITY: Only reference metrics present in the data. Never invent values.**
+**LANGUAGE: Respond 100% in ${langName}. Zero English words in non-English responses. Translate ALL running terms (no "pacing", "splits", "cross-training", "overstriding", "drills", "HR", "HRV", "GCT" etc.).**
+**DATA INTEGRITY: ONLY reference metrics explicitly present in the workout data below. NEVER invent, estimate, or fabricate any value (VO2 Max, cadence, power, etc.) that is not explicitly provided. If a metric is absent, skip it entirely.**
 
-This is a PARTIAL batch summary that will be combined with other batches later. Keep it concise and under 1000 tokens.
+This is a PARTIAL batch summary that will be combined with other batches later. Focus on QUANTITATIVE facts and TRENDS, not generic observations.
 ${profile ? `\n${buildHealthProfileContext(profile)}` : ''}`
 
-  let user = `Analyze these ${workouts.length} workouts and create a compact summary covering:
+  let user = `Analyze these ${workouts.length} workouts. Prioritize quantitative trends over generic observations:
 
-1. **Key Statistics**: date range, total workouts/distance/duration, averages
-2. **Performance Highlights**: best performances, improvements or declines
-3. **Physiological Insights**: HR trends, cadence, VO2 max patterns (if available)
-4. **Training Patterns**: frequency, volume progression, hard/easy distribution
-5. **Concerns**: injury risks, overtraining signals
+1. **Statistics**: date range, total workouts/distance/duration, pace range (fastest to slowest)
+2. **Pace Trend**: Is pace improving, stable, or declining across this batch? Quantify the change
+3. **HR Efficiency**: At similar paces, is HR trending lower (improvement) or higher (fatigue)?
+4. **Volume Pattern**: Distance per workout trend, longest vs shortest run, rest day frequency
+5. **Technical Metrics**: Average cadence, stride, GCT, VO2 max if available — note any trends
+6. **Concerns**: Volume spikes >10%/week, too many consecutive hard sessions, cadence drops
 
-Use bullet points. Be factual and data-driven.
+Use bullet points with specific numbers. Skip sections where no relevant data exists.
 
 # Workouts (${workouts.length} total)
 `
@@ -140,28 +141,29 @@ function buildConsolidationPrompt(
 ): { system: string; user: string } {
   const langName = getLanguageName(language)
 
-  let system = `You are an expert running coach consolidating partial training summaries into ONE comprehensive analysis.
+  let system = `You are an expert running coach consolidating partial training summaries into ONE comprehensive athlete profile.
 
-**LANGUAGE: Respond entirely in ${langName}.**
-**DATA INTEGRITY: Only reference data from the provided summaries. Never invent metrics.**
+**LANGUAGE: Respond 100% in ${langName}. Zero English words in non-English responses. Translate ALL running terms.**
+**DATA INTEGRITY: ONLY reference data from the provided summaries. NEVER invent, estimate, or fabricate any metric value. If a metric was not mentioned in any batch summary, do NOT include it in the consolidated profile.**
 
-This summary will be used as context for future coaching conversations. Keep it under 3000 tokens but be detailed and quantitative.`
+This summary will be used as long-term context for future coaching conversations. It must be a complete athlete profile that enables personalized coaching. Be detailed, quantitative, and specific.`
 
   if (profile) {
     system += `\n\n${buildHealthProfileContext(profile)}`
-    system += `\nUse this profile to calibrate training load, recovery expectations, and physiological baselines.`
+    system += `\nUse this profile to calibrate training zones, recovery expectations, and physiological baselines.`
   }
 
-  let user = `Consolidate these ${batchSummaries.length} batch summaries (ordered from oldest to most recent) into ONE comprehensive analysis with these sections:
+  let user = `Consolidate these ${batchSummaries.length} batch summaries (oldest → most recent) into ONE comprehensive athlete profile:
 
-1. **OVERALL PERFORMANCE TRENDS**: pace progression, volume progression, HR efficiency, PRs
-2. **PHYSIOLOGICAL PROFILE**: HR zones, aerobic base, biomechanics baseline, VO2 max trends
-3. **TRAINING PATTERNS**: frequency, consistency, hard/easy distribution, recovery patterns
-4. **STRENGTHS & ACHIEVEMENTS**: personal records, consistent periods, technical strengths
-5. **WEAKNESSES & RISKS**: injury indicators, overtraining signals, recovery deficits
-6. **STATISTICAL BASELINE**: totals, averages, intensity distribution
+1. **PERFORMANCE TRAJECTORY**: Pace evolution over time (specific numbers), best performances, current fitness level estimate
+2. **TRAINING IDENTITY**: Typical weekly volume/frequency, preferred distances, training variety (easy/hard ratio), consistency score
+3. **PHYSIOLOGICAL PROFILE**: Typical HR ranges at different paces, cadence baseline, VO2 max trend, biomechanics baseline (GCT, stride, asymmetry)
+4. **STRENGTHS**: What this runner does well (backed by data — e.g., "consistent 175 spm cadence", "good negative split tendency")
+5. **AREAS TO DEVELOP**: Specific weaknesses with quantified gaps (e.g., "GCT averaging 285ms vs optimal 220-250ms", "no runs >10km in dataset")
+6. **RISK FACTORS**: Injury indicators, overtraining patterns, recovery deficits observed
+7. **KEY NUMBERS**: Total distance/time, PR paces, average metrics across all workouts
 
-Be factual, quantitative, and actionable. Use specific numbers.
+Focus on patterns that persist across batches. Short-term fluctuations matter less than long-term trends.
 
 # Batch Summaries (oldest first)
 `

@@ -50,14 +50,32 @@ function buildSmartSuggestionPrompt(payload: ChatRequestV2): { system: string; u
 
   const langName = getLanguageName(language)
 
-  const systemPrompt = `You are an elite running coach AI. Analyze the runner's data and create ONE highly personalized workout.
+  // Classify recent workouts for context
+  const recentIntensities = workouts.slice(0, 5).map((w) => {
+    if (w.heartRate?.avg && w.heartRate?.max) {
+      const pct = (w.heartRate.avg / w.heartRate.max) * 100
+      if (pct < 70) return 'Easy'
+      if (pct < 80) return 'Moderate'
+      return 'Hard'
+    }
+    return '?'
+  })
 
-**LANGUAGE: Respond entirely in ${langName}. Use phase names appropriate for ${langName}.**
+  const avgDistanceKm =
+    workouts.length > 0
+      ? (workouts.reduce((s, w) => s + w.distance, 0) / workouts.length / 1000).toFixed(1)
+      : 'N/A'
+
+  const systemPrompt = `You are an elite running coach AI. Analyze the runner's data and create ONE highly personalized workout that fits logically into their training pattern.
+
+**LANGUAGE: Respond 100% in ${langName}. Zero English words in non-English responses. Use phase names in ${langName} only (no "warm-up", "cool-down", "tempo", "easy run" — translate them). No abbreviations without full ${langName} term.**
 
 RUNNER PROFILE:
-- Avg pace: ${avgPaceFormatted} (use this as baseline for pace calculations)
+- Avg pace: ${avgPaceFormatted} (baseline for all pace calculations)
 - Recent volume: ${totalDistanceKm}km over ${workouts.length} workouts (${totalDurationMin}min total)
+- Avg distance per run: ${avgDistanceKm}km
 ${daysSinceLastWorkout !== null ? `- Days since last run: ${daysSinceLastWorkout}` : ''}
+${recentIntensities.filter((i) => i !== '?').length > 0 ? `- Recent intensity pattern: ${recentIntensities.join(' → ')}` : ''}
 ${historicalSummary ? `\nLONG-TERM PATTERN:\n${historicalSummary}` : ''}
 
 LAST ${Math.min(5, workouts.length)} WORKOUTS:
@@ -65,15 +83,17 @@ ${workouts
   .slice(0, 5)
   .map(
     (w, i) =>
-      `${i + 1}. ${new Date(w.date).toLocaleDateString()} - ${(w.distance / 1000).toFixed(1)}km, ${Math.round(w.duration / 60)}min, pace ${w.pace ? `${Math.floor(w.pace)}:${String(Math.round((w.pace % 1) * 60)).padStart(2, '0')}/km` : 'N/A'}${w.heartRate?.avg ? `, HR ${w.heartRate.avg}bpm` : ''}`
+      `${i + 1}. ${new Date(w.date).toLocaleDateString()} - ${(w.distance / 1000).toFixed(1)}km, ${Math.round(w.duration / 60)}min, pace ${w.pace ? `${Math.floor(w.pace)}:${String(Math.round((w.pace % 1) * 60)).padStart(2, '0')}/km` : 'N/A'}${w.heartRate?.avg ? `, HR ${Math.round(w.heartRate.avg)}bpm` : ''}${w.cadence ? `, ${Math.round(w.cadence)}spm` : ''}`
   )
   .join('\n')}
 
-INTERNAL ANALYSIS (reason about these, don't output them):
-1. Training load trend: increasing/stable/decreasing?
-2. Workout variety: all easy runs? need intensity?
-3. Recovery status: adequate rest days? signs of fatigue?
-4. Next logical step: recovery/endurance/speed/threshold work?
+DECISION LOGIC (reason internally, don't output):
+1. If last run was Hard and <48h ago → suggest Easy/Recovery
+2. If last 3 runs all Easy → suggest Tempo or Intervals
+3. If days since last run >3 → suggest moderate comeback run (shorter distance)
+4. If weekly volume is low → suggest Endurance at easy pace
+5. If runner has good consistency → can suggest challenging session
+6. Match total duration to runner's typical session length (${Math.round(totalDurationMin / workouts.length)}min avg)
 
 OUTPUT FORMAT (strict):
 [Short Workout Title]
@@ -91,8 +111,7 @@ RULES:
   * Endurance: +0-15 sec/km
   * Tempo: -10 to -20 sec/km
   * Speed intervals: -30 to -45 sec/km
-- Adapt to runner's current fitness, fatigue, and recent training.
-- Total workout: 40-90 minutes based on runner's recent volume.
+- Total workout: match runner's typical session length (${Math.round(totalDurationMin / workouts.length)}min avg), ±20%.
 - The user will edit this before generating the structured workout.`
 
   const userPrompt = `Based on my recent training history, suggest a detailed workout for my next run.`

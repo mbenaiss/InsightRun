@@ -14,6 +14,7 @@ class NotificationRouter: NSObject, ObservableObject {
     static let shared = NotificationRouter()
 
     @Published var pendingTab: Int?
+    @Published var pendingWorkoutUUID: String?
     @Published var showWeeklySummary = false
 
     override private init() {
@@ -41,6 +42,9 @@ extension NotificationRouter: UNUserNotificationCenterDelegate {
                 pendingTab = 0 // Dashboard (includes recovery)
             case "INACTIVITY_REMINDER":
                 pendingTab = 1 // Workouts tab
+            case "WORKOUT_SYNC":
+                pendingTab = 1
+                pendingWorkoutUUID = response.notification.request.content.userInfo["workoutUUID"] as? String
             case "WEEKLY_SUMMARY":
                 pendingTab = 0 // Dashboard
                 showWeeklySummary = true

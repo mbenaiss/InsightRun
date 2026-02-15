@@ -2977,6 +2977,31 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    func fetchDailyTrendData(for identifier: HKQuantityTypeIdentifier, days: Int, unit: HKUnit) async -> [TrendDataPoint] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        var points: [TrendDataPoint] = []
+
+        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
+            guard let dayStart = calendar.date(byAdding: .day, value: dayOffset, to: today),
+                  let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
+
+            let values = await fetchQuantityHistory(for: identifier, start: dayStart, end: dayEnd, unit: unit)
+            if !values.isEmpty {
+                let avg = values.reduce(0, +) / Double(values.count)
+                let finalValue: Double
+                if identifier == .oxygenSaturation {
+                    finalValue = avg * 100
+                } else {
+                    finalValue = avg
+                }
+                points.append(TrendDataPoint(date: dayStart, value: finalValue))
+            }
+        }
+
+        return points
+    }
+
     /// Fetch all quantity samples in a date range
     private func fetchQuantityHistory(
         for identifier: HKQuantityTypeIdentifier,

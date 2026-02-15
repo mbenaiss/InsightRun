@@ -8,7 +8,7 @@
 import Foundation
 import HealthKit
 
-struct WorkoutModel: Identifiable, Codable {
+struct WorkoutModel: Identifiable, Codable, Hashable {
     let id: UUID
     let workoutType: HKWorkoutActivityType
     let startDate: Date
@@ -26,6 +26,14 @@ struct WorkoutModel: Identifiable, Codable {
     let elevationGain: Double?
     let hasRoute: Bool
     let isIndoor: Bool
+
+    static func == (lhs: WorkoutModel, rhs: WorkoutModel) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 
     // Custom coding to handle HKWorkoutActivityType and metadata
     enum CodingKeys: String, CodingKey {

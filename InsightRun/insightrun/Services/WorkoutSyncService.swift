@@ -150,9 +150,12 @@ final class WorkoutSyncService {
             content.title = String(localized: "Sync \(index + 1) / \(total)", comment: "Workout sync notification title showing current/total count")
             content.body = notificationBody(for: workout)
             content.sound = .default
+            content.categoryIdentifier = "WORKOUT_SYNC"
+            content.userInfo = ["workoutUUID": workout.uuid.uuidString]
 
             let identifier = "workout-sync-\(workout.uuid.uuidString)"
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
             center.add(request) { error in
                 if let error {

@@ -123,6 +123,10 @@ struct RecoveryDashboardView: View {
 struct RecoveryDayView: View {
     let date: Date
     @ObservedObject var viewModel: RecoveryViewModel
+    @State private var hrvTrend: [TrendDataPoint] = []
+    @State private var rhrTrend: [TrendDataPoint] = []
+    @State private var respTrend: [TrendDataPoint] = []
+    @State private var spo2Trend: [TrendDataPoint] = []
 
     var body: some View {
         ScrollView {
@@ -141,6 +145,22 @@ struct RecoveryDayView: View {
                     }
             }
         }
+        .task {
+            await loadTrendData()
+        }
+    }
+
+    private func loadTrendData() async {
+        let service = MetricTrendDataService.shared
+        async let hrv = service.metricTrend(for: .hrv)
+        async let rhr = service.metricTrend(for: .restingHeartRate)
+        async let resp = service.metricTrend(for: .respiratoryRate)
+        async let spo2 = service.metricTrend(for: .oxygenSaturation)
+
+        hrvTrend = await hrv
+        rhrTrend = await rhr
+        respTrend = await resp
+        spo2Trend = await spo2
     }
 
     // MARK: - Subviews (Copied/Adapted from Parent)
@@ -263,7 +283,7 @@ struct RecoveryDayView: View {
                         unit: "ms",
                         deviationStatus: getHRVDeviationStatus(hrv, baseline: recovery.baseline),
                         metricType: .hrv,
-                        trendData: generateMockTrendData(baseValue: hrv),
+                        trendData: hrvTrend,
                         baseline: recovery.baseline
                     )
                 }
@@ -278,11 +298,11 @@ struct RecoveryDayView: View {
                         unit: "bpm",
                         deviationStatus: getRHRDeviationStatus(rhr, baseline: recovery.baseline),
                         metricType: .restingHeartRate,
-                        trendData: generateMockTrendData(baseValue: rhr),
+                        trendData: rhrTrend,
                         baseline: recovery.baseline
                     )
                 }
-                
+
                 // Respiratory Rate Card
                 if let respRate = recovery.respiratoryRate {
                     MetricTrendCard(
@@ -293,7 +313,7 @@ struct RecoveryDayView: View {
                         unit: "rpm",
                         deviationStatus: getRespiratoryDeviationStatus(respRate, baseline: recovery.baseline),
                         metricType: .respiratoryRate,
-                        trendData: generateMockTrendData(baseValue: respRate),
+                        trendData: respTrend,
                         baseline: recovery.baseline
                     )
                 }
@@ -308,7 +328,7 @@ struct RecoveryDayView: View {
                         unit: "%",
                         deviationStatus: getSpO2DeviationStatus(spo2),
                         metricType: .oxygenSaturation,
-                        trendData: generateMockTrendData(baseValue: spo2, variance: 2),
+                        trendData: spo2Trend,
                         baseline: recovery.baseline
                     )
                 }
@@ -442,17 +462,6 @@ struct RecoveryDayView: View {
         return .poor
     }
 
-    private func generateMockTrendData(baseValue: Double, variance: Double? = nil) -> [TrendDataPoint] {
-        let actualVariance = variance ?? (baseValue * 0.15)
-        return (0..<7).map { day in
-            let randomVariation = Double.random(in: -actualVariance...actualVariance)
-            let value = day == 6 ? baseValue : baseValue + randomVariation
-            return TrendDataPoint(
-                date: Calendar.current.date(byAdding: .day, value: -6 + day, to: Date())!,
-                value: max(0, value)
-            )
-        }
-    }
 }
 
 // MARK: - Health Metric Row Component

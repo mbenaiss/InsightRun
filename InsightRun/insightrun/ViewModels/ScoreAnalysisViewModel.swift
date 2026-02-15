@@ -81,10 +81,12 @@ class ScoreAnalysisViewModel: ObservableObject {
         analysisText = nil
 
         let prompt = buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
+        let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
 
         await aiService.askQuestion(
             question: prompt,
-            mode: .recoveryCoaching(recoveryMetrics)
+            mode: .recoveryCoaching(recoveryMetrics),
+            language: userLanguage
         )
 
         var attempts = 0
@@ -119,10 +121,12 @@ class ScoreAnalysisViewModel: ObservableObject {
         analysisText = nil
 
         let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit)
+        let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
 
         await aiService.askQuestion(
             question: prompt,
-            mode: .recoveryCoaching(recoveryMetrics)
+            mode: .recoveryCoaching(recoveryMetrics),
+            language: userLanguage
         )
 
         var attempts = 0
@@ -204,6 +208,34 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         return entries.joined(separator: ", ")
     }
+
+    // MARK: - Test Helpers
+
+    #if DEBUG
+    func testCacheKey(for identifier: String) -> String {
+        Self.cacheKey(for: identifier)
+    }
+
+    func testCachedAnalysis(for identifier: String) -> String? {
+        Self.cachedAnalysis(for: identifier)
+    }
+
+    func testSaveAnalysis(_ text: String, for identifier: String) {
+        Self.saveAnalysis(text, for: identifier)
+    }
+
+    func testBuildPrompt(scoreType: ScoreType, score: Int, trendData: [TrendDataPoint]? = nil) -> String {
+        buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
+    }
+
+    func testBuildMetricPrompt(metricType: MetricType, value: Double, unit: String) -> String {
+        buildMetricPrompt(metricType: metricType, value: value, unit: unit)
+    }
+
+    func testFormatTrendSummary(_ trendData: [TrendDataPoint]?) -> String? {
+        formatTrendSummary(trendData)
+    }
+    #endif
 }
 
 // MARK: - DateFormatter Extension

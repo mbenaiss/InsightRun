@@ -27,6 +27,13 @@ struct DashboardView: View {
     @State private var hasForwardPage = false
     @State private var currentNavID = UUID()
     @State private var latestActivityData: DailyActivityData?
+    @State private var hrvTrend: [TrendDataPoint] = []
+    @State private var rhrTrend: [TrendDataPoint] = []
+    @State private var respTrend: [TrendDataPoint] = []
+    @State private var spo2Trend: [TrendDataPoint] = []
+    @State private var effortTrend: [TrendDataPoint] = []
+    @State private var sleepTrend: [TrendDataPoint] = []
+    @State private var readinessTrend: [TrendDataPoint] = []
 
     // MARK: - Body
 
@@ -94,13 +101,11 @@ struct DashboardView: View {
                     case .cardiacLoad:
                         return trainingLoadService.cardiacLoadTrendData
                     case .effort:
-                        return generateTrendData(baseValue: Double(trainingLoadService.dailyEffortScore), variance: 15)
+                        return effortTrend
                     case .sleep:
-                        let sleepScore = Double(recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0)
-                        return generateTrendData(baseValue: sleepScore, variance: 10)
+                        return sleepTrend
                     case .readiness:
-                        let readiness = Double(readinessVM.readinessScore ?? 0)
-                        return generateTrendData(baseValue: readiness, variance: 12)
+                        return readinessTrend
                     }
                 }()
                 ScoreExplanationSheet(
@@ -125,6 +130,7 @@ struct DashboardView: View {
             }
             .task {
                 await refreshAll()
+                await loadTrendData()
 
                 if let recovery = recoveryVM.recoveryMetrics {
                     contextProvider.recoveryMetrics = recovery
@@ -192,6 +198,25 @@ struct DashboardView: View {
             cardiacLoadScore: tls.cardiacLoadScore,
             cardiacLoadStatus: tls.cardiacLoadStatus
         )
+    }
+
+    private func loadTrendData() async {
+        let service = MetricTrendDataService.shared
+        async let hrv = service.metricTrend(for: .hrv)
+        async let rhr = service.metricTrend(for: .restingHeartRate)
+        async let resp = service.metricTrend(for: .respiratoryRate)
+        async let spo2 = service.metricTrend(for: .oxygenSaturation)
+        async let effort = service.effortTrend()
+        async let sleep = service.sleepTrend()
+        async let readiness = service.readinessTrend()
+
+        hrvTrend = await hrv
+        rhrTrend = await rhr
+        respTrend = await resp
+        spo2Trend = await spo2
+        effortTrend = await effort
+        sleepTrend = await sleep
+        readinessTrend = await readiness
     }
 
     // MARK: - Day Page
@@ -505,7 +530,7 @@ struct DashboardView: View {
                     unit: "ms",
                     deviationStatus: getHRVDeviationStatus(hrv, baseline: recovery.baseline),
                     metricType: .hrv,
-                    trendData: generateTrendData(baseValue: hrv),
+                    trendData: hrvTrend,
                     baseline: recovery.baseline,
                     recoveryMetrics: recovery
                 )
@@ -520,7 +545,7 @@ struct DashboardView: View {
                     unit: "bpm",
                     deviationStatus: getRHRDeviationStatus(rhr, baseline: recovery.baseline),
                     metricType: .restingHeartRate,
-                    trendData: generateTrendData(baseValue: rhr),
+                    trendData: rhrTrend,
                     baseline: recovery.baseline,
                     recoveryMetrics: recovery
                 )
@@ -535,7 +560,7 @@ struct DashboardView: View {
                     unit: "rpm",
                     deviationStatus: getRespiratoryDeviationStatus(respRate, baseline: recovery.baseline),
                     metricType: .respiratoryRate,
-                    trendData: generateTrendData(baseValue: respRate),
+                    trendData: respTrend,
                     baseline: recovery.baseline,
                     recoveryMetrics: recovery
                 )
@@ -550,7 +575,7 @@ struct DashboardView: View {
                     unit: "%",
                     deviationStatus: getSpO2DeviationStatus(spo2),
                     metricType: .oxygenSaturation,
-                    trendData: generateTrendData(baseValue: spo2, variance: 2),
+                    trendData: spo2Trend,
                     baseline: recovery.baseline,
                     recoveryMetrics: recovery
                 )
@@ -797,17 +822,6 @@ struct DashboardView: View {
         return .poor
     }
 
-    private func generateTrendData(baseValue: Double, variance: Double? = nil) -> [TrendDataPoint] {
-        let actualVariance = variance ?? (baseValue * 0.15)
-        return (0..<7).map { day in
-            let randomVariation = Double.random(in: -actualVariance...actualVariance)
-            let value = day == 6 ? baseValue : baseValue + randomVariation
-            return TrendDataPoint(
-                date: Calendar.current.date(byAdding: .day, value: -6 + day, to: Date())!,
-                value: max(0, value)
-            )
-        }
-    }
 }
 
 #Preview {

@@ -18,6 +18,11 @@ class ScoreAnalysisViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     private static let cachePrefix = "ai_analysis_"
+    #if DEBUG
+    static var defaults: UserDefaults = .standard
+    #else
+    static let defaults: UserDefaults = .standard
+    #endif
 
     init() {
         aiService.$streamedResponse
@@ -48,19 +53,19 @@ class ScoreAnalysisViewModel: ObservableObject {
     }
 
     private static func cachedAnalysis(for identifier: String) -> String? {
-        UserDefaults.standard.string(forKey: cacheKey(for: identifier))
+        Self.defaults.string(forKey: cacheKey(for: identifier))
     }
 
     private static func saveAnalysis(_ text: String, for identifier: String) {
         let key = cacheKey(for: identifier)
-        UserDefaults.standard.set(text, forKey: key)
+        Self.defaults.set(text, forKey: key)
         cleanOldCache(currentKey: key, identifier: identifier)
     }
 
     private static func cleanOldCache(currentKey: String, identifier: String) {
         let prefix = "\(cachePrefix)\(identifier)_"
-        for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key != currentKey {
-            UserDefaults.standard.removeObject(forKey: key)
+        for key in Self.defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key != currentKey {
+            Self.defaults.removeObject(forKey: key)
         }
     }
 

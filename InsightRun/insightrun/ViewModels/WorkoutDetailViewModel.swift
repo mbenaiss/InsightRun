@@ -18,6 +18,8 @@ class WorkoutDetailViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
     private let stravaAPIClient = StravaAPIClient.shared
     private let workout: WorkoutModel
+    private var retryCount = 0
+    private let maxRetries = 2
 
     init(workout: WorkoutModel) {
         self.workout = workout
@@ -67,6 +69,18 @@ class WorkoutDetailViewModel: ObservableObject {
         enrichWithSuuntoData()
 
         isLoading = false
+
+        // Retry if metrics are incomplete (e.g. opened from notification before HealthKit sync)
+        if !isStravaWorkout && metricsIncomplete && retryCount < maxRetries {
+            retryCount += 1
+            try? await Task.sleep(for: .seconds(10))
+            await loadMetrics()
+        }
+    }
+
+    private var metricsIncomplete: Bool {
+        guard let m = metrics else { return true }
+        return m.averageHeartRate == nil && m.splits == nil
     }
 
     // MARK: - Suunto Enrichment

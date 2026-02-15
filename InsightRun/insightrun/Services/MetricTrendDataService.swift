@@ -43,7 +43,9 @@ final class MetricTrendDataService {
         }
 
         let data = await hkManager.fetchDailyTrendData(for: identifier, days: days, unit: unit)
-        cache[cacheKey] = (data, Date())
+        if !data.isEmpty {
+            cache[cacheKey] = (data, Date())
+        }
         return data
     }
 
@@ -55,13 +57,29 @@ final class MetricTrendDataService {
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        var points: [TrendDataPoint] = []
+        let hkManager = HealthKitManager.shared
 
-        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
-            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
-            await TrainingLoadService.shared.analyzeDailyEffort(for: date)
-            let score = TrainingLoadService.shared.dailyEffortScore
-            points.append(TrendDataPoint(date: date, value: Double(score)))
+        let dates: [Date] = (0..<days).compactMap { offset in
+            calendar.date(byAdding: .day, value: -(days - 1) + offset, to: today)
+        }
+
+        let activities = await withTaskGroup(of: (Date, DailyActivityData).self) { group in
+            for date in dates {
+                group.addTask { (date, await hkManager.fetchDailyActivityData(for: date)) }
+            }
+            var results: [(Date, DailyActivityData)] = []
+            for await result in group { results.append(result) }
+            return results.sorted { $0.0 < $1.0 }
+        }
+
+        let tls = TrainingLoadService.shared
+        let points: [TrendDataPoint] = activities.map { date, activity in
+            TrendDataPoint(date: date, value: Double(Self.computeEffortScore(activity: activity)))
+        }
+
+        // Keep TrainingLoadService in sync with today's effort
+        if let todayActivity = activities.last {
+            await tls.analyzeDailyEffort(for: todayActivity.0)
         }
 
         cache[cacheKey] = (points, Date())
@@ -84,7 +102,9 @@ final class MetricTrendDataService {
             TrendDataPoint(date: sleep.date, value: Double(sleep.qualityScore))
         }
 
-        cache[cacheKey] = (points, Date())
+        if !points.isEmpty {
+            cache[cacheKey] = (points, Date())
+        }
         return points
     }
 
@@ -96,24 +116,76 @@ final class MetricTrendDataService {
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
+        let metricsCache = DailyMetricsCache.shared
 
         var points: [TrendDataPoint] = []
         for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
             guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
-            let key = "readiness_score_\(formatter.string(from: date))"
-            let score = UserDefaults.standard.integer(forKey: key)
-            if score > 0 {
+            if let score = metricsCache.getHistoricalReadinessScore(for: date) {
                 points.append(TrendDataPoint(date: date, value: Double(score)))
             }
         }
 
-        cache[cacheKey] = (points, Date())
+        if !points.isEmpty {
+            cache[cacheKey] = (points, Date())
+        }
         return points
     }
 
     func invalidateCache() {
         cache.removeAll()
     }
+
+    private static func computeEffortScore(activity: DailyActivityData) -> Int {
+        let caloriesTarget = activity.activeCaloriesGoal ?? 400
+        let exerciseTarget = activity.exerciseMinutesGoal ?? 30
+        let stepsScore = min(activity.steps / 10_000, 1.0)
+        let caloriesScore = min(activity.activeCalories / caloriesTarget, 1.0)
+        let exerciseScore = min(activity.exerciseMinutes / exerciseTarget, 1.0)
+        let composite = stepsScore * 0.30 + caloriesScore * 0.35 + exerciseScore * 0.35
+        return min(100, Int((composite * 100).rounded()))
+    }
+
+    #if DEBUG
+    static func testComputeEffortScore(activity: DailyActivityData) -> Int {
+        computeEffortScore(activity: activity)
+    }
+
+    static func createForTesting() -> MetricTrendDataService {
+        MetricTrendDataService()
+    }
+
+    var testCacheCount: Int { cache.count }
+
+    func testSetCache(key: String, data: [TrendDataPoint], timestamp: Date) {
+        cache[key] = (data, timestamp)
+    }
+
+    func testGetCachedData(key: String) -> [TrendDataPoint]? {
+        cache[key]?.data
+    }
+
+    func readinessTrend(days: Int = 7, metricsCache: DailyMetricsCache) async -> [TrendDataPoint] {
+        let cacheKey = "readiness_\(days)"
+        if let cached = cache[cacheKey], Date().timeIntervalSince(cached.timestamp) < cacheDuration {
+            return cached.data
+        }
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        var points: [TrendDataPoint] = []
+        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
+            if let score = metricsCache.getHistoricalReadinessScore(for: date) {
+                points.append(TrendDataPoint(date: date, value: Double(score)))
+            }
+        }
+
+        if !points.isEmpty {
+            cache[cacheKey] = (points, Date())
+        }
+        return points
+    }
+    #endif
 }

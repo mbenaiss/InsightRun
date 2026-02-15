@@ -154,7 +154,7 @@ final class WorkoutSyncService {
             content.userInfo = ["workoutUUID": workout.uuid.uuidString]
 
             let identifier = "workout-sync-\(workout.uuid.uuidString)"
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 60, repeats: false)
             let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
             center.add(request) { error in

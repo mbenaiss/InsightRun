@@ -83,11 +83,6 @@ class DailyReadinessViewModel: ObservableObject {
             suggestedWorkoutType = SuggestedWorkoutType(from: response.suggestedWorkoutType)
             insights = response.insights.map { ReadinessInsight(from: $0) }
 
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            let key = "readiness_score_\(formatter.string(from: Date()))"
-            UserDefaults.standard.set(response.score, forKey: key)
-
             dailyCache.cacheReadiness(
                 score: response.score,
                 status: response.status,

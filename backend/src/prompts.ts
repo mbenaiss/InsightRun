@@ -8,97 +8,192 @@ import type {
 } from './types'
 import { formatDistance, formatDuration, formatPace, getLanguageName } from './utils'
 
+// Parse pace string "M'SS\"" to seconds for calculations
+function parsePaceToSeconds(paceStr: string): number | null {
+  const match = paceStr.match(/(\d+)'(\d+)"?/)
+  if (!match) return null
+  return parseInt(match[1]) * 60 + parseInt(match[2])
+}
+
+// Analyze splits for pacing strategy and consistency
+function analyzeSplits(splits: Array<{ kilometer: number; pace: string; time: string }>): string {
+  if (splits.length < 2) return ''
+
+  const paceSeconds = splits
+    .map((s) => parsePaceToSeconds(s.pace))
+    .filter((p): p is number => p !== null)
+  if (paceSeconds.length < 2) return ''
+
+  // Pace consistency (coefficient of variation)
+  const avgPaceSec = paceSeconds.reduce((a, b) => a + b, 0) / paceSeconds.length
+  const variance =
+    paceSeconds.reduce((sum, p) => sum + (p - avgPaceSec) ** 2, 0) / paceSeconds.length
+  const cv = (Math.sqrt(variance) / avgPaceSec) * 100
+
+  // Negative/positive split detection
+  const midpoint = Math.floor(paceSeconds.length / 2)
+  const firstHalfAvg = paceSeconds.slice(0, midpoint).reduce((a, b) => a + b, 0) / midpoint
+  const secondHalfAvg =
+    paceSeconds.slice(midpoint).reduce((a, b) => a + b, 0) / (paceSeconds.length - midpoint)
+  const splitDiff = secondHalfAvg - firstHalfAvg
+
+  // Fastest and slowest splits
+  const fastest = Math.min(...paceSeconds)
+  const slowest = Math.max(...paceSeconds)
+  const fastestKm = splits[paceSeconds.indexOf(fastest)]?.kilometer
+  const slowestKm = splits[paceSeconds.indexOf(slowest)]?.kilometer
+
+  let analysis = `\nDerived Split Analysis:\n`
+  analysis += `- Pace Consistency (CV): ${cv.toFixed(1)}%`
+  if (cv < 3) analysis += ` → Excellent pacing`
+  else if (cv < 6) analysis += ` → Good pacing`
+  else if (cv < 10) analysis += ` → Moderate variation`
+  else analysis += ` → High variation (investigate cause)`
+  analysis += `\n`
+
+  if (splitDiff < -3) {
+    analysis += `- Pacing Strategy: Negative split (${Math.abs(splitDiff).toFixed(0)}s/km faster in 2nd half) → Great execution\n`
+  } else if (splitDiff > 5) {
+    analysis += `- Pacing Strategy: Positive split (${splitDiff.toFixed(0)}s/km slower in 2nd half) → Possible fatigue or too fast start\n`
+  } else {
+    analysis += `- Pacing Strategy: Even splits → Well-controlled effort\n`
+  }
+
+  analysis += `- Fastest: km ${fastestKm} | Slowest: km ${slowestKm} (spread: ${slowest - fastest}s)\n`
+
+  // Detect fade pattern (last 2 kms significantly slower)
+  if (paceSeconds.length >= 4) {
+    const lastTwo = paceSeconds.slice(-2)
+    const lastTwoAvg = lastTwo.reduce((a, b) => a + b, 0) / 2
+    const fadeAmount = lastTwoAvg - avgPaceSec
+    if (fadeAmount > 8) {
+      analysis += `- ⚠️ Late fade detected: last 2 km avg ${fadeAmount.toFixed(0)}s/km slower than overall → Possible energy depletion or pacing issue\n`
+    }
+  }
+
+  return analysis
+}
+
+// Estimate workout intensity from available data
+function estimateIntensity(workout: WorkoutData): string {
+  let intensity = ''
+
+  if (workout.heartRate?.avg && workout.heartRate?.max) {
+    const hrReserveEstimate = (workout.heartRate.avg / workout.heartRate.max) * 100
+    intensity += `- Estimated Intensity: ${hrReserveEstimate.toFixed(0)}% of max HR`
+    if (hrReserveEstimate < 70) intensity += ` → Easy/Recovery zone`
+    else if (hrReserveEstimate < 80) intensity += ` → Aerobic/Endurance zone`
+    else if (hrReserveEstimate < 88) intensity += ` → Tempo/Threshold zone`
+    else intensity += ` → High intensity/VO2max zone`
+    intensity += `\n`
+  }
+
+  // Running economy indicator: power vs pace
+  if (workout.runningPower && workout.pace) {
+    const powerPerPace = workout.runningPower / (1 / workout.pace)
+    intensity += `- Power Efficiency: ${powerPerPace.toFixed(1)} W·min/km (lower = more efficient)\n`
+  }
+
+  // Cadence-stride relationship
+  if (workout.cadence && workout.strideLength && workout.pace) {
+    const speedMps = (workout.cadence * workout.strideLength) / 60
+    intensity += `- Cadence×Stride Speed: ${(speedMps * 3.6).toFixed(1)} km/h\n`
+  }
+
+  return intensity
+}
+
 // Build workout context from data
 function buildWorkoutContext(workout: WorkoutData): string {
-  let context = `Single Workout Analysis:\n`
-  context += `Date: ${workout.date}\n`
-  context += `Duration: ${formatDuration(workout.duration)}\n`
-  context += `Distance: ${formatDistance(workout.distance)}\n`
+  let context = `# 🏃 Single Workout Analysis\n\n`
+  context += `**Date:** ${workout.date}\n`
+  context += `**Duration:** ${formatDuration(workout.duration)}\n`
+  context += `**Distance:** ${formatDistance(workout.distance)}\n`
 
   if (workout.calories) {
-    context += `Calories: ${Math.round(workout.calories)} kcal\n`
+    context += `**Calories:** ${Math.round(workout.calories)} kcal\n`
   }
 
   if (workout.pace) {
-    context += `Average Pace: ${formatPace(workout.pace)}\n`
+    context += `**Average Pace:** ${formatPace(workout.pace)}\n`
   }
 
   if (workout.speed) {
-    context += `Average Speed: ${workout.speed.toFixed(1)} km/h\n`
+    context += `**Average Speed:** ${workout.speed.toFixed(1)} km/h\n`
   }
 
+  // Heart rate
   if (workout.heartRate) {
-    context += `\nDetailed Metrics:\n`
+    context += `\n## Heart Rate\n`
     if (workout.heartRate.avg) {
-      context += `- Heart Rate: Avg ${Math.round(workout.heartRate.avg)} bpm`
+      context += `- Average: ${Math.round(workout.heartRate.avg)} bpm`
       if (workout.heartRate.min && workout.heartRate.max) {
-        context += ` (Range: ${Math.round(workout.heartRate.min)}-${Math.round(workout.heartRate.max)} bpm)`
+        context += ` | Min: ${Math.round(workout.heartRate.min)} | Max: ${Math.round(workout.heartRate.max)}`
+        const hrRange = workout.heartRate.max - workout.heartRate.min
+        context += ` | Range: ${Math.round(hrRange)} bpm`
       }
       context += `\n`
     }
   }
 
-  if (workout.minPace) {
-    context += `- Best Pace: ${formatPace(workout.minPace)}\n`
-  }
+  // Performance metrics
+  const perfMetrics: string[] = []
+  if (workout.minPace) perfMetrics.push(`Best Pace: ${formatPace(workout.minPace)}`)
+  if (workout.cadence) perfMetrics.push(`Cadence: ${Math.round(workout.cadence)} spm`)
+  if (workout.strideLength) perfMetrics.push(`Stride: ${workout.strideLength.toFixed(2)} m`)
+  if (workout.runningPower) perfMetrics.push(`Power: ${Math.round(workout.runningPower)} W`)
+  if (workout.vo2Max) perfMetrics.push(`VO2 Max: ${workout.vo2Max.toFixed(1)} ml/kg/min`)
+  if (workout.elevationGain)
+    perfMetrics.push(`Elevation Gain: ${Math.round(workout.elevationGain)} m`)
 
-  if (workout.cadence) {
-    context += `- Cadence: ${Math.round(workout.cadence)} spm\n`
-  }
-
-  if (workout.strideLength) {
-    context += `- Stride Length: ${workout.strideLength.toFixed(2)} m\n`
-  }
-
-  if (workout.runningPower) {
-    context += `- Running Power: ${Math.round(workout.runningPower)} W\n`
-  }
-
-  if (workout.vo2Max) {
-    context += `- VO2 Max: ${workout.vo2Max.toFixed(1)} ml/kg/min\n`
-  }
-
-  if (workout.elevationGain) {
-    context += `- Elevation Gain: ${Math.round(workout.elevationGain)} m\n`
-  }
-
-  if (workout.groundContactTime) {
-    context += `- Ground Contact Time: ${Math.round(workout.groundContactTime)} ms\n`
-  }
-
-  if (workout.verticalOscillation) {
-    context += `- Vertical Oscillation: ${workout.verticalOscillation.toFixed(1)} cm\n`
-  }
-
-  if (workout.mobility) {
-    const m = workout.mobility
-    if (
-      m.walkingSteadiness ||
-      m.walkingAsymmetry ||
-      m.doubleSupportPercentage ||
-      m.walkingSpeed ||
-      m.stairAscentSpeed ||
-      m.stairDescentSpeed
-    ) {
-      context += `\nMobility & Biomechanics:\n`
-      if (m.walkingSteadiness)
-        context += `- Walking Steadiness: ${m.walkingSteadiness.toFixed(1)}%\n`
-      if (m.walkingAsymmetry) context += `- Walking Asymmetry: ${m.walkingAsymmetry.toFixed(1)}%\n`
-      if (m.doubleSupportPercentage)
-        context += `- Double Support: ${m.doubleSupportPercentage.toFixed(1)}%\n`
-      if (m.walkingSpeed) context += `- Walking Speed: ${m.walkingSpeed.toFixed(1)} km/h\n`
-      if (m.stairAscentSpeed)
-        context += `- Stair Ascent Speed: ${m.stairAscentSpeed.toFixed(1)} km/h\n`
-      if (m.stairDescentSpeed)
-        context += `- Stair Descent Speed: ${m.stairDescentSpeed.toFixed(1)} km/h\n`
+  if (perfMetrics.length > 0) {
+    context += `\n## Performance Metrics\n`
+    for (const m of perfMetrics) {
+      context += `- ${m}\n`
     }
   }
 
+  // Biomechanics
+  const bioMetrics: string[] = []
+  if (workout.groundContactTime)
+    bioMetrics.push(`Ground Contact Time: ${Math.round(workout.groundContactTime)} ms`)
+  if (workout.verticalOscillation)
+    bioMetrics.push(`Vertical Oscillation: ${workout.verticalOscillation.toFixed(1)} cm`)
+  if (workout.mobility) {
+    const m = workout.mobility
+    if (m.walkingSteadiness)
+      bioMetrics.push(`Walking Steadiness: ${m.walkingSteadiness.toFixed(1)}%`)
+    if (m.walkingAsymmetry) bioMetrics.push(`Walking Asymmetry: ${m.walkingAsymmetry.toFixed(1)}%`)
+    if (m.doubleSupportPercentage)
+      bioMetrics.push(`Double Support: ${m.doubleSupportPercentage.toFixed(1)}%`)
+    if (m.walkingSpeed) bioMetrics.push(`Walking Speed: ${m.walkingSpeed.toFixed(1)} km/h`)
+    if (m.stairAscentSpeed) bioMetrics.push(`Stair Ascent: ${m.stairAscentSpeed.toFixed(1)} km/h`)
+    if (m.stairDescentSpeed)
+      bioMetrics.push(`Stair Descent: ${m.stairDescentSpeed.toFixed(1)} km/h`)
+  }
+
+  if (bioMetrics.length > 0) {
+    context += `\n## Biomechanics & Mobility\n`
+    for (const m of bioMetrics) {
+      context += `- ${m}\n`
+    }
+  }
+
+  // Splits
   if (workout.splits && workout.splits.length > 0) {
-    context += `\nSplits (per km):\n`
+    context += `\n## Splits (per km)\n`
     for (const split of workout.splits.slice(0, 10)) {
       context += `  km ${split.kilometer}: ${split.pace} (${split.time})\n`
     }
+    // Add derived split analysis
+    context += analyzeSplits(workout.splits)
+  }
+
+  // Derived intensity analysis
+  const intensity = estimateIntensity(workout)
+  if (intensity) {
+    context += `\n## Derived Analysis\n`
+    context += intensity
   }
 
   return context
@@ -137,6 +232,18 @@ function buildRecoveryContext(recovery: RecoveryData): string {
   return context
 }
 
+// Classify workout intensity based on available data
+function classifyWorkoutIntensity(w: WorkoutData): string {
+  if (w.heartRate?.avg && w.heartRate?.max) {
+    const pctMax = (w.heartRate.avg / w.heartRate.max) * 100
+    if (pctMax < 70) return 'Easy'
+    if (pctMax < 80) return 'Moderate'
+    if (pctMax < 88) return 'Tempo'
+    return 'Hard'
+  }
+  return ''
+}
+
 // Build recent workouts context
 function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
   let context = `# 📅 Recent Training History (Last ${recent.workouts.length} runs)\n\n`
@@ -144,30 +251,106 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
   context += `**Weekly Summary:**\n`
   context += `- Total Volume: ${(recent.totalDistance / 1000).toFixed(1)} km\n`
   context += `- Total Time: ${formatDuration(recent.totalDuration)}\n`
-  context += `- Frequency: ${recent.workouts.length} runs/week\n`
+  context += `- Frequency: ${recent.workouts.length} runs\n`
   context += `- Average Pace: ${formatPace(recent.avgPace)}\n`
 
   if (recent.weeklyVolumeChange !== undefined) {
     if (recent.weeklyVolumeChange > 10) {
-      context += `\n⚠️ **Training Load Alert**: Volume increased by ${recent.weeklyVolumeChange.toFixed(1)}% - high injury risk!\n`
+      context += `- ⚠️ **Training Load Alert**: Volume increased by ${recent.weeklyVolumeChange.toFixed(1)}% - high injury risk!\n`
     } else if (recent.weeklyVolumeChange > 0) {
-      context += `\n✅ Volume increased by ${recent.weeklyVolumeChange.toFixed(1)}% (safe progression)\n`
+      context += `- ✅ Volume change: +${recent.weeklyVolumeChange.toFixed(1)}% (safe progression)\n`
     }
   }
 
   if (recent.daysSinceLastWorkout !== undefined) {
-    context += `\n**Time Since Last Run**: ${recent.daysSinceLastWorkout} day(s) ago`
+    context += `- Time Since Last Run: ${recent.daysSinceLastWorkout} day(s) ago`
     if (recent.daysSinceLastWorkout > 3) {
-      context += ` ⚠️ (extended break)\n`
-    } else {
-      context += `\n`
+      context += ` ⚠️ (extended break)`
+    }
+    context += `\n`
+  }
+
+  // Derived cross-workout analysis
+  const workoutsWithHR = recent.workouts.filter((w) => w.heartRate?.avg)
+  const workoutsWithPace = recent.workouts.filter((w) => w.pace)
+  const workoutsWithCadence = recent.workouts.filter((w) => w.cadence)
+
+  if (workoutsWithHR.length >= 2 || workoutsWithPace.length >= 2) {
+    context += `\n**Derived Training Patterns:**\n`
+
+    // Intensity distribution
+    if (workoutsWithHR.length >= 2) {
+      const intensities = recent.workouts.map(classifyWorkoutIntensity).filter(Boolean)
+      if (intensities.length > 0) {
+        const counts: Record<string, number> = {}
+        for (const i of intensities) counts[i] = (counts[i] || 0) + 1
+        const distribution = Object.entries(counts)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ')
+        context += `- Intensity Distribution: ${distribution}\n`
+        const easyCount = counts['Easy'] || 0
+        const hardCount = (counts['Tempo'] || 0) + (counts['Hard'] || 0)
+        if (intensities.length >= 3 && hardCount > easyCount) {
+          context += `  ⚠️ More hard sessions than easy → Risk of overtraining\n`
+        }
+      }
+    }
+
+    // Pace trend (first workout vs last workout)
+    if (workoutsWithPace.length >= 3) {
+      const paces = workoutsWithPace.map((w) => w.pace!)
+      const firstThird = paces.slice(0, Math.ceil(paces.length / 3))
+      const lastThird = paces.slice(-Math.ceil(paces.length / 3))
+      const firstAvg = firstThird.reduce((a, b) => a + b, 0) / firstThird.length
+      const lastAvg = lastThird.reduce((a, b) => a + b, 0) / lastThird.length
+      const diff = lastAvg - firstAvg
+      if (Math.abs(diff) > 0.05) {
+        context += `- Pace Trend: ${diff < 0 ? '📈 Improving' : '📉 Slowing'} (${Math.abs(diff * 60).toFixed(0)}s/km shift)\n`
+      } else {
+        context += `- Pace Trend: Stable\n`
+      }
+    }
+
+    // HR efficiency trend (HR at similar pace)
+    if (workoutsWithHR.length >= 3 && workoutsWithPace.length >= 3) {
+      const hrPaceRatios = recent.workouts
+        .filter((w) => w.heartRate?.avg && w.pace)
+        .map((w) => w.heartRate!.avg! / w.pace!)
+      if (hrPaceRatios.length >= 3) {
+        const firstRatio = hrPaceRatios[0]
+        const lastRatio = hrPaceRatios[hrPaceRatios.length - 1]
+        const ratioDiff = lastRatio - firstRatio
+        if (Math.abs(ratioDiff) > 1) {
+          context += `- HR Efficiency: ${ratioDiff < 0 ? '📈 Improving (lower HR at same pace)' : '📉 Declining (higher HR at same pace)'}\n`
+        }
+      }
+    }
+
+    // Cadence consistency across workouts
+    if (workoutsWithCadence.length >= 2) {
+      const cadences = workoutsWithCadence.map((w) => w.cadence!)
+      const avgCadence = cadences.reduce((a, b) => a + b, 0) / cadences.length
+      const cadenceVariance =
+        cadences.reduce((sum, c) => sum + (c - avgCadence) ** 2, 0) / cadences.length
+      const cadenceCV = (Math.sqrt(cadenceVariance) / avgCadence) * 100
+      context += `- Avg Cadence: ${Math.round(avgCadence)} spm (consistency: ${cadenceCV < 3 ? 'excellent' : cadenceCV < 6 ? 'good' : 'variable'})\n`
+    }
+
+    // Distance distribution
+    const distances = recent.workouts.map((w) => w.distance / 1000)
+    const shortRuns = distances.filter((d) => d < 5).length
+    const mediumRuns = distances.filter((d) => d >= 5 && d < 10).length
+    const longRuns = distances.filter((d) => d >= 10).length
+    if (distances.length >= 3) {
+      context += `- Distance Mix: Short(<5km): ${shortRuns}, Medium(5-10km): ${mediumRuns}, Long(10km+): ${longRuns}\n`
     }
   }
 
   context += `\n**Complete Workout Detail (All ${recent.workouts.length} runs):**\n`
   for (let i = 0; i < recent.workouts.length; i++) {
     const w = recent.workouts[i]
-    context += `\n${i + 1}. **${w.date}**\n`
+    const intensity = classifyWorkoutIntensity(w)
+    context += `\n${i + 1}. **${w.date}**${intensity ? ` [${intensity}]` : ''}\n`
 
     // Basic metrics
     context += `   Duration: ${formatDuration(w.duration)} | Distance: ${formatDistance(w.distance)}\n`
@@ -182,30 +365,26 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
       context += `   Best Pace: ${formatPace(w.minPace)}\n`
     }
 
-    // Energy
     if (w.calories) {
       context += `   Calories: ${Math.round(w.calories)} kcal\n`
     }
 
-    // Heart rate
     if (w.heartRate && (w.heartRate.avg || w.heartRate.min || w.heartRate.max)) {
       context += `   Heart Rate: Avg ${w.heartRate.avg ? Math.round(w.heartRate.avg) : 'N/A'} bpm`
       if (w.heartRate.min && w.heartRate.max) {
-        context += ` (Range: ${Math.round(w.heartRate.min)}-${Math.round(w.heartRate.max)} bpm)`
+        context += ` (${Math.round(w.heartRate.min)}-${Math.round(w.heartRate.max)} bpm)`
       }
       context += `\n`
     }
 
-    // Running technique metrics
     if (w.cadence || w.strideLength || w.runningPower) {
-      context += `   Running Technique:`
+      context += `   Technique:`
       if (w.cadence) context += ` Cadence ${Math.round(w.cadence)} spm |`
       if (w.strideLength) context += ` Stride ${w.strideLength.toFixed(2)}m |`
       if (w.runningPower) context += ` Power ${Math.round(w.runningPower)}W`
       context += `\n`
     }
 
-    // Biomechanics
     if (w.groundContactTime || w.verticalOscillation) {
       context += `   Biomechanics:`
       if (w.groundContactTime) context += ` GCT ${Math.round(w.groundContactTime)}ms |`
@@ -213,36 +392,27 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
       context += `\n`
     }
 
-    // VO2 Max
     if (w.vo2Max) {
       context += `   VO2 Max: ${w.vo2Max.toFixed(1)} ml/kg/min\n`
     }
 
-    // Elevation
     if (w.elevationGain) {
       context += `   Elevation Gain: ${Math.round(w.elevationGain)} m\n`
     }
 
-    // Mobility metrics
     if (w.mobility && Object.values(w.mobility).some((v) => v !== undefined)) {
-      context += `   Mobility & Balance:\n`
-      if (w.mobility.walkingSteadiness)
-        context += `      - Walking Steadiness: ${w.mobility.walkingSteadiness.toFixed(1)}%\n`
+      context += `   Mobility:`
       if (w.mobility.walkingAsymmetry)
-        context += `      - Walking Asymmetry: ${w.mobility.walkingAsymmetry.toFixed(1)}%\n`
+        context += ` Asymmetry ${w.mobility.walkingAsymmetry.toFixed(1)}% |`
       if (w.mobility.doubleSupportPercentage)
-        context += `      - Double Support: ${w.mobility.doubleSupportPercentage.toFixed(1)}%\n`
-      if (w.mobility.walkingSpeed)
-        context += `      - Walking Speed: ${w.mobility.walkingSpeed.toFixed(1)} km/h\n`
-      if (w.mobility.stairAscentSpeed)
-        context += `      - Stair Ascent: ${w.mobility.stairAscentSpeed.toFixed(1)} km/h\n`
-      if (w.mobility.stairDescentSpeed)
-        context += `      - Stair Descent: ${w.mobility.stairDescentSpeed.toFixed(1)} km/h\n`
+        context += ` DblSupport ${w.mobility.doubleSupportPercentage.toFixed(1)}% |`
+      if (w.mobility.walkingSteadiness)
+        context += ` Steadiness ${w.mobility.walkingSteadiness.toFixed(1)}%`
+      context += `\n`
     }
 
-    // Splits
     if (w.splits && w.splits.length > 0) {
-      context += `   Splits (per km): `
+      context += `   Splits: `
       for (let j = 0; j < w.splits.length; j++) {
         const split = w.splits[j]
         context += `km${split.kilometer}:${split.pace}`
@@ -348,14 +518,14 @@ export function buildWorkoutCoachPrompt(data: ChatDataPayload, language: string)
 
 **LANGUAGE: You MUST respond entirely in ${langName}.**
 
-**DATA INTEGRITY: Only reference metrics explicitly provided below. Never invent, assume, or extrapolate data that is not present.**
+**DATA INTEGRITY: Only reference metrics explicitly provided below. Never invent, assume, or extrapolate data that is not present. If a metric is missing, skip it silently — never say "data not available".**
 
 # Core Mission
-Analyze health and workout data to provide actionable insights:
-1. Optimize performance through training pattern analysis
-2. Prevent injuries by detecting overtraining and biomechanical issues
-3. Maximize recovery by balancing training load
-4. Track progress and highlight improvements
+Provide specific, actionable coaching insights by:
+1. Analyzing metric correlations (not just individual values)
+2. Detecting overtraining signals and injury risks early
+3. Identifying concrete areas of improvement with measurable targets
+4. Celebrating real progress backed by data
 
 # Runner Data
 `
@@ -394,6 +564,45 @@ Analyze health and workout data to provide actionable insights:
   systemPrompt += `
 # Analysis Framework
 
+## Metric Correlations (ALWAYS analyze these combinations when data is available)
+
+### Running Economy (Pace + HR)
+- Compare avg HR to avg pace: lower HR at same pace = better aerobic fitness
+- If HR is high but pace is slow → possible fatigue, dehydration, heat, or overtraining
+- If HR is low but pace is fast → excellent fitness or well-rested state
+
+### Pacing Analysis (from splits)
+- Coefficient of Variation (CV) is pre-computed: <3% excellent, 3-6% good, 6-10% needs work, >10% investigate
+- Negative split (faster 2nd half) → strong execution and good energy management
+- Positive split with late fade → went out too fast OR energy depletion → recommend fueling strategy or conservative start
+- Even splits → disciplined runner, good body awareness
+
+### Cadence-Stride Relationship
+- Cadence 170-180 spm is optimal for most runners
+- Low cadence (<165) + long stride → overstriding → higher ground contact time → injury risk
+- High cadence (>185) + short stride → possibly shuffling → check if pace matches effort
+- When both cadence AND stride length are available, their product gives speed — use this to validate reported pace
+
+### Power Analysis (when running power available)
+- Power/pace ratio = efficiency indicator (lower = more efficient)
+- High power + slow pace → uphill, wind, or poor economy
+- Low power + fast pace → downhill, tailwind, or excellent economy
+- Compare power across workouts at similar paces to track efficiency trends
+
+### Biomechanics Red Flags (PRIORITIZE these alerts)
+- Ground Contact Time >280ms + Walking Asymmetry >5% → HIGH injury risk, recommend gait analysis
+- Vertical Oscillation >11cm + Ground Contact Time >270ms → wasted energy, focus on hip extension drills
+- Walking Asymmetry >7% → ALWAYS flag this regardless of other metrics
+- Ground Contact Time improving over weeks → positive form adaptation
+
+## Reference Ranges (adapt to runner's level based on pace)
+| Metric | Recreational (>6:00/km) | Intermediate (5:00-6:00) | Advanced (<5:00/km) |
+|--------|------------------------|--------------------------|---------------------|
+| Cadence | 160-170 spm | 170-180 spm | 175-190 spm |
+| GCT | 260-320 ms | 220-260 ms | 190-230 ms |
+| Vert Osc | 8-12 cm | 6-10 cm | 5-8 cm |
+| Stride | 0.9-1.1 m | 1.1-1.3 m | 1.2-1.5 m |
+
 ## Readiness Assessment (0-100)
 When asked about readiness, calculate a score based on:
 - Sleep (7-9h optimal, <6h red flag)
@@ -401,53 +610,39 @@ When asked about readiness, calculate a score based on:
 - HRV (compare to baseline, higher = better recovery)
 - Training load (days since last hard workout, weekly volume)
 
-If personal baseline is available, ALWAYS compare to the user's normal values.
+If personal baseline is available, ALWAYS compare to the user's normal values. A deviation of >1.5 standard deviations from baseline is significant.
 
-Score interpretation: 85-100 = intense training OK | 70-84 = moderate training | 50-69 = recovery day | <50 = rest required
+Score: 85-100 = intense training OK | 70-84 = moderate training | 50-69 = recovery day | <50 = rest required
 
 ## Injury Prevention
-Monitor and proactively alert on:
-- Volume increase >10%/week
-- Pace drop at same effort
-- Elevated HR at same pace
-- Cadence drop or gait asymmetry
-- User-reported recurring pain
-
-## Performance Analysis
-- Pace progression over time
-- HR efficiency (lower HR at same pace = improvement)
-- Splits consistency
-- Cadence (optimal 170-180 spm)
-- VO2 Max trends
-
-## Biomechanics (when data available)
-- Ground Contact Time: 200-250ms optimal, <200ms elite, >300ms needs work
-- Vertical Oscillation: 6-10cm optimal, <7cm elite, >12cm excessive
-- Walking Steadiness: >85% optimal, <70% concern
-- Walking Asymmetry: <3% optimal, >7% injury risk
-- Double Support: 20-30% optimal
+Proactively alert on combinations:
+- Volume increase >10%/week (when weeklyVolumeChange available)
+- Pace drop + elevated HR at same distance → fatigue accumulation
+- Cadence drop + asymmetry increase → compensatory pattern → injury risk
+- Multiple hard sessions without easy days between → overtraining
 
 ## Recovery Guidelines
-- Easy run (<70% max HR): 24h before next hard session
+- Easy run (<70% max HR): 24h recovery
 - Moderate (70-80% max HR): 36-48h
 - Hard/Long (>80% max HR or >90min): 48-72h
 - Race effort: 72h to 1 week
 
-Red flags: elevated morning RHR (+5-10 bpm), HRV <30ms, sleep <6h, soreness >48h
+Red flags: elevated RHR (+5-10 bpm vs baseline), HRV <30ms or >2σ below baseline, sleep <6h
 
 # Response Guidelines
-- Be data-driven: cite specific metrics from the provided data
+- **Cite specific numbers**: "Your cadence of 162 spm is below optimal (170-180)" NOT "your cadence could improve"
+- **Quantify improvements**: "Increasing cadence by 8-10 spm could reduce GCT by ~20ms" NOT "try to increase cadence"
+- **Correlate metrics**: "HR avg 165 at 5:30/km pace suggests good aerobic fitness" NOT just "HR was 165"
+- **Prioritize**: Lead with the most impactful insight, not a generic summary
 - Be concise: bullet points over paragraphs
-- Be actionable: every insight must include a concrete next step
 - Be honest: don't sugarcoat overtraining risks
-- Use markdown for readability
 - Proactively flag concerns even if not asked
-- Adapt response structure to the question (don't force a rigid template for simple questions)
-
-For comprehensive analysis, organize with sections: Key Insights, Recommendations, Concerns, Next Steps.
+- Use markdown formatting
+- Adapt structure to the question (don't force rigid templates for simple questions)
+- NEVER mention metrics that are not in the data. If data is limited, focus deeply on what IS available
 
 # Tone
-Professional but friendly. Motivating without being pushy. Evidence-based, not generic.
+Knowledgeable coach who trains elite athletes but communicates clearly with all levels. Data-first, specific, motivating. Avoid generic advice that could apply to anyone — make every insight personal to THIS runner's data.
 
 **REMINDER: Respond entirely in ${langName}.**
 `

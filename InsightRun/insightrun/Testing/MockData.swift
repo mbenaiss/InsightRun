@@ -283,7 +283,12 @@ enum MockData {
 
     // MARK: - Sample Workout AI Analysis
 
-    static let sampleWorkoutAnalysis = """
+    static var sampleWorkoutAnalysis: String {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        return lang == "fr" ? sampleWorkoutAnalysisFR : sampleWorkoutAnalysisEN
+    }
+
+    private static let sampleWorkoutAnalysisEN = """
     ## 🎯 Key Points
     - Strong 10K at 4'47"/km showing excellent aerobic fitness
     - Heart rate averaged 172 bpm (Zone 4) — high intensity sustained well
@@ -303,6 +308,28 @@ enum MockData {
     ## 🔄 Recovery
     - 36-48h rest recommended before next intense session. Light jog or walk OK tomorrow.
     - Focus on 8h+ sleep tonight and hydrate well (aim for 2.5L today).
+    """
+
+    private static let sampleWorkoutAnalysisFR = """
+    ## 🎯 Points clés
+    - Excellent 10K à 4'47"/km, très bonne condition aérobie
+    - FC moyenne de 172 bpm (Zone 4) — haute intensité bien maintenue
+    - Negative split : bonne gestion de l'allure
+
+    ## ✅ Métriques optimales
+    - Cadence (182 ppm), Longueur de foulée (1.12m), Oscillation verticale (8.2cm) ✅
+
+    ## ⚠️ À optimiser
+    - Temps de contact au sol : 268 ms → 220-250 ms (économie de course +5%)
+    - Dérive cardiaque : +8% sur les 2 derniers km → travailler la base aérobie
+
+    ## 💡 Actions concrètes
+    - Ajouter 2 séances de gammes/semaine (montées de genoux, talons-fesses)
+    - Inclure 1 séance tempo à 5'00-5'10"/km pour l'efficacité aérobie
+
+    ## 🔄 Récupération
+    - 36-48h de repos recommandées avant la prochaine séance intense. Footing léger OK demain.
+    - Viser 8h+ de sommeil ce soir et bien s'hydrater (objectif 2.5L aujourd'hui).
     """
 
     // MARK: - Sample Unified Workouts

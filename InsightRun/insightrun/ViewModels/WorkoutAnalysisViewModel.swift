@@ -67,6 +67,12 @@ class WorkoutAnalysisViewModel: ObservableObject {
     func loadAnalysis() async {
         print("🔵 WorkoutAnalysisViewModel: loadAnalysis() called")
 
+        if DemoMode.isEnabled {
+            analysisText = MockData.sampleWorkoutAnalysis
+            analyzedAt = Date()
+            return
+        }
+
         // First, try to load from local cache
         if let cached = fetchCachedAnalysis() {
             print("✅ WorkoutAnalysisViewModel: Found cached analysis")

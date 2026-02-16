@@ -25,6 +25,7 @@ struct RecoveryDashboardView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .accessibilityIdentifier("recovery-dashboard")
                 .navigationTitle(String(localized: "Recovery", comment: "Navigation title"))
                 .navigationBarTitleDisplayMode(.inline) // Use inline for date title
                 .toolbar {

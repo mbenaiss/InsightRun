@@ -1,0 +1,344 @@
+//
+//  MockData.swift
+//  InsightRun
+//
+//  Comprehensive mock data for demo mode and previews
+//
+
+import Foundation
+import HealthKit
+import CoreLocation
+
+enum MockData {
+
+    // MARK: - Helpers
+
+    private static let calendar = Calendar.current
+    private static let now = Date()
+
+    private static func date(daysAgo: Int, hour: Int = 7, minute: Int = 0) -> Date {
+        let day = calendar.date(byAdding: .day, value: -daysAgo, to: now)!
+        return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)!
+    }
+
+    // MARK: - GPS Route (Bois de Boulogne, Paris)
+
+    static let parisRouteCoordinates: [CLLocationCoordinate2D] = [
+        CLLocationCoordinate2D(latitude: 48.8638, longitude: 2.2492),
+        CLLocationCoordinate2D(latitude: 48.8645, longitude: 2.2478),
+        CLLocationCoordinate2D(latitude: 48.8658, longitude: 2.2461),
+        CLLocationCoordinate2D(latitude: 48.8672, longitude: 2.2445),
+        CLLocationCoordinate2D(latitude: 48.8685, longitude: 2.2430),
+        CLLocationCoordinate2D(latitude: 48.8698, longitude: 2.2418),
+        CLLocationCoordinate2D(latitude: 48.8710, longitude: 2.2405),
+        CLLocationCoordinate2D(latitude: 48.8720, longitude: 2.2398),
+        CLLocationCoordinate2D(latitude: 48.8732, longitude: 2.2410),
+        CLLocationCoordinate2D(latitude: 48.8740, longitude: 2.2425),
+        CLLocationCoordinate2D(latitude: 48.8748, longitude: 2.2442),
+        CLLocationCoordinate2D(latitude: 48.8752, longitude: 2.2460),
+        CLLocationCoordinate2D(latitude: 48.8745, longitude: 2.2480),
+        CLLocationCoordinate2D(latitude: 48.8735, longitude: 2.2495),
+        CLLocationCoordinate2D(latitude: 48.8722, longitude: 2.2510),
+        CLLocationCoordinate2D(latitude: 48.8708, longitude: 2.2520),
+        CLLocationCoordinate2D(latitude: 48.8695, longitude: 2.2515),
+        CLLocationCoordinate2D(latitude: 48.8680, longitude: 2.2505),
+        CLLocationCoordinate2D(latitude: 48.8665, longitude: 2.2498),
+        CLLocationCoordinate2D(latitude: 48.8650, longitude: 2.2495),
+        CLLocationCoordinate2D(latitude: 48.8638, longitude: 2.2492),
+    ]
+
+    // MARK: - Sample Workouts
+
+    static let sampleWorkouts: [WorkoutModel] = [
+        // 10K Race - 2 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 2, hour: 9, minute: 0),
+            endDate: date(daysAgo: 2, hour: 9, minute: 48),
+            duration: 2880,
+            distance: 10000,
+            totalEnergyBurned: 620,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 172,
+            maxHeartRate: 188,
+            elevationGain: 45,
+            hasRoute: true,
+            isIndoor: false
+        ),
+        // Interval Training - 4 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 4, hour: 18, minute: 30),
+            endDate: date(daysAgo: 4, hour: 19, minute: 15),
+            duration: 2700,
+            distance: 8200,
+            totalEnergyBurned: 540,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 165,
+            maxHeartRate: 192,
+            elevationGain: 30,
+            hasRoute: true,
+            isIndoor: false
+        ),
+        // Long Run - 5 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 5, hour: 7, minute: 0),
+            endDate: date(daysAgo: 5, hour: 8, minute: 35),
+            duration: 5700,
+            distance: 18500,
+            totalEnergyBurned: 1120,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 148,
+            maxHeartRate: 165,
+            elevationGain: 85,
+            hasRoute: true,
+            isIndoor: false
+        ),
+        // Recovery Run - 6 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 6, hour: 7, minute: 30),
+            endDate: date(daysAgo: 6, hour: 8, minute: 0),
+            duration: 1800,
+            distance: 5000,
+            totalEnergyBurned: 280,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 132,
+            maxHeartRate: 145,
+            elevationGain: 15,
+            hasRoute: true,
+            isIndoor: false
+        ),
+        // Tempo Run - 8 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 8, hour: 6, minute: 45),
+            endDate: date(daysAgo: 8, hour: 7, minute: 25),
+            duration: 2400,
+            distance: 8000,
+            totalEnergyBurned: 480,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 162,
+            maxHeartRate: 178,
+            elevationGain: 35,
+            hasRoute: true,
+            isIndoor: false
+        ),
+        // Easy Run - 9 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 9, hour: 12, minute: 15),
+            endDate: date(daysAgo: 9, hour: 12, minute: 55),
+            duration: 2400,
+            distance: 7200,
+            totalEnergyBurned: 390,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 140,
+            maxHeartRate: 155,
+            elevationGain: 25,
+            hasRoute: true,
+            isIndoor: false
+        ),
+        // Treadmill Run - 11 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 11, hour: 19, minute: 0),
+            endDate: date(daysAgo: 11, hour: 19, minute: 35),
+            duration: 2100,
+            distance: 6500,
+            totalEnergyBurned: 350,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 145,
+            maxHeartRate: 160,
+            elevationGain: nil,
+            hasRoute: false,
+            isIndoor: true
+        ),
+        // Progressive Run - 13 days ago
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 13, hour: 7, minute: 15),
+            endDate: date(daysAgo: 13, hour: 8, minute: 5),
+            duration: 3000,
+            distance: 10500,
+            totalEnergyBurned: 560,
+            sourceName: "Apple Watch",
+            sourceVersion: "11.0",
+            metadata: nil,
+            averageHeartRate: 155,
+            maxHeartRate: 180,
+            elevationGain: 50,
+            hasRoute: true,
+            isIndoor: false
+        ),
+    ]
+
+    // MARK: - Sample Sleep Data
+
+    static let sampleSleepData: SleepData = {
+        let sleepStart = calendar.date(bySettingHour: 23, minute: 0, second: 0,
+                                       of: calendar.date(byAdding: .day, value: -1, to: now)!)!
+        let sleepEnd = calendar.date(bySettingHour: 6, minute: 45, second: 0, of: now)!
+        let totalSleep: TimeInterval = 7 * 3600 + 45 * 60  // 7h45
+        let timeInBed: TimeInterval = 8 * 3600 + 30 * 60   // 8h30 (includes awake)
+
+        return SleepData(
+            date: now,
+            sleepStart: sleepStart,
+            sleepEnd: sleepEnd,
+            totalSleepDuration: totalSleep,
+            timeInBed: timeInBed,
+            deepSleepDuration: 1 * 3600 + 30 * 60,   // 1h30
+            coreSleepDuration: 3 * 3600 + 30 * 60,    // 3h30
+            remSleepDuration: 2 * 3600,                // 2h00
+            awakeDuration: 45 * 60,                    // 45min
+            napDuration: nil
+        )
+    }()
+
+    // MARK: - Sample Recovery Metrics
+
+    static let sampleRecoveryMetrics: RecoveryMetrics = RecoveryMetrics(
+        date: now,
+        restingHeartRate: 52,
+        hrvAverage: 65,
+        hrvMin: 42,
+        hrvMax: 88,
+        walkingHeartRate: 78,
+        sleepData: sampleSleepData,
+        respiratoryRate: 14,
+        oxygenSaturation: 98,
+        baseline: samplePersonalBaseline
+    )
+
+    // MARK: - Sample Health Profile
+
+    static let sampleHealthProfile: HealthProfile = HealthProfile(
+        date: now,
+        age: 32,
+        biologicalSex: .male,
+        bodyMass: 75.0,
+        bodyMassDate: calendar.date(byAdding: .day, value: -1, to: now),
+        bodyFatPercentage: 14.5,
+        bodyFatDate: calendar.date(byAdding: .day, value: -3, to: now),
+        leanBodyMass: 64.1,
+        leanBodyMassDate: calendar.date(byAdding: .day, value: -3, to: now),
+        oxygenSaturation: 98,
+        oxygenSaturationDate: now,
+        bodyTemperature: 36.6,
+        bodyTemperatureDate: now,
+        respiratoryRate: 14,
+        respiratoryRateDate: now,
+        exerciseTime: 45,
+        standTime: 660,
+        flightsClimbed: 8,
+        cyclingDistance: 35000,
+        swimmingDistance: 2000
+    )
+
+    // MARK: - Sample Personal Baseline
+
+    static let samplePersonalBaseline: PersonalBaseline = PersonalBaseline(
+        id: UUID(),
+        computedAt: calendar.date(byAdding: .hour, value: -12, to: now)!,
+        dataPointCount: 28,
+        restingHeartRateAverage: 53,
+        restingHeartRateStdDev: 3.2,
+        hrvAverage: 62,
+        hrvStdDev: 12.5,
+        walkingHeartRateAverage: 80,
+        walkingHeartRateStdDev: 5.0,
+        respiratoryRateAverage: 14.5,
+        respiratoryRateStdDev: 1.2,
+        oxygenSaturationAverage: 97.5,
+        oxygenSaturationStdDev: 0.8,
+        sleepDurationAverage: 7.5 * 3600,
+        sleepEfficiencyAverage: 90,
+        deepSleepPercentageAverage: 18,
+        remSleepPercentageAverage: 24
+    )
+
+    // MARK: - Sample Workout AI Analysis
+
+    static let sampleWorkoutAnalysis = """
+    ## 🎯 Key Points
+    - Strong 10K at 4'47"/km showing excellent aerobic fitness
+    - Heart rate averaged 172 bpm (Zone 4) — high intensity sustained well
+    - Negative split pattern suggests good pacing discipline
+
+    ## ✅ Optimal Metrics
+    - Cadence (182 spm), Stride length (1.12m), Vertical oscillation (8.2cm) ✅
+
+    ## ⚠️ To Optimize
+    - Ground contact time: 268 ms → 220-250 ms (improve running economy ~5%)
+    - Heart rate drift: +8% in last 2km → work on aerobic base to reduce drift
+
+    ## 💡 Concrete Actions
+    - Add 2x weekly cadence drills (high knees, butt kicks) to improve ground contact
+    - Include 1 tempo run at 5'00-5'10"/km to build aerobic efficiency
+
+    ## 🔄 Recovery
+    - 36-48h rest recommended before next intense session. Light jog or walk OK tomorrow.
+    - Focus on 8h+ sleep tonight and hydrate well (aim for 2.5L today).
+    """
+
+    // MARK: - Sample Unified Workouts
+
+    static let sampleUnifiedWorkouts: [UnifiedWorkout] = sampleWorkouts.map {
+        UnifiedWorkout(from: $0)
+    }
+
+    // MARK: - Sample Progression Data
+
+    static let sampleProgressionData: [ProgressionDataPoint] = sampleWorkouts.enumerated().map { index, workout in
+        ProgressionDataPoint(
+            workoutId: workout.id,
+            date: workout.startDate,
+            averagePace: workout.averagePace,
+            minPace: (workout.averagePace ?? 5.0) - Double(index % 3) * 0.2,
+            maxSpeed: 14.0 + Double(index % 4) * 0.5,
+            averageCadence: 175 + Double(index % 5) * 2,
+            strideLength: 1.05 + Double(index % 4) * 0.03,
+            runningPower: 250 + Double(index % 6) * 15,
+            vo2Max: 50.0 + Double(index % 3) * 1.5,
+            groundContactTime: 245 - Double(index % 4) * 5,
+            verticalOscillation: 8.0 + Double(index % 3) * 0.3,
+            walkingAsymmetry: 3.0 - Double(index % 3) * 0.5,
+            doubleSupportPercentage: 28.0 - Double(index % 4) * 0.5,
+            walkingSpeed: 5.5 + Double(index % 3) * 0.2,
+            stairDescentSpeed: nil
+        )
+    }
+
+    // MARK: - Sample Trend Data (7 days)
+
+    static let sampleTrendData: [String: [Double]] = [
+        "hrv": [58, 62, 55, 68, 60, 65, 65],
+        "rhr": [54, 53, 56, 51, 53, 52, 52],
+        "sleepDuration": [7.2, 7.5, 6.8, 8.0, 7.3, 7.8, 7.75],
+        "trainingLoad": [0, 85, 0, 65, 110, 45, 0],
+    ]
+}

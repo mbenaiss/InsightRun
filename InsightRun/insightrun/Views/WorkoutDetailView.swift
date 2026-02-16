@@ -123,6 +123,7 @@ struct WorkoutDetailView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 20)
                 }
+                .accessibilityIdentifier("workout-detail")
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .clipped()
             }
@@ -674,6 +675,7 @@ struct WorkoutDetailView: View {
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
+        .accessibilityIdentifier("workout-ai-analysis")
         .sheet(isPresented: $showSubscriptionPaywall) {
             SubscriptionPaywallView(isInitialFlow: false)
                 .environmentObject(revenueCatManager)

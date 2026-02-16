@@ -38,6 +38,17 @@ class DailyReadinessViewModel: ObservableObject {
         cardiacLoadStatus: CardiacLoadStatus = .detraining,
         forceRefresh: Bool = false
     ) async {
+        if DemoMode.isEnabled {
+            readinessScore = 82
+            status = .good
+            recommendation = String(localized: "Good recovery. You can do a moderate to intense workout.", comment: "Demo readiness recommendation")
+            suggestedWorkoutType = .moderate
+            insights = []
+            isLoading = false
+            errorMessage = nil
+            return
+        }
+
         // Return cached readiness if available for today (unless forced)
         if !forceRefresh, let cached = dailyCache.getCachedReadiness() {
             readinessScore = cached.score

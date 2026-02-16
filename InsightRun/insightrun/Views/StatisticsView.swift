@@ -73,6 +73,7 @@ struct StatisticsView: View {
                 }
                 .padding()
             }
+            .accessibilityIdentifier("statistics-content")
             .navigationTitle(String(localized: "statistics.title"))
             .refreshable {
                 await viewModel.refresh()

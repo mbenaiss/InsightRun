@@ -174,6 +174,12 @@ class StatisticsViewModel: ObservableObject {
     // MARK: - Data Loading
 
     func loadWorkouts() async {
+        if DemoMode.isEnabled {
+            workouts = MockData.sampleWorkouts
+            isLoading = false
+            return
+        }
+
         isLoading = true
 
         do {
@@ -736,6 +742,12 @@ class StatisticsViewModel: ObservableObject {
         progressionTask = Task {
             isLoadingProgression = true
             progressionLoadingProgress = 0
+
+            if DemoMode.isEnabled {
+                progressionData = MockData.sampleProgressionData
+                isLoadingProgression = false
+                return
+            }
 
             let workoutsToLoad = filteredWorkouts.sorted { $0.startDate < $1.startDate }
             guard !workoutsToLoad.isEmpty else {

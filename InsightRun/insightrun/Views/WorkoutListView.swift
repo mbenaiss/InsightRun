@@ -454,11 +454,14 @@ struct WorkoutListView: View {
                             .padding(.top, 8)
 
                         // Workouts in this month
-                        ForEach(groupWorkouts) { workout in
+                        ForEach(Array(groupWorkouts.enumerated()), id: \.element.id) { index, workout in
                             NavigationLink(value: workout) {
                                 WorkoutRowView(workout: workout)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityIdentifier("workout-row-\(index)")
                             .onAppear {
                                 // INFINITE SCROLL: Load more when user reaches near the end
                                 // Only for HealthKit workouts (unified workouts load all at once)
@@ -509,6 +512,7 @@ struct WorkoutListView: View {
             }
             .padding(.bottom, 20)
         }
+        .accessibilityIdentifier("workout-list")
         .refreshable {
             await viewModel.refresh()
             // Also refresh unified workouts when Strava is enabled

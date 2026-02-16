@@ -17,7 +17,7 @@ class OnboardingManager: ObservableObject {
     private let hasCompletedKey = "hasCompletedOnboarding"
 
     private init() {
-        self.hasCompletedOnboarding = UserDefaults.standard.bool(forKey: hasCompletedKey)
+        self.hasCompletedOnboarding = DemoMode.isEnabled || UserDefaults.standard.bool(forKey: hasCompletedKey)
     }
 
     func completeOnboarding() {

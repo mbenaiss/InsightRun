@@ -30,6 +30,12 @@ class WorkoutListViewModel: ObservableObject {
     }
 
     init() {
+        if DemoMode.isEnabled {
+            authorizationStatus = .authorized
+            workouts = MockData.sampleWorkouts
+            return
+        }
+
         // Check data access on initialization
         Task {
             await checkAuthorizationStatus()

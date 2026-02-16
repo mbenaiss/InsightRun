@@ -1,0 +1,19 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Generate App Store screenshots"
+  lane :screenshots do
+    snapshot
+  end
+
+  desc "Generate App Store screenshots with device frames"
+  lane :framed_screenshots do
+    snapshot
+    frameit(white: false, path: "./fastlane/screenshots")
+  end
+
+  desc "Record App Preview videos"
+  lane :videos do
+    sh("../scripts/record_videos.sh")
+  end
+end

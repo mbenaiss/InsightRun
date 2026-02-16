@@ -20,7 +20,8 @@ class ConsentService {
 
     // Computed properties that read directly from UserDefaults
     var hasConsentedToAIDataSharing: Bool {
-        UserDefaults.standard.bool(forKey: consentKey)
+        if DemoMode.isEnabled { return true }
+        return UserDefaults.standard.bool(forKey: consentKey)
     }
 
     var consentDate: Date? {

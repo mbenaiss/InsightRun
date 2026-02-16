@@ -62,4 +62,12 @@ HealthApp/*.dSYM
 HealthApp/*.resolved
 HealthApp/*.playground
 
-
+# Fastlane
+InsightRun/fastlane/report.xml
+InsightRun/fastlane/Preview.html
+InsightRun/fastlane/screenshots/
+InsightRun/fastlane/videos/
+InsightRun/fastlane/test_output/
+InsightRun/vendor/bundle/
+InsightRun/Gemfile.lock
+InsightRun/.bundle/

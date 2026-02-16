@@ -1961,6 +1961,7 @@
     },
     "breaths/min" : {
       "comment" : "Recovery context: respiratory rate unit",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -4942,6 +4943,7 @@
     },
     "HRV (SDNN) average" : {
       "comment" : "Recovery context: HRV average label",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -8657,6 +8659,7 @@
     },
     "range" : {
       "comment" : "Recovery context: range label",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -8712,6 +8715,7 @@
     },
     "Readiness Score" : {
       "comment" : "Recovery context: readiness score label",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -8775,6 +8779,7 @@
     },
     "Recommendations" : {
       "comment" : "Recovery context: recommendations header",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -8926,6 +8931,7 @@
     },
     "Recovery Status" : {
       "comment" : "Recovery context header",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -9052,7 +9058,7 @@
 
     },
     "Respiratory rate" : {
-      "comment" : "Label for respiratory rate\nRecovery context: respiratory rate label\nRespiratory rate metric title",
+      "comment" : "Label for respiratory rate\nRespiratory rate metric title",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -10998,9 +11004,6 @@
           }
         }
       }
-    },
-    "Status" : {
-      "comment" : "Recovery context: status label"
     },
     "Status Thresholds (ACWR)" : {
       "comment" : "Cardiac load ACWR status thresholds label",

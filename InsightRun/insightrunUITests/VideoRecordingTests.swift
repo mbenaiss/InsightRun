@@ -5,7 +5,7 @@ final class VideoRecordingTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        continueAfterFailure = false
+        continueAfterFailure = true
         app = XCUIApplication()
     }
 
@@ -55,10 +55,52 @@ final class VideoRecordingTests: XCTestCase {
     // MARK: - Navigation
 
     private func navigateAppPreview() {
-        // Dashboard - show recovery and readiness
+        // === DASHBOARD ===
         sleep(2)
 
-        // Navigate to Workouts
+        // Scroll down to show recovery metrics
+        app.swipeUp()
+        sleep(1)
+
+        // Scroll back up for score buttons
+        app.swipeDown()
+        sleep(1)
+
+        // Open Effort score detail sheet
+        tapElement(identifier: "score-effort")
+        sleep(2)
+        dismissSheet()
+
+        // Open Sleep score detail sheet
+        tapElement(identifier: "score-sleep")
+        sleep(2)
+        dismissSheet()
+
+        // Open Readiness score detail sheet
+        tapElement(identifier: "score-readiness")
+        sleep(2)
+        dismissSheet()
+
+        // Navigate to Weekly Summary
+        let weeklySummaryLink = app.buttons.matching(identifier: "weekly-summary-link").firstMatch
+        if weeklySummaryLink.waitForExistence(timeout: 3) && weeklySummaryLink.isHittable {
+            weeklySummaryLink.tap()
+            sleep(2)
+            app.swipeUp()
+            sleep(1)
+            app.navigationBars.buttons.firstMatch.tap()
+            sleep(1)
+        }
+
+        // Create Training Plan (do NOT swipe up - it triggers Export button)
+        let trainingPlanButton = app.buttons.matching(identifier: "create-training-plan").firstMatch
+        if trainingPlanButton.waitForExistence(timeout: 3) && trainingPlanButton.isHittable {
+            trainingPlanButton.tap()
+            sleep(3)
+            dismissSheet()
+        }
+
+        // === WORKOUTS ===
         app.tabBars.buttons.element(boundBy: 1).tap()
         sleep(1)
 
@@ -68,7 +110,13 @@ final class VideoRecordingTests: XCTestCase {
             firstWorkout.tap()
             sleep(2)
 
-            // Scroll through workout detail to AI analysis
+            // Scroll through ALL workout detail sections
+            app.swipeUp()
+            sleep(1)
+            app.swipeUp()
+            sleep(1)
+            app.swipeUp()
+            sleep(1)
             app.swipeUp()
             sleep(1)
             app.swipeUp()
@@ -79,9 +127,18 @@ final class VideoRecordingTests: XCTestCase {
             sleep(1)
         }
 
-        // Navigate to Statistics - Overview
+        // === STATISTICS ===
         app.tabBars.buttons.element(boundBy: 2).tap()
         sleep(2)
+
+        // Expand Personal Records
+        let recordsToggle = app.buttons.matching(identifier: "personal-records-toggle").firstMatch
+        if recordsToggle.waitForExistence(timeout: 3) && recordsToggle.isHittable {
+            recordsToggle.tap()
+            sleep(1)
+            app.swipeUp()
+            sleep(1)
+        }
 
         // Statistics - Progression tab
         let progressionTab = app.buttons["Progression"]
@@ -90,25 +147,13 @@ final class VideoRecordingTests: XCTestCase {
             sleep(2)
         }
 
-        // Back to Dashboard
+        // === BACK TO DASHBOARD ===
         app.tabBars.buttons.element(boundBy: 0).tap()
         sleep(1)
 
-        // Scroll dashboard to show recovery
+        // Scroll dashboard to show recovery section
         app.swipeUp()
         sleep(2)
-
-        // Scroll back up for score buttons
-        app.swipeDown()
-        sleep(1)
-
-        // Open Readiness score detail
-        let readinessButton = app.buttons.matching(identifier: "score-readiness").firstMatch
-        if readinessButton.waitForExistence(timeout: 2) && readinessButton.isHittable {
-            readinessButton.tap()
-            sleep(2)
-            dismissSheet()
-        }
 
         // Open AI Assistant
         let aiButton = app.buttons["floating-ai-button"]
@@ -123,13 +168,21 @@ final class VideoRecordingTests: XCTestCase {
 
     // MARK: - Helpers
 
+    private func tapElement(identifier: String) {
+        let button = app.buttons.matching(identifier: identifier).firstMatch
+        if button.waitForExistence(timeout: 2) && button.isHittable {
+            button.tap()
+        }
+    }
+
     private func dismissSheet() {
         let closeButton = app.buttons["sheet-close"]
-        if closeButton.waitForExistence(timeout: 2) {
+        if closeButton.waitForExistence(timeout: 2) && closeButton.isHittable {
             closeButton.tap()
             sleep(1)
             return
         }
+        // Fallback: swipe down to dismiss
         app.swipeDown()
         sleep(1)
     }

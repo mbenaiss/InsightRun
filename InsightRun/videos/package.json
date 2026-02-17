@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "studio": "remotion studio src/index.ts",
-    "render:en": "remotion render src/index.ts AppPreview-en ../fastlane/videos/en-US.mp4 --codec h264 --crf 18 --pixel-format yuv420p",
-    "render:fr": "remotion render src/index.ts AppPreview-fr ../fastlane/videos/fr-FR.mp4 --codec h264 --crf 18 --pixel-format yuv420p",
+    "render:en": "remotion render src/index.ts AppPreview-en ../fastlane/videos/en-US.mp4 --codec h264 --crf 18 --pixel-format yuv420p --gl=angle",
+    "render:fr": "remotion render src/index.ts AppPreview-fr ../fastlane/videos/fr-FR.mp4 --codec h264 --crf 18 --pixel-format yuv420p --gl=angle",
     "render:all": "npm run render:en && npm run render:fr"
   },
   "dependencies": {

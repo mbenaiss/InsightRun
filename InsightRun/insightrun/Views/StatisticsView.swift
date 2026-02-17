@@ -315,6 +315,7 @@ struct StatisticsView: View {
                         .rotationEffect(.degrees(isRecordsExpanded ? 90 : 0))
                 }
             }
+            .accessibilityIdentifier("personal-records-toggle")
 
             if isRecordsExpanded {
                 VStack(spacing: 12) {

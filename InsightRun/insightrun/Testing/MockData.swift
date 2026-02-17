@@ -332,6 +332,64 @@ enum MockData {
     - Viser 8h+ de sommeil ce soir et bien s'hydrater (objectif 2.5L aujourd'hui).
     """
 
+    // MARK: - Sample Score Analysis (Demo Mode)
+
+    static func sampleScoreAnalysis(for scoreType: ScoreType) -> String {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        switch scoreType {
+        case .effort:
+            return lang == "fr"
+                ? "Votre score d'effort est bas aujourd'hui — aucun entraînement enregistré. C'est une bonne journée pour une séance modérée à intense. Votre corps est bien reposé et prêt pour l'effort."
+                : "Your effort score is low today — no workout recorded. This is a good day for a moderate to intense session. Your body is well-rested and ready for effort."
+        case .sleep:
+            return lang == "fr"
+                ? "Excellent sommeil ! 7h45 avec 91% d'efficacité et une bonne répartition des phases (profond 19%, léger 45%, REM 26%). Votre récupération nocturne est optimale pour l'entraînement."
+                : "Excellent sleep! 7h45 with 91% efficiency and good stage distribution (deep 19%, light 45%, REM 26%). Your overnight recovery is optimal for training."
+        case .readiness:
+            return lang == "fr"
+                ? "Score de préparation de 82% — excellent. Votre VFC (65ms), FC repos (52 bpm) et SpO2 (98%) indiquent une récupération complète. Vous pouvez envisager une séance intense aujourd'hui."
+                : "Readiness score of 82% — excellent. Your HRV (65ms), resting HR (52 bpm) and SpO2 (98%) indicate full recovery. You can consider an intense session today."
+        case .cardiacLoad:
+            return lang == "fr"
+                ? "Charge cardiaque de 17, en augmentation. Votre tendance sur 7 jours montre une progression régulière. Maintenez cet équilibre charge/récupération pour optimiser vos adaptations."
+                : "Cardiac load of 17, increasing. Your 7-day trend shows steady progression. Maintain this load/recovery balance to optimize your adaptations."
+        }
+    }
+
+    static func sampleMetricAnalysis(for metricType: MetricType) -> String {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        switch metricType {
+        case .hrv:
+            return lang == "fr"
+                ? "VFC de 65ms — dans la plage normale. Indicateur clé de récupération du système nerveux autonome. Valeur stable sur les 7 derniers jours."
+                : "HRV of 65ms — within normal range. Key indicator of autonomic nervous system recovery. Stable value over the last 7 days."
+        case .restingHeartRate:
+            return lang == "fr"
+                ? "FC repos de 52 bpm — excellente pour un coureur régulier. Signe d'une bonne adaptation cardiovasculaire à l'entraînement."
+                : "Resting HR of 52 bpm — excellent for a regular runner. Sign of good cardiovascular adaptation to training."
+        case .respiratoryRate:
+            return lang == "fr"
+                ? "Fréquence respiratoire de 14 rpm — normale et stable. Aucun signe de stress physiologique ou de surentraînement."
+                : "Respiratory rate of 14 rpm — normal and stable. No signs of physiological stress or overtraining."
+        case .oxygenSaturation:
+            return lang == "fr"
+                ? "SpO2 de 98% — excellent. Oxygénation optimale des tissus pour la performance et la récupération."
+                : "SpO2 of 98% — excellent. Optimal tissue oxygenation for performance and recovery."
+        case .sleepDuration:
+            return lang == "fr"
+                ? "Durée de sommeil de 7h45 — idéale pour la récupération athlétique. L'objectif de 7-9h est bien atteint."
+                : "Sleep duration of 7h45 — ideal for athletic recovery. The 7-9h target is well met."
+        case .sleepEfficiency:
+            return lang == "fr"
+                ? "Efficacité de sommeil de 91% — très bon. Au-dessus du seuil de 85% recommandé pour une récupération optimale."
+                : "Sleep efficiency of 91% — very good. Above the 85% threshold recommended for optimal recovery."
+        case .recoveryScore:
+            return lang == "fr"
+                ? "Score de récupération global très positif. Tous vos indicateurs physiologiques sont dans les plages optimales."
+                : "Overall recovery score is very positive. All your physiological indicators are within optimal ranges."
+        }
+    }
+
     // MARK: - Sample Unified Workouts
 
     static let sampleUnifiedWorkouts: [UnifiedWorkout] = sampleWorkouts.map {

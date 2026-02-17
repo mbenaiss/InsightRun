@@ -443,6 +443,7 @@ struct DashboardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("create-training-plan")
         }
         .cardStyle()
     }
@@ -739,6 +740,7 @@ struct DashboardView: View {
             .cardStyle(padding: Spacing.md)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("weekly-summary-link")
         .padding(.horizontal)
     }
 

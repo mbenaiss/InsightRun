@@ -28,6 +28,13 @@ class WorkoutPlanViewModel: ObservableObject {
     // Subscription state
     @Published var showSubscriptionPaywall = false
 
+    // Demo mode: auto-show preview with mock data
+    func loadDemoDataIfNeeded() {
+        guard DemoMode.isEnabled else { return }
+        generatedWorkout = .sampleIntervalWorkout
+        showPreview = true
+    }
+
     // Sample prompts
     let samplePrompts = [
         String(localized: "10x400m speed intervals", comment: "Sample workout prompt"),
@@ -498,6 +505,7 @@ class WorkoutPlanViewModel: ObservableObject {
 }
 
 struct WorkoutPlanView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = WorkoutPlanViewModel()
     @FocusState private var isTextFieldFocused: Bool
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
@@ -554,11 +562,24 @@ struct WorkoutPlanView: View {
             }
             .navigationTitle(String(localized: "Workout Plan", comment: "Workout plan screen title"))
             .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                viewModel.loadDemoDataIfNeeded()
+            }
             .sheet(isPresented: $showSubscriptionPaywall) {
                 SubscriptionPaywallView(isInitialFlow: false)
                     .environmentObject(revenueCatManager)
             }
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("sheet-close")
+                }
+
                 if viewModel.showPreview {
                     if !isEditing {
                         // View Mode: Edit + New buttons

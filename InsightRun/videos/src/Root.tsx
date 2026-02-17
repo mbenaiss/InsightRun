@@ -25,27 +25,41 @@ export type AppPreviewProps = {
   endCardCta: string
 }
 
-// en-US: raw 67s, trim 10s → 57s usable, 2.0x → 28.5s + 2s intro
-// Old test flow (source time after trim, accounting for ~20s overhead):
-//   Dashboard ~20s, Workouts ~23s, Detail ~25s, AI scroll ~28s,
-//   Statistics ~32s, Progression ~34s, Recovery ~39s, Readiness ~42s, AI Coach ~48s
-// Output time = 2 + (source - 0) / 2.0
+// en-US: raw 114s, app starts ~12s, content ends ~108s → 96s usable
+// 3.7x over 26s video section (30s - 2s intro - 2s endcard)
+// Output = 2 + (rawTime - 12) / 3.7
+// Dashboard 2-4.5s, Effort 6-7.5s, Sleep 7.5-9s, Readiness 9.5-11s,
+// Weekly Summary 11.5-13s, Training Plan 13.5-15.5s, Workouts 16-17s,
+// Detail+AI 17-20.5s, Stats 21-23s, Records 24-26s, AI Coach 27-28s
 const enCallouts: CalloutConfig[] = [
-  { text: 'Recovery Dashboard', description: 'Track your recovery at a glance', startFrame: 3 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
-  { text: 'Workout History', startFrame: 5 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
-  { text: 'Workout Details & AI Analysis', startFrame: 7 * FPS, durationFrames: 3 * FPS, position: 'bottom' },
-  { text: 'Training Stats', startFrame: 13 * FPS, durationFrames: 3 * FPS, position: 'bottom' },
-  { text: 'Readiness & AI Coach', startFrame: 23 * FPS, durationFrames: 4 * FPS, position: 'bottom' },
+  { text: 'Recovery Dashboard', description: 'Track your recovery at a glance', startFrame: 2.5 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'Effort Analysis', startFrame: 6 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'Sleep Analysis', startFrame: 7.5 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'Readiness Score', startFrame: 9.5 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'Weekly Summary', startFrame: 11.5 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'AI Training Plan', startFrame: 13.5 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'Workout History', startFrame: 16 * FPS, durationFrames: 1 * FPS, position: 'bottom' },
+  { text: 'AI Workout Analysis', startFrame: 17 * FPS, durationFrames: 3 * FPS, position: 'bottom' },
+  { text: 'Training Stats', startFrame: 21 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'Personal Records', startFrame: 24 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'AI Coach', startFrame: 27 * FPS, durationFrames: 1 * FPS, position: 'bottom' },
 ]
 
-// fr-FR: raw 86s, trim 10s → 76s usable, 2.7x → 28.1s + 2s intro
-// Overhead is larger (~35s), content starts later in output
+// fr-FR: raw 112s, app starts ~12s, content ends ~106s → 94s usable
+// 3.6x over 26s video section → covers ~93.6s
+// Similar flow as EN with French labels
 const frCallouts: CalloutConfig[] = [
-  { text: 'Tableau de Récupération', description: 'Suivez votre récupération en un clin d\'œil', startFrame: 3 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
-  { text: 'Historique d\'Entraînement', startFrame: 5 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
-  { text: 'Détail & Analyse IA', startFrame: 7 * FPS, durationFrames: 3 * FPS, position: 'bottom' },
-  { text: 'Statistiques', startFrame: 13 * FPS, durationFrames: 3 * FPS, position: 'bottom' },
-  { text: 'Préparation & Coach IA', startFrame: 23 * FPS, durationFrames: 4 * FPS, position: 'bottom' },
+  { text: 'Tableau de Récupération', description: 'Suivez votre récupération en un clin d\'œil', startFrame: 2.5 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'Score d\'Effort', startFrame: 6 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'Score de Sommeil', startFrame: 7.5 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'Score de Préparation', startFrame: 9.5 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'Résumé Hebdomadaire', startFrame: 11.5 * FPS, durationFrames: 1.5 * FPS, position: 'bottom' },
+  { text: 'Plan d\'Entraînement IA', startFrame: 13.5 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'Historique d\'Entraînement', startFrame: 16 * FPS, durationFrames: 1 * FPS, position: 'bottom' },
+  { text: 'Analyse IA du Workout', startFrame: 17 * FPS, durationFrames: 3 * FPS, position: 'bottom' },
+  { text: 'Statistiques', startFrame: 21 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'Records Personnels', startFrame: 24 * FPS, durationFrames: 2 * FPS, position: 'bottom' },
+  { text: 'Coach IA', startFrame: 27 * FPS, durationFrames: 1 * FPS, position: 'bottom' },
 ]
 
 export const RemotionRoot = () => {
@@ -60,8 +74,8 @@ export const RemotionRoot = () => {
         height={HEIGHT}
         defaultProps={{
           videoFile: 'en-US_raw.mov',
-          playbackRate: 2.0,
-          trimStartSeconds: 10,
+          playbackRate: 3.7,
+          trimStartSeconds: 12,
           callouts: enCallouts,
           subtitle: 'AI-Powered Running Coach',
           endCardCta: 'Download on the App Store',
@@ -76,8 +90,8 @@ export const RemotionRoot = () => {
         height={HEIGHT}
         defaultProps={{
           videoFile: 'fr-FR_raw.mov',
-          playbackRate: 2.7,
-          trimStartSeconds: 10,
+          playbackRate: 3.6,
+          trimStartSeconds: 12,
           callouts: frCallouts,
           subtitle: 'Coach Running propulsé par l\'IA',
           endCardCta: 'Télécharger sur l\'App Store',

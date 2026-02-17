@@ -11,11 +11,24 @@ import CoreLocation
 import Combine
 import WorkoutKit
 
-enum HealthKitError: Error {
+enum HealthKitError: LocalizedError {
     case notAvailable
     case authorizationDenied
     case dataNotAvailable
     case queryFailed(Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .notAvailable:
+            return String(localized: "HealthKit is not available on this device. Please ensure you are using a compatible iPhone.", comment: "Error when HealthKit is not available")
+        case .authorizationDenied:
+            return String(localized: "HealthKit access was denied. Please go to Settings > Health > Data Access to enable InsightRun.", comment: "Error when HealthKit authorization is denied")
+        case .dataNotAvailable:
+            return String(localized: "Health data is not available.", comment: "Error when health data is not available")
+        case .queryFailed(let error):
+            return error.localizedDescription
+        }
+    }
 }
 
 @MainActor
@@ -25,6 +38,20 @@ class HealthKitManager: ObservableObject {
     private let healthStore = HKHealthStore()
 
     private init() {}
+
+    // MARK: - Availability
+
+    /// Check if HealthKit is available and workout data can be read
+    var isHealthDataAvailable: Bool {
+        HKHealthStore.isHealthDataAvailable()
+    }
+
+    /// Check if user has completed HealthKit authorization (uses sharing status as proxy since read status is not exposed by HealthKit)
+    var isHealthKitAuthorized: Bool {
+        guard isHealthDataAvailable else { return false }
+        let workoutType = HKObjectType.workoutType()
+        return healthStore.authorizationStatus(for: workoutType) == .sharingAuthorized
+    }
 
     // MARK: - Authorization
 

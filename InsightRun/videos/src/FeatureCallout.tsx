@@ -9,14 +9,15 @@ const { fontFamily } = loadFont('normal', {
 
 export type CalloutProps = {
   text: string
+  description?: string
   position: 'top' | 'bottom'
 }
 
-export const FeatureCallout: React.FC<CalloutProps> = ({ text, position }) => {
+export const FeatureCallout: React.FC<CalloutProps> = ({ text, description, position }) => {
   const frame = useCurrentFrame()
   const { fps, durationInFrames } = useVideoConfig()
 
-  const enter = spring({ frame, fps, config: { damping: 200 } })
+  const enter = spring({ frame, fps, config: { damping: 14, stiffness: 180 } })
 
   const exit = spring({
     frame,
@@ -25,8 +26,13 @@ export const FeatureCallout: React.FC<CalloutProps> = ({ text, position }) => {
     config: { damping: 200 },
   })
 
-  const translateY = interpolate(enter - exit, [0, 1], [60, 0])
-  const opacity = interpolate(enter - exit, [0, 1], [0, 1], {
+  const progress = enter - exit
+  const translateY = interpolate(progress, [0, 1], [50, 0])
+  const scale = interpolate(progress, [0, 1], [0.92, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  })
+  const opacity = interpolate(progress, [0, 1], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   })
@@ -41,30 +47,54 @@ export const FeatureCallout: React.FC<CalloutProps> = ({ text, position }) => {
         display: 'flex',
         justifyContent: 'center',
         opacity,
-        transform: `translateY(${translateY}px)`,
+        transform: `translateY(${translateY}px) scale(${scale})`,
       }}
     >
+      {/* Outer glow */}
       <div
         style={{
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          borderRadius: 32,
-          padding: '28px 52px',
+          borderRadius: 36,
+          padding: 2,
+          background: 'linear-gradient(135deg, rgba(0, 136, 255, 0.6), rgba(0, 200, 255, 0.3), rgba(0, 136, 255, 0.1))',
+          boxShadow: '0 8px 40px rgba(0, 136, 255, 0.2)',
           maxWidth: '85%',
         }}
       >
-        <span
+        <div
           style={{
-            fontFamily,
-            fontSize: 60,
-            fontWeight: 700,
-            color: 'white',
-            letterSpacing: -1,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(32px)',
+            WebkitBackdropFilter: 'blur(32px)',
+            borderRadius: 34,
+            padding: '28px 52px',
           }}
         >
-          {text}
-        </span>
+          <span
+            style={{
+              fontFamily,
+              fontSize: 60,
+              fontWeight: 700,
+              color: 'white',
+              letterSpacing: -1,
+            }}
+          >
+            {text}
+          </span>
+          {description && (
+            <div
+              style={{
+                fontFamily,
+                fontSize: 36,
+                fontWeight: 400,
+                color: 'rgba(255, 255, 255, 0.6)',
+                marginTop: 8,
+                letterSpacing: 0,
+              }}
+            >
+              {description}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

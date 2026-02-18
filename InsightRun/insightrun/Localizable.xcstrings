@@ -379,66 +379,6 @@
         }
       }
     },
-    "🌐 Connecting to server..." : {
-      "comment" : "Message while connecting to remote server",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🌐 Connexion au serveur..."
-          }
-        }
-      }
-    },
-    "🔄 Updating your athletic profile...\nYour data is being refreshed with recent workouts." : {
-      "comment" : "Message during profile refresh",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🔄 Mise à jour de votre profil athlétique...\nVos données sont actualisées avec vos entraînements récents."
-          }
-        }
-      }
-    },
-    "🔍 Analyzing your training history...\nThis takes 10-20 seconds." : {
-      "comment" : "Message during first-time historical analysis",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🔍 Analyse de votre historique d'entraînement...\nCela prend 10-20 secondes."
-          }
-        }
-      }
-    },
-    "🧠 Generating response..." : {
-      "comment" : "Message while local model is generating response",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🧠 Génération de la réponse..."
-          }
-        }
-      }
-    },
-    "3 days free trial" : {
-      "comment" : "Onboarding paywall trial",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "3 jours d'essai gratuit"
-          }
-        }
-      }
-    },
     "3x8min threshold intervals" : {
       "comment" : "Sample workout prompt",
       "localizations" : {
@@ -760,18 +700,6 @@
         }
       }
     },
-    "Access all your running history" : {
-      "comment" : "Onboarding paywall feature: unlimited description",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accédez à tout votre historique de courses"
-          }
-        }
-      }
-    },
     "Access Denied" : {
       "comment" : "HealthKit access denied title",
       "extractionState" : "manual",
@@ -784,16 +712,8 @@
         }
       }
     },
-    "Access to export workouts was denied. Please allow authorization when prompted again." : {
-      "comment" : "Error when WorkoutKit authorization is denied",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L'accès pour exporter les entraînements a été refusé. Veuillez autoriser l'accès lorsque vous y serez invité."
-          }
-        }
-      }
+    "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable InsightRun." : {
+      "comment" : "Error when WorkoutKit authorization is denied"
     },
     "Access to your health data" : {
       "comment" : "Onboarding HealthKit title",
@@ -842,24 +762,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Synchronisation automatique des activités"
-          }
-        }
-      }
-    },
-    "Actual" : {
-      "comment" : "Label for actual pace achieved in interval",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Actual"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fait"
           }
         }
       }
@@ -1023,18 +925,6 @@
         }
       }
     },
-    "AI Assistant" : {
-      "comment" : "AI assistant header title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Assistant IA"
-          }
-        }
-      }
-    },
     "AI Coach" : {
       "comment" : "Onboarding feature: AI",
       "extractionState" : "manual",
@@ -1156,18 +1046,6 @@
         }
       }
     },
-    "Allure" : {
-      "comment" : "Pace chart title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allure"
-          }
-        }
-      }
-    },
     "Am I overtraining?" : {
       "comment" : "Sample question about overtraining risk",
       "extractionState" : "manual",
@@ -1205,42 +1083,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Une erreur s'est produite lors de la demande d'accès. Veuillez réessayer."
-          }
-        }
-      }
-    },
-    "Analysis complete!" : {
-      "comment" : "Indexation state - completed",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analysis complete!"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyse terminée !"
-          }
-        }
-      }
-    },
-    "Analysis failed" : {
-      "comment" : "Indexation state - error",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analysis failed"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échec de l'analyse"
           }
         }
       }
@@ -1339,24 +1181,6 @@
         }
       }
     },
-    "Analyzing your training history..." : {
-      "comment" : "Indexation screen title - first time",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyzing your training history..."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyse de votre historique d'entraînement..."
-          }
-        }
-      }
-    },
     "Analyzing..." : {
       "comment" : "AI analysis loading indicator",
       "extractionState" : "manual",
@@ -1415,24 +1239,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Le modèle Apple Intelligence n'est pas disponible. Vérifiez qu'Apple Intelligence est activé et que les modèles sont téléchargés."
-          }
-        }
-      }
-    },
-    "Apple Intelligence requires iOS 26 or later" : {
-      "comment" : "Error message when Apple Intelligence is not available (iOS version)",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apple Intelligence requires iOS 26 or later"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apple Intelligence nécessite iOS 26 ou supérieur"
           }
         }
       }
@@ -1543,18 +1349,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ATL / CTL / ACWR"
-          }
-        }
-      }
-    },
-    "Aucune donnée de puissance disponible" : {
-      "comment" : "No power data message",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune donnée de puissance disponible"
           }
         }
       }
@@ -1680,18 +1474,6 @@
         }
       }
     },
-    "Avg Distance" : {
-      "comment" : "Average distance stat",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Distance moy"
-          }
-        }
-      }
-    },
     "Avg Duration" : {
       "comment" : "Label for average sleep duration",
       "localizations" : {
@@ -1797,21 +1579,7 @@
       }
     },
     "Based on National Sleep Foundation's sleep duration recommendations (Hirshkowitz et al., Sleep Health, 2015) recommending 7–9 hours for adults, and sleep quality indicators from Ohayon M et al., Sleep Health (2017) defining ≥85% efficiency as good sleep quality." : {
-      "comment" : "Sleep reference",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Based on National Sleep Foundation's sleep duration recommendations (Hirshkowitz et al., Sleep Health, 2015) recommending 7–9 hours for adults, and sleep quality indicators from Ohayon M et al., Sleep Health (2017) defining ≥85% efficiency as good sleep quality."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basé sur les recommandations de durée de sommeil de la National Sleep Foundation (Hirshkowitz et al., Sleep Health, 2015) recommandant 7–9 heures pour les adultes, et les indicateurs de qualité du sommeil d'Ohayon M et al., Sleep Health (2017) définissant ≥85 % d'efficacité comme un sommeil de qualité."
-          }
-        }
-      }
+      "comment" : "Sleep reference"
     },
     "Based on research from Plews et al. (IJSPP, 2013) on HRV-guided recovery monitoring, Buchheit (IJSPP, 2014) on HR measures for training status, Flatt & Esco (JSCR, 2016) on nocturnal HRV, and Bouzat et al. (BJSM, 2018) on pulse oximetry." : {
       "comment" : "Readiness reference",
@@ -1955,18 +1723,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "BPM"
-          }
-        }
-      }
-    },
-    "breaths/min" : {
-      "comment" : "Recovery context: respiratory rate unit",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "respirations/min"
           }
         }
       }
@@ -2170,18 +1926,6 @@
         }
       }
     },
-    "Chargement..." : {
-      "comment" : "Location loading state",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chargement..."
-          }
-        }
-      }
-    },
     "Check your readiness score to plan today's training." : {
       "comment" : "Daily readiness notification body",
       "localizations" : {
@@ -2194,22 +1938,7 @@
       }
     },
     "Choose \"Export as FIT\"" : {
-      "comment" : "Suunto export instruction step",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose \"Export as FIT\""
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez « Exporter en FIT »"
-          }
-        }
-      }
+      "comment" : "Suunto export instruction step 3"
     },
     "Choose the app theme. System mode automatically adapts to your iOS settings." : {
       "comment" : "Settings appearance description",
@@ -2219,18 +1948,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choisissez le thème de l'application. Le mode Système s'adapte automatiquement à vos réglages iOS."
-          }
-        }
-      }
-    },
-    "Choose your plan" : {
-      "comment" : "Onboarding paywall plan title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez votre forfait"
           }
         }
       }
@@ -2651,18 +2368,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuer"
-          }
-        }
-      }
-    },
-    "Continue without Premium" : {
-      "comment" : "Onboarding paywall skip button",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuer sans Premium"
           }
         }
       }
@@ -3115,18 +2820,6 @@
         }
       }
     },
-    "Detailed metrics and progression" : {
-      "comment" : "Onboarding paywall feature: analytics description",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Métriques détaillées et progression"
-          }
-        }
-      }
-    },
     "Detailed metrics for all your runs" : {
       "comment" : "Onboarding feature: tracking description",
       "extractionState" : "manual",
@@ -3467,24 +3160,6 @@
         }
       }
     },
-    "Enable Apple Intelligence in Settings" : {
-      "comment" : "Error message when Apple Intelligence is not enabled",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable Apple Intelligence in Settings"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activez Apple Intelligence dans Réglages"
-          }
-        }
-      }
-    },
     "Enable Notifications" : {
       "comment" : "Master notification toggle",
       "localizations" : {
@@ -3565,30 +3240,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temps estimé : %d secondes"
-          }
-        }
-      }
-    },
-    "Estimated time: 5-10 seconds" : {
-      "comment" : "Estimated time for generating",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps estimé : 5-10 secondes"
-          }
-        }
-      }
-    },
-    "Estimated time: 10-15 seconds" : {
-      "comment" : "Estimated time for indexing",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps estimé : 10-15 secondes"
           }
         }
       }
@@ -3797,60 +3448,6 @@
         }
       }
     },
-    "Failed to fetch workouts from HealthKit" : {
-      "comment" : "Error message when unable to fetch workouts from HealthKit",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to fetch workouts from HealthKit"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de récupérer les entraînements depuis HealthKit"
-          }
-        }
-      }
-    },
-    "Failed to generate AI summary" : {
-      "comment" : "Error message when unable to generate AI summary",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to generate AI summary"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de générer le résumé IA"
-          }
-        }
-      }
-    },
-    "Failed to index your data" : {
-      "comment" : "Error title when indexation fails",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to index your data"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible d'indexer vos données"
-          }
-        }
-      }
-    },
     "Failed to load activities: %@" : {
       "comment" : "An error message that might be displayed to the user when loading Strava activities fails. The argument is a description of the error.",
       "isCommentAutoGenerated" : true
@@ -3927,18 +3524,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rapide"
-          }
-        }
-      }
-    },
-    "Fastest Run" : {
-      "comment" : "Fastest run record label",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Course la plus rapide"
           }
         }
       }
@@ -4042,24 +3627,6 @@
         }
       }
     },
-    "FoundationModels service is not available" : {
-      "comment" : "Error message when FoundationModels service cannot be initialized",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FoundationModels service is not available"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le service FoundationModels n'est pas disponible"
-          }
-        }
-      }
-    },
     "gain" : {
       "comment" : "Elevation gain label",
       "localizations" : {
@@ -4107,18 +3674,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Générer un entraînement"
-          }
-        }
-      }
-    },
-    "Generating AI insights..." : {
-      "comment" : "Status: generating",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Génération des analyses IA..."
           }
         }
       }
@@ -4233,18 +3788,6 @@
         }
       }
     },
-    "Get unlimited access to your running data and AI coaching" : {
-      "comment" : "Onboarding paywall subtitle",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accédez sans limite à vos données de course et au coaching IA"
-          }
-        }
-      }
-    },
     "Get your readiness score each morning" : {
       "comment" : "Onboarding notification: daily readiness description",
       "extractionState" : "manual",
@@ -4346,18 +3889,6 @@
         }
       }
     },
-    "Grant Access" : {
-      "comment" : "HealthKit permission button",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Autoriser l'accès"
-          }
-        }
-      }
-    },
     "Grant write access to save imported workouts to the Health app." : {
       "localizations" : {
         "fr" : {
@@ -4420,18 +3951,6 @@
         }
       }
     },
-    "Health Data Access" : {
-      "comment" : "HealthKit permission request title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accès aux données de santé"
-          }
-        }
-      }
-    },
     "Health data is not available." : {
       "comment" : "Empty state message for health data",
       "extractionState" : "manual",
@@ -4489,6 +4008,9 @@
         }
       }
     },
+    "HealthKit access was denied. Please go to Settings > Health > Data Access to enable InsightRun." : {
+      "comment" : "Error when HealthKit authorization is denied"
+    },
     "HealthKit data access denied. Please grant access in Settings" : {
       "localizations" : {
         "en" : {
@@ -4520,6 +4042,13 @@
           }
         }
       }
+    },
+    "HealthKit is not available on this device. Please ensure you are using a compatible iPhone." : {
+      "comment" : "Error when HealthKit is not available"
+    },
+    "HealthKit is not available. Please grant access in Settings > Health to analyze your workouts." : {
+      "comment" : "Error message when HealthKit is not available on the device.",
+      "isCommentAutoGenerated" : true
     },
     "Heart Rate" : {
       "comment" : "Heart rate chart title",
@@ -4941,18 +4470,6 @@
         }
       }
     },
-    "HRV (SDNN) average" : {
-      "comment" : "Recovery context: HRV average label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HRV (SDNN) moyenne"
-          }
-        }
-      }
-    },
     "HRV at rest" : {
       "comment" : "HRV metric title",
       "localizations" : {
@@ -5193,18 +4710,6 @@
         }
       }
     },
-    "Indexation Failed" : {
-      "comment" : "Error title when indexation fails",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indexation échouée"
-          }
-        }
-      }
-    },
     "Indexation was cancelled" : {
       "comment" : "Error description when the indexation is cancelled.",
       "isCommentAutoGenerated" : true,
@@ -5213,18 +4718,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "L'indexation a été annulée"
-          }
-        }
-      }
-    },
-    "Indexing workouts..." : {
-      "comment" : "Status: indexing",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indexation des entraînements..."
           }
         }
       }
@@ -5553,18 +5046,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Masse maigre"
-          }
-        }
-      }
-    },
-    "Lieu inconnu" : {
-      "comment" : "Unknown location",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lieu inconnu"
           }
         }
       }
@@ -7270,24 +6751,6 @@
         }
       }
     },
-    "Model is not available" : {
-      "comment" : "Error message when model is not available",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model is not available"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modèle non disponible"
-          }
-        }
-      }
-    },
     "Model unavailable: %@" : {
       "comment" : "A description of an error that might occur when checking model availability. The argument is a description of the underlying error.",
       "isCommentAutoGenerated" : true
@@ -7758,18 +7221,6 @@
       "comment" : "A description of an optimal respiratory rate, formatted as a whole number.",
       "isCommentAutoGenerated" : true
     },
-    "Optimize your training load" : {
-      "comment" : "Onboarding paywall feature: recovery description",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Optimisez votre charge d'entraînement"
-          }
-        }
-      }
-    },
     "Or try these" : {
       "comment" : "Sample prompts label",
       "localizations" : {
@@ -7802,18 +7253,6 @@
     "Outils de test pour simuler différents états d'abonnement. Redémarrez l'app après avoir réinitialisé." : {
       "comment" : "A footer in the \"Debug\" section of the settings view, providing instructions on how to use the debug features.",
       "isCommentAutoGenerated" : true
-    },
-    "Overall Stats" : {
-      "comment" : "Combined stats card title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Statistiques globales"
-          }
-        }
-      }
     },
     "Oxygen saturation" : {
       "comment" : "Label for blood oxygen saturation",
@@ -8029,18 +7468,6 @@
         }
       }
     },
-    "Personalized analysis and advice" : {
-      "comment" : "Onboarding paywall feature: AI coach description",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyses et conseils personnalisés"
-          }
-        }
-      }
-    },
     "Plan my next long run" : {
       "comment" : "AI suggestion for plan page",
       "localizations" : {
@@ -8112,48 +7539,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Puissance"
-          }
-        }
-      }
-    },
-    "Premium Required" : {
-      "comment" : "Subscription required title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Premium Requis"
-          }
-        }
-      }
-    },
-    "Preparing analysis..." : {
-      "comment" : "Indexation state - preparing",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparing analysis..."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Préparation de l'analyse..."
-          }
-        }
-      }
-    },
-    "Preparing..." : {
-      "comment" : "Status: preparing",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Préparation..."
           }
         }
       }
@@ -8593,18 +7978,6 @@
         }
       }
     },
-    "Puissance" : {
-      "comment" : "Power chart title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Puissance"
-          }
-        }
-      }
-    },
     "Pyramid workout (400-800-1200-800-400)" : {
       "comment" : "Sample workout prompt",
       "localizations" : {
@@ -8657,18 +8030,6 @@
         }
       }
     },
-    "range" : {
-      "comment" : "Recovery context: range label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "plage"
-          }
-        }
-      }
-    },
     "Rate InsightRun" : {
       "comment" : "Rate app button in settings",
       "extractionState" : "manual",
@@ -8709,18 +8070,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disponibilité"
-          }
-        }
-      }
-    },
-    "Readiness Score" : {
-      "comment" : "Recovery context: readiness score label",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Score de préparation"
           }
         }
       }
@@ -8773,30 +8122,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recommandation"
-          }
-        }
-      }
-    },
-    "Recommendations" : {
-      "comment" : "Recovery context: recommendations header",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recommandations"
-          }
-        }
-      }
-    },
-    "Records" : {
-      "comment" : "Records section title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Records"
           }
         }
       }
@@ -8871,30 +8196,6 @@
         }
       }
     },
-    "Recovery coaching" : {
-      "comment" : "Mode description for recovery coaching",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Coaching récupération"
-          }
-        }
-      }
-    },
-    "Recovery data is not available." : {
-      "comment" : "Empty state message for recovery data",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les données de récupération ne sont pas disponibles."
-          }
-        }
-      }
-    },
     "Recovery recommendations are based on published scientific research. Tap below to view all medical sources." : {
       "comment" : "Medical sources disclaimer text",
       "localizations" : {
@@ -8929,30 +8230,6 @@
         }
       }
     },
-    "Recovery Status" : {
-      "comment" : "Recovery context header",
-      "extractionState" : "stale",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "État de récupération"
-          }
-        }
-      }
-    },
-    "Recovery tracking" : {
-      "comment" : "Onboarding paywall feature: recovery",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suivi de récupération"
-          }
-        }
-      }
-    },
     "Reduced" : {
       "comment" : "Ascent speed: Reduced\nDescent speed: Reduced",
       "extractionState" : "manual",
@@ -8976,18 +8253,6 @@
         }
       }
     },
-    "Reference ranges" : {
-      "comment" : "Label for metric reference ranges",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plages de référence"
-          }
-        }
-      }
-    },
     "Refresh data" : {
       "comment" : "Refresh data button",
       "extractionState" : "manual",
@@ -8996,18 +8261,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rafraîchir les données"
-          }
-        }
-      }
-    },
-    "Refreshing your training data" : {
-      "comment" : "Title for refresh indexation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Actualisation de vos données d'entraînement"
           }
         }
       }
@@ -9568,18 +8821,6 @@
         }
       }
     },
-    "Setting up your AI Coach" : {
-      "comment" : "Title for initial indexation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Configuration de votre coach IA"
-          }
-        }
-      }
-    },
     "Settings" : {
       "comment" : "Navigation title for settings view",
       "extractionState" : "manual",
@@ -9924,18 +9165,6 @@
         }
       }
     },
-    "Start Premium" : {
-      "comment" : "Onboarding paywall subscribe button",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Démarrer Premium"
-          }
-        }
-      }
-    },
     "Starting points" : {
       "comment" : "Sleep base points label",
       "localizations" : {
@@ -10151,24 +9380,6 @@
         }
       }
     },
-    "statistics.comparison.vsLastMonth" : {
-      "comment" : "Comparison label vs last month",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "vs last month"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "vs le mois dernier"
-          }
-        }
-      }
-    },
     "statistics.comparison.workouts" : {
       "comment" : "Workouts comparison",
       "extractionState" : "manual",
@@ -10378,24 +9589,6 @@
         }
       }
     },
-    "statistics.heatmap.title" : {
-      "comment" : "Activity heat map title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activity Heat Map (12 months)"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carte d'activité (12 derniers mois)"
-          }
-        }
-      }
-    },
     "statistics.overview.averagePace" : {
       "comment" : "Average pace metric",
       "extractionState" : "manual",
@@ -10410,60 +9603,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Allure moyenne"
-          }
-        }
-      }
-    },
-    "statistics.overview.consistency" : {
-      "comment" : "Consistency rate metric",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consistency"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Régularité"
-          }
-        }
-      }
-    },
-    "statistics.overview.currentStreak" : {
-      "comment" : "Current streak metric",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Current Streak"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Série actuelle"
-          }
-        }
-      }
-    },
-    "statistics.overview.recordStreak" : {
-      "comment" : "Record streak subtitle",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Record: %lld days"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Record : %lld jours"
           }
         }
       }
@@ -10608,24 +9747,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fréquence hebdomadaire"
-          }
-        }
-      }
-    },
-    "statistics.performance.workoutsPerWeek" : {
-      "comment" : "Workouts per week value",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ workouts/week"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ entraînements/semaine"
           }
         }
       }
@@ -10933,78 +10054,6 @@
         }
       }
     },
-    "statistics.yearly.distance" : {
-      "comment" : "Yearly distance comparison",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Total Distance"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Distance totale"
-          }
-        }
-      }
-    },
-    "statistics.yearly.pace" : {
-      "comment" : "Yearly pace comparison",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Average Pace"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allure moyenne"
-          }
-        }
-      }
-    },
-    "statistics.yearly.title" : {
-      "comment" : "Yearly comparison title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "2025 vs 2024"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "2025 vs 2024"
-          }
-        }
-      }
-    },
-    "statistics.yearly.workouts" : {
-      "comment" : "Yearly workouts comparison",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Total Workouts"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînements"
-          }
-        }
-      }
-    },
     "Status Thresholds (ACWR)" : {
       "comment" : "Cardiac load ACWR status thresholds label",
       "localizations" : {
@@ -11138,21 +10187,7 @@
       }
     },
     "Steps target based on Tudor-Locke C, Bassett DR, Sports Medicine (2004). Default calorie target from Ainsworth BE et al., Compendium of Physical Activities, MSSE (2011). Exercise minutes from WHO Guidelines on Physical Activity (2020), 150 min/week ≈ 30 min/day. Personal targets from Apple Activity Rings when available." : {
-      "comment" : "Effort reference",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Steps target based on Tudor-Locke C, Bassett DR, Sports Medicine (2004). Default calorie target from Ainsworth BE et al., Compendium of Physical Activities, MSSE (2011). Exercise minutes from WHO Guidelines on Physical Activity (2020), 150 min/week ≈ 30 min/day. Personal targets from Apple Activity Rings when available."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Objectif de pas basé sur Tudor-Locke C, Bassett DR, Sports Medicine (2004). Objectif calories par défaut d'après Ainsworth BE et al., Compendium of Physical Activities, MSSE (2011). Minutes d'exercice d'après les directives OMS sur l'activité physique (2020), 150 min/sem ≈ 30 min/jour. Objectifs personnels depuis les Anneaux d'Activité Apple si disponibles."
-          }
-        }
-      }
+      "comment" : "Effort reference"
     },
     "Strava" : {
       "comment" : "The name of the Strava app.",
@@ -11212,18 +10247,6 @@
         }
       }
     },
-    "Subscribe to access your workouts" : {
-      "comment" : "Paywall initial flow title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abonnez-vous pour accéder à vos entraînements"
-          }
-        }
-      }
-    },
     "Subscribe to unlock AI analysis" : {
       "comment" : "AI locked message",
       "localizations" : {
@@ -11254,18 +10277,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abonnez-vous pour débloquer la génération d'entraînements par IA, des plans d'entraînement personnalisés et des suggestions intelligentes basées sur votre historique."
-          }
-        }
-      }
-    },
-    "Subscribe to unlock unlimited access to your workouts, AI coaching, and advanced analytics." : {
-      "comment" : "Subscription required description",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abonnez-vous pour débloquer un accès illimité à vos entraînements, coaching IA et analyses avancées."
           }
         }
       }
@@ -11463,60 +10474,6 @@
         }
       }
     },
-    "tab.health" : {
-      "comment" : "Tab label for Health Profile",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Health"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Santé"
-          }
-        }
-      }
-    },
-    "tab.plan" : {
-      "comment" : "Tab label for Workout Plan (AI Generator)",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plan"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plan"
-          }
-        }
-      }
-    },
-    "tab.recovery" : {
-      "comment" : "Tab label for Recovery",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recovery"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Récupération"
-          }
-        }
-      }
-    },
     "tab.statistics" : {
       "comment" : "Tab label for Statistics",
       "extractionState" : "manual",
@@ -11560,24 +10517,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Affûtage"
-          }
-        }
-      }
-    },
-    "Target" : {
-      "comment" : "Label for target pace in interval",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Target"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cible"
           }
         }
       }
@@ -11729,57 +10668,9 @@
         }
       }
     },
-    "This app needs access to your running workouts from HealthKit to display your history." : {
-      "comment" : "HealthKit permission request description",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette app a besoin d'accéder à vos entraînements de course depuis HealthKit pour afficher votre historique."
-          }
-        }
-      }
-    },
-    "This device does not support Apple Intelligence" : {
-      "comment" : "Error message when device is not eligible for Apple Intelligence",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device does not support Apple Intelligence"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cet appareil ne supporte pas Apple Intelligence"
-          }
-        }
-      }
-    },
     "This device doesn't support Apple Intelligence" : {
       "comment" : "Error message displayed when the device is not eligible for Apple Intelligence.",
       "isCommentAutoGenerated" : true
-    },
-    "This is a one-time analysis that takes 15-30 seconds." : {
-      "comment" : "Indexation screen description - first time",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This is a one-time analysis that takes 15-30 seconds."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette analyse unique prend 15-30 secondes."
-          }
-        }
-      }
     },
     "This Month" : {
       "comment" : "Trend period",
@@ -11851,18 +10742,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temps"
-          }
-        }
-      }
-    },
-    "Time in bed" : {
-      "comment" : "Label for total time in bed",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps au lit"
           }
         }
       }
@@ -12038,30 +10917,6 @@
         }
       }
     },
-    "Total Distance" : {
-      "comment" : "Total distance stat",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Distance totale"
-          }
-        }
-      }
-    },
-    "Total Time" : {
-      "comment" : "Total duration stat",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps total"
-          }
-        }
-      }
-    },
     "Track your fitness and readiness" : {
       "comment" : "Onboarding feature: recovery description",
       "extractionState" : "manual",
@@ -12149,21 +11004,7 @@
       }
     },
     "TRIMP = Duration × ΔHR × Weight(ΔHR)" : {
-      "comment" : "Cardiac load TRIMP formula",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TRIMP = Duration × ΔHR × Weight(ΔHR)"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TRIMP = Durée × ΔFC × Poids(ΔFC)"
-          }
-        }
-      }
+      "comment" : "Cardiac load TRIMP formula"
     },
     "Try again" : {
       "comment" : "Onboarding HealthKit retry button",
@@ -12184,24 +11025,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible de calculer le score de disponibilité. Veuillez réessayer."
-          }
-        }
-      }
-    },
-    "Unable to check model availability" : {
-      "comment" : "Error message when unable to check model availability",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to check model availability"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de vérifier la disponibilité du modèle"
           }
         }
       }
@@ -12300,18 +11123,6 @@
     "Unknown error: %@" : {
       "comment" : "Error: unknown"
     },
-    "Unlimited workouts" : {
-      "comment" : "Onboarding paywall feature: unlimited",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînements illimités"
-          }
-        }
-      }
-    },
     "Unlock AI Coaching" : {
       "comment" : "Subscription CTA title",
       "localizations" : {
@@ -12325,18 +11136,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Débloquez le Coaching IA"
-          }
-        }
-      }
-    },
-    "Unlock all features" : {
-      "comment" : "Onboarding paywall title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Débloquez toutes les fonctionnalités"
           }
         }
       }
@@ -12361,18 +11160,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Débloquer Premium"
-          }
-        }
-      }
-    },
-    "Unlock unlimited access to your running data, AI coaching, and advanced analytics" : {
-      "comment" : "Paywall initial flow description",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Débloquez un accès illimité à vos données de course, coaching IA et analyses avancées"
           }
         }
       }
@@ -12451,36 +11238,6 @@
         }
       }
     },
-    "Updating your athletic profile..." : {
-      "comment" : "Indexation screen title - refresh",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Updating your athletic profile..."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Actualisation de votre profil athlétique..."
-          }
-        }
-      }
-    },
-    "Updating your training analysis with the latest data to keep your insights accurate." : {
-      "comment" : "Description for refresh indexation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mise à jour de votre analyse d'entraînement avec les dernières données pour maintenir vos conseils précis."
-          }
-        }
-      }
-    },
     "Value" : {
       "comment" : "\"Value\" is a placeholder for the actual metric name.",
       "isCommentAutoGenerated" : true,
@@ -12489,18 +11246,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Valeur"
-          }
-        }
-      }
-    },
-    "Variability (HRV)" : {
-      "comment" : "Label for heart rate variability",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Variabilité (VFC)"
           }
         }
       }
@@ -12740,18 +11485,6 @@
         }
       }
     },
-    "Walking HR" : {
-      "comment" : "Label for walking heart rate",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FC marche"
-          }
-        }
-      }
-    },
     "Walking Speed" : {
       "comment" : "Walking speed advanced metric",
       "extractionState" : "manual",
@@ -12823,18 +11556,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alertes de surentraînement et d'inactivité"
-          }
-        }
-      }
-    },
-    "We're analyzing your training history to provide personalized insights. This will only happen once." : {
-      "comment" : "Description for initial indexation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nous analysons votre historique d'entraînement pour fournir des conseils personnalisés. Cela ne se produira qu'une seule fois."
           }
         }
       }
@@ -13132,18 +11853,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Entraînement"
-          }
-        }
-      }
-    },
-    "Workout analysis" : {
-      "comment" : "Mode description for single workout analysis",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyse d'entraînement"
           }
         }
       }
@@ -13638,30 +12347,6 @@
         }
       }
     },
-    "Your AI Coach is ready! 🎉\nStart asking questions about your training." : {
-      "comment" : "Completion message for initial indexation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre coach IA est prêt ! 🎉\nCommencez à poser des questions sur votre entraînement."
-          }
-        }
-      }
-    },
-    "Your athletic profile has been analyzed and updated." : {
-      "comment" : "Success message after indexation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre profil athlétique a été analysé et mis à jour."
-          }
-        }
-      }
-    },
     "Your athletic profile has been successfully updated with your latest workouts." : {
       "comment" : "Success message after indexation",
       "localizations" : {
@@ -13698,24 +12383,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Votre corps a besoin de récupération. Privilégiez un entraînement léger ou un repos complet aujourd'hui."
-          }
-        }
-      }
-    },
-    "Your data is being refreshed with recent workouts." : {
-      "comment" : "Indexation screen description - refresh",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your data is being refreshed with recent workouts."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vos données sont actualisées avec les entraînements récents."
           }
         }
       }
@@ -13872,18 +12539,6 @@
         }
       }
     },
-    "Your training data has been updated! ✅" : {
-      "comment" : "Completion message for refresh indexation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vos données d'entraînement ont été mises à jour ! ✅"
-          }
-        }
-      }
-    },
     "Your training load is well balanced. Keep up the good work!" : {
       "comment" : "Normal training status message",
       "localizations" : {
@@ -13913,18 +12568,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Votre semaine d'entraînement est prête à être consultée. Voyez vos progrès !"
-          }
-        }
-      }
-    },
-    "Your value" : {
-      "comment" : "Label for user's current metric value",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre valeur"
           }
         }
       }

@@ -176,7 +176,8 @@ struct DashboardView: View {
             activityData: activityData,
             effortScore: tls.dailyEffortScore,
             cardiacLoadScore: tls.cardiacLoadScore,
-            cardiacLoadStatus: tls.cardiacLoadStatus
+            cardiacLoadStatus: tls.cardiacLoadStatus,
+            forceRefresh: true
         )
     }
 
@@ -185,10 +186,10 @@ struct DashboardView: View {
         let tls = TrainingLoadService.shared
         let selectedDate = recoveryVM.selectedDate
 
-        // Reload recovery metrics and effort in parallel
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await recoveryVM.loadRecoveryMetrics() }
             group.addTask { await tls.analyzeDailyEffort(for: selectedDate) }
+            group.addTask { await tls.analyzeCardiacLoad() }
         }
 
         let activityData = await HealthKitManager.shared.fetchDailyActivityData(for: selectedDate)
@@ -197,7 +198,8 @@ struct DashboardView: View {
             activityData: activityData,
             effortScore: tls.dailyEffortScore,
             cardiacLoadScore: tls.cardiacLoadScore,
-            cardiacLoadStatus: tls.cardiacLoadStatus
+            cardiacLoadStatus: tls.cardiacLoadStatus,
+            forceRefresh: true
         )
     }
 

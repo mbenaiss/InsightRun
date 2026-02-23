@@ -2117,13 +2117,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yes, I accept"
+            "value" : "I agree to share my data"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oui, j'accepte"
+            "value" : "J'accepte de partager mes données"
           }
         }
       }
@@ -2146,6 +2146,186 @@
         }
       }
     },
+    "consent.data_description" : {
+      "comment" : "Description of data categories sent",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When you use the AI assistant, the following health and fitness data may be sent for analysis:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lorsque vous utilisez l'assistant IA, les données de santé et de forme physique suivantes peuvent être envoyées pour analyse :"
+          }
+        }
+      }
+    },
+    "consent.data_header" : {
+      "comment" : "Data sent header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data shared with the AI service"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Données partagées avec le service IA"
+          }
+        }
+      }
+    },
+    "consent.data.heart_rate" : {
+      "comment" : "Heart rate data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heart rate (average, min, max)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence cardiaque (moyenne, min, max)"
+          }
+        }
+      }
+    },
+    "consent.data.health_profile" : {
+      "comment" : "Health profile data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health profile (age, sex, body mass, body fat percentage)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil de santé (âge, sexe, masse corporelle, pourcentage de graisse corporelle)"
+          }
+        }
+      }
+    },
+    "consent.data.history" : {
+      "comment" : "Historical data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historical workout summaries and personal baseline metrics"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique d'entraînements et métriques de référence personnelles"
+          }
+        }
+      }
+    },
+    "consent.data.mobility" : {
+      "comment" : "Mobility data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mobility (walking steadiness, walking asymmetry)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mobilité (stabilité de marche, asymétrie de marche)"
+          }
+        }
+      }
+    },
+    "consent.data.recovery" : {
+      "comment" : "Recovery data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery (resting heart rate, HRV, respiratory rate)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération (fréquence cardiaque au repos, VFC, fréquence respiratoire)"
+          }
+        }
+      }
+    },
+    "consent.data.running_metrics" : {
+      "comment" : "Running metrics data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running metrics (cadence, stride length, running power, VO2 max, ground contact time, vertical oscillation)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Métriques de course (cadence, longueur de foulée, puissance, VO2 max, temps de contact au sol, oscillation verticale)"
+          }
+        }
+      }
+    },
+    "consent.data.sleep" : {
+      "comment" : "Sleep data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep (duration, efficiency, deep sleep, REM sleep)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sommeil (durée, efficacité, sommeil profond, sommeil paradoxal)"
+          }
+        }
+      }
+    },
+    "consent.data.workout" : {
+      "comment" : "Workout data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workout data (distance, duration, pace, speed, calories, elevation, splits)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Données d'entraînement (distance, durée, allure, vitesse, calories, dénivelé, splits)"
+          }
+        }
+      }
+    },
     "consent.how_description" : {
       "comment" : "How it works description",
       "extractionState" : "manual",
@@ -2153,13 +2333,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your workout data (distance, pace, heart rate) is sent securely and anonymously to our AI analysis partner."
+            "value" : "Your data is sent anonymously from your device to our secure server, which forwards it to OpenRouter (openrouter.ai), a third-party AI routing service. All data is fully anonymous — no name, email, Apple ID, or any information that could identify you is ever transmitted. We operate a strict zero-log policy: no data is stored on our servers or by OpenRouter after the response is generated."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vos données d'entraînement (distance, allure, fréquence cardiaque) sont envoyées de manière sécurisée et anonymisée à notre partenaire d'analyse IA."
+            "value" : "Vos données sont envoyées de manière anonyme depuis votre appareil vers notre serveur sécurisé, qui les transmet à OpenRouter (openrouter.ai), un service tiers de routage IA. Toutes les données sont entièrement anonymes — aucun nom, email, identifiant Apple ou information permettant de vous identifier n'est jamais transmis. Nous appliquons une politique stricte de zéro log : aucune donnée n'est conservée sur nos serveurs ni par OpenRouter après la génération de la réponse."
           }
         }
       }
@@ -2171,13 +2351,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "📊 How does it work?"
+            "value" : "📊 Where is your data sent?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "📊 Comment ça fonctionne ?"
+            "value" : "📊 Où sont envoyées vos données ?"
           }
         }
       }
@@ -2297,13 +2477,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Would you like to activate the AI assistant?"
+            "value" : "Do you agree to send the data listed above to OpenRouter for AI-powered coaching?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Souhaitez-vous activer l'assistant IA ?"
+            "value" : "Acceptez-vous d'envoyer les données listées ci-dessus à OpenRouter pour le coaching alimenté par l'IA ?"
           }
         }
       }
@@ -2315,13 +2495,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your consent is required to use AI features."
+            "value" : "Your explicit consent is required before any health or fitness data is sent to external services for AI analysis."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Votre consentement est requis pour utiliser les fonctionnalités IA."
+            "value" : "Votre consentement explicite est requis avant que toute donnée de santé ou de forme physique ne soit envoyée à des services externes pour l'analyse IA."
           }
         }
       }

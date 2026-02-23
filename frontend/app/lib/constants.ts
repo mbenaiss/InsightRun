@@ -3,7 +3,7 @@
  */
 
 // Last updated dates for legal pages
-export const LAST_UPDATED_DATE = 'October 30, 2025'
+export const LAST_UPDATED_DATE = 'February 23, 2026'
 
 // iOS version requirements
 export const MIN_IOS_VERSION = '26.0'

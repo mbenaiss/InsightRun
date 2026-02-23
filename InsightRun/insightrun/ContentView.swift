@@ -33,6 +33,7 @@ struct ContentView: View {
                     Label(String(localized: "tab.dashboard", defaultValue: "Dashboard"), systemImage: "house.fill")
                 }
                 .tag(0)
+                .accessibilityIdentifier("tab-dashboard")
 
             // Workouts Tab
             WorkoutListView()
@@ -40,6 +41,7 @@ struct ContentView: View {
                     Label(String(localized: "tab.workouts"), systemImage: "figure.run")
                 }
                 .tag(1)
+                .accessibilityIdentifier("tab-workouts")
 
             // Statistics Tab
             StatisticsView()
@@ -47,6 +49,7 @@ struct ContentView: View {
                     Label(String(localized: "tab.statistics"), systemImage: "chart.bar.fill")
                 }
                 .tag(2)
+                .accessibilityIdentifier("tab-statistics")
             }
             .onChange(of: selectedTab) { _, newTab in
                 // Update context provider's current page based on selected tab

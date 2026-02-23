@@ -45,6 +45,7 @@ struct FloatingAIButton: View {
                 }
             }
             .disabled(isLoading || contextProvider.isLoading)
+            .accessibilityIdentifier("floating-ai-button")
             .padding(.trailing, 20)
             .padding(.bottom, 100)
         }

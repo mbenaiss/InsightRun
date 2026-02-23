@@ -1,0 +1,11 @@
+devices([
+  "iPhone 17 Pro"
+])
+
+languages(["en-US", "fr-FR"])
+
+scheme("insightrun")
+output_directory("./fastlane/screenshots")
+clear_previous_screenshots(true)
+override_status_bar(true)
+launch_arguments(["-DEMO_MODE"])

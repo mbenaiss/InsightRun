@@ -74,6 +74,11 @@ class ScoreAnalysisViewModel: ObservableObject {
     func analyze(scoreType: ScoreType, score: Int, recoveryMetrics: RecoveryMetrics, trendData: [TrendDataPoint]? = nil) async {
         guard !isLoading else { return }
 
+        if DemoMode.isEnabled {
+            analysisText = MockData.sampleScoreAnalysis(for: scoreType)
+            return
+        }
+
         let identifier = "score_\(scoreType.id)"
 
         if let cached = Self.cachedAnalysis(for: identifier) {
@@ -113,6 +118,11 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     func analyzeMetric(metricType: MetricType, value: Double, unit: String, recoveryMetrics: RecoveryMetrics) async {
         guard !isLoading else { return }
+
+        if DemoMode.isEnabled {
+            analysisText = MockData.sampleMetricAnalysis(for: metricType)
+            return
+        }
 
         let identifier = "metric_\(metricType)"
 

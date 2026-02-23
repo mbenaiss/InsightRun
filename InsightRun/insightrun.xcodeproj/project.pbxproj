@@ -16,6 +16,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		91C065EE4BA73F30045DE4F7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BE013B502E9E7D83003FB282 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BE013B572E9E7D83003FB282;
+			remoteInfo = insightrun;
+		};
 		C1A0010A2EFF000100565DAC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BE013B502E9E7D83003FB282 /* Project object */;
@@ -40,6 +47,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		204019094FE9CDA25C72CE3E /* insightrunUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = insightrunUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE013B582E9E7D83003FB282 /* insightrun.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = insightrun.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE65974E2EB222C100565DAC /* insightrun.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = insightrun.storekit; path = insightrun/insightrun.storekit; sourceTree = "<group>"; };
 		C1A001012EFF000100565DAC /* InsightRunWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = InsightRunWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -80,9 +88,21 @@
 			path = InsightRunWidgets;
 			sourceTree = "<group>";
 		};
+		D1A001042F100004005ADB01 /* insightrunUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = insightrunUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		15C3202E39B6569FCB1720D8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BE013B552E9E7D83003FB282 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -110,6 +130,7 @@
 				BE65974E2EB222C100565DAC /* insightrun.storekit */,
 				BE013B5A2E9E7D83003FB282 /* insightrun */,
 				C1A001092EFF000100565DAC /* InsightRunWidgets */,
+				D1A001042F100004005ADB01 /* insightrunUITests */,
 				BE013B592E9E7D83003FB282 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -119,6 +140,7 @@
 			children = (
 				BE013B582E9E7D83003FB282 /* insightrun.app */,
 				C1A001012EFF000100565DAC /* InsightRunWidgets.appex */,
+				204019094FE9CDA25C72CE3E /* insightrunUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -174,6 +196,27 @@
 			productReference = C1A001012EFF000100565DAC /* InsightRunWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		EA798A214F5AA1D6F0C4ACAA /* insightrunUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 94C4BC79716039212F595EB7 /* Build configuration list for PBXNativeTarget "insightrunUITests" */;
+			buildPhases = (
+				7221E99F31EEECE0854BBFE9 /* Sources */,
+				15C3202E39B6569FCB1720D8 /* Frameworks */,
+				0A0CE1659991856B05B63973 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AD5E4B22FD0EF38948A94C54 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D1A001042F100004005ADB01 /* insightrunUITests */,
+			);
+			name = insightrunUITests;
+			productName = insightrunUITests;
+			productReference = 204019094FE9CDA25C72CE3E /* insightrunUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,6 +232,10 @@
 					};
 					C1A001022EFF000100565DAC = {
 						CreatedOnToolsVersion = 26.1;
+					};
+					EA798A214F5AA1D6F0C4ACAA = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = BE013B572E9E7D83003FB282;
 					};
 				};
 			};
@@ -214,11 +261,19 @@
 			targets = (
 				BE013B572E9E7D83003FB282 /* insightrun */,
 				C1A001022EFF000100565DAC /* InsightRunWidgets */,
+				EA798A214F5AA1D6F0C4ACAA /* insightrunUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0A0CE1659991856B05B63973 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BE013B562E9E7D83003FB282 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -237,6 +292,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		7221E99F31EEECE0854BBFE9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BE013B542E9E7D83003FB282 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -254,6 +316,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		AD5E4B22FD0EF38948A94C54 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = insightrun;
+			target = BE013B572E9E7D83003FB282 /* insightrun */;
+			targetProxy = 91C065EE4BA73F30045DE4F7 /* PBXContainerItemProxy */;
+		};
 		C1A0010B2EFF000100565DAC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = C1A001022EFF000100565DAC /* InsightRunWidgets */;
@@ -262,6 +330,59 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2DAA3DFC7119E49EA93A6D91 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = PCTXJ3892R;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				MARKETING_VERSION = 1.1.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = insightrun;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B13FAD6D020ADB1B62C4E8CA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = PCTXJ3892R;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				MARKETING_VERSION = 1.1.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = insightrun;
+			};
+			name = Debug;
+		};
 		BE013B612E9E7D84003FB282 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -550,6 +671,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		94C4BC79716039212F595EB7 /* Build configuration list for PBXNativeTarget "insightrunUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2DAA3DFC7119E49EA93A6D91 /* Release */,
+				B13FAD6D020ADB1B62C4E8CA /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		BE013B532E9E7D83003FB282 /* Build configuration list for PBXProject "insightrun" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

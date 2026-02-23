@@ -1,0 +1,24 @@
+{
+  "name": "insightrun-videos",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render:en": "remotion render src/index.ts AppPreview-en ../fastlane/videos/en-US.mp4 --codec h264 --crf 18 --pixel-format yuv420p --gl=angle",
+    "render:fr": "remotion render src/index.ts AppPreview-fr ../fastlane/videos/fr-FR.mp4 --codec h264 --crf 18 --pixel-format yuv420p --gl=angle",
+    "render:all": "npm run render:en && npm run render:fr"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.422",
+    "@remotion/google-fonts": "4.0.422",
+    "@remotion/light-leaks": "4.0.422",
+    "@remotion/media": "4.0.422",
+    "@remotion/player": "^4.0.422",
+    "@remotion/transitions": "4.0.422",
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.422",
+    "typescript": "^5.9.3"
+  }
+}

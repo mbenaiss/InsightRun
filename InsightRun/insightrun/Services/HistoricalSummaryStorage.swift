@@ -76,6 +76,7 @@ class HistoricalSummaryStorage {
     /// Check if a summary exists (async for consistency with other methods)
     var hasSummary: Bool {
         get async {
+            if DemoMode.isEnabled { return true }
             return userDefaults.data(forKey: storageKey) != nil
         }
     }
@@ -84,6 +85,7 @@ class HistoricalSummaryStorage {
 
     /// Check if the summary needs to be refreshed (older than 3 months)
     func needsRefresh() -> Bool {
+        if DemoMode.isEnabled { return false }
         guard let summary = load() else {
             print("📊 HistoricalSummaryStorage: No summary exists, refresh needed")
             return true

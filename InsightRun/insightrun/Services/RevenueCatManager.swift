@@ -52,6 +52,11 @@ class RevenueCatManager: NSObject, ObservableObject {
     /// Detects if the app is running in TestFlight environment asynchronously
     /// Uses StoreKit 2 AppTransaction to determine environment
     private func detectTestFlightEnvironment() async {
+        if DemoMode.isEnabled {
+            cachedTestFlightStatus = false
+            return
+        }
+
         do {
             // Get app transaction using StoreKit 2 (iOS 15+)
             // AppTransaction.shared returns a VerificationResult that needs to be unwrapped
@@ -98,6 +103,7 @@ class RevenueCatManager: NSObject, ObservableObject {
     /// Determines if the user has access to AI features
     /// Returns true if user is subscribed, running in TestFlight, OR has free requests remaining
     var hasAIAccess: Bool {
+        if DemoMode.isEnabled { return true }
         return isSubscriptionActive || isTestFlightEnvironment || hasFreeRequestsRemaining
     }
 
@@ -141,6 +147,12 @@ class RevenueCatManager: NSObject, ObservableObject {
     /// Configure RevenueCat SDK with API key and link user identity
     /// Call this method once at app launch (synchronous configuration)
     func configure() {
+        if DemoMode.isEnabled {
+            isConfigured = true
+            isSubscriptionActive = true
+            return
+        }
+
         // TODO: Replace with your actual RevenueCat API key from dashboard
         // Get it from: https://app.revenuecat.com/settings/api-keys
         Purchases.logLevel = .debug // Remove in production

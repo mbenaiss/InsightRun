@@ -61,6 +61,7 @@ struct DashboardView: View {
                             .font(.title3)
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityIdentifier("dashboard-settings")
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -256,6 +257,7 @@ struct DashboardView: View {
             .padding(.top, Spacing.sm)
             .padding(.bottom, 100)
         }
+        .accessibilityIdentifier("dashboard-content")
         .refreshable {
             await refreshAll()
         }
@@ -311,6 +313,7 @@ struct DashboardView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("score-effort")
 
             Button {
                 selectedScoreType = .sleep
@@ -321,6 +324,7 @@ struct DashboardView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("score-sleep")
 
             Button {
                 selectedScoreType = .readiness
@@ -331,6 +335,7 @@ struct DashboardView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("score-readiness")
         }
         .cardStyle()
     }
@@ -438,6 +443,7 @@ struct DashboardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("create-training-plan")
         }
         .cardStyle()
     }
@@ -734,6 +740,7 @@ struct DashboardView: View {
             .cardStyle(padding: Spacing.md)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("weekly-summary-link")
         .padding(.horizontal)
     }
 

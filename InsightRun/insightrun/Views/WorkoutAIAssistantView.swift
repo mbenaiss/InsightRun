@@ -419,6 +419,7 @@ struct WorkoutAIAssistantView: View {
                     Button(String(localized: "Close", comment: "Close AI assistant button")) {
                         isPresented = false
                     }
+                    .accessibilityIdentifier("sheet-close")
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {

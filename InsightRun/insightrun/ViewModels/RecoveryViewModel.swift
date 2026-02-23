@@ -58,9 +58,19 @@ class RecoveryViewModel: ObservableObject {
     }
 
     func loadRecoveryMetrics(for date: Date? = nil) async {
+        if DemoMode.isEnabled {
+            let dateKey = Calendar.current.startOfDay(for: selectedDate)
+            metricsCache[dateKey] = MockData.sampleRecoveryMetrics
+            recentWorkoutsCount = 4
+            baselineStatus = .ready(days: 14)
+            isLoading = false
+            errorMessage = nil
+            return
+        }
+
         let targetDate = date ?? selectedDate
         let dateKey = Calendar.current.startOfDay(for: targetDate)
-        
+
         // If it's the selected date and not in cache, show loading
         if date == nil || Calendar.current.isDate(targetDate, inSameDayAs: selectedDate) {
             if metricsCache[dateKey] == nil {

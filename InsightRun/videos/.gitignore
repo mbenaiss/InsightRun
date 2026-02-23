@@ -1,0 +1,9 @@
+node_modules/
+.agent/
+.agents/
+.claude/
+.cursor/
+.factory/
+skills/
+public/*.mov
+public/*.mp4

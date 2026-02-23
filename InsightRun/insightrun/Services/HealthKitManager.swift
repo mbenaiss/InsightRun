@@ -29,6 +29,8 @@ class HealthKitManager: ObservableObject {
     // MARK: - Authorization
 
     func requestAuthorization() async throws {
+        if DemoMode.isEnabled { return }
+
         guard HKHealthStore.isHealthDataAvailable() else {
             throw HealthKitError.notAvailable
         }
@@ -138,6 +140,8 @@ class HealthKitManager: ObservableObject {
     /// Check if we can access HealthKit data
     /// Returns true only if user has completed the authorization flow
     func checkDataAccess() async -> Bool {
+        if DemoMode.isEnabled { return true }
+
         // If already marked as setup, verify we can query
         if hasCompletedHealthKitSetup {
             do {
@@ -165,7 +169,10 @@ class HealthKitManager: ObservableObject {
 
     /// Track if user has completed HealthKit authorization flow
     var hasCompletedHealthKitSetup: Bool {
-        get { UserDefaults.standard.bool(forKey: "hasCompletedHealthKitSetup") }
+        get {
+            if DemoMode.isEnabled { return true }
+            return UserDefaults.standard.bool(forKey: "hasCompletedHealthKitSetup")
+        }
         set { UserDefaults.standard.set(newValue, forKey: "hasCompletedHealthKitSetup") }
     }
 
@@ -174,6 +181,8 @@ class HealthKitManager: ObservableObject {
     /// Fetch ALL running workouts (deprecated - use paginated version instead)
     /// WARNING: This loads all workouts at once. For large histories, use fetchRunningWorkouts(limit:anchor:)
     func fetchRunningWorkouts() async throws -> [WorkoutModel] {
+        if DemoMode.isEnabled { return MockData.sampleWorkouts }
+
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
 
@@ -210,6 +219,10 @@ class HealthKitManager: ObservableObject {
     ///   - endDate: End of the date range
     /// - Returns: Array of workouts within the date range, sorted by date descending
     func fetchRunningWorkouts(from startDate: Date, to endDate: Date) async throws -> [WorkoutModel] {
+        if DemoMode.isEnabled {
+            return MockData.sampleWorkouts.filter { $0.startDate >= startDate && $0.startDate <= endDate }
+        }
+
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
         let datePredicate = HKQuery.predicateForSamples(
@@ -279,6 +292,15 @@ class HealthKitManager: ObservableObject {
     ///   - startDate: Optional date to fetch workouts before (for pagination)
     /// - Returns: Tuple with workouts and the oldest workout date (use for next page)
     func fetchRunningWorkouts(limit: Int = 100, startingBefore date: Date? = nil) async throws -> (workouts: [WorkoutModel], hasMore: Bool) {
+        if DemoMode.isEnabled {
+            let filtered = if let date {
+                MockData.sampleWorkouts.filter { $0.startDate < date }
+            } else {
+                MockData.sampleWorkouts
+            }
+            return (Array(filtered.prefix(limit)), filtered.count > limit)
+        }
+
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
 
@@ -331,6 +353,8 @@ class HealthKitManager: ObservableObject {
 
     /// Get total count of running workouts (for progress tracking during backfill)
     func getRunningWorkoutsCount() async throws -> Int {
+        if DemoMode.isEnabled { return MockData.sampleWorkouts.count }
+
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
 
@@ -355,6 +379,10 @@ class HealthKitManager: ObservableObject {
 
     /// Get count of running workouts in a date range (optimized - no data transfer)
     func getRecentWorkoutsCount(since startDate: Date) async throws -> Int {
+        if DemoMode.isEnabled {
+            return MockData.sampleWorkouts.filter { $0.startDate >= startDate }.count
+        }
+
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
         let datePredicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictStartDate)
@@ -381,6 +409,8 @@ class HealthKitManager: ObservableObject {
 
     /// Fetch recent workouts with a limit
     func fetchWorkouts(limit: Int) async -> [WorkoutModel] {
+        if DemoMode.isEnabled { return Array(MockData.sampleWorkouts.prefix(limit)) }
+
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
 
@@ -417,6 +447,8 @@ class HealthKitManager: ObservableObject {
 
     /// Fetch latest VO2 Max value
     func fetchLatestVO2Max() async -> Double? {
+        if DemoMode.isEnabled { return 52.0 }
+
         guard let vo2MaxType = HKQuantityType.quantityType(forIdentifier: .vo2Max) else {
             return nil
         }
@@ -2242,6 +2274,8 @@ class HealthKitManager: ObservableObject {
     }
 
     func fetchRecoveryMetrics(for date: Date = Date()) async throws -> RecoveryMetrics {
+        if DemoMode.isEnabled { return MockData.sampleRecoveryMetrics }
+
         // Fetch metrics for the given day
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -2357,6 +2391,8 @@ class HealthKitManager: ObservableObject {
     // MARK: - Sleep Data
 
     func fetchSleepData(for date: Date) async throws -> SleepData? {
+        if DemoMode.isEnabled { return MockData.sampleSleepData }
+
         guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
             return nil
         }
@@ -2506,6 +2542,8 @@ class HealthKitManager: ObservableObject {
     // MARK: - Health Profile
 
     func fetchHealthProfile(for date: Date = Date()) async throws -> HealthProfile {
+        if DemoMode.isEnabled { return MockData.sampleHealthProfile }
+
         // Fetch user characteristics
         let age = try? healthStore.dateOfBirthComponents().year.map { Calendar.current.component(.year, from: Date()) - $0 }
         let biologicalSex = try? healthStore.biologicalSex().biologicalSex
@@ -3037,6 +3075,8 @@ class HealthKitManager: ObservableObject {
 
     /// Fetch sleep data for multiple days
     func fetchSleepHistory(start: Date, end: Date) async -> [SleepData] {
+        if DemoMode.isEnabled { return [MockData.sampleSleepData] }
+
         var sleepDataList: [SleepData] = []
         let calendar = Calendar.current
         var currentDate = start

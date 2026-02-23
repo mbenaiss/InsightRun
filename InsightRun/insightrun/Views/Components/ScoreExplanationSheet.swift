@@ -140,6 +140,7 @@ struct ScoreExplanationSheet: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityIdentifier("sheet-close")
                 }
             }
             .onAppear {

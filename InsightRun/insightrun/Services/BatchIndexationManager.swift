@@ -80,6 +80,15 @@ class BatchIndexationManager: ObservableObject {
         indexationStartTime = Date()
 
         do {
+            // Step 0: Verify HealthKit availability and authorization
+            guard healthKitManager.isHealthDataAvailable else {
+                throw IndexationError.healthKitNotAvailable
+            }
+
+            if !healthKitManager.isHealthKitAuthorized {
+                try await healthKitManager.requestAuthorization()
+            }
+
             // Step 1: Fetch total workouts
             print("📊 BatchIndexationManager: Fetching workouts from HealthKit...")
             let allWorkouts = try await healthKitManager.fetchRunningWorkouts()
@@ -373,6 +382,7 @@ enum IndexationError: LocalizedError {
     case cancelled
     case batchProcessingFailed(String)
     case consolidationFailed(String)
+    case healthKitNotAvailable
 
     var errorDescription: String? {
         switch self {
@@ -386,6 +396,8 @@ enum IndexationError: LocalizedError {
             return String(localized: "Batch processing failed: \(message)")
         case .consolidationFailed(let message):
             return String(localized: "Consolidation failed: \(message)")
+        case .healthKitNotAvailable:
+            return String(localized: "HealthKit is not available. Please grant access in Settings > Health to analyze your workouts.")
         }
     }
 }

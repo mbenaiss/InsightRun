@@ -250,6 +250,24 @@ struct HistoricalIndexationSheet: View {
                 }
             }
 
+            // Open Settings button (when HealthKit access is needed)
+            if !HealthKitManager.shared.isHealthDataAvailable || !HealthKitManager.shared.isHealthKitAuthorized {
+                Button(action: {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "gear")
+                        Text(String(localized: "Open Settings", comment: "Button to open app settings for HealthKit access"))
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.blue)
+                }
+                .padding(.top, 4)
+            }
+
             // Action buttons
             VStack(spacing: 12) {
                 // Retry button

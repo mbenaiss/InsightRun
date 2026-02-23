@@ -38,6 +38,29 @@ struct AIConsentSheet: View {
                                 .multilineTextAlignment(.leading)
                                 .foregroundStyle(Color.irTextPrimary)
 
+                            // Data categories sent
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(String(localized: "consent.data_header", comment: "Data sent header"))
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.irTextPrimary)
+
+                                Text(String(localized: "consent.data_description", comment: "Description of data categories sent"))
+                                    .font(.body)
+                                    .foregroundStyle(Color.irTextSecondary)
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    DataCategoryRow(text: String(localized: "consent.data.workout", comment: "Workout data category"))
+                                    DataCategoryRow(text: String(localized: "consent.data.heart_rate", comment: "Heart rate data category"))
+                                    DataCategoryRow(text: String(localized: "consent.data.running_metrics", comment: "Running metrics data category"))
+                                    DataCategoryRow(text: String(localized: "consent.data.recovery", comment: "Recovery data category"))
+                                    DataCategoryRow(text: String(localized: "consent.data.sleep", comment: "Sleep data category"))
+                                    DataCategoryRow(text: String(localized: "consent.data.health_profile", comment: "Health profile data category"))
+                                    DataCategoryRow(text: String(localized: "consent.data.mobility", comment: "Mobility data category"))
+                                    DataCategoryRow(text: String(localized: "consent.data.history", comment: "Historical data category"))
+                                }
+                            }
+
                             // How it works
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(String(localized: "consent.how_it_works", comment: "How it works header"))
@@ -124,6 +147,23 @@ struct AIConsentSheet: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .interactiveDismissDisabled()
+    }
+}
+
+// MARK: - Data Category Row Component
+struct DataCategoryRow: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("•")
+                .font(.body)
+                .foregroundStyle(Color.irTextSecondary)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(Color.irTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

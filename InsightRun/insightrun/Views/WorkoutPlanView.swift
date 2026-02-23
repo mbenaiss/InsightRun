@@ -1134,13 +1134,32 @@ struct WorkoutPlanView: View {
     // MARK: - Error View
 
     private func errorView(_ error: String) -> some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(Color.irError)
-            Text(error)
-                .font(.caption)
-                .foregroundStyle(Color.irTextSecondary)
-            Spacer()
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.irError)
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(Color.irTextSecondary)
+                Spacer()
+            }
+
+            if let exportError = WorkoutKitManager.shared.exportError,
+               case .authorizationDenied = exportError {
+                Button(action: {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "gear")
+                        Text(String(localized: "Open Settings", comment: "Button to open app settings"))
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.blue)
+                }
+            }
         }
         .padding()
         .background(Color.irError.opacity(0.1))

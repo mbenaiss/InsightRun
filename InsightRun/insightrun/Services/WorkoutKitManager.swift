@@ -25,7 +25,7 @@ enum WorkoutKitError: LocalizedError {
         case .workoutKitNotAvailable:
             return String(localized: "WorkoutKit is not available on this device", comment: "Error when WorkoutKit is not supported")
         case .authorizationDenied:
-            return String(localized: "Access to export workouts was denied. Please allow authorization when prompted again.", comment: "Error when WorkoutKit authorization is denied")
+            return String(localized: "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable InsightRun.", comment: "Error when WorkoutKit authorization is denied")
         case .exportFailed(let error):
             return String(localized: "Failed to export workout: %@", comment: "Error when export fails").replacingOccurrences(of: "%@", with: error.localizedDescription)
         case .unsupportedSportType:
@@ -308,6 +308,21 @@ class WorkoutKitManager: ObservableObject {
                 isExporting = false
             }
 
+        } catch let error as WorkoutKitError {
+            print("❌ WorkoutKitManager: Failed to export workout - \(error)")
+
+            await MainActor.run {
+                exportError = error
+                isExporting = false
+            }
+
+            AnalyticsService.shared.trackWorkoutExportFailed(
+                workoutName: workout.name,
+                errorType: String(describing: error),
+                errorMessage: error.localizedDescription
+            )
+
+            throw error
         } catch {
             print("❌ WorkoutKitManager: Failed to export workout - \(error)")
 
@@ -318,7 +333,6 @@ class WorkoutKitManager: ObservableObject {
                 isExporting = false
             }
 
-            // Track error
             AnalyticsService.shared.trackWorkoutExportFailed(
                 workoutName: workout.name,
                 errorType: "export_failed",

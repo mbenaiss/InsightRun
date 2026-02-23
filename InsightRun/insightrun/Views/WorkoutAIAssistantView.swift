@@ -452,11 +452,11 @@ struct WorkoutAIAssistantView: View {
             Task {
                 let hasSummary = await HistoricalSummaryStorage.shared.hasSummary
                 await MainActor.run {
-                    // Show banner only if no summary exists
-                    showIndexationBanner = !hasSummary
+                    // Show banner only if no summary exists and HealthKit is authorized
+                    showIndexationBanner = !hasSummary && HealthKitManager.shared.isHealthKitAuthorized
 
                     // Track banner shown
-                    if !hasSummary {
+                    if !hasSummary && HealthKitManager.shared.isHealthKitAuthorized {
                         AnalyticsService.shared.trackIndexationBannerShown()
                     }
                 }

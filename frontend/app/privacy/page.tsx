@@ -62,8 +62,14 @@ export default function PrivacyPolicy() {
                 your iPhone
               </li>
               <li>
-                <strong>Never shared with third parties</strong> - We do not sell, rent, or share
-                your personal health information
+                <strong>Never sold or rented</strong> - We do not sell, rent, or trade your personal
+                health information
+              </li>
+              <li>
+                <strong>Shared with AI services only with your explicit consent</strong> - When you
+                enable AI coaching, anonymized workout metrics are sent through our backend server
+                to a third-party AI service (OpenRouter) for analysis. See the "AI Features and Data
+                Processing" section below for full details.
               </li>
               <li>
                 <strong>Used only for generating personalized insights</strong> - Data is processed
@@ -78,20 +84,112 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">AI Features</h2>
-            <p className="text-gray-700 mb-4">When you use the AI assistant:</p>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+              AI Features and Data Processing
+            </h2>
+            <p className="text-gray-700 mb-4">
+              Insight Run offers AI-powered coaching features. When you enable AI coaching and
+              provide your explicit consent, the following data processing occurs:
+            </p>
+
+            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">
+              Data sent to the AI service
+            </h3>
+            <p className="text-gray-700 mb-4">
+              The following categories of health and workout data may be included in AI analysis
+              requests:
+            </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
-                Your workout data and metrics are sent to our secure backend server for AI analysis
-                via third-party AI services
+                <strong>Workout metrics</strong> - Distance, duration, pace, cadence, calories
+                burned
               </li>
-              <li>No personally identifiable information (name, email, etc.) is transmitted</li>
-              <li>Only anonymized workout metrics are sent to the AI service</li>
-              <li>AI responses are not stored on our servers</li>
-              <li>All communication is encrypted using HTTPS</li>
+              <li>
+                <strong>Heart rate data</strong> - Average, max, and resting heart rate during
+                workouts
+              </li>
+              <li>
+                <strong>Recovery and HRV</strong> - Heart rate variability, recovery scores, and
+                trends
+              </li>
+              <li>
+                <strong>Sleep data</strong> - Sleep duration and quality metrics
+              </li>
+              <li>
+                <strong>Health profile</strong> - VO2 Max estimates, body metrics (weight, BMI),
+                respiratory rate
+              </li>
+              <li>
+                <strong>Mobility and performance</strong> - Running power, stride length, ground
+                contact time, vertical oscillation
+              </li>
+            </ul>
+
+            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">How data is processed</h3>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>
+                Your anonymized workout data is sent from the app to our secure backend server
+                hosted on Cloudflare Workers
+              </li>
+              <li>
+                Our backend forwards the anonymized data to{' '}
+                <strong>
+                  <a
+                    href="https://openrouter.ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    OpenRouter
+                  </a>
+                </strong>{' '}
+                (openrouter.ai), a third-party AI API routing service
+              </li>
+              <li>
+                OpenRouter routes requests to AI models provided by <strong>Anthropic</strong>,{' '}
+                <strong>Google</strong>, and <strong>xAI</strong>
+              </li>
+              <li>The AI model generates personalized coaching insights and returns them to you</li>
+            </ul>
+
+            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">Data protection</h3>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>
+                No personally identifiable information (name, email, location, etc.) is transmitted
+                to the AI service
+              </li>
+              <li>
+                Only anonymized workout metrics are sent — your data cannot be traced back to you
+              </li>
+              <li>
+                Data is not permanently stored by OpenRouter or the AI model providers — it is used
+                only to generate a response
+              </li>
+              <li>Your data is never sold, rented, or used for advertising purposes</li>
+              <li>AI responses and conversation history are not stored on our servers</li>
+              <li>All communication is encrypted end-to-end using HTTPS/TLS</li>
               <li>
                 Rate limiting is applied (a limited number of requests per hour) to prevent abuse
                 and ensure fair usage
+              </li>
+            </ul>
+
+            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">Your consent</h3>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>
+                AI coaching features are <strong>opt-in only</strong> — your health data is never
+                sent to any AI service without your explicit consent
+              </li>
+              <li>
+                You will be asked to review and accept the data sharing terms before AI features are
+                activated
+              </li>
+              <li>
+                You can <strong>revoke your consent at any time</strong> from the app settings,
+                which will immediately stop all data sharing with the AI service
+              </li>
+              <li>
+                Revoking consent does not affect the health data stored locally on your device
               </li>
             </ul>
           </section>
@@ -136,12 +234,25 @@ export default function PrivacyPolicy() {
                 Agreement and Brand Guidelines.
               </li>
               <li>
-                <strong>Third-party AI services</strong> - Used to provide AI-powered coaching and
-                analysis. Only anonymized workout metrics are sent.
+                <strong>OpenRouter</strong> (
+                <a
+                  href="https://openrouter.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  openrouter.ai
+                </a>
+                ) - Third-party AI API routing service used to provide AI-powered coaching and
+                analysis. OpenRouter forwards requests to AI models from Anthropic, Google, and xAI.
+                Only anonymized workout metrics are sent. OpenRouter's data handling is governed by
+                their privacy policy and our data processing agreements, which ensure equivalent
+                protection for your data.
               </li>
               <li>
-                <strong>Cloud infrastructure services</strong> - Our backend infrastructure that
-                securely handles API requests without storing user data.
+                <strong>Cloudflare Workers</strong> - Our backend infrastructure that securely
+                handles API requests between the app and AI services without permanently storing
+                user data.
               </li>
               <li>
                 <strong>Apple HealthKit</strong> - Native iOS framework for accessing health data
@@ -231,7 +342,11 @@ export default function PrivacyPolicy() {
               </li>
               <li>Request deletion of any data we might hold (we don't hold user-specific data)</li>
               <li>Withdraw HealthKit permissions at any time through iOS Settings</li>
-              <li>Opt out of AI features by not using the AI assistant</li>
+              <li>
+                Revoke AI data sharing consent at any time in the app settings, immediately stopping
+                all data transmission to the AI service
+              </li>
+              <li>Opt out of AI features entirely by not enabling AI coaching</li>
               <li>Export your data through HealthKit's native export functionality</li>
             </ul>
           </section>
@@ -277,7 +392,7 @@ export default function PrivacyPolicy() {
 
           <div className="mt-12 pt-8 border-t border-gray-200">
             <p className="text-sm text-gray-500">
-              This privacy policy is effective as of October 21, 2025 and will remain in effect
+              This privacy policy is effective as of February 23, 2026 and will remain in effect
               except with respect to any changes in its provisions in the future, which will be in
               effect immediately after being posted on this page.
             </p>

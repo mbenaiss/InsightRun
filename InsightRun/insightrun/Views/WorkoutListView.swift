@@ -133,7 +133,7 @@ struct WorkoutListView: View {
                 .onAppear {
                     if canShowWorkouts {
                         AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
-                        if revenueCatManager.hasAIAccess {
+                        if revenueCatManager.hasAIAccess && HealthKitManager.shared.isHealthKitAuthorized {
                             let needsRefresh = HistoricalSummaryStorage.shared.needsRefresh()
                             showIndexationBanner = needsRefresh
                         }

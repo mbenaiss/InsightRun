@@ -713,7 +713,15 @@
       }
     },
     "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable Insight Run." : {
-      "comment" : "Error when WorkoutKit authorization is denied"
+      "comment" : "Error when WorkoutKit authorization is denied",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'accès à l'export des entraînements a été refusé. Veuillez aller dans Réglages > Santé > Accès aux données pour activer Insight Run."
+          }
+        }
+      }
     },
     "Access to your health data" : {
       "comment" : "Onboarding HealthKit title",
@@ -950,6 +958,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Coaching IA"
+          }
+        }
+      }
+    },
+    "AI consent is required to analyze your workouts." : {
+      "comment" : "Error when AI consent is missing",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le consentement IA est requis pour analyser vos entraînements."
           }
         }
       }
@@ -4369,7 +4388,15 @@
       }
     },
     "HealthKit access was denied. Please go to Settings > Health > Data Access to enable Insight Run." : {
-      "comment" : "Error when HealthKit authorization is denied"
+      "comment" : "Error when HealthKit authorization is denied",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'accès à HealthKit a été refusé. Veuillez aller dans Réglages > Santé > Accès aux données pour activer Insight Run."
+          }
+        }
+      }
     },
     "HealthKit data access denied. Please grant access in Settings" : {
       "localizations" : {

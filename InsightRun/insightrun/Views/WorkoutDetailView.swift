@@ -566,41 +566,25 @@ struct WorkoutDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 20)
 
-            } else if let error = analysisViewModel.error {
-                // Error state - check if it's a consent error
-                let isConsentError = error.lowercased().contains("consent")
-
+            } else if analysisViewModel.needsConsent {
+                // Consent required - show consent button directly
                 VStack(spacing: 12) {
-                    Image(systemName: isConsentError ? "hand.raised.fill" : "exclamationmark.triangle")
+                    Image(systemName: "hand.raised.fill")
                         .font(.title2)
-                        .foregroundStyle(isConsentError ? Color.irPrimaryAccent : Color.irWarning)
+                        .foregroundStyle(Color.irPrimaryAccent)
 
-                    Text(error)
+                    Text(String(localized: "AI consent is required to analyze your workouts.", comment: "Error when AI consent is missing"))
                         .font(.subheadline)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
 
-                    if isConsentError {
-                        // Show consent button
-                        Button {
-                            showConsentSheet = true
-                        } label: {
-                            Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
-                                .font(.subheadline)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    } else {
-                        // Show retry button
-                        Button {
-                            Task {
-                                await analysisViewModel.generateAnalysis()
-                            }
-                        } label: {
-                            Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
-                                .font(.subheadline)
-                        }
-                        .buttonStyle(.bordered)
+                    Button {
+                        showConsentSheet = true
+                    } label: {
+                        Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
+                            .font(.subheadline)
                     }
+                    .buttonStyle(.borderedProminent)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
@@ -608,7 +592,7 @@ struct WorkoutDetailView: View {
                     AIConsentSheet(
                         onConsent: {
                             showConsentSheet = false
-                            // Retry analysis after consent
+                            analysisViewModel.needsConsent = false
                             Task {
                                 await analysisViewModel.generateAnalysis()
                             }
@@ -618,6 +602,31 @@ struct WorkoutDetailView: View {
                         }
                     )
                 }
+
+            } else if let error = analysisViewModel.error {
+                // Error state
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.title2)
+                        .foregroundStyle(Color.irWarning)
+
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        Task {
+                            await analysisViewModel.generateAnalysis()
+                        }
+                    } label: {
+                        Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
 
             } else if let analysis = analysisViewModel.analysisText {
                 // Analysis available

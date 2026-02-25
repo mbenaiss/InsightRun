@@ -127,6 +127,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         guard await MainActor.run(body: { ConsentService.shared.hasConsentedToAIDataSharing }) else {
             await MainActor.run {
                 self.needsConsent = true
+                self.error = String(localized: "AI consent is required to analyze your workouts.", comment: "Error when AI consent is missing")
             }
             return
         }

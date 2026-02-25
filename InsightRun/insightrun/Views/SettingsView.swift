@@ -210,9 +210,13 @@ struct SettingsView: View {
                             return
                         }
                         if newValue {
-                            ConsentService.shared.grantAIConsent()
+                            // Only grant if not already consented (avoid overwriting consentDate on programmatic changes)
+                            if !ConsentService.shared.hasConsentedToAIDataSharing {
+                                ConsentService.shared.grantAIConsent()
+                            }
                         } else {
                             // Revert toggle until user confirms
+                            skipConsentOnChange = true
                             aiDataSharingEnabled = true
                             showRevokeAlert = true
                         }

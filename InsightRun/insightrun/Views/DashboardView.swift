@@ -133,6 +133,7 @@ struct DashboardView: View {
                 AIConsentSheet(
                     onConsent: {
                         readinessVM.needsConsent = false
+                        Task { await refreshAll() }
                     },
                     onDecline: {
                         readinessVM.needsConsent = false

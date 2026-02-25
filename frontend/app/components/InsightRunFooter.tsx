@@ -11,7 +11,7 @@ export default function InsightRunFooter() {
             <Link href="/" className="flex items-center gap-3">
               <Image
                 src="/app-icon.png"
-                alt="InsightRun logo"
+                alt="Insight Run logo"
                 width={48}
                 height={48}
                 className="rounded-xl"

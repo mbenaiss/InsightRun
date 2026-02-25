@@ -22,7 +22,7 @@ enum HealthKitError: LocalizedError {
         case .notAvailable:
             return String(localized: "HealthKit is not available on this device. Please ensure you are using a compatible iPhone.", comment: "Error when HealthKit is not available")
         case .authorizationDenied:
-            return String(localized: "HealthKit access was denied. Please go to Settings > Health > Data Access to enable InsightRun.", comment: "Error when HealthKit authorization is denied")
+            return String(localized: "HealthKit access was denied. Please go to Settings > Health > Data Access to enable Insight Run.", comment: "Error when HealthKit authorization is denied")
         case .dataNotAvailable:
             return String(localized: "Health data is not available.", comment: "Error when health data is not available")
         case .queryFailed(let error):

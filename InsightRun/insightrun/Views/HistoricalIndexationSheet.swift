@@ -84,6 +84,17 @@ struct HistoricalIndexationSheet: View {
                 dismiss()
             }
         }
+        .sheet(isPresented: $manager.needsConsent) {
+            AIConsentSheet(
+                onConsent: {
+                    manager.needsConsent = false
+                },
+                onDecline: {
+                    manager.needsConsent = false
+                    dismiss()
+                }
+            )
+        }
         .onDisappear {
             // Clean up task if view disappears
             indexationTask?.cancel()

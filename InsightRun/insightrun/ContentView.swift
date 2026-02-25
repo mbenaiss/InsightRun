@@ -13,6 +13,7 @@ struct ContentView: View {
     @StateObject private var notificationRouter = NotificationRouter.shared
     @State private var selectedTab = 0
     @State private var showingAIAssistant = false
+    @State private var showAIConsentSheet = false
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
@@ -70,6 +71,25 @@ struct ContentView: View {
             WorkoutAIAssistantView(
                 mode: .unified,
                 isPresented: $showingAIAssistant
+            )
+        }
+        .onChange(of: showingAIAssistant) { _, newValue in
+            if newValue && ConsentService.shared.isConsentRequired() {
+                showingAIAssistant = false
+                showAIConsentSheet = true
+            }
+        }
+        .sheet(isPresented: $showAIConsentSheet) {
+            AIConsentSheet(
+                onConsent: {
+                    showAIConsentSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showingAIAssistant = true
+                    }
+                },
+                onDecline: {
+                    showAIConsentSheet = false
+                }
             )
         }
         .onChange(of: notificationRouter.pendingTab) { _, tab in

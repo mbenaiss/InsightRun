@@ -20,6 +20,9 @@ struct SettingsView: View {
     @State private var isSyncing = false
     @State private var lastSyncResult: String?
     @State private var notificationsEnabled = false
+    @State private var aiDataSharingEnabled = false
+    @State private var showRevokeAlert = false
+    @State private var skipConsentOnChange = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -192,6 +195,76 @@ struct SettingsView: View {
                     Text(String(localized: "Receive daily readiness reminders, weekly training summaries, and proactive coaching alerts.", comment: "Notifications section footer"))
                 }
 
+                // Privacy & AI Section
+                Section {
+                    Toggle(isOn: $aiDataSharingEnabled) {
+                        HStack {
+                            Image(systemName: "brain.head.profile")
+                                .foregroundStyle(Color.irPrimaryAccent)
+                            Text(String(localized: "AI Data Sharing", comment: "AI data sharing toggle"))
+                        }
+                    }
+                    .onChange(of: aiDataSharingEnabled) { _, newValue in
+                        guard !skipConsentOnChange else {
+                            skipConsentOnChange = false
+                            return
+                        }
+                        if newValue {
+                            ConsentService.shared.grantAIConsent()
+                        } else {
+                            // Revert toggle until user confirms
+                            aiDataSharingEnabled = true
+                            showRevokeAlert = true
+                        }
+                    }
+
+                    if let consentDate = ConsentService.shared.consentDate, aiDataSharingEnabled {
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundStyle(Color.irTextSecondary)
+                            Text(String(localized: "Consent granted on", comment: "Consent date label") + " \(formatDate(consentDate))")
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+
+                    Button {
+                        if let url = URL(string: "https://insightrun.altcode.studio/privacy") {
+                            openURL(url)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "hand.raised.fill")
+                                .foregroundStyle(Color.irPrimaryAccent)
+                            Text(String(localized: "Privacy Policy", comment: "Privacy policy link"))
+                                .font(.body)
+                                .foregroundStyle(Color.irTextPrimary)
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text(String(localized: "Privacy & AI", comment: "Privacy and AI section header"))
+                } footer: {
+                    Text(String(localized: "settings.ai_privacy.footer"))
+                }
+                .alert(
+                    String(localized: "Disable AI Features?", comment: "Revoke AI consent alert title"),
+                    isPresented: $showRevokeAlert
+                ) {
+                    Button(String(localized: "Cancel", comment: "Cancel revoke AI consent"), role: .cancel) {}
+                    Button(String(localized: "Disable", comment: "Confirm revoke AI consent"), role: .destructive) {
+                        ConsentService.shared.revokeAIConsent()
+                        skipConsentOnChange = true
+                        aiDataSharingEnabled = false
+                    }
+                } message: {
+                    Text(String(localized: "Revoking AI data sharing will disable all AI-powered features including workout analysis, coaching and recovery insights.", comment: "Revoke AI consent alert message"))
+                }
+
                 // Medical Information Section
                 Section {
                     Button {
@@ -233,7 +306,7 @@ struct SettingsView: View {
                         HStack {
                             Image(systemName: "star.fill")
                                 .foregroundStyle(Color.irWarning)
-                            Text(String(localized: "Rate InsightRun", comment: "Rate app button in settings"))
+                            Text(String(localized: "Rate Insight Run", comment: "Rate app button in settings"))
                             Spacer()
                             Image(systemName: "arrow.up.forward")
                                 .font(.caption)
@@ -552,6 +625,7 @@ struct SettingsView: View {
         .task {
             await notificationManager.checkPermissionStatus()
             notificationsEnabled = notificationManager.isNotificationsEnabled
+            aiDataSharingEnabled = ConsentService.shared.hasConsentedToAIDataSharing
         }
     }
 
@@ -594,7 +668,7 @@ struct SettingsView: View {
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A"
         let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A"
         let iosVersion = UIDevice.current.systemVersion
-        let subject = "InsightRun Feedback (v\(appVersion))"
+        let subject = "Insight Run Feedback (v\(appVersion))"
         let body = "\n\n---\nApp: \(appVersion) (\(buildNumber))\niOS: \(iosVersion)"
 
         var components = URLComponents()

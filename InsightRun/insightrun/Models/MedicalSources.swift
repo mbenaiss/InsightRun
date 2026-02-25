@@ -170,7 +170,7 @@ struct MedicalSourcesDatabase {
             journal: "Sleep Health: Journal of the National Sleep Foundation",
             year: 2017,
             url: "https://pubmed.ncbi.nlm.nih.gov/28346153/",
-            summary: "First evidence-based sleep quality recommendations from the National Sleep Foundation. Key indicators: sleep efficiency ≥85%, sleep latency ≤20 min, awakenings ≤1/night, wake after sleep onset ≤20 min. These thresholds are used to compute the sleep quality score in InsightRun."
+            summary: "First evidence-based sleep quality recommendations from the National Sleep Foundation. Key indicators: sleep efficiency ≥85%, sleep latency ≤20 min, awakenings ≤1/night, wake after sleep onset ≤20 min. These thresholds are used to compute the sleep quality score in Insight Run."
         ),
         MedicalSource(
             title: "The Sleep and Recovery Practices of Athletes",
@@ -284,7 +284,7 @@ struct MedicalSourcesDatabase {
             journal: "Physiological Testing of Elite Athletes (Human Kinetics)",
             year: 1991,
             url: nil,
-            summary: "Extended TRIMP model chapter formalizing Training IMPulse as duration × intensity factor. Established the impulse-response framework adopted by TrainingPeaks, Garmin, and consumer wearables. The daily TRIMP metric used in InsightRun's effort score is derived from this model."
+            summary: "Extended TRIMP model chapter formalizing Training IMPulse as duration × intensity factor. Established the impulse-response framework adopted by TrainingPeaks, Garmin, and consumer wearables. The daily TRIMP metric used in Insight Run's effort score is derived from this model."
         ),
         MedicalSource(
             title: "Modeling human performance in running",
@@ -340,7 +340,7 @@ struct MedicalSourcesDatabase {
             journal: "Scandinavian Journal of Medicine & Science in Sports",
             year: 2006,
             url: "https://pubmed.ncbi.nlm.nih.gov/16430681/",
-            summary: "Established the three-zone intensity model for endurance training. Zone 1 (below lactate threshold): recovery/base. Zone 2 (threshold): tempo. Zone 3 (above threshold): high-intensity. Elite athletes follow ~80/20 polarized distribution. Pace-based intensity zones used in InsightRun's intensity factor are derived from this framework."
+            summary: "Established the three-zone intensity model for endurance training. Zone 1 (below lactate threshold): recovery/base. Zone 2 (threshold): tempo. Zone 3 (above threshold): high-intensity. Elite athletes follow ~80/20 polarized distribution. Pace-based intensity zones used in Insight Run's intensity factor are derived from this framework."
         ),
         MedicalSource(
             title: "A new approach to monitoring exercise training",
@@ -446,7 +446,7 @@ struct MedicalSourcesDatabase {
             journal: "Sports Medicine",
             year: 2004,
             url: "https://pubmed.ncbi.nlm.nih.gov/14715035/",
-            summary: "Established step-based activity classification: <5,000 steps/day = sedentary, 5,000-7,499 = low active, 7,500-9,999 = somewhat active, ≥10,000 = active, ≥12,500 = highly active. The 10,000 steps/day target is used as the step component in InsightRun's daily effort score."
+            summary: "Established step-based activity classification: <5,000 steps/day = sedentary, 5,000-7,499 = low active, 7,500-9,999 = somewhat active, ≥10,000 = active, ≥12,500 = highly active. The 10,000 steps/day target is used as the step component in Insight Run's daily effort score."
         ),
         MedicalSource(
             title: "Evaluating nocturnal heart rate variability with smartphone-derived HRV in college-age females",

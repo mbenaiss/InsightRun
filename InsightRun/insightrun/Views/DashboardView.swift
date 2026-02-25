@@ -129,6 +129,16 @@ struct DashboardView: View {
                 SubscriptionPaywallView(isInitialFlow: false)
                     .environmentObject(revenueCatManager)
             }
+            .sheet(isPresented: $readinessVM.needsConsent) {
+                AIConsentSheet(
+                    onConsent: {
+                        readinessVM.needsConsent = false
+                    },
+                    onDecline: {
+                        readinessVM.needsConsent = false
+                    }
+                )
+            }
             .task {
                 await refreshAll()
                 await loadTrendData()

@@ -712,7 +712,7 @@
         }
       }
     },
-    "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable InsightRun." : {
+    "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable Insight Run." : {
       "comment" : "Error when WorkoutKit authorization is denied"
     },
     "Access to your health data" : {
@@ -950,6 +950,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Coaching IA"
+          }
+        }
+      }
+    },
+    "AI Data Sharing" : {
+      "comment" : "AI data sharing toggle",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Data Sharing"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partage de données IA"
           }
         }
       }
@@ -1854,7 +1872,7 @@
       }
     },
     "Cancel" : {
-      "comment" : "Cancel button\nCancel button after indexation failure\nCancel button during indexation\nCancel editing button\nCancel smart suggestion button",
+      "comment" : "Cancel button\nCancel button after indexation failure\nCancel button during indexation\nCancel editing button\nCancel revoke AI consent\nCancel smart suggestion button",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -2110,6 +2128,24 @@
         }
       }
     },
+    "Consent granted on" : {
+      "comment" : "Consent date label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consent granted on"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consentement accordé le"
+          }
+        }
+      }
+    },
     "consent.accept" : {
       "comment" : "Button to accept consent",
       "extractionState" : "manual",
@@ -2128,20 +2164,20 @@
         }
       }
     },
-    "consent.decline" : {
-      "comment" : "Button to decline consent",
+    "consent.allow" : {
+      "comment" : "Button to allow AI data sharing",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No thanks"
+            "value" : "Allow"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Non merci"
+            "value" : "Autoriser"
           }
         }
       }
@@ -2182,20 +2218,20 @@
         }
       }
     },
-    "consent.data.heart_rate" : {
-      "comment" : "Heart rate data category",
+    "consent.data_summary" : {
+      "comment" : "Summary of data sent to AI service",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Heart rate (average, min, max)"
+            "value" : "Data sent: workout metrics, heart rate, recovery, sleep, health profile and historical summaries. No name, email, or account identifiers are shared."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fréquence cardiaque (moyenne, min, max)"
+            "value" : "Données envoyées : métriques d'entraînement, fréquence cardiaque, récupération, sommeil, profil de santé et historique. Aucun nom, email ou identifiant de compte n'est partagé."
           }
         }
       }
@@ -2214,6 +2250,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Profil de santé (âge, sexe, masse corporelle, pourcentage de graisse corporelle)"
+          }
+        }
+      }
+    },
+    "consent.data.heart_rate" : {
+      "comment" : "Heart rate data category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heart rate (average, min, max)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence cardiaque (moyenne, min, max)"
           }
         }
       }
@@ -2326,6 +2380,60 @@
         }
       }
     },
+    "consent.decline" : {
+      "comment" : "Button to decline consent",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No thanks"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non merci"
+          }
+        }
+      }
+    },
+    "consent.description" : {
+      "comment" : "Main description of AI data sharing consent",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To provide personalized coaching, Insight Run sends your health and fitness data to openrouter.ai, a third-party AI service, for processing."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour fournir un coaching personnalisé, Insight Run envoie vos données de santé et de forme physique à openrouter.ai, un service IA tiers, pour traitement."
+          }
+        }
+      }
+    },
+    "consent.dont_allow" : {
+      "comment" : "Button to decline AI data sharing",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't Allow"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ne pas autoriser"
+          }
+        }
+      }
+    },
     "consent.how_description" : {
       "comment" : "How it works description",
       "extractionState" : "manual",
@@ -2333,13 +2441,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your data is sent anonymously from your device to our secure server, which forwards it to OpenRouter (openrouter.ai), a third-party AI routing service. All data is fully anonymous — no name, email, Apple ID, or any information that could identify you is ever transmitted. We operate a strict zero-log policy: no data is stored on our servers or by OpenRouter after the response is generated."
+            "value" : "Your data is sent anonymously from your device to our secure server, which forwards it to openrouter.ai, a third-party AI routing service. All data is fully anonymous — no name, email, Apple ID, or any information that could identify you is ever transmitted. We operate a strict zero-log policy: no data is stored on our servers or by openrouter.ai after the response is generated."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vos données sont envoyées de manière anonyme depuis votre appareil vers notre serveur sécurisé, qui les transmet à OpenRouter (openrouter.ai), un service tiers de routage IA. Toutes les données sont entièrement anonymes — aucun nom, email, identifiant Apple ou information permettant de vous identifier n'est jamais transmis. Nous appliquons une politique stricte de zéro log : aucune donnée n'est conservée sur nos serveurs ni par OpenRouter après la génération de la réponse."
+            "value" : "Vos données sont envoyées de manière anonyme depuis votre appareil vers notre serveur sécurisé, qui les transmet à openrouter.ai, un service tiers de routage IA. Toutes les données sont entièrement anonymes — aucun nom, email, identifiant Apple ou information permettant de vous identifier n'est jamais transmis. Nous appliquons une politique stricte de zéro log : aucune donnée n'est conservée sur nos serveurs ni par openrouter.ai après la génération de la réponse."
           }
         }
       }
@@ -2470,6 +2578,42 @@
         }
       }
     },
+    "consent.processed_by" : {
+      "comment" : "Header for AI provider information",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data will be processed by:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos données seront traitées par :"
+          }
+        }
+      }
+    },
+    "consent.provider_openrouter" : {
+      "comment" : "OpenRouter provider description",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "openrouter.ai — AI coaching & analysis"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "openrouter.ai — Coaching IA et analyse"
+          }
+        }
+      }
+    },
     "consent.question" : {
       "comment" : "Question asking user to continue",
       "extractionState" : "manual",
@@ -2477,13 +2621,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Do you agree to send the data listed above to OpenRouter for AI-powered coaching?"
+            "value" : "Do you agree to send the data listed above to openrouter.ai for AI-powered coaching?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Acceptez-vous d'envoyer les données listées ci-dessus à OpenRouter pour le coaching alimenté par l'IA ?"
+            "value" : "Acceptez-vous d'envoyer les données listées ci-dessus à openrouter.ai pour le coaching alimenté par l'IA ?"
           }
         }
       }
@@ -2513,13 +2657,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personal AI Assistant"
+            "value" : "AI Data Processing"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Assistant IA Personnel"
+            "value" : "Traitement des données IA"
           }
         }
       }
@@ -3037,6 +3181,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Désentraînement"
+          }
+        }
+      }
+    },
+    "Disable" : {
+      "comment" : "Confirm revoke AI consent",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver"
+          }
+        }
+      }
+    },
+    "Disable AI Features?" : {
+      "comment" : "Revoke AI consent alert title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable AI Features?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver les fonctionnalités IA ?"
           }
         }
       }
@@ -4188,7 +4368,7 @@
         }
       }
     },
-    "HealthKit access was denied. Please go to Settings > Health > Data Access to enable InsightRun." : {
+    "HealthKit access was denied. Please go to Settings > Health > Data Access to enable Insight Run." : {
       "comment" : "Error when HealthKit authorization is denied"
     },
     "HealthKit data access denied. Please grant access in Settings" : {
@@ -7723,6 +7903,42 @@
         }
       }
     },
+    "Privacy & AI" : {
+      "comment" : "Privacy and AI section header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & AI"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confidentialité et IA"
+          }
+        }
+      }
+    },
+    "Privacy Policy" : {
+      "comment" : "Privacy policy link",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Politique de confidentialité"
+          }
+        }
+      }
+    },
     "Profile Updated!" : {
       "comment" : "Success title after indexation",
       "extractionState" : "manual",
@@ -8210,14 +8426,14 @@
         }
       }
     },
-    "Rate InsightRun" : {
+    "Rate Insight Run" : {
       "comment" : "Rate app button in settings",
       "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Noter InsightRun"
+            "value" : "Noter Insight Run"
           }
         }
       }
@@ -8695,6 +8911,24 @@
         }
       }
     },
+    "Revoking AI data sharing will disable all AI-powered features including workout analysis, coaching and recovery insights." : {
+      "comment" : "Revoke AI consent alert message",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoking AI data sharing will disable all AI-powered features including workout analysis, coaching and recovery insights."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La révocation du partage de données IA désactivera toutes les fonctionnalités alimentées par l'IA, y compris l'analyse d'entraînement, le coaching et les informations de récupération."
+          }
+        }
+      }
+    },
     "Route" : {
       "comment" : "Route map section title",
       "extractionState" : "manual",
@@ -9009,6 +9243,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réglages"
+          }
+        }
+      }
+    },
+    "settings.ai_privacy.footer" : {
+      "comment" : "Footer text for AI privacy settings section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When enabled, your health and fitness data is sent to a third-party AI service for personalized coaching. You can revoke access at any time."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lorsque cette option est activée, vos données de santé et de forme physique sont envoyées à un service IA tiers pour un coaching personnalisé. Vous pouvez révoquer l'accès à tout moment."
           }
         }
       }
@@ -10639,11 +10891,13 @@
       }
     },
     "tab.dashboard" : {
+      "comment" : "Tab label for Dashboard",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "tab.dashboard"
+            "value" : "Dashboard"
           }
         },
         "fr" : {
@@ -12482,6 +12736,78 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous n'avez pas couru depuis %lld jours. Un léger footing pourrait aider à maintenir votre forme."
+          }
+        }
+      }
+    },
+    "You must consent to AI data sharing to generate workouts." : {
+      "comment" : "Error when AI consent is not given for workout generation",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You must consent to AI data sharing to generate workouts."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous devez consentir au partage de données IA pour générer des entraînements."
+          }
+        }
+      }
+    },
+    "You must consent to AI data sharing to use daily readiness." : {
+      "comment" : "Error when AI consent is not given for daily readiness",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You must consent to AI data sharing to use daily readiness."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous devez consentir au partage de données IA pour utiliser le score de préparation quotidien."
+          }
+        }
+      }
+    },
+    "You must consent to AI data sharing to use smart suggestions." : {
+      "comment" : "Error when AI consent is not given for smart suggestion",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You must consent to AI data sharing to use smart suggestions."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous devez consentir au partage de données IA pour utiliser les suggestions intelligentes."
+          }
+        }
+      }
+    },
+    "You must consent to AI data sharing to use this feature." : {
+      "comment" : "Error when AI consent is not given for indexation",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You must consent to AI data sharing to use this feature."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous devez consentir au partage de données IA pour utiliser cette fonctionnalité."
           }
         }
       }

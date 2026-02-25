@@ -16,6 +16,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     @Published var error: String?
     @Published var suggestedQuestions: [String] = []
     @Published var lastFunctionResult: BackendAPIClient.AgentFunctionResult?
+    @Published var needsConsent = false
 
     // Backend API client (sécurisé)
     private let backendClient = BackendAPIClient.shared
@@ -122,13 +123,11 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     }
 
     func askQuestion(question: String, mode: AIAssistantMode, language: String? = nil) async {
-        // Check AI consent (Apple 5.1.2(i) compliance)
+        // Check AI consent (Apple 5.1.1 compliance)
         guard await MainActor.run(body: { ConsentService.shared.hasConsentedToAIDataSharing }) else {
             await MainActor.run {
-                self.error = String(
-                    localized: "You must consent to data sharing to use the AI assistant.",
-                    comment: "Error when AI consent is not given"
-                )
+                self.needsConsent = true
+                self.error = String(localized: "AI consent is required to analyze your workouts.", comment: "Error when AI consent is missing")
             }
             return
         }

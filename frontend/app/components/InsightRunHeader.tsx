@@ -29,7 +29,7 @@ export default function InsightRunHeader() {
             <div className="relative w-10 h-10 overflow-hidden rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300">
               <Image
                 src="/app-icon.png"
-                alt="InsightRun logo"
+                alt="Insight Run logo"
                 width={40}
                 height={40}
                 className="object-cover"

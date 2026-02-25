@@ -437,6 +437,17 @@ struct WorkoutAIAssistantView: View {
         .sheet(isPresented: $showIndexationSheet) {
             HistoricalIndexationSheet()
         }
+        .sheet(isPresented: $aiService.needsConsent) {
+            AIConsentSheet(
+                onConsent: {
+                    aiService.needsConsent = false
+                },
+                onDecline: {
+                    aiService.needsConsent = false
+                    isPresented = false
+                }
+            )
+        }
         .onAppear {
             loadMessages()
             loadConversationHistories()

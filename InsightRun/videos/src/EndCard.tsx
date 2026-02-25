@@ -74,7 +74,7 @@ export const EndCard: React.FC<{ cta: string }> = ({ cta }) => {
           transform: `translateY(${interpolate(textEnter, [0, 1], [20, 0])}px)`,
         }}
       >
-        InsightRun
+        Insight Run
       </div>
 
       <div

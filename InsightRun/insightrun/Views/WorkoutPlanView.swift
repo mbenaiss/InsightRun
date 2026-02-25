@@ -25,6 +25,9 @@ class WorkoutPlanViewModel: ObservableObject {
     @Published var isGeneratingSmartSuggestion = false
     @Published var smartSuggestionError: String?
 
+    // Consent state
+    @Published var needsConsent = false
+
     // Subscription state
     @Published var showSubscriptionPaywall = false
 
@@ -46,6 +49,11 @@ class WorkoutPlanViewModel: ObservableObject {
 
     func generateWorkout() async {
         guard !promptText.isEmpty else { return }
+
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            needsConsent = true
+            return
+        }
 
         isGenerating = true
         error = nil
@@ -351,6 +359,11 @@ class WorkoutPlanViewModel: ObservableObject {
     }
 
     func generateSmartSuggestion() async {
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            needsConsent = true
+            return
+        }
+
         isGeneratingSmartSuggestion = true
         smartSuggestionError = nil
 
@@ -568,6 +581,16 @@ struct WorkoutPlanView: View {
             .sheet(isPresented: $showSubscriptionPaywall) {
                 SubscriptionPaywallView(isInitialFlow: false)
                     .environmentObject(revenueCatManager)
+            }
+            .sheet(isPresented: $viewModel.needsConsent) {
+                AIConsentSheet(
+                    onConsent: {
+                        viewModel.needsConsent = false
+                    },
+                    onDecline: {
+                        viewModel.needsConsent = false
+                    }
+                )
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

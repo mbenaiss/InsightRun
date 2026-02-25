@@ -84,6 +84,30 @@ struct HistoricalIndexationSheet: View {
                 dismiss()
             }
         }
+        .sheet(isPresented: $manager.needsConsent) {
+            AIConsentSheet(
+                onConsent: {
+                    manager.needsConsent = false
+                    indexationTask = Task {
+                        do {
+                            try await manager.startIndexation()
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+                            impactFeedback.impactOccurred()
+                        } catch is CancellationError {
+                            print("🛑 HistoricalIndexationSheet: Indexation cancelled")
+                        } catch {
+                            print("❌ HistoricalIndexationSheet: Indexation failed: \(error)")
+                            let notificationFeedback = UINotificationFeedbackGenerator()
+                            notificationFeedback.notificationOccurred(.error)
+                        }
+                    }
+                },
+                onDecline: {
+                    manager.needsConsent = false
+                    dismiss()
+                }
+            )
+        }
         .onDisappear {
             // Clean up task if view disappears
             indexationTask?.cancel()

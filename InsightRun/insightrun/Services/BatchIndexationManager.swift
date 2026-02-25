@@ -54,6 +54,7 @@ class BatchIndexationManager: ObservableObject {
     @Published var currentBatch: Int = 0
     @Published var totalBatches: Int = 0
     @Published var hasFailedOnce: Bool = false // Track if indexation failed at least once
+    @Published var needsConsent: Bool = false
 
     // MARK: - Private Properties
 
@@ -71,6 +72,12 @@ class BatchIndexationManager: ObservableObject {
     func startIndexation() async throws {
         guard state != .loading(progress: 0.0) else {
             print("⚠️ BatchIndexationManager: Indexation already in progress")
+            return
+        }
+
+        // Check AI consent before sending data to backend
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            needsConsent = true
             return
         }
 

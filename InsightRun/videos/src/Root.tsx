@@ -2,11 +2,11 @@ import { Composition } from 'remotion'
 import { AppPreview } from './AppPreview'
 
 // App Store Preview: 30fps, max 30 seconds = 900 frames
-// iPhone 17 Pro Max: 1320x2868
+// App Store Preview: 886x1920 (required by App Store Connect)
 const FPS = 30
 const DURATION_SECONDS = 30
-const WIDTH = 1320
-const HEIGHT = 2868
+const WIDTH = 886
+const HEIGHT = 1920
 
 export type CalloutConfig = {
   text: string

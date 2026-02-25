@@ -25,7 +25,7 @@ enum WorkoutKitError: LocalizedError {
         case .workoutKitNotAvailable:
             return String(localized: "WorkoutKit is not available on this device", comment: "Error when WorkoutKit is not supported")
         case .authorizationDenied:
-            return String(localized: "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable InsightRun.", comment: "Error when WorkoutKit authorization is denied")
+            return String(localized: "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable Insight Run.", comment: "Error when WorkoutKit authorization is denied")
         case .exportFailed(let error):
             return String(localized: "Failed to export workout: %@", comment: "Error when export fails").replacingOccurrences(of: "%@", with: error.localizedDescription)
         case .unsupportedSportType:

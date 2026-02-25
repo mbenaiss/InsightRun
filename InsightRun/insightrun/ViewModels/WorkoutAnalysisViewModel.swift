@@ -15,6 +15,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
     @Published var analyzedAt: Date?
+    @Published var needsConsent = false
 
     private let workout: WorkoutModel
     private var metrics: WorkoutMetrics?
@@ -91,6 +92,12 @@ class WorkoutAnalysisViewModel: ObservableObject {
                 modelContext.delete(cached)
                 try? modelContext.save()
             }
+        }
+
+        // Check consent before generating
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            needsConsent = true
+            return
         }
 
         print("⚠️ WorkoutAnalysisViewModel: No valid cache, generating new analysis")
@@ -178,6 +185,11 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
     /// Generate new AI analysis and save to SwiftData
     func generateAnalysis() async {
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            needsConsent = true
+            return
+        }
+
         print("🔵 WorkoutAnalysisViewModel: generateAnalysis() started")
         isLoading = true
         error = nil

@@ -17,6 +17,8 @@ class DailyReadinessViewModel: ObservableObject {
     @Published var recommendation: String = ""
     @Published var suggestedWorkoutType: SuggestedWorkoutType = .rest
     @Published var insights: [ReadinessInsight] = []
+    @Published var needsConsent = false
+    private var hasPromptedConsent = false
 
     private let backendClient = BackendAPIClient.shared
     private let healthKitManager = HealthKitManager.shared
@@ -46,6 +48,16 @@ class DailyReadinessViewModel: ObservableObject {
             insights = []
             isLoading = false
             errorMessage = nil
+            return
+        }
+
+        // Check AI consent before sending health data
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            if !hasPromptedConsent {
+                needsConsent = true
+                hasPromptedConsent = true
+            }
+            isLoading = false
             return
         }
 

@@ -608,6 +608,17 @@ struct CoachingSection: View {
         .task {
             await readinessVM.fetchDailyReadiness()
         }
+        .sheet(isPresented: $readinessVM.needsConsent) {
+            AIConsentSheet(
+                onConsent: {
+                    readinessVM.needsConsent = false
+                    Task { await readinessVM.fetchDailyReadiness() }
+                },
+                onDecline: {
+                    readinessVM.needsConsent = false
+                }
+            )
+        }
     }
 }
 

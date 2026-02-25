@@ -78,7 +78,7 @@ export const IntroTitle: React.FC<{ subtitle: string }> = ({ subtitle }) => {
           transform: `translateY(${interpolate(titleEnter, [0, 1], [40, 0])}px)`,
         }}
       >
-        InsightRun
+        Insight Run
       </div>
 
       {/* Accent line */}

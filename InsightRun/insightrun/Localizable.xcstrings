@@ -9168,19 +9168,19 @@
         }
       }
     },
-    "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 70%." : {
+    "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 50%." : {
       "comment" : "Readiness baseline explanation",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 70%."
+            "value" : "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 50%."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le scoring utilise la déviation par rapport à votre référence personnelle (z-score) lorsque suffisamment de données sont disponibles. Une journée normale à votre référence obtient environ 70 %."
+            "value" : "Le scoring utilise la déviation par rapport à votre référence personnelle (z-score) lorsque suffisamment de données sont disponibles. Une journée normale à votre référence obtient environ 50 %."
           }
         }
       }

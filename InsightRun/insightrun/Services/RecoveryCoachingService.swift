@@ -121,11 +121,11 @@ class RecoveryCoachingService {
 
         // Determine status based on the optimized score
         let status: RecoveryInsight.RecoveryStatus
-        if score >= 80 {
+        if score >= 67 {
             status = .excellent
-        } else if score >= 60 {
+        } else if score >= 50 {
             status = .good
-        } else if score >= 40 {
+        } else if score >= 33 {
             status = .fair
         } else {
             status = .poor

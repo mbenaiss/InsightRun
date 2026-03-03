@@ -32,7 +32,8 @@ private enum RecoveryCaps {
     static let severeSleepHours = 6.0
     static let criticalLowHRV = 30.0
     static let maxScoreCriticalSleep = 35
-    static let maxScoreComboAlert = 40
+    // Combo alert (low HRV + short sleep) is more restrictive than either alone
+    static let maxScoreComboAlert = 30
 }
 
 struct RecoveryMetrics: Identifiable {
@@ -110,11 +111,11 @@ struct RecoveryMetrics: Identifiable {
 
     var recoveryStatus: RecoveryStatus {
         switch recoveryScore {
-        case 80...100:
+        case 67...100:
             return .excellent
-        case 60..<80:
+        case 50..<67:
             return .good
-        case 40..<60:
+        case 33..<50:
             return .fair
         default:
             return .poor
@@ -328,6 +329,7 @@ struct RecoveryMetrics: Identifiable {
         count += 1
 
         if let avgEfficiency = baseline.sleepEfficiencyAverage {
+            // stdDev 5.0 = typical population standard deviation for sleep efficiency (%)
             let efficiencyScore = scoreFromDeviation(
                 value: sleep.sleepEfficiency,
                 average: avgEfficiency,

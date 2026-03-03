@@ -61,11 +61,14 @@ const RecoveryCaps = {
   severeSleepHours: 6,
   criticalLowHRV: 30,
   maxScoreCriticalSleep: 35,
-  maxScoreComboAlert: 40,
+  // Combo alert (low HRV + short sleep) is more restrictive than either alone
+  maxScoreComboAlert: 30,
 } as const
 
 // Convert z-score deviation to a 0-1 score (aligned with iOS scoreFromDeviation)
 // Maps [-2, +2] stddev range to [0, 1]
+// Note: iOS also supports isHigherBetter: nil (symmetric mode where any deviation is bad),
+// but it's not currently used in the backend scoring path.
 function scoreFromDeviation(
   value: number,
   average: number | undefined,
@@ -276,6 +279,7 @@ function calculateReadinessScore(
       // Efficiency score: use baseline deviation when available (aligned with iOS)
       let efficiencyScore: number
       if (baseline?.sleepEfficiencyAverage) {
+        // stdDev 5.0 = typical population standard deviation for sleep efficiency (%)
         efficiencyScore = scoreFromDeviation(
           efficiency,
           baseline.sleepEfficiencyAverage,
@@ -290,7 +294,9 @@ function calculateReadinessScore(
       // Duration + efficiency: averaged 50/50 (aligned with iOS scoreSleepVsBaseline)
       const durationEfficiencyScore = (durationScore + efficiencyScore) / 2
 
-      // Sleep stages scoring (deep + REM) - fixed ranges (baseline stage data not available)
+      // Sleep stages scoring (deep + REM) - uses fixed ranges because baseline stage
+      // percentages are not sent from iOS. Note: iOS scoreSleepStages uses baseline
+      // deepSleepPercentageAverage/remSleepPercentageAverage when available.
       if (recovery.sleepData.deepDuration && recovery.sleepData.remDuration) {
         const totalSleep = recovery.sleepData.totalDuration
         const deepPct = (recovery.sleepData.deepDuration / totalSleep) * 100
@@ -458,10 +464,11 @@ function calculateReadinessScore(
 }
 
 // Determine status from score (aligned with iOS RecoveryStatus thresholds)
+// Status thresholds adjusted for linear 0-100 scale (baseline day ≈ 50%)
 function getStatusFromScore(score: number): 'excellent' | 'good' | 'fair' | 'poor' {
-  if (score >= 80) return 'excellent'
-  if (score >= 60) return 'good'
-  if (score >= 40) return 'fair'
+  if (score >= 67) return 'excellent'
+  if (score >= 50) return 'good'
+  if (score >= 33) return 'fair'
   return 'poor'
 }
 

@@ -298,7 +298,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
 
     // Pace trend (first workout vs last workout)
     if (workoutsWithPace.length >= 3) {
-      const paces = workoutsWithPace.map((w) => w.pace as number)
+      const paces = workoutsWithPace.map((w) => w.pace ?? 0)
       const firstThird = paces.slice(0, Math.ceil(paces.length / 3))
       const lastThird = paces.slice(-Math.ceil(paces.length / 3))
       const firstAvg = firstThird.reduce((a, b) => a + b, 0) / firstThird.length
@@ -328,7 +328,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
 
     // Cadence consistency across workouts
     if (workoutsWithCadence.length >= 2) {
-      const cadences = workoutsWithCadence.map((w) => w.cadence as number)
+      const cadences = workoutsWithCadence.map((w) => w.cadence ?? 0)
       const avgCadence = cadences.reduce((a, b) => a + b, 0) / cadences.length
       const cadenceVariance =
         cadences.reduce((sum, c) => sum + (c - avgCadence) ** 2, 0) / cadences.length

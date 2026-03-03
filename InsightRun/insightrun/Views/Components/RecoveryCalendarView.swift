@@ -322,11 +322,11 @@ struct RecoveryCalendarView: View {
 
     private func scoreColor(for score: Int) -> Color {
         switch score {
-        case 80...100:
+        case 67...100:
             return .green
-        case 60..<80:
+        case 50..<67:
             return .yellow
-        case 40..<60:
+        case 33..<50:
             return .orange
         default:
             return .red

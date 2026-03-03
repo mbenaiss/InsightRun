@@ -31,7 +31,7 @@ private enum RecoveryCaps {
     static let criticalSleepHours = 5.0
     static let severeSleepHours = 6.0
     static let criticalLowHRV = 30.0
-    static let maxScoreCriticalSleep = 35
+    static let maxScoreCriticalSleep = 32
     // Combo alert (low HRV + short sleep) is more restrictive than either alone
     static let maxScoreComboAlert = 30
 }

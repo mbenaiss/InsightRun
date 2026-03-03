@@ -60,7 +60,7 @@ const RecoveryCaps = {
   criticalSleepHours: 5,
   severeSleepHours: 6,
   criticalLowHRV: 30,
-  maxScoreCriticalSleep: 35,
+  maxScoreCriticalSleep: 32,
   // Combo alert (low HRV + short sleep) is more restrictive than either alone
   maxScoreComboAlert: 30,
 } as const

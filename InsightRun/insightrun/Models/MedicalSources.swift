@@ -462,7 +462,7 @@ struct MedicalSourcesDatabase {
             journal: "British Journal of Sports Medicine",
             year: 2018,
             url: "https://pubmed.ncbi.nlm.nih.gov/29203489/",
-            summary: "Investigated SpO2 variability in athletes. Oxygen saturation below 95% at rest may indicate respiratory compromise or incomplete recovery. Supports SpO2 as a component in multi-metric readiness scoring, weighted at 15% alongside HRV, RHR, sleep, and respiratory rate."
+            summary: "Investigated SpO2 variability in athletes. Oxygen saturation below 95% at rest may indicate respiratory compromise or incomplete recovery. Supports SpO2 as a component in multi-metric readiness scoring, weighted at 10% alongside HRV, RHR, sleep, and respiratory rate."
         )
     ]
 

@@ -1240,10 +1240,10 @@ struct ScoreExplanationSheet: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Metric Weights", comment: "Readiness metric weights label"))
                     .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .indigo, label: String(localized: "Sleep Quality", comment: "Readiness sleep weight"), value: "30%")
+                calculationRow(color: .indigo, label: String(localized: "Sleep Quality", comment: "Readiness sleep weight"), value: "40%")
                 calculationRow(color: .blue, label: String(localized: "HRV", comment: "Readiness HRV weight"), value: "25%")
-                calculationRow(color: .red, label: String(localized: "Resting Heart Rate", comment: "Readiness RHR weight"), value: "20%")
-                calculationRow(color: .cyan, label: String(localized: "Oxygen Saturation (SpO2)", comment: "Readiness SpO2 weight"), value: "15%")
+                calculationRow(color: .red, label: String(localized: "Resting Heart Rate", comment: "Readiness RHR weight"), value: "15%")
+                calculationRow(color: .cyan, label: String(localized: "Oxygen Saturation (SpO2)", comment: "Readiness SpO2 weight"), value: "10%")
                 calculationRow(color: .teal, label: String(localized: "Respiratory Rate", comment: "Readiness resp rate weight"), value: "10%")
             }
 
@@ -1261,7 +1261,7 @@ struct ScoreExplanationSheet: View {
 
             Divider()
 
-            Text(String(localized: "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 70%.", comment: "Readiness baseline explanation"))
+            Text(String(localized: "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 50%.", comment: "Readiness baseline explanation"))
                 .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
         }
     }

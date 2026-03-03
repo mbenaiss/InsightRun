@@ -50,10 +50,18 @@ const MetricCV = {
 // Hirshkowitz et al. (Sleep Health, 2015), Bouzat et al. (BJSM, 2018)
 const RecoveryWeights = {
   hrv: 0.25, // 25% - Primary recovery indicator (higher is better)
-  restingHeartRate: 0.2, // 20% - Cardiovascular stress indicator (lower is better)
-  oxygenSaturation: 0.15, // 15% - Oxygen saturation (higher is better, clinical thresholds)
+  restingHeartRate: 0.15, // 15% - Cardiovascular stress indicator (lower is better)
+  oxygenSaturation: 0.1, // 10% - Oxygen saturation (higher is better, clinical thresholds)
   respiratoryRate: 0.1, // 10% - Stress indicator (lower is better)
-  sleep: 0.3, // 30% - Sleep quality (duration + efficiency)
+  sleep: 0.4, // 40% - Sleep quality (duration + efficiency + stages)
+} as const
+
+const RecoveryCaps = {
+  criticalSleepHours: 5,
+  severeSleepHours: 6,
+  criticalLowHRV: 30,
+  maxScoreCriticalSleep: 35,
+  maxScoreComboAlert: 40,
 } as const
 
 // Convert z-score deviation to a 0-1 score (aligned with iOS scoreFromDeviation)
@@ -155,7 +163,7 @@ function calculateReadinessScore(
     totalWeight += weight
   }
 
-  // Resting Heart Rate Score (20% weight) - Lower is better
+  // Resting Heart Rate Score (15% weight) - Lower is better
   // Source: PubMed (2018), Jensen et al. (Heart, 2013)
   if (recovery.restingHeartRate !== undefined) {
     const weight = RecoveryWeights.restingHeartRate
@@ -212,7 +220,7 @@ function calculateReadinessScore(
     totalWeight += weight
   }
 
-  // SpO2 Score (15% weight) - Clinical thresholds
+  // SpO2 Score (10% weight) - Clinical thresholds
   // Source: WHO pulse oximetry guidelines, Bouzat et al. (BJSM, 2018)
   if (recovery.oxygenSaturation !== undefined) {
     const weight = RecoveryWeights.oxygenSaturation
@@ -239,32 +247,89 @@ function calculateReadinessScore(
     totalWeight += weight
   }
 
-  // Sleep Score (30% weight)
+  // Sleep Score (40% weight)
   // Source: Hirshkowitz et al. (Sleep Health, 2015), Sleep Foundation (2024)
   if (recovery.sleepData) {
     const weight = RecoveryWeights.sleep
     const hours = recovery.sleepData.totalDuration / 3600
     const efficiency = recovery.sleepData.efficiency
 
-    // Duration score (optimal 7-9h per Hirshkowitz et al., 2015)
-    let durationScore: number
-    if (hours >= 7 && hours <= 9) {
-      durationScore = 0.9 + 0.1 * Math.min(hours / 8, 1)
-    } else if (hours >= 6 && hours < 7) {
-      durationScore = 0.6
-    } else if (hours >= 5 && hours < 6) {
-      durationScore = 0.3
-    } else if (hours < 5) {
-      durationScore = 0.1
+    let sleepRawScore: number
+
+    if (useBaseline) {
+      // Baseline-aware path (aligned with iOS scoreSleepVsBaseline + scoreSleepStages)
+
+      // Duration score
+      let durationScore: number
+      if (hours >= 7 && hours <= 9) {
+        durationScore = 0.9 + 0.1 * Math.min(hours / 8, 1)
+      } else if (hours >= 6 && hours < 7) {
+        durationScore = 0.6
+      } else if (hours >= 5 && hours < 6) {
+        durationScore = 0.3
+      } else if (hours < 5) {
+        durationScore = Math.max(0, hours / 10)
+      } else {
+        durationScore = 0.7 // Oversleep (>9h)
+      }
+
+      // Efficiency score: use baseline deviation when available (aligned with iOS)
+      let efficiencyScore: number
+      if (baseline?.sleepEfficiencyAverage) {
+        efficiencyScore = scoreFromDeviation(
+          efficiency,
+          baseline.sleepEfficiencyAverage,
+          5.0,
+          true,
+          0.1
+        )
+      } else {
+        efficiencyScore = Math.min(Math.max((efficiency - 75) / 20, 0), 1)
+      }
+
+      // Duration + efficiency: averaged 50/50 (aligned with iOS scoreSleepVsBaseline)
+      const durationEfficiencyScore = (durationScore + efficiencyScore) / 2
+
+      // Sleep stages scoring (deep + REM) - fixed ranges (baseline stage data not available)
+      if (recovery.sleepData.deepDuration && recovery.sleepData.remDuration) {
+        const totalSleep = recovery.sleepData.totalDuration
+        const deepPct = (recovery.sleepData.deepDuration / totalSleep) * 100
+        const remPct = (recovery.sleepData.remDuration / totalSleep) * 100
+
+        let deepScore: number
+        if (deepPct >= 15 && deepPct <= 20) deepScore = 1.0
+        else if (deepPct >= 13 && deepPct <= 25) deepScore = 0.7
+        else deepScore = 0.3
+
+        let remScore: number
+        if (remPct >= 20 && remPct <= 25) remScore = 1.0
+        else if (remPct >= 18 && remPct <= 28) remScore = 0.7
+        else remScore = 0.3
+
+        const stagesScore = (deepScore + remScore) / 2
+        // 60% duration/efficiency, 40% stages (aligned with iOS)
+        sleepRawScore = durationEfficiencyScore * 0.6 + stagesScore * 0.4
+      } else {
+        sleepRawScore = durationEfficiencyScore
+      }
     } else {
-      durationScore = 0.7 // Oversleep (>9h)
+      // Fixed-range path (aligned with iOS calculateSleepScore)
+      let durationScore: number
+      if (hours < 5) {
+        durationScore = 0.0
+      } else if (hours <= 9) {
+        durationScore = (hours - 5) / 4
+      } else if (hours <= 10) {
+        durationScore = 1.0
+      } else {
+        durationScore = Math.max(0.7, 1.0 - (hours - 10) * 0.1)
+      }
+
+      const efficiencyScore = Math.min(Math.max((efficiency / 100 - 0.75) / 0.2, 0), 1)
+
+      // 70% duration, 30% efficiency (aligned with iOS calculateSleepScore)
+      sleepRawScore = durationScore * 0.7 + efficiencyScore * 0.3
     }
-
-    // Efficiency score (85-95% normal, >95% optimal per PMC, 2020)
-    const efficiencyScore = Math.min(Math.max((efficiency - 75) / 20, 0), 1)
-
-    // Combined: 70% duration, 30% efficiency (aligned with iOS)
-    const sleepRawScore = durationScore * 0.7 + efficiencyScore * 0.3
 
     insights.push({
       metric: 'Sleep',
@@ -367,19 +432,29 @@ function calculateReadinessScore(
 
   // Calculate final score (aligned with iOS formula)
   // Normalize by total weight, then map to 0-100 scale
-  // Score 0.5 (at baseline) = 70%, perfect deviation = 100%, -2 stddev = 40%
   const rawScore = totalWeight > 0 ? totalScore / totalWeight : 0.5
 
-  let finalScore: number
-  if (useBaseline) {
-    // Baseline-aware: map 0-1 raw score to 40-100 range (center at 70%)
-    finalScore = 40 + rawScore * 60
-  } else {
-    // Fixed range: map 0-1 raw score to 0-100
-    finalScore = rawScore * 100
+  // Map raw 0-1 score to 0-100 for both baseline-aware and fixed-range
+  const finalScore = rawScore * 100
+
+  let score = Math.max(0, Math.min(100, Math.round(finalScore)))
+
+  // Cap score when critical thresholds are breached (aligned with iOS)
+  if (recovery.sleepData) {
+    const hours = recovery.sleepData.totalDuration / 3600
+    if (hours < RecoveryCaps.criticalSleepHours) {
+      score = Math.min(score, RecoveryCaps.maxScoreCriticalSleep)
+    }
+    if (
+      recovery.hrv !== undefined &&
+      recovery.hrv < RecoveryCaps.criticalLowHRV &&
+      hours < RecoveryCaps.severeSleepHours
+    ) {
+      score = Math.min(score, RecoveryCaps.maxScoreComboAlert)
+    }
   }
 
-  return { score: Math.max(0, Math.min(100, Math.round(finalScore))), insights }
+  return { score, insights }
 }
 
 // Determine status from score (aligned with iOS RecoveryStatus thresholds)

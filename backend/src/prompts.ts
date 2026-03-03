@@ -12,7 +12,7 @@ import { formatDistance, formatDuration, formatPace, getLanguageName } from './u
 function parsePaceToSeconds(paceStr: string): number | null {
   const match = paceStr.match(/(\d+)'(\d+)"?/)
   if (!match) return null
-  return parseInt(match[1]) * 60 + parseInt(match[2])
+  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10)
 }
 
 // Analyze splits for pacing strategy and consistency
@@ -288,8 +288,8 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
           .map(([k, v]) => `${k}: ${v}`)
           .join(', ')
         context += `- Intensity Distribution: ${distribution}\n`
-        const easyCount = counts['Easy'] || 0
-        const hardCount = (counts['Tempo'] || 0) + (counts['Hard'] || 0)
+        const easyCount = counts.Easy || 0
+        const hardCount = (counts.Tempo || 0) + (counts.Hard || 0)
         if (intensities.length >= 3 && hardCount > easyCount) {
           context += `  ⚠️ More hard sessions than easy → Risk of overtraining\n`
         }
@@ -298,7 +298,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
 
     // Pace trend (first workout vs last workout)
     if (workoutsWithPace.length >= 3) {
-      const paces = workoutsWithPace.map((w) => w.pace!)
+      const paces = workoutsWithPace.map((w) => w.pace as number)
       const firstThird = paces.slice(0, Math.ceil(paces.length / 3))
       const lastThird = paces.slice(-Math.ceil(paces.length / 3))
       const firstAvg = firstThird.reduce((a, b) => a + b, 0) / firstThird.length
@@ -315,7 +315,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
     if (workoutsWithHR.length >= 3 && workoutsWithPace.length >= 3) {
       const hrPaceRatios = recent.workouts
         .filter((w) => w.heartRate?.avg && w.pace)
-        .map((w) => w.heartRate!.avg! / w.pace!)
+        .map((w) => (w.heartRate?.avg ?? 0) / (w.pace ?? 1))
       if (hrPaceRatios.length >= 3) {
         const firstRatio = hrPaceRatios[0]
         const lastRatio = hrPaceRatios[hrPaceRatios.length - 1]
@@ -328,7 +328,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
 
     // Cadence consistency across workouts
     if (workoutsWithCadence.length >= 2) {
-      const cadences = workoutsWithCadence.map((w) => w.cadence!)
+      const cadences = workoutsWithCadence.map((w) => w.cadence as number)
       const avgCadence = cadences.reduce((a, b) => a + b, 0) / cadences.length
       const cadenceVariance =
         cadences.reduce((sum, c) => sum + (c - avgCadence) ** 2, 0) / cadences.length

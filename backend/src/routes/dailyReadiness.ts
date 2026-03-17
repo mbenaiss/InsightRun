@@ -494,18 +494,25 @@ function getWorkoutType(
   // Cardiac load increasing → downgrade by one level
   if (clStatus === 'increasing') {
     switch (status) {
-      case 'excellent': return 'moderate'
-      case 'good': return 'easy'
-      default: return 'rest'
+      case 'excellent':
+        return 'moderate'
+      case 'good':
+        return 'easy'
+      default:
+        return 'rest'
     }
   }
 
   // Default: based on recovery status
   switch (status) {
-    case 'excellent': return 'intense'
-    case 'good': return 'moderate'
-    case 'fair': return 'easy'
-    default: return 'rest'
+    case 'excellent':
+      return 'intense'
+    case 'good':
+      return 'moderate'
+    case 'fair':
+      return 'easy'
+    default:
+      return 'rest'
   }
 }
 
@@ -534,8 +541,8 @@ function getRecommendation(
   // 2. Already exercised today — don't push more, acknowledge the effort
   if (alreadyExercised && highEffort) {
     const activitySuffix = isFr
-      ? ` (${Math.round(activity!.exerciseMinutes)} min d'exercice, ${Math.round(activity!.steps)} pas)`
-      : ` (${Math.round(activity!.exerciseMinutes)} min exercise, ${Math.round(activity!.steps)} steps)`
+      ? ` (${Math.round(activity?.exerciseMinutes ?? 0)} min d'exercice, ${Math.round(activity?.steps ?? 0)} pas)`
+      : ` (${Math.round(activity?.exerciseMinutes ?? 0)} min exercise, ${Math.round(activity?.steps ?? 0)} steps)`
 
     if (clStatus === 'increasing') {
       return isFr

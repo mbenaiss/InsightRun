@@ -475,17 +475,37 @@ function getStatusFromScore(score: number): 'excellent' | 'good' | 'fair' | 'poo
   return 'poor'
 }
 
-// Get workout recommendation based on status
-function getWorkoutType(status: string): 'intense' | 'moderate' | 'easy' | 'rest' {
+// Get workout recommendation based on status, cardiac load, and daily activity
+function getWorkoutType(
+  status: string,
+  cardiacLoad?: CardiacLoadData,
+  activity?: DailyActivityData
+): 'intense' | 'moderate' | 'easy' | 'rest' {
+  const clStatus = cardiacLoad?.status
+
+  // Cardiac overload → always rest
+  if (clStatus === 'overreaching') return 'rest'
+
+  // Already exercised today → rest/easy regardless of recovery
+  if ((activity?.exerciseMinutes ?? 0) >= 20 && (activity?.effortScore ?? 0) >= 60) {
+    return 'rest'
+  }
+
+  // Cardiac load increasing → downgrade by one level
+  if (clStatus === 'increasing') {
+    switch (status) {
+      case 'excellent': return 'moderate'
+      case 'good': return 'easy'
+      default: return 'rest'
+    }
+  }
+
+  // Default: based on recovery status
   switch (status) {
-    case 'excellent':
-      return 'intense'
-    case 'good':
-      return 'moderate'
-    case 'fair':
-      return 'easy'
-    default:
-      return 'rest'
+    case 'excellent': return 'intense'
+    case 'good': return 'moderate'
+    case 'fair': return 'easy'
+    default: return 'rest'
   }
 }
 
@@ -775,7 +795,7 @@ app.post('/', async (c) => {
     }
 
     const status = getStatusFromScore(score)
-    const suggestedWorkoutType = getWorkoutType(status)
+    const suggestedWorkoutType = getWorkoutType(status, body.cardiacLoad, body.dailyActivity)
 
     // Generate AI recommendation with fallback to static one
     let recommendation: string

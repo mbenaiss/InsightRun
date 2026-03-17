@@ -12,7 +12,7 @@ import SwiftUI
 import HealthKit
 
 @MainActor
-class TrainingLoadService: ObservableObject {
+final class TrainingLoadService: ObservableObject {
     static let shared = TrainingLoadService()
 
     @Published var weeklyVolumeChange: Double?

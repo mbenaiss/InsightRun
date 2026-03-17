@@ -1,12 +1,15 @@
 import { Hono } from 'hono'
+import { RequestType, selectModelFromRequest } from '../modelRouter'
 import type {
   CardiacLoadData,
   DailyActivityData,
   PersonalBaselineData,
   RecoveryData,
 } from '../types'
+import { getLanguageName } from '../utils'
 
 type Bindings = {
+  OPENROUTER_API_KEY: string
   APP_SECRET: string
   RATE_LIMITER: KVNamespace
 }
@@ -486,7 +489,8 @@ function getWorkoutType(status: string): 'intense' | 'moderate' | 'easy' | 'rest
   }
 }
 
-// Get recommendation text based on status, daily context, and language
+// Get recommendation text based on status, daily context, and language.
+// Priority order: cardiac overload > already exercised today > recovery status > cardiac trend
 function getRecommendation(
   status: string,
   language: string,
@@ -496,58 +500,241 @@ function getRecommendation(
   const lang = language.toLowerCase().slice(0, 2)
   const isFr = lang === 'fr'
 
-  // Base recommendations
+  const alreadyExercised = (activity?.exerciseMinutes ?? 0) >= 20
+  const highEffort = (activity?.effortScore ?? 0) >= 60
+  const clStatus = cardiacLoad?.status ?? 'unknown'
+
+  // 1. Cardiac overload takes absolute priority — rest regardless of recovery score
+  if (clStatus === 'overreaching') {
+    return isFr
+      ? 'Votre charge cardiaque est en zone de surcharge. Repos complet ou récupération active légère (marche, étirements) pour éviter le surentraînement.'
+      : 'Your cardiac load is in the overreaching zone. Take a full rest day or very light active recovery (walking, stretching) to avoid overtraining.'
+  }
+
+  // 2. Already exercised today — don't push more, acknowledge the effort
+  if (alreadyExercised && highEffort) {
+    const activitySuffix = isFr
+      ? ` (${Math.round(activity!.exerciseMinutes)} min d'exercice, ${Math.round(activity!.steps)} pas)`
+      : ` (${Math.round(activity!.exerciseMinutes)} min exercise, ${Math.round(activity!.steps)} steps)`
+
+    if (clStatus === 'increasing') {
+      return isFr
+        ? `Bonne séance aujourd'hui${activitySuffix}. Votre charge cardiaque est en hausse — prévoyez une journée de récupération demain.`
+        : `Good session today${activitySuffix}. Your cardiac load is increasing — plan a recovery day tomorrow.`
+    }
+
+    if (status === 'excellent' || status === 'good') {
+      return isFr
+        ? `Belle séance aujourd'hui${activitySuffix}. Votre récupération était bonne ce matin — laissez votre corps assimiler l'effort.`
+        : `Great session today${activitySuffix}. Your morning recovery was solid — let your body absorb the training.`
+    }
+
+    return isFr
+      ? `Séance effectuée${activitySuffix}. Votre récupération n'était pas optimale — surveillez votre fatigue et reposez-vous bien ce soir.`
+      : `Session completed${activitySuffix}. Your recovery wasn't optimal — monitor your fatigue and get good rest tonight.`
+  }
+
+  // 3. Cardiac load increasing — temper the recommendation even if recovery is good
+  if (clStatus === 'increasing') {
+    if (status === 'excellent' || status === 'good') {
+      return isFr
+        ? "Bonne récupération mais votre charge cardiaque est en hausse. Optez pour une séance facile ou modérée plutôt qu'intense pour éviter la surcharge."
+        : 'Good recovery but your cardiac load is rising. Go for an easy or moderate session rather than high-intensity to avoid overloading.'
+    }
+    return isFr
+      ? 'Récupération incomplète et charge cardiaque en hausse. Repos ou sortie très facile recommandé (30 min max, FC < 130 bpm).'
+      : 'Incomplete recovery with rising cardiac load. Rest or a very easy session recommended (30 min max, HR < 130 bpm).'
+  }
+
+  // 4. Base recommendations by recovery status
   const base: Record<string, Record<string, string>> = {
     excellent: {
-      en: "You're fully recovered! Perfect day for high-intensity training like intervals or tempo runs.",
-      fr: 'Vous êtes complètement récupéré ! Journée idéale pour un entraînement intense comme des intervalles ou du tempo.',
+      en: "You're fully recovered. Great day for a quality session — intervals, tempo, or a long run.",
+      fr: 'Vous êtes bien récupéré. Bonne journée pour une séance de qualité — intervalles, tempo ou sortie longue.',
     },
     good: {
-      en: 'Good recovery. A moderate workout like a steady-state run would be beneficial.',
-      fr: 'Bonne récupération. Une séance modérée comme une course à allure régulière serait bénéfique.',
+      en: 'Good recovery. A moderate run at steady pace would be ideal today.',
+      fr: 'Bonne récupération. Une course modérée à allure régulière serait idéale.',
     },
     fair: {
-      en: 'Partial recovery. Consider an easy run or cross-training today.',
-      fr: "Récupération partielle. Envisagez une course facile ou du cross-training aujourd'hui.",
+      en: 'Partial recovery. Keep it easy today — short easy run or cross-training.',
+      fr: "Récupération partielle. Restez léger aujourd'hui — course facile courte ou cross-training.",
     },
     poor: {
-      en: 'Rest recommended. Your body needs more recovery time. Light stretching or walking is okay.',
-      fr: 'Repos recommandé. Votre corps a besoin de plus de récupération. Étirements légers ou marche sont OK.',
+      en: 'Your body needs rest. Take a recovery day — light stretching, walking, or foam rolling.',
+      fr: 'Votre corps a besoin de repos. Journée de récupération — étirements, marche ou foam rolling.',
     },
   }
 
   let text = base[status]?.[lang] || base[status]?.en || ''
 
-  // Append cardiac load context
-  if (cardiacLoad) {
-    if (cardiacLoad.status === 'increasing' && (status === 'fair' || status === 'poor')) {
-      text += isFr
-        ? ' Votre charge cardiaque est en hausse — privilégiez la récupération.'
-        : ' Your cardiac load is increasing — prioritize recovery.'
-    } else if (
-      cardiacLoad.status === 'detraining' &&
-      (status === 'excellent' || status === 'good')
-    ) {
-      text += isFr
-        ? " Votre charge cardiaque est en baisse — bon moment pour relancer l'entraînement."
-        : ' Your cardiac load is declining — good time to ramp up training.'
-    }
+  // 5. Cardiac detraining context — encourage training
+  if (clStatus === 'detraining' && (status === 'excellent' || status === 'good')) {
+    text += isFr
+      ? " Votre charge d'entraînement diminue — bon moment pour relancer."
+      : ' Your training load is declining — good time to ramp up.'
   }
 
-  // Append daily activity context
-  if (activity) {
-    if (activity.effortScore >= 70) {
-      text += isFr
-        ? ` Journée déjà active (${Math.round(activity.steps)} pas, ${Math.round(activity.exerciseMinutes)} min d'exercice).`
-        : ` Already an active day (${Math.round(activity.steps)} steps, ${Math.round(activity.exerciseMinutes)} min exercise).`
-    } else if (activity.effortScore <= 20 && (status === 'excellent' || status === 'good')) {
-      text += isFr
-        ? ' Journée peu active pour le moment — idéal pour bouger.'
-        : ' Low activity so far — a great time to get moving.'
-    }
+  // 6. Low activity context — gentle nudge
+  if (
+    !alreadyExercised &&
+    (activity?.effortScore ?? 0) <= 20 &&
+    (status === 'excellent' || status === 'good')
+  ) {
+    text += isFr
+      ? ' Journée calme pour le moment — idéal pour une sortie.'
+      : ' Quiet day so far — ideal time for a run.'
   }
 
   return text
+}
+
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const READINESS_MAX_TOKENS = 200
+const READINESS_TEMPERATURE = 0.6
+
+// Build a structured context string from all available readiness data
+function buildReadinessContext(
+  score: number,
+  status: string,
+  recovery: RecoveryData,
+  baseline?: PersonalBaselineData,
+  activity?: DailyActivityData,
+  cardiacLoad?: CardiacLoadData
+): string {
+  let ctx = ''
+
+  ctx += `Recovery Score: ${score}/100 (status: ${status})\n`
+
+  if (recovery.hrv !== undefined) {
+    ctx += `HRV: ${Math.round(recovery.hrv)} ms`
+    if (baseline?.hrvAverage) {
+      ctx += ` (baseline: ${Math.round(baseline.hrvAverage)} ms)`
+    }
+    ctx += '\n'
+  }
+
+  if (recovery.restingHeartRate !== undefined) {
+    ctx += `Resting HR: ${Math.round(recovery.restingHeartRate)} bpm`
+    if (baseline?.restingHeartRateAverage) {
+      ctx += ` (baseline: ${Math.round(baseline.restingHeartRateAverage)} bpm)`
+    }
+    ctx += '\n'
+  }
+
+  if (recovery.sleepData) {
+    const hours = recovery.sleepData.totalDuration / 3600
+    ctx += `Sleep: ${hours.toFixed(1)}h, efficiency ${Math.round(recovery.sleepData.efficiency)}%`
+    if (recovery.sleepData.deepDuration && recovery.sleepData.remDuration) {
+      const deepH = recovery.sleepData.deepDuration / 3600
+      const remH = recovery.sleepData.remDuration / 3600
+      ctx += ` (deep: ${deepH.toFixed(1)}h, REM: ${remH.toFixed(1)}h)`
+    }
+    if (baseline?.sleepDurationAverage) {
+      ctx += ` [baseline: ${(baseline.sleepDurationAverage / 3600).toFixed(1)}h]`
+    }
+    ctx += '\n'
+  }
+
+  if (recovery.respiratoryRate !== undefined) {
+    ctx += `Respiratory Rate: ${recovery.respiratoryRate.toFixed(1)} breaths/min`
+    if (baseline?.respiratoryRateAverage) {
+      ctx += ` (baseline: ${baseline.respiratoryRateAverage.toFixed(1)})`
+    }
+    ctx += '\n'
+  }
+
+  if (recovery.oxygenSaturation !== undefined) {
+    ctx += `SpO2: ${recovery.oxygenSaturation}%\n`
+  }
+
+  if (cardiacLoad) {
+    ctx += `Cardiac Load: score ${cardiacLoad.score}/20, trend: ${cardiacLoad.status}\n`
+  }
+
+  if (activity) {
+    ctx += `Today's Activity: ${Math.round(activity.steps)} steps, ${Math.round(activity.activeCalories)} kcal burned, ${Math.round(activity.exerciseMinutes)} min exercise, effort score ${Math.round(activity.effortScore)}/100\n`
+  }
+
+  if (baseline) {
+    ctx += `Baseline reliability: ${baseline.isReliable ? 'reliable' : 'building'} (${baseline.dataPointCount} data points)\n`
+  }
+
+  return ctx
+}
+
+// Generate an AI-powered coaching recommendation using OpenRouter
+async function generateAIRecommendation(
+  apiKey: string,
+  model: string,
+  score: number,
+  status: string,
+  language: string,
+  recovery: RecoveryData,
+  baseline?: PersonalBaselineData,
+  activity?: DailyActivityData,
+  cardiacLoad?: CardiacLoadData
+): Promise<string> {
+  const langName = getLanguageName(language)
+  const readinessContext = buildReadinessContext(
+    score,
+    status,
+    recovery,
+    baseline,
+    activity,
+    cardiacLoad
+  )
+
+  const systemPrompt = `You are an expert running coach analyzing daily readiness data.
+Your job is to produce a concise, actionable coaching recommendation (2-3 sentences max) based on the runner's metrics.
+
+Rules:
+- If cardiac load status is "overreaching", you MUST recommend rest or very light active recovery.
+- If the runner already exercised today (exercise minutes >= 20), acknowledge the session and do not push for more training.
+- Always factor the cardiac load trend into your recommendation.
+- Respond in ${langName}. No markdown, no bullet points — plain text only.
+- Be specific: reference actual metric values when relevant (e.g., sleep duration, HRV).
+- Keep it warm, motivating, and actionable.`
+
+  const userPrompt = `Here is the runner's readiness data for today:\n\n${readinessContext}\n\nGive your coaching recommendation.`
+
+  const requestBody = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    max_tokens: READINESS_MAX_TOKENS,
+    temperature: READINESS_TEMPERATURE,
+    stream: false,
+  }
+
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://insightrun.ai',
+      'X-Title': 'InsightRun Daily Readiness',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
+  }
+
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>
+  }
+
+  const content = (data.choices[0]?.message?.content || '').trim()
+  if (!content) {
+    throw new Error('Empty response from AI model')
+  }
+
+  return content
 }
 
 // POST /api/daily-readiness
@@ -589,7 +776,34 @@ app.post('/', async (c) => {
 
     const status = getStatusFromScore(score)
     const suggestedWorkoutType = getWorkoutType(status)
-    const recommendation = getRecommendation(status, language, body.dailyActivity, body.cardiacLoad)
+
+    // Generate AI recommendation with fallback to static one
+    let recommendation: string
+    try {
+      const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+      const { modelId } = await selectModelFromRequest(
+        undefined,
+        undefined,
+        c.env.RATE_LIMITER,
+        userId,
+        RequestType.SIMPLE
+      )
+
+      recommendation = await generateAIRecommendation(
+        c.env.OPENROUTER_API_KEY,
+        modelId,
+        score,
+        status,
+        language,
+        body.recovery,
+        body.baseline,
+        body.dailyActivity,
+        body.cardiacLoad
+      )
+    } catch (aiError) {
+      console.warn('AI recommendation failed, falling back to static:', aiError)
+      recommendation = getRecommendation(status, language, body.dailyActivity, body.cardiacLoad)
+    }
 
     const response: ReadinessResponse = {
       score,

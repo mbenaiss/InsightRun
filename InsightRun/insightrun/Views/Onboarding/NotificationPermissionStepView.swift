@@ -11,17 +11,18 @@ struct NotificationPermissionStepView: View {
     let onContinue: () -> Void
 
     @State private var isRequesting = false
+    @State private var titleOpacity: Double = 0
+    @State private var contentOpacity: Double = 0
 
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
 
+            // Animated illustration
+            AnimatedOnboardingIllustration(type: .notifications)
+
             // Icon & Title
             VStack(spacing: 16) {
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(Color.irPrimaryAccent.gradient)
-
                 Text(String(localized: "Stay on track", comment: "Onboarding notification title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -35,6 +36,7 @@ struct NotificationPermissionStepView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
+            .opacity(titleOpacity)
 
             // Feature List
             VStack(spacing: 16) {
@@ -57,6 +59,7 @@ struct NotificationPermissionStepView: View {
                 )
             }
             .padding(.horizontal, 24)
+            .opacity(contentOpacity)
 
             // Privacy Note
             HStack(spacing: 12) {
@@ -111,6 +114,12 @@ struct NotificationPermissionStepView: View {
         }
         .onAppear {
             AnalyticsService.shared.trackOnboardingStepViewed(step: 3, stepName: "notification_permission")
+            withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
+                titleOpacity = 1
+            }
+            withAnimation(.easeOut(duration: 0.5).delay(0.6)) {
+                contentOpacity = 1
+            }
         }
     }
 

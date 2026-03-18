@@ -257,11 +257,11 @@ struct WorkoutComparisonView: View {
     // MARK: - Comparison Card
 
     private func comparisonCard(_ comparison: WorkoutComparisonViewModel.WorkoutComparison) -> some View {
-        VStack(spacing: 12) {
-            // Card header - navigates to workout detail
-            Button {
-                selectedWorkout = comparison.workout
-            } label: {
+        Button {
+            selectedWorkout = comparison.workout
+        } label: {
+            VStack(spacing: 12) {
+                // Card header
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(comparison.workout.startDate.formatted(date: .abbreviated, time: .omitted))
@@ -279,20 +279,20 @@ struct WorkoutComparisonView: View {
                         .font(.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
-            }
-            .buttonStyle(.plain)
 
-            Divider()
+                Divider()
 
-            // Metric deltas
-            ForEach(comparison.deltas) { delta in
-                deltaRow(delta)
+                // Metric deltas
+                ForEach(comparison.deltas) { delta in
+                    deltaRow(delta)
+                }
             }
+            .padding()
+            .background(Color.irCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
-        .padding()
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: Color.irShadow, radius: 8, y: 4)
+        .buttonStyle(.plain)
     }
 
     // MARK: - Delta Row

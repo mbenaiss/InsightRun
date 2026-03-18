@@ -27,6 +27,8 @@ struct WelcomeStepView: View {
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Color.irTextPrimary)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal)
 
                 Text(String(localized: "Your intelligent running coach", comment: "Onboarding welcome subtitle"))
                     .font(.title3)

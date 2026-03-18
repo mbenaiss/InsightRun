@@ -180,6 +180,20 @@ struct ContentView: View {
                         thisWeekDistance: thisWeekDist,
                         lastWeekDistance: lastWeekDist
                     )
+
+                    // Send weekly progress notification with real stats (Sunday evening)
+                    let runCount = thisWeekWorkouts?.count ?? 0
+                    if runCount > 0 && calendar.component(.weekday, from: Date()) == 1 {
+                        let thisWeekKm = thisWeekDist / 1000.0
+                        let change: Double? = lastWeekDist > 0
+                            ? ((thisWeekDist - lastWeekDist) / lastWeekDist) * 100
+                            : nil
+                        notificationManager.sendWeeklyProgressNotification(
+                            runCount: runCount,
+                            totalDistanceKm: thisWeekKm,
+                            weekOverWeekChange: change
+                        )
+                    }
                 }
             }
         }

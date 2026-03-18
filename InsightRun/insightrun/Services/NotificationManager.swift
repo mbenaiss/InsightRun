@@ -24,6 +24,7 @@ class NotificationManager: ObservableObject {
     private let lastInactivityReminderKey = "com.insightrun.lastInactivityReminder"
     private let lastLowReadinessAlertKey = "com.insightrun.lastLowReadinessAlert"
     private let lastDailyReadinessKey = "com.insightrun.lastDailyReadiness"
+    private let weeklyAIInsightKey = "com.insightrun.weeklyAIInsightNotification"
     private let throttleInterval: TimeInterval = 24 * 60 * 60 // 24 hours
 
     private init() {
@@ -117,7 +118,7 @@ class NotificationManager: ObservableObject {
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Weekly Summary 📊", comment: "Weekly summary notification title")
-        content.body = String(localized: "Your training week is ready for review. See your progress!", comment: "Weekly summary notification body")
+        content.body = String(localized: "Your training week is ready. See your stats and AI insights!", comment: "Weekly summary notification body")
         content.sound = .default
         content.categoryIdentifier = "WEEKLY_SUMMARY"
 
@@ -151,18 +152,19 @@ class NotificationManager: ObservableObject {
 
     // MARK: - Immediate Alerts
 
-    /// Send inactivity reminder when user hasn't trained recently (throttled to once per 24h)
+    /// Send inactivity reminder when user hasn't trained in 7+ days (throttled to once per 24h)
     func sendInactivityReminder(daysSinceLastRun: Int) {
         guard isNotificationsEnabled else { return }
+        guard daysSinceLastRun >= 7 else { return }
         guard !isThrottled(key: lastInactivityReminderKey) else {
             print("⏱️ NotificationManager: Inactivity reminder throttled (24h)")
             return
         }
 
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "Time to Run! 💪", comment: "Inactivity reminder notification title")
+        content.title = String(localized: "Your fitness journey is waiting", comment: "Inactivity reminder notification title")
         content.body = String(
-            localized: "It's been \(daysSinceLastRun) days since your last run. A light jog could boost your mood!",
+            localized: "It's been \(daysSinceLastRun) days since your last run. Even a 15-minute walk helps recovery.",
             comment: "Inactivity reminder notification body"
         )
         content.sound = .default
@@ -217,6 +219,92 @@ class NotificationManager: ObservableObject {
         }
     }
 
+    // MARK: - Weekly AI Insight Notification
+
+    /// Schedule weekly AI insight notification (Monday 9:00 AM)
+    /// Encourages active users to engage with AI coaching
+    func scheduleWeeklyAIInsight(weekday: Int = 2, hour: Int = 9, minute: Int = 0) {
+        guard isNotificationsEnabled else { return }
+
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["weekly-ai-insight"])
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Your AI coach has insights", comment: "Weekly AI insight notification title")
+        content.body = String(localized: "Ask your AI coach how to improve this week based on your recent runs.", comment: "Weekly AI insight notification body")
+        content.sound = .default
+        content.categoryIdentifier = "WEEKLY_AI_INSIGHT"
+
+        var dateComponents = DateComponents()
+        dateComponents.weekday = weekday // 2 = Monday
+        dateComponents.hour = hour
+        dateComponents.minute = minute
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+
+        let request = UNNotificationRequest(identifier: "weekly-ai-insight", content: content, trigger: trigger)
+
+        Task {
+            do {
+                try await center.add(request)
+                userDefaults.set(true, forKey: weeklyAIInsightKey)
+                print("✅ NotificationManager: Weekly AI insight scheduled (Monday \(hour):\(String(format: "%02d", minute)))")
+            } catch {
+                print("❌ NotificationManager: Failed to schedule weekly AI insight: \(error)")
+            }
+        }
+    }
+
+    /// Cancel weekly AI insight notifications
+    func cancelWeeklyAIInsight() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["weekly-ai-insight"])
+        userDefaults.set(false, forKey: weeklyAIInsightKey)
+    }
+
+    // MARK: - Weekly Progress Notification
+
+    /// Send weekly progress notification with actual stats
+    /// Replaces the static weekly summary for this week (avoids duplicate Sunday notifications)
+    func sendWeeklyProgressNotification(runCount: Int, totalDistanceKm: Double, weekOverWeekChange: Double?) {
+        guard isNotificationsEnabled else { return }
+
+        // Cancel the static weekly summary — this progress notification replaces it
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["weekly-summary"])
+
+        let content = UNMutableNotificationContent()
+        let distanceStr = String(format: "%.0f", totalDistanceKm)
+
+        if let change = weekOverWeekChange, change > 0 {
+            let changeStr = String(format: "%.0f", change)
+            content.title = String(localized: "This week: \(runCount) runs, \(distanceStr) km", comment: "Weekly progress notification title with stats")
+            content.body = String(localized: "You're \(changeStr)% ahead of last week! See your full progress.", comment: "Weekly progress notification body with positive change")
+        } else {
+            content.title = String(localized: "This week: \(runCount) runs, \(distanceStr) km", comment: "Weekly progress notification title with stats")
+            content.body = String(localized: "Check your AI analysis and see how to improve next week.", comment: "Weekly progress notification body generic")
+        }
+
+        content.sound = .default
+        content.categoryIdentifier = "WEEKLY_SUMMARY" // Same category so tap routing works
+
+        let request = UNNotificationRequest(
+            identifier: "weekly-progress",
+            content: content,
+            trigger: nil
+        )
+
+        Task {
+            do {
+                try await center.add(request)
+                // Re-schedule the static summary for next week
+                self.scheduleWeeklySummary()
+                print("✅ NotificationManager: Weekly progress notification sent (replaced static summary)")
+            } catch {
+                print("❌ NotificationManager: Failed to send weekly progress: \(error)")
+            }
+        }
+    }
+
     // MARK: - Throttling
 
     private func isThrottled(key: String) -> Bool {
@@ -234,7 +322,7 @@ class NotificationManager: ObservableObject {
 
     /// Remove legacy scheduled notifications from previous app versions
     func removeLegacyNotifications() {
-        let knownIds: Set<String> = ["weekly-summary"]
+        let knownIds: Set<String> = ["weekly-summary", "weekly-ai-insight"]
 
         Task {
             let center = UNUserNotificationCenter.current()

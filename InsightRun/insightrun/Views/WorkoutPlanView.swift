@@ -31,6 +31,11 @@ class WorkoutPlanViewModel: ObservableObject {
     // Subscription state
     @Published var showSubscriptionPaywall = false
 
+    // Export retry state
+    @Published var consecutiveExportFailures: Int = 0
+    @Published var exportCooldown = false
+    private static let maxExportRetries = 3
+
     // Demo mode: auto-show preview with mock data
     func loadDemoDataIfNeeded() {
         guard DemoMode.isEnabled else { return }
@@ -122,10 +127,20 @@ class WorkoutPlanViewModel: ObservableObject {
     func exportToFitness() async {
         guard let workout = generatedWorkout else { return }
 
+        // Block if max retries exceeded
+        guard consecutiveExportFailures < Self.maxExportRetries else {
+            self.error = String(localized: "Export failed multiple times. Please try again later.", comment: "Export max retries error")
+            return
+        }
+
+        // Block if in cooldown
+        guard !exportCooldown else { return }
+
         do {
             try await workoutKitManager.exportToFitnessApp(workout)
 
-            // Success feedback
+            // Success — reset failure counter
+            consecutiveExportFailures = 0
             error = nil
             showSuccessAlert = true
             print("✅ Workout exported to Fitness app")
@@ -134,11 +149,28 @@ class WorkoutPlanViewModel: ObservableObject {
             AnalyticsService.shared.trackWorkoutExported()
 
         } catch {
-            self.error = error.localizedDescription
-            print("❌ Export error: \(error)")
+            consecutiveExportFailures += 1
 
-            // Track export failure
-            AnalyticsService.shared.trackWorkoutExportFailed(errorMessage: error.localizedDescription)
+            if consecutiveExportFailures >= Self.maxExportRetries {
+                self.error = String(localized: "Export failed multiple times. Please try again later.", comment: "Export max retries error")
+            } else {
+                self.error = error.localizedDescription
+            }
+            print("❌ Export error (\(consecutiveExportFailures)/\(Self.maxExportRetries)): \(error)")
+
+            // Note: detailed export failure is already tracked by WorkoutKitManager
+            // Here we only track the retry count from the UI perspective
+            if consecutiveExportFailures > 1 {
+                AnalyticsService.shared.track(.workoutExportFailed, properties: [
+                    "retry_attempt": consecutiveExportFailures,
+                    "error_message": error.localizedDescription
+                ])
+            }
+
+            // Debounce: disable export for 2 seconds after failure
+            exportCooldown = true
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            exportCooldown = false
         }
     }
 
@@ -1146,7 +1178,7 @@ struct WorkoutPlanView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
                     }
-                    .disabled(WorkoutKitManager.shared.isExporting || isEditing)
+                    .disabled(WorkoutKitManager.shared.isExporting || isEditing || viewModel.exportCooldown || viewModel.consecutiveExportFailures >= 3)
                     .padding(.top, 8)
                 }
                 .padding(.bottom, 16)

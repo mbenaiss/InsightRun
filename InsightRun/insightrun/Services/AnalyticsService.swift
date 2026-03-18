@@ -524,6 +524,7 @@ enum AnalyticsEvent: String {
     case healthKitPermissionRequested = "healthkit_permission_requested"
     case healthKitPermissionGranted = "healthkit_permission_granted"
     case healthKitPermissionDenied = "healthkit_permission_denied"
+    case healthKitPermissionSkipped = "healthkit_permission_skipped"
 
     // Notification Permission
     case notificationPermissionGranted = "notification_permission_granted"
@@ -611,6 +612,10 @@ enum AnalyticsEvent: String {
     // Review
     case reviewPromptShown = "review_prompt_shown"
     case reviewManualTap = "review_manual_tap"
+
+    // AI Teaser
+    case aiTeaserShown = "ai_teaser_shown"
+    case aiTeaserSubscribeTapped = "ai_teaser_subscribe_tapped"
 
     // Health Profile
     case healthProfileViewed = "health_profile_viewed"

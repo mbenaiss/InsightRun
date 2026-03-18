@@ -508,6 +508,7 @@ struct WorkoutDetailView: View {
 
     @State private var showSubscriptionPaywall = false
     @State private var showConsentSheet = false
+    @State private var hasTrackedTeaser = false
 
     private var aiAnalysisSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -529,29 +530,45 @@ struct WorkoutDetailView: View {
 
             // Check AI access first (subscription or TestFlight)
             if !revenueCatManager.hasAIAccess {
-                // No AI access - show locked state with CTA
+                // No AI access — show blurred teaser to demonstrate value
                 VStack(spacing: 16) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 40))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    // Blurred fake analysis preview — text visible but unreadable
+                    ZStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Good pace consistency across splits. Your cadence of 172 spm is slightly below optimal — aim for 180 spm to improve efficiency.")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.irTextPrimary)
+                            Text("Recovery heart rate dropped well, indicating solid aerobic fitness. Consider adding tempo intervals to push your threshold.")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .blur(radius: 6)
 
-                    Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
-                        .multilineTextAlignment(.center)
+                        // Lock overlay
+                        VStack(spacing: 8) {
+                            Image(systemName: "lock.fill")
+                                .font(.title3)
+                                .foregroundStyle(Color.irTextSecondary)
+                            Text(String(localized: "Unlock your full AI analysis", comment: "AI teaser unlock message"))
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .background(Color.irCardBackground)
+                    .cornerRadius(12)
 
+                    // CTA button
                     Button {
+                        AnalyticsService.shared.track(.aiTeaserSubscribeTapped)
                         showSubscriptionPaywall = true
                     } label: {
                         HStack {
                             Image(systemName: "sparkles")
-                            Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
+                            Text(String(localized: "Unlock Full Analysis", comment: "AI teaser subscribe CTA button"))
                         }
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -567,10 +584,14 @@ struct WorkoutDetailView: View {
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .padding(.horizontal, 16)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
+                .onAppear {
+                    guard !hasTrackedTeaser else { return }
+                    hasTrackedTeaser = true
+                    AnalyticsService.shared.track(.aiTeaserShown)
+                }
 
             } else if analysisViewModel.isLoading {
                 // Loading state
@@ -647,10 +668,13 @@ struct WorkoutDetailView: View {
                 .padding(.vertical, 8)
 
             } else if let analysis = analysisViewModel.analysisText {
-                // Analysis available
+                // Analysis available — trigger review prompt on positive experience
                 VStack(alignment: .leading, spacing: 12) {
                     MarkdownView(analysis)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .onAppear {
+                            ReviewManager.shared.recordPositiveAIAnalysis()
+                        }
 
                     HStack {
                         if let analyzedAt = analysisViewModel.analyzedAt {

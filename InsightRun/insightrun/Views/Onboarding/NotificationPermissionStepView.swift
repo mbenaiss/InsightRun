@@ -132,6 +132,7 @@ struct NotificationPermissionStepView: View {
             if granted {
                 NotificationManager.shared.enableDailyReadiness()
                 NotificationManager.shared.scheduleWeeklySummary()
+                NotificationManager.shared.scheduleWeeklyAIInsight()
                 AnalyticsService.shared.trackNotificationPermissionGranted()
             } else {
                 AnalyticsService.shared.trackNotificationPermissionDenied()

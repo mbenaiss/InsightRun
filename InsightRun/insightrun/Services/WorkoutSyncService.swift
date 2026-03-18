@@ -140,14 +140,13 @@ final class WorkoutSyncService {
 
     private func sendNotifications(for workouts: [HKWorkout], completion: @escaping () -> Void) {
         let center = UNUserNotificationCenter.current()
-        let total = workouts.count
         let group = DispatchGroup()
 
-        for (index, workout) in workouts.enumerated() {
+        for workout in workouts {
             group.enter()
 
             let content = UNMutableNotificationContent()
-            content.title = String(localized: "Sync \(index + 1) / \(total)", comment: "Workout sync notification title showing current/total count")
+            content.title = notificationTitle(for: workout)
             content.body = notificationBody(for: workout)
             content.sound = .default
             content.categoryIdentifier = "WORKOUT_SYNC"
@@ -170,16 +169,22 @@ final class WorkoutSyncService {
         }
     }
 
+    private func notificationTitle(for workout: HKWorkout) -> String {
+        let distanceKm = (workout.totalDistance?.doubleValue(for: .meter()) ?? 0) / 1000.0
+        let durationMinutes = Int(workout.duration / 60)
+        let hours = durationMinutes / 60
+        let minutes = durationMinutes % 60
+
+        let distanceStr = String(format: "%.2f km", distanceKm)
+        let durationStr = hours > 0
+            ? String(localized: "\(hours)h\(String(format: "%02d", minutes))m", comment: "Duration format hours and minutes")
+            : String(localized: "\(minutes)min", comment: "Duration format minutes only")
+
+        return String(localized: "Great run! \(distanceStr) in \(durationStr)", comment: "Post-workout notification title with distance and duration")
+    }
+
     private func notificationBody(for workout: HKWorkout) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .full
-        dateFormatter.timeStyle = .short
-
-        let dateLine = dateFormatter.string(from: workout.startDate)
-        let typeLine = localizedWorkoutType(for: workout)
-        let deviceLine = workout.sourceRevision.source.name
-
-        return "\(dateLine)\n\(typeLine)\n\(deviceLine)"
+        return String(localized: "Tap to see your AI analysis and recovery insights.", comment: "Post-workout notification body encouraging AI usage")
     }
 
     private func localizedWorkoutType(for workout: HKWorkout) -> String {

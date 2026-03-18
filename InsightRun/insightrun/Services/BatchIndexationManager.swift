@@ -55,11 +55,15 @@ class BatchIndexationManager: ObservableObject {
     @Published var totalBatches: Int = 0
     @Published var hasFailedOnce: Bool = false // Track if indexation failed at least once
     @Published var needsConsent: Bool = false
+    @Published var retryCount: Int = 0
+    @Published var retryDisabled: Bool = false
 
     // MARK: - Private Properties
 
     private var isCancelled = false
     private var indexationStartTime: Date?
+    private var lastErrorRetryable = true
+    static let maxRetries = 3
     private let healthKitManager = HealthKitManager.shared
     private let backendClient = BackendAPIClient.shared
     private let storage = HistoricalSummaryStorage.shared
@@ -205,17 +209,12 @@ class BatchIndexationManager: ObservableObject {
 
         } catch {
             print("❌ BatchIndexationManager: Indexation failed: \(error)")
-            state = .failed(error.localizedDescription)
-            hasFailedOnce = true // Mark that indexation has failed
+            let categorizedMessage = categorizeError(error)
+            lastErrorRetryable = !isNonRetryableError(error.localizedDescription)
+            state = .failed(categorizedMessage)
+            hasFailedOnce = true
 
-            // Track indexation failed
-            let errorType = String(describing: type(of: error))
-            AnalyticsService.shared.trackIndexationFailed(
-                errorType: errorType,
-                errorMessage: error.localizedDescription,
-                failedAtBatch: currentBatch > 0 ? currentBatch : nil,
-                totalBatches: totalBatches > 0 ? totalBatches : nil
-            )
+            AnalyticsService.shared.track(.indexationFailed, properties: indexationDebugInfo(error: error, categorizedMessage: categorizedMessage))
 
             throw error
         }
@@ -237,14 +236,47 @@ class BatchIndexationManager: ObservableObject {
         )
     }
 
-    /// Retry after failure
+    /// Retry after failure with exponential backoff
     func retry() async throws {
         guard case .failed = state else {
             print("⚠️ BatchIndexationManager: Can only retry after failure")
             return
         }
 
+        // Check if max retries exceeded
+        guard retryCount < Self.maxRetries else {
+            print("⚠️ BatchIndexationManager: Max retries (\(Self.maxRetries)) reached")
+            state = .failed(String(localized: "Indexation failed after multiple attempts. Please try again later.", comment: "Indexation max retry error"))
+            retryDisabled = true
+            return
+        }
+
+        // Check if error is not retryable (auth/permission)
+        guard lastErrorRetryable else {
+            print("⚠️ BatchIndexationManager: Non-retryable error, blocking retry")
+            retryDisabled = true
+            return
+        }
+
+        retryCount += 1
+
+        // Exponential backoff: 2s, 5s, 15s
+        let backoffSeconds: [UInt64] = [2, 5, 15]
+        let delay = backoffSeconds[min(retryCount - 1, backoffSeconds.count - 1)]
+        print("⏱️ BatchIndexationManager: Retry \(retryCount)/\(Self.maxRetries) after \(delay)s backoff...")
+
+        retryDisabled = true
+        try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+        retryDisabled = false
+
         try await startIndexation()
+    }
+
+    /// Check if an error is not worth retrying (auth/permission errors)
+    private func isNonRetryableError(_ message: String) -> Bool {
+        let nonRetryableKeywords = ["authorization", "permission", "consent", "denied", "not available"]
+        let lowered = message.lowercased()
+        return nonRetryableKeywords.contains { lowered.contains($0) }
     }
 
     /// Reset state
@@ -254,9 +286,76 @@ class BatchIndexationManager: ObservableObject {
         state = .idle
         currentBatch = 0
         totalBatches = 0
+        retryCount = 0
+        retryDisabled = false
+        lastErrorRetryable = true
     }
 
     // MARK: - Private Methods
+
+    /// Collect diagnostic info for indexation failures
+    private func indexationDebugInfo(error: Error, categorizedMessage: String) -> [String: Any] {
+        var props: [String: Any] = [
+            "error_type": String(describing: type(of: error)),
+            "error_message": error.localizedDescription,
+            "debug_error_full": String(describing: error),
+            "retry_count": retryCount,
+            "categorized_message": categorizedMessage,
+            "is_retryable": lastErrorRetryable
+        ]
+
+        if currentBatch > 0 { props["failed_at_batch"] = currentBatch }
+        if totalBatches > 0 { props["total_batches"] = totalBatches }
+
+        let nsError = error as NSError
+        props["ns_error_domain"] = nsError.domain
+        props["ns_error_code"] = nsError.code
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            props["underlying_domain"] = underlying.domain
+            props["underlying_code"] = underlying.code
+        }
+
+        if let urlError = error as? URLError {
+            props["url_error_code"] = urlError.code.rawValue
+            props["url_error_url"] = urlError.failingURL?.absoluteString ?? "nil"
+        }
+
+        if let backendError = error as? BackendError {
+            props["backend_error"] = String(describing: backendError)
+        }
+
+        return props
+    }
+
+    /// Categorize errors into user-friendly messages
+    private func categorizeError(_ error: Error) -> String {
+        let description = error.localizedDescription.lowercased()
+
+        // Network errors — retryable
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost:
+                return String(localized: "No internet connection. Please check your network and try again.", comment: "Indexation network error")
+            case .timedOut:
+                return String(localized: "The request timed out. Please try again.", comment: "Indexation timeout error")
+            default:
+                return String(localized: "A network error occurred. Please try again.", comment: "Indexation generic network error")
+            }
+        }
+
+        // Auth/permission errors — not retryable
+        if description.contains("authorization") || description.contains("permission") || description.contains("denied") {
+            return String(localized: "Permission error. Please check HealthKit access in Settings > Health.", comment: "Indexation permission error")
+        }
+
+        // HealthKit errors — not retryable
+        if error is IndexationError {
+            return error.localizedDescription
+        }
+
+        // Default
+        return error.localizedDescription
+    }
 
     /// Process a batch of workouts
     private func processBatch(_ workouts: [WorkoutModel]) async throws -> [WorkoutData] {

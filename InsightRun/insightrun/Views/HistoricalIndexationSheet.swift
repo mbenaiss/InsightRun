@@ -335,13 +335,33 @@ struct HistoricalIndexationSheet: View {
                         )
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .opacity(manager.retryDisabled ? 0.5 : 1.0)
+                }
+                .disabled(manager.retryDisabled)
+
+                // Retry info (backoff or max retries)
+                if manager.retryDisabled && manager.retryCount >= BatchIndexationManager.maxRetries {
+                    Text(String(localized: "Too many attempts. Please try again later.", comment: "Max retry info"))
+                        .font(.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .multilineTextAlignment(.center)
+                } else if manager.retryDisabled {
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .controlSize(.mini)
+                        Text(String(localized: "Waiting before retry...", comment: "Retry backoff info"))
+                            .font(.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
                 }
 
-                // Cancel button
+                // Cancel / Dismiss button
                 Button(action: {
                     dismiss()
                 }) {
-                    Text(String(localized: "Cancel", comment: "Cancel button after indexation failure"))
+                    Text(manager.retryCount >= BatchIndexationManager.maxRetries
+                        ? String(localized: "Close", comment: "Close button after max indexation retries")
+                        : String(localized: "Cancel", comment: "Cancel button after indexation failure"))
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundStyle(Color.irTextSecondary)

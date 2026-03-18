@@ -18,6 +18,7 @@ final class ReviewManager {
         static let appInstallDate = "reviewManager_appInstallDate"
         static let lastReviewRequestDate = "reviewManager_lastReviewRequestDate"
         static let reviewRequestCount = "reviewManager_reviewRequestCount"
+        static let lastPositiveAIAnalysis = "reviewManager_lastPositiveAIAnalysis"
     }
 
     private static let appStoreID = "6754607965"
@@ -49,6 +50,13 @@ final class ReviewManager {
         AnalyticsService.shared.trackReviewPromptShown()
     }
 
+    /// Call this after the user views a positive AI analysis
+    /// Triggers a review prompt if all other conditions are met
+    func recordPositiveAIAnalysis() {
+        defaults.set(Date(), forKey: Keys.lastPositiveAIAnalysis)
+        checkAndRequestReview()
+    }
+
     // MARK: - Manual Review (opens App Store page)
 
     var reviewURL: URL? {
@@ -71,6 +79,12 @@ final class ReviewManager {
 
         let workoutCount = HistoricalSummaryStorage.shared.load()?.workoutCount ?? 0
         guard workoutCount >= Self.minimumWorkouts else { return false }
+
+        // Require a recent positive AI analysis (within last 24h)
+        // This ensures we prompt when the user is most engaged/happy
+        guard let lastPositive = defaults.object(forKey: Keys.lastPositiveAIAnalysis) as? Date,
+              daysSince(lastPositive) == 0 // Same day
+        else { return false }
 
         return true
     }

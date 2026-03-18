@@ -44,13 +44,21 @@ struct OnboardingView: View {
                 })
                 .tag(0)
 
-                // Step 2: HealthKit Permission
-                HealthKitPermissionStepView(onContinue: {
-                    AnalyticsService.shared.trackOnboardingStepCompleted(step: 2, stepName: "healthkit_permission")
-                    withAnimation {
-                        currentStep = 2
+                // Step 2: HealthKit Permission (optional — user can skip)
+                HealthKitPermissionStepView(
+                    onContinue: {
+                        AnalyticsService.shared.trackOnboardingStepCompleted(step: 2, stepName: "healthkit_permission")
+                        withAnimation {
+                            currentStep = 2
+                        }
+                    },
+                    onSkip: {
+                        // User skipped HealthKit — they'll see authorizationView in WorkoutListView
+                        withAnimation {
+                            currentStep = 2
+                        }
                     }
-                })
+                )
                 .tag(1)
 
                 // Step 3: Notification Permission

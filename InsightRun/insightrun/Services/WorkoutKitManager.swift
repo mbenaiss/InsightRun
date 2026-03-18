@@ -27,7 +27,8 @@ enum WorkoutKitError: LocalizedError {
         case .authorizationDenied:
             return String(localized: "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable Insight Run.", comment: "Error when WorkoutKit authorization is denied")
         case .exportFailed(let error):
-            return String(localized: "Failed to export workout: %@", comment: "Error when export fails").replacingOccurrences(of: "%@", with: error.localizedDescription)
+            let underlying = error.localizedDescription
+            return String(localized: "Failed to export workout: \(underlying). Make sure WorkoutKit is authorized — try opening the Apple Watch Workout app first.", comment: "Error when export fails with guidance")
         case .unsupportedSportType:
             return String(localized: "This sport type is not supported yet", comment: "Error when sport type is not supported")
         case .tooManySteps:
@@ -319,7 +320,8 @@ class WorkoutKitManager: ObservableObject {
             AnalyticsService.shared.trackWorkoutExportFailed(
                 workoutName: workout.name,
                 errorType: String(describing: error),
-                errorMessage: error.localizedDescription
+                errorMessage: error.localizedDescription,
+                debugInfo: exportDebugInfo(workout: workout, error: error)
             )
 
             throw error
@@ -336,11 +338,59 @@ class WorkoutKitManager: ObservableObject {
             AnalyticsService.shared.trackWorkoutExportFailed(
                 workoutName: workout.name,
                 errorType: "export_failed",
-                errorMessage: error.localizedDescription
+                errorMessage: error.localizedDescription,
+                debugInfo: exportDebugInfo(workout: workout, error: error)
             )
 
             throw workoutError
         }
+    }
+
+    // MARK: - Debug Info
+
+    /// Collect diagnostic information for export failures
+    private func exportDebugInfo(workout: AIGeneratedWorkout, error: Error) -> [String: Any] {
+        var info: [String: Any] = [
+            "step_count": workout.steps.count,
+            "sport": workout.sport.rawValue,
+            "has_total_distance": workout.totalDistance != nil,
+            "has_estimated_duration": workout.estimatedDuration != nil,
+            "debug_error": String(describing: error),
+            "error_type_full": String(reflecting: type(of: error))
+        ]
+
+        // Extract NSError domain/code for system errors
+        let nsError = error as NSError
+        info["ns_error_domain"] = nsError.domain
+        info["ns_error_code"] = nsError.code
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            info["underlying_domain"] = underlying.domain
+            info["underlying_code"] = underlying.code
+            info["underlying_description"] = underlying.localizedDescription
+        }
+
+        // WorkoutKit authorization state (check synchronously via last known)
+        if let exportError = error as? WorkoutKitError {
+            switch exportError {
+            case .authorizationDenied:
+                info["failure_stage"] = "authorization"
+            case .invalidWorkout:
+                info["failure_stage"] = "validation"
+                // Log which steps are invalid
+                let invalidSteps = workout.steps.enumerated()
+                    .filter { !$0.element.isValid }
+                    .map { "step_\($0.offset):\($0.element.type.rawValue)" }
+                info["invalid_steps"] = invalidSteps.joined(separator: ",")
+            case .exportFailed:
+                info["failure_stage"] = "schedule"
+            case .tooManySteps:
+                info["failure_stage"] = "validation_too_many_steps"
+            default:
+                info["failure_stage"] = "unknown"
+            }
+        }
+
+        return info
     }
 
     // MARK: - Utility
@@ -380,12 +430,17 @@ extension AnalyticsService {
         track(.workoutExported, properties: properties)
     }
 
-    func trackWorkoutExportFailed(workoutName: String, errorType: String, errorMessage: String) {
-        track(.workoutExportFailed, properties: [
+    func trackWorkoutExportFailed(workoutName: String, errorType: String, errorMessage: String, debugInfo: [String: Any] = [:]) {
+        var properties: [String: Any] = [
             "workout_name": workoutName,
             "error_type": errorType,
             "error_message": errorMessage
-        ])
+        ]
+        // Merge debug info for root cause analysis
+        for (key, value) in debugInfo {
+            properties["debug_\(key)"] = value
+        }
+        track(.workoutExportFailed, properties: properties)
     }
 
     func trackWorkoutGenerationRequested(prompt: String, userLevel: String?) {

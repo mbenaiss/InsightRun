@@ -64,20 +64,15 @@ struct AlreadySubscribedView: View {
     let onContinue: () -> Void
     var stepNumber: Int = 4
 
+    @State private var titleOpacity: Double = 0
+    @State private var contentOpacity: Double = 0
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
 
-            // Premium Icon
-            ZStack {
-                Circle()
-                    .fill(Color.irWarning.gradient)
-                    .frame(width: 120, height: 120)
-
-                Image(systemName: "crown.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.white)
-            }
+            // Animated illustration
+            AnimatedOnboardingIllustration(type: .paywall)
 
             VStack(spacing: 12) {
                 Text(String(localized: "paywall.alreadySubscribed.title", comment: "Title shown when user is already premium"))
@@ -91,6 +86,7 @@ struct AlreadySubscribedView: View {
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
+            .opacity(titleOpacity)
 
             Spacer()
 
@@ -109,6 +105,9 @@ struct AlreadySubscribedView: View {
         }
         .onAppear {
             AnalyticsService.shared.trackOnboardingStepViewed(step: stepNumber, stepName: "paywall_already_subscribed")
+            withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
+                titleOpacity = 1
+            }
         }
     }
 }

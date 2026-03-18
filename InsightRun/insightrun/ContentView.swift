@@ -12,6 +12,7 @@ struct ContentView: View {
     @StateObject private var contextProvider = UnifiedAIContextProvider.shared
     @StateObject private var notificationRouter = NotificationRouter.shared
     @State private var selectedTab = 0
+    @State private var showSplash = !DemoMode.isEnabled
     @State private var showingAIAssistant = false
     @State private var showAIConsentSheet = false
     @Environment(\.modelContext) private var modelContext
@@ -113,6 +114,20 @@ struct ContentView: View {
         .onChange(of: importedFileURL) { _, newURL in
             if newURL != nil {
                 showSuuntoImport = true
+            }
+        }
+        .overlay {
+            if showSplash {
+                SplashScreenView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .zIndex(1)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            withAnimation(.easeOut(duration: 0.4)) {
+                                showSplash = false
+                            }
+                        }
+                    }
             }
         }
         .onAppear {

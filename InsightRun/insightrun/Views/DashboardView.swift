@@ -12,8 +12,8 @@ struct DashboardView: View {
     @StateObject private var readinessVM = DailyReadinessViewModel()
     @StateObject private var weeklySummaryVM = WeeklySummaryViewModel()
     @StateObject private var notificationRouter = NotificationRouter.shared
-    @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
-    @ObservedObject private var trainingLoadService = TrainingLoadService.shared
+    @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared // swiftlint:disable:this private_state_object
+    @ObservedObject private var trainingLoadService = TrainingLoadService.shared // swiftlint:disable:this private_state_object
     @Environment(ThemeManager.self) private var themeManager
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
@@ -168,8 +168,9 @@ struct DashboardView: View {
 
     // MARK: - Data Loading
 
+    @MainActor
     private func refreshAll() async {
-        let tls = TrainingLoadService.shared
+        let tls = trainingLoadService
         let selectedDate = recoveryVM.selectedDate
 
         // Phase 1: Load metrics that readiness depends on (in parallel)
@@ -193,8 +194,9 @@ struct DashboardView: View {
     }
 
     /// Refresh metrics with latest data (called on each foreground return)
+    @MainActor
     private func refreshCoaching() async {
-        let tls = TrainingLoadService.shared
+        let tls = trainingLoadService
         let selectedDate = recoveryVM.selectedDate
 
         await withTaskGroup(of: Void.self) { group in
@@ -214,6 +216,7 @@ struct DashboardView: View {
         )
     }
 
+    @MainActor
     private func loadTrendData() async {
         let service = MetricTrendDataService.shared
         async let hrv = service.metricTrend(for: .hrv)
@@ -278,6 +281,7 @@ struct DashboardView: View {
 
     // MARK: - Day Navigation
 
+    @MainActor
     private func handlePageChange(to newValue: Int) {
         guard newValue != 1 else { return }
 
@@ -316,83 +320,12 @@ struct DashboardView: View {
     // MARK: - Recovery Header (3 Circles)
 
     private var recoveryHeader: some View {
-        HStack(spacing: Spacing.lg) {
-            Button {
-                selectedScoreType = .effort
-            } label: {
-                circleColumn(
-                    score: trainingLoadService.dailyEffortScore,
-                    label: String(localized: "Effort", comment: "Dashboard effort circle label")
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("score-effort")
-
-            Button {
-                selectedScoreType = .sleep
-            } label: {
-                circleColumn(
-                    score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0,
-                    label: String(localized: "Sleep", comment: "Dashboard sleep circle label")
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("score-sleep")
-
-            Button {
-                selectedScoreType = .readiness
-            } label: {
-                circleColumn(
-                    score: readinessVM.readinessScore ?? 0,
-                    label: String(localized: "Readiness", comment: "Dashboard readiness circle label")
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("score-readiness")
-        }
-        .cardStyle()
-    }
-
-    private func circleColumn(score: Int, label: String) -> some View {
-        let progress = Double(score) / 100.0
-        let colors: [Color] = switch score {
-        case 80...100: [.green.opacity(0.7), .green]
-        case 60..<80: [.yellow.opacity(0.7), .yellow]
-        case 40..<60: [.orange.opacity(0.7), .orange]
-        default: [.red.opacity(0.7), .red]
-        }
-
-        return VStack(spacing: Spacing.sm) {
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 8)
-
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        AngularGradient(
-                            gradient: Gradient(colors: colors),
-                            center: .center,
-                            startAngle: .degrees(-90),
-                            endAngle: .degrees(270)
-                        ),
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 1), value: progress)
-
-                Text("\(score)%")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.irTextPrimary)
-            }
-            .frame(width: 80, height: 80)
-
-            Text(label)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(Color.irTextSecondary)
-        }
-        .frame(maxWidth: .infinity)
+        RecoveryHeaderView(
+            trainingLoadService: trainingLoadService,
+            recoveryVM: recoveryVM,
+            readinessVM: readinessVM,
+            selectedScoreType: $selectedScoreType
+        )
     }
 
     // MARK: - Coaching Section
@@ -842,6 +775,95 @@ struct DashboardView: View {
         return .poor
     }
 
+}
+
+// MARK: - Recovery Header View (extracted to reduce body stack depth)
+
+private struct RecoveryHeaderView: View {
+    @ObservedObject var trainingLoadService: TrainingLoadService
+    @ObservedObject var recoveryVM: RecoveryViewModel
+    @ObservedObject var readinessVM: DailyReadinessViewModel
+    @Binding var selectedScoreType: ScoreType?
+
+    var body: some View {
+        HStack(spacing: Spacing.lg) {
+            Button {
+                selectedScoreType = .effort
+            } label: {
+                circleColumn(
+                    score: trainingLoadService.dailyEffortScore,
+                    label: String(localized: "Effort", comment: "Dashboard effort circle label")
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("score-effort")
+
+            Button {
+                selectedScoreType = .sleep
+            } label: {
+                circleColumn(
+                    score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0,
+                    label: String(localized: "Sleep", comment: "Dashboard sleep circle label")
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("score-sleep")
+
+            Button {
+                selectedScoreType = .readiness
+            } label: {
+                circleColumn(
+                    score: readinessVM.readinessScore ?? 0,
+                    label: String(localized: "Readiness", comment: "Dashboard readiness circle label")
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("score-readiness")
+        }
+        .cardStyle()
+    }
+
+    private func circleColumn(score: Int, label: String) -> some View {
+        let progress = Double(score) / 100.0
+        let colors: [Color] = switch score {
+        case 80...100: [.green.opacity(0.7), .green]
+        case 60..<80: [.yellow.opacity(0.7), .yellow]
+        case 40..<60: [.orange.opacity(0.7), .orange]
+        default: [.red.opacity(0.7), .red]
+        }
+
+        return VStack(spacing: Spacing.sm) {
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 8)
+
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: colors),
+                            center: .center,
+                            startAngle: .degrees(-90),
+                            endAngle: .degrees(270)
+                        ),
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 1), value: progress)
+
+                Text("\(score)%")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.irTextPrimary)
+            }
+            .frame(width: 80, height: 80)
+
+            Text(label)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(Color.irTextSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
 }
 
 #Preview {

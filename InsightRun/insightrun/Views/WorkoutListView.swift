@@ -150,7 +150,7 @@ struct WorkoutListView: View {
                     }
                 }
                 .navigationDestination(for: WorkoutModel.self) { workout in
-                    WorkoutDetailView(workout: workout)
+                    WorkoutDetailView(workout: workout, allWorkouts: displayWorkouts)
                 }
         }
         .fullScreenCover(isPresented: $showInitialPaywall) {

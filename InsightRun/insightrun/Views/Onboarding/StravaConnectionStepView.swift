@@ -14,35 +14,36 @@ struct StravaConnectionStepView: View {
     @State private var isConnecting = false
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var titleOpacity: Double = 0
+    @State private var contentOpacity: Double = 0
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
 
             // Icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.orange, Color.red],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+            if stravaAuth.isAuthenticated {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.orange, Color.red],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .frame(width: 120, height: 120)
-                    .shadow(color: .orange.opacity(0.3), radius: 20, y: 10)
+                        .frame(width: 120, height: 120)
+                        .shadow(color: .orange.opacity(0.3), radius: 20, y: 10)
 
-                if stravaAuth.isAuthenticated {
                     Image(systemName: "checkmark")
                         .font(.system(size: 50, weight: .bold))
                         .foregroundStyle(.white)
-                } else {
-                    Image(systemName: "figure.run")
-                        .font(.system(size: 50, weight: .semibold))
-                        .foregroundStyle(.white)
                 }
+                .padding(.bottom, 32)
+            } else {
+                AnimatedOnboardingIllustration(type: .strava)
+                    .padding(.bottom, 32)
             }
-            .padding(.bottom, 32)
 
             // Title & Description
             VStack(spacing: 16) {
@@ -71,6 +72,7 @@ struct StravaConnectionStepView: View {
                         .padding(.horizontal, 32)
                 }
             }
+            .opacity(titleOpacity)
 
             Spacer()
 
@@ -97,6 +99,7 @@ struct StravaConnectionStepView: View {
                 }
                 .padding(.horizontal, 32)
                 .padding(.bottom, 24)
+                .opacity(contentOpacity)
             }
 
             Spacer()
@@ -149,6 +152,14 @@ struct StravaConnectionStepView: View {
         } message: {
             if let errorMessage = errorMessage {
                 Text(errorMessage)
+            }
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
+                titleOpacity = 1
+            }
+            withAnimation(.easeOut(duration: 0.5).delay(0.6)) {
+                contentOpacity = 1
             }
         }
     }

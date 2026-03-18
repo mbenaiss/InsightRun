@@ -10,16 +10,18 @@ import SwiftUI
 struct WelcomeStepView: View {
     let onContinue: () -> Void
 
+    @State private var titleOpacity: Double = 0
+    @State private var contentOpacity: Double = 0
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
 
+            // Animated illustration
+            AnimatedOnboardingIllustration(type: .welcome)
+
             // App Icon & Title
             VStack(spacing: 16) {
-                Image(systemName: "figure.run.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(Color.irPrimaryAccent.gradient)
-
                 Text(String(localized: "Welcome to Insight Run", comment: "Onboarding welcome title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -32,6 +34,7 @@ struct WelcomeStepView: View {
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal)
+            .opacity(titleOpacity)
 
             // Features List
             VStack(spacing: 24) {
@@ -64,6 +67,7 @@ struct WelcomeStepView: View {
                 )
             }
             .padding(.horizontal, 24)
+            .opacity(contentOpacity)
 
             Spacer()
 
@@ -82,6 +86,12 @@ struct WelcomeStepView: View {
         }
         .onAppear {
             AnalyticsService.shared.trackOnboardingStepViewed(step: 1, stepName: "welcome")
+            withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
+                titleOpacity = 1
+            }
+            withAnimation(.easeOut(duration: 0.5).delay(0.6)) {
+                contentOpacity = 1
+            }
         }
     }
 }

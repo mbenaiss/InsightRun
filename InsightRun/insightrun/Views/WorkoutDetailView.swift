@@ -14,15 +14,19 @@ import Charts
 
 struct WorkoutDetailView: View {
     let workout: WorkoutModel
+    let allWorkouts: [WorkoutModel]
     @StateObject private var viewModel: WorkoutDetailViewModel
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
+    @State private var showComparisonSheet = false
+    @State private var similarWorkouts: [WorkoutModel] = []
 
-    init(workout: WorkoutModel) {
+    init(workout: WorkoutModel, allWorkouts: [WorkoutModel] = []) {
         self.workout = workout
+        self.allWorkouts = allWorkouts
         _viewModel = StateObject(wrappedValue: WorkoutDetailViewModel(workout: workout))
 
         guard let container = InsightRunApp.shared else {
@@ -73,6 +77,11 @@ struct WorkoutDetailView: View {
 
                             // Main metrics grid (2x2)
                             mainMetricsGrid(metrics: metrics)
+
+                            // Workout comparison section (before AI)
+                            if similarWorkouts.count >= 2 {
+                                compareWithSimilarSection
+                            }
 
                             // AI Analysis Section
                             aiAnalysisSection
@@ -127,9 +136,18 @@ struct WorkoutDetailView: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .clipped()
             }
+            .sheet(isPresented: $showComparisonSheet) {
+                WorkoutComparisonView(
+                    referenceWorkout: workout,
+                    similarWorkouts: similarWorkouts
+                )
+            }
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            // Compute similar workouts once instead of on every render
+            similarWorkouts = SimilarWorkoutFinder.findSimilar(to: workout, from: allWorkouts)
+
             await viewModel.loadMetrics()
             // Update metrics in analysisViewModel after loading
             analysisViewModel.updateMetrics(viewModel.metrics)
@@ -689,6 +707,42 @@ struct WorkoutDetailView: View {
             SubscriptionPaywallView(isInitialFlow: false)
                 .environmentObject(revenueCatManager)
         }
+    }
+
+    // MARK: - Compare With Similar Section
+
+    private var compareWithSimilarSection: some View {
+        Button {
+            showComparisonSheet = true
+        } label: {
+            HStack {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.title3)
+                    .foregroundStyle(Color.irPrimaryAccent.gradient)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "Compare with similar", comment: "Button to compare with similar workouts"))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.irTextPrimary)
+
+                    Text(String(localized: "\(similarWorkouts.count) similar workouts found", comment: "Number of similar workouts found"))
+                        .font(.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+            .padding()
+            .background(Color.irCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Color.irShadow, radius: 8, y: 4)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Source Section

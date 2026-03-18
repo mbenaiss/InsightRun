@@ -22,6 +22,7 @@ struct WorkoutDetailView: View {
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
     @State private var showComparisonSheet = false
+    @State private var similarWorkouts: [WorkoutModel] = []
 
     init(workout: WorkoutModel, allWorkouts: [WorkoutModel] = []) {
         self.workout = workout
@@ -36,10 +37,6 @@ struct WorkoutDetailView: View {
             metrics: nil,
             modelContext: container.mainContext
         ))
-    }
-
-    private var similarWorkouts: [WorkoutModel] {
-        SimilarWorkoutFinder.findSimilar(to: workout, from: allWorkouts)
     }
 
     // Extract Strava activity ID from workout metadata or source name
@@ -148,6 +145,9 @@ struct WorkoutDetailView: View {
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            // Compute similar workouts once instead of on every render
+            similarWorkouts = SimilarWorkoutFinder.findSimilar(to: workout, from: allWorkouts)
+
             await viewModel.loadMetrics()
             // Update metrics in analysisViewModel after loading
             analysisViewModel.updateMetrics(viewModel.metrics)

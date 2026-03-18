@@ -181,7 +181,7 @@ private struct HeartbeatIllustration: View {
 // MARK: - Notifications: Bell with Shake/Ring Animation
 
 private struct BellRingIllustration: View {
-    @State private var bellRotation: Double = 0
+    @State private var bellRotation: Double = -12
     @State private var showWaves = false
 
     var body: some View {

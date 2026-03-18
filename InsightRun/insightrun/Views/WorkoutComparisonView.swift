@@ -133,10 +133,20 @@ struct WorkoutComparisonView: View {
 
     // MARK: - AI Comparison Analysis
 
+    private var isFrench: Bool {
+        Locale.current.language.languageCode?.identifier == "fr"
+    }
+
     private var comparisonPrompt: String {
         var lines: [String] = []
-        lines.append("Analyse la progression entre ces séances similaires.")
-        lines.append("Séance de référence: \(viewModel.referenceDate), \(viewModel.referenceDistance), allure \(viewModel.referencePace)")
+
+        if isFrench {
+            lines.append("Analyse la progression entre ces séances similaires.")
+            lines.append("Séance de référence: \(viewModel.referenceDate), \(viewModel.referenceDistance), allure \(viewModel.referencePace)")
+        } else {
+            lines.append("Analyze the progression between these similar workouts.")
+            lines.append("Reference workout: \(viewModel.referenceDate), \(viewModel.referenceDistance), pace \(viewModel.referencePace)")
+        }
 
         for comp in viewModel.comparisons {
             let date = comp.workout.startDate.formatted(date: .abbreviated, time: .omitted)
@@ -145,7 +155,12 @@ struct WorkoutComparisonView: View {
             lines.append("vs \(date) (\(dist)): \(deltas)")
         }
 
-        lines.append("Donne une analyse concise de la tendance (progression, régression, stabilité) et un conseil.")
+        if isFrench {
+            lines.append("Donne une analyse concise de la tendance (progression, régression, stabilité) et un conseil.")
+        } else {
+            lines.append("Give a concise analysis of the trend (progression, regression, stability) and one piece of advice.")
+        }
+
         return lines.joined(separator: "\n")
     }
 

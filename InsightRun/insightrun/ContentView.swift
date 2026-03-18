@@ -119,7 +119,7 @@ struct ContentView: View {
         .overlay {
             if showSplash {
                 SplashScreenView()
-                    .transition(.opacity.combined(with: .scale(scale: 1.2)))
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     .zIndex(1)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {

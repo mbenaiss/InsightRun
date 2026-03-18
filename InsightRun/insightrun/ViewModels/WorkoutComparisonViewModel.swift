@@ -11,7 +11,7 @@ import SwiftUI
 import Combine
 
 @MainActor
-class WorkoutComparisonViewModel: ObservableObject {
+final class WorkoutComparisonViewModel: ObservableObject {
 
     // MARK: - Types
 

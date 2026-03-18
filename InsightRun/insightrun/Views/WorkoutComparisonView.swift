@@ -95,8 +95,8 @@ struct WorkoutComparisonView: View {
                 VStack(spacing: 4) {
                     Text(viewModel.referenceDate)
                         .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.irTextPrimary)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Date", comment: "Date label in reference header"))
                         .font(.caption2)
                         .foregroundStyle(Color.irTextSecondary)
@@ -105,8 +105,8 @@ struct WorkoutComparisonView: View {
                 VStack(spacing: 4) {
                     Text(viewModel.referenceDistance)
                         .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.irTextPrimary)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Distance", comment: "Distance label in reference header"))
                         .font(.caption2)
                         .foregroundStyle(Color.irTextSecondary)
@@ -115,8 +115,8 @@ struct WorkoutComparisonView: View {
                 VStack(spacing: 4) {
                     Text(viewModel.referencePace)
                         .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.irTextPrimary)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Pace", comment: "Pace label in reference header"))
                         .font(.caption2)
                         .foregroundStyle(Color.irTextSecondary)
@@ -128,6 +128,10 @@ struct WorkoutComparisonView: View {
         .padding()
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.irPrimaryAccent.opacity(0.4), lineWidth: 1.5)
+        )
         .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 

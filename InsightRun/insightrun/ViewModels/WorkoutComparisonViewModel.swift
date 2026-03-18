@@ -81,45 +81,48 @@ final class WorkoutComparisonViewModel: ObservableObject {
     ) -> WorkoutComparison {
         var deltas: [MetricDelta] = []
 
-        // Pace (lower is better)
+        // Delta direction is from the reference (current) workout's perspective:
+        // "improved" = my current run is better than this old run
+
+        // Pace (lower is better → negative diff = I'm faster now)
         if let refPace = reference.averagePace, let cmpPace = compared.averagePace {
-            let diff = cmpPace - refPace // positive means slower
+            let diff = refPace - cmpPace
             let direction: DeltaDirection = diff < -0.01 ? .improved : (diff > 0.01 ? .regressed : .neutral)
             deltas.append(MetricDelta(
                 label: String(localized: "Pace", comment: "Comparison metric label for pace"),
                 icon: "speedometer",
-                referenceValue: formatPace(refPace),
-                comparedValue: formatPace(cmpPace),
+                referenceValue: formatPace(cmpPace),
+                comparedValue: formatPace(refPace),
                 deltaText: formatPaceDelta(diff),
                 direction: direction
             ))
         }
 
-        // Distance (higher is better)
+        // Distance (higher is better → positive diff = I ran further)
         if let refDist = reference.distance, let cmpDist = compared.distance {
-            let diff = cmpDist - refDist
+            let diff = refDist - cmpDist
             let direction: DeltaDirection = diff > 10 ? .improved : (diff < -10 ? .regressed : .neutral)
             deltas.append(MetricDelta(
                 label: String(localized: "Distance", comment: "Comparison metric label for distance"),
                 icon: "ruler",
-                referenceValue: formatDistance(refDist),
-                comparedValue: formatDistance(cmpDist),
+                referenceValue: formatDistance(cmpDist),
+                comparedValue: formatDistance(refDist),
                 deltaText: formatDistanceDelta(diff),
                 direction: direction
             ))
         }
 
-        // Duration (lower is better for same distance type workout)
+        // Duration (lower is better → negative diff = I was faster)
         let refDur = reference.duration
         let cmpDur = compared.duration
         if refDur > 0 && cmpDur > 0 {
-            let diff = cmpDur - refDur
+            let diff = refDur - cmpDur
             let direction: DeltaDirection = diff < -1 ? .improved : (diff > 1 ? .regressed : .neutral)
             deltas.append(MetricDelta(
                 label: String(localized: "Duration", comment: "Comparison metric label for duration"),
                 icon: "clock",
-                referenceValue: formatDuration(refDur),
-                comparedValue: formatDuration(cmpDur),
+                referenceValue: formatDuration(cmpDur),
+                comparedValue: formatDuration(refDur),
                 deltaText: formatDurationDelta(diff),
                 direction: direction
             ))
@@ -127,39 +130,39 @@ final class WorkoutComparisonViewModel: ObservableObject {
 
         // Average Heart Rate (neutral, just show delta)
         if let refHR = reference.averageHeartRate, let cmpHR = compared.averageHeartRate {
-            let diff = cmpHR - refHR
+            let diff = refHR - cmpHR
             deltas.append(MetricDelta(
                 label: String(localized: "Avg HR", comment: "Comparison metric label for average heart rate"),
                 icon: "heart.fill",
-                referenceValue: String(format: "%.0f bpm", refHR),
-                comparedValue: String(format: "%.0f bpm", cmpHR),
+                referenceValue: String(format: "%.0f bpm", cmpHR),
+                comparedValue: String(format: "%.0f bpm", refHR),
                 deltaText: String(format: "%+.0f bpm", diff),
                 direction: .neutral
             ))
         }
 
-        // Calories
+        // Calories (higher is better)
         if let refCal = reference.totalEnergyBurned, let cmpCal = compared.totalEnergyBurned {
-            let diff = cmpCal - refCal
+            let diff = refCal - cmpCal
             let direction: DeltaDirection = diff > 1 ? .improved : (diff < -1 ? .regressed : .neutral)
             deltas.append(MetricDelta(
                 label: String(localized: "Calories", comment: "Comparison metric label for calories"),
                 icon: "flame.fill",
-                referenceValue: String(format: "%.0f kcal", refCal),
-                comparedValue: String(format: "%.0f kcal", cmpCal),
+                referenceValue: String(format: "%.0f kcal", cmpCal),
+                comparedValue: String(format: "%.0f kcal", refCal),
                 deltaText: String(format: "%+.0f kcal", diff),
                 direction: direction
             ))
         }
 
-        // Elevation gain
+        // Elevation gain (neutral)
         if let refElev = reference.elevationGain, let cmpElev = compared.elevationGain {
-            let diff = cmpElev - refElev
+            let diff = refElev - cmpElev
             deltas.append(MetricDelta(
                 label: String(localized: "Elevation", comment: "Comparison metric label for elevation gain"),
                 icon: "mountain.2.fill",
-                referenceValue: String(format: "%.0f m", refElev),
-                comparedValue: String(format: "%.0f m", cmpElev),
+                referenceValue: String(format: "%.0f m", cmpElev),
+                comparedValue: String(format: "%.0f m", refElev),
                 deltaText: String(format: "%+.0f m", diff),
                 direction: .neutral
             ))

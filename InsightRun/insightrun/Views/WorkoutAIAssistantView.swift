@@ -428,9 +428,7 @@ struct WorkoutAIAssistantView: View {
                 }
             )
         }
-        .sheet(isPresented: $aiService.needsIndexation) {
-            HistoricalIndexationSheet()
-        }
+        .indexationGate(isPresented: $aiService.needsIndexation)
         .onAppear {
             loadMessages()
             loadConversationHistories()

@@ -625,13 +625,8 @@ struct CoachingSection: View {
                 }
             )
         }
-        .sheet(isPresented: $readinessVM.needsIndexation) {
-            HistoricalIndexationSheet()
-        }
-        .onChange(of: readinessVM.needsIndexation) { _, needsIndexation in
-            if !needsIndexation {
-                Task { await readinessVM.fetchDailyReadiness() }
-            }
+        .indexationGate(isPresented: $readinessVM.needsIndexation) {
+            await readinessVM.fetchDailyReadiness()
         }
     }
 }

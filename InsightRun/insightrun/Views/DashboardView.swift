@@ -146,13 +146,8 @@ struct DashboardView: View {
                     }
                 )
             }
-            .sheet(isPresented: $readinessVM.needsIndexation) {
-                HistoricalIndexationSheet()
-            }
-            .onChange(of: readinessVM.needsIndexation) { _, needsIndexation in
-                if !needsIndexation {
-                    Task { await refreshAll() }
-                }
+            .indexationGate(isPresented: $readinessVM.needsIndexation) {
+                await refreshAll()
             }
             .task {
                 await refreshAll()

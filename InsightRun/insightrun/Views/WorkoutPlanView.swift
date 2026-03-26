@@ -634,9 +634,7 @@ struct WorkoutPlanView: View {
                     }
                 )
             }
-            .sheet(isPresented: $viewModel.needsIndexation) {
-                HistoricalIndexationSheet()
-            }
+            .indexationGate(isPresented: $viewModel.needsIndexation)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {

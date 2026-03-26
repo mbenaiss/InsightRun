@@ -645,13 +645,8 @@ struct WorkoutDetailView: View {
                         }
                     )
                 }
-                .sheet(isPresented: $analysisViewModel.needsIndexation) {
-                    HistoricalIndexationSheet()
-                }
-                .onChange(of: analysisViewModel.needsIndexation) { _, needsIndexation in
-                    if !needsIndexation {
-                        Task { await analysisViewModel.generateAnalysis() }
-                    }
+                .indexationGate(isPresented: $analysisViewModel.needsIndexation) {
+                    await analysisViewModel.generateAnalysis()
                 }
 
             } else if let error = analysisViewModel.error {

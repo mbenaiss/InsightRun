@@ -633,13 +633,25 @@ struct WorkoutDetailView: View {
                             showConsentSheet = false
                             analysisViewModel.needsConsent = false
                             Task {
-                                await analysisViewModel.generateAnalysis()
+                                if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                                    analysisViewModel.needsIndexation = true
+                                } else {
+                                    await analysisViewModel.generateAnalysis()
+                                }
                             }
                         },
                         onDecline: {
                             showConsentSheet = false
                         }
                     )
+                }
+                .sheet(isPresented: $analysisViewModel.needsIndexation) {
+                    HistoricalIndexationSheet()
+                }
+                .onChange(of: analysisViewModel.needsIndexation) { _, needsIndexation in
+                    if !needsIndexation {
+                        Task { await analysisViewModel.generateAnalysis() }
+                    }
                 }
 
             } else if let error = analysisViewModel.error {

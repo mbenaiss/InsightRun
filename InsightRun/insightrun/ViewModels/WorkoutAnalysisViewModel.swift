@@ -16,6 +16,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
     @Published var error: String?
     @Published var analyzedAt: Date?
     @Published var needsConsent = false
+    @Published var needsIndexation = false
 
     private let workout: WorkoutModel
     private var metrics: WorkoutMetrics?
@@ -94,14 +95,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
             }
         }
 
-        // Check consent before generating
-        guard ConsentService.shared.hasConsentedToAIDataSharing else {
-            needsConsent = true
-            return
-        }
-
         print("⚠️ WorkoutAnalysisViewModel: No valid cache, generating new analysis")
-        // No cache, generate new analysis
         await generateAnalysis()
     }
 
@@ -187,6 +181,11 @@ class WorkoutAnalysisViewModel: ObservableObject {
     func generateAnalysis() async {
         guard ConsentService.shared.hasConsentedToAIDataSharing else {
             needsConsent = true
+            return
+        }
+
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            needsIndexation = true
             return
         }
 

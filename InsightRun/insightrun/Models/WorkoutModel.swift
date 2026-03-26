@@ -200,3 +200,11 @@ extension WorkoutModel {
         self.isIndoor = workout.metadata?[HKMetadataKeyIndoorWorkout] as? Bool ?? false
     }
 }
+
+extension [WorkoutModel] {
+    nonisolated var averagePace: Double? {
+        let paces = compactMap { $0.averagePace }
+        guard !paces.isEmpty else { return nil }
+        return paces.reduce(0, +) / Double(paces.count)
+    }
+}

@@ -612,12 +612,26 @@ struct CoachingSection: View {
             AIConsentSheet(
                 onConsent: {
                     readinessVM.needsConsent = false
-                    Task { await readinessVM.fetchDailyReadiness() }
+                    Task {
+                        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                            readinessVM.needsIndexation = true
+                        } else {
+                            await readinessVM.fetchDailyReadiness()
+                        }
+                    }
                 },
                 onDecline: {
                     readinessVM.needsConsent = false
                 }
             )
+        }
+        .sheet(isPresented: $readinessVM.needsIndexation) {
+            HistoricalIndexationSheet()
+        }
+        .onChange(of: readinessVM.needsIndexation) { _, needsIndexation in
+            if !needsIndexation {
+                Task { await readinessVM.fetchDailyReadiness() }
+            }
         }
     }
 }

@@ -523,6 +523,9 @@ struct ScoreExplanationSheet: View {
                     .font(.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .lineSpacing(4)
+                    .onAppear {
+                        ReviewManager.shared.recordPositiveAIAnalysis()
+                    }
 
             } else if let error = analysisVM.error {
                 let isConsentError = error.lowercased().contains("consent")

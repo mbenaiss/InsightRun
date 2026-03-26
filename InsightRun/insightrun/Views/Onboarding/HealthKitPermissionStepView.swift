@@ -185,8 +185,6 @@ struct HealthKitPermissionStepView: View {
                     isRequesting = false
 
                     if hasAccess {
-                        // Track success
-                        AnalyticsService.shared.trackOnboardingStepCompleted(step: 2, stepName: "healthkit_permission")
                         onContinue()
                     } else {
                         // User denied — offer to skip or open Settings

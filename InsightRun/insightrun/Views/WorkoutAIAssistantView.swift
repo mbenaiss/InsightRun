@@ -272,8 +272,6 @@ struct WorkoutAIAssistantView: View {
     @State private var showingHistory = false
     @State private var conversationHistories: [ConversationHistory] = []
     @State private var currentConversationId: UUID?
-    @State private var showIndexationBanner = false
-    @State private var showIndexationSheet = false
     @State private var lastHapticDate = Date.distantPast
     @State private var emptyStateIconScale: CGFloat = 0.9
     @State private var sendButtonPulse = false
@@ -303,26 +301,6 @@ struct WorkoutAIAssistantView: View {
                     headerView
 
                     Divider()
-
-                    // Indexation Banner (if no historical summary)
-                    if showIndexationBanner {
-                        IndexationBannerView(
-                            onSyncTapped: {
-                                // Track sync tapped
-                                AnalyticsService.shared.trackIndexationBannerSyncTapped()
-                                showIndexationSheet = true
-                            },
-                            onDismiss: {
-                                // Track banner dismissed
-                                AnalyticsService.shared.trackIndexationBannerDismissed()
-                                withAnimation {
-                                    showIndexationBanner = false
-                                }
-                            }
-                        )
-                        .padding()
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
 
                     // Messages Area
                     ScrollViewReader { scrollProxy in
@@ -434,19 +412,24 @@ struct WorkoutAIAssistantView: View {
                 onDeleteConversation: deleteConversation
             )
         }
-        .sheet(isPresented: $showIndexationSheet) {
-            HistoricalIndexationSheet()
-        }
         .sheet(isPresented: $aiService.needsConsent) {
             AIConsentSheet(
                 onConsent: {
                     aiService.needsConsent = false
+                    Task {
+                        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                            await MainActor.run { aiService.needsIndexation = true }
+                        }
+                    }
                 },
                 onDecline: {
                     aiService.needsConsent = false
                     isPresented = false
                 }
             )
+        }
+        .sheet(isPresented: $aiService.needsIndexation) {
+            HistoricalIndexationSheet()
         }
         .onAppear {
             loadMessages()
@@ -459,38 +442,8 @@ struct WorkoutAIAssistantView: View {
             impactMedium.prepare()
             notificationFeedback.prepare()
 
-            // Check if historical summary exists
-            Task {
-                let hasSummary = await HistoricalSummaryStorage.shared.hasSummary
-                await MainActor.run {
-                    // Show banner only if no summary exists and HealthKit is authorized
-                    showIndexationBanner = !hasSummary && HealthKitManager.shared.isHealthKitAuthorized
-
-                    // Track banner shown
-                    if !hasSummary && HealthKitManager.shared.isHealthKitAuthorized {
-                        AnalyticsService.shared.trackIndexationBannerShown()
-                    }
-                }
-            }
-
             // Track AI chat opened
             AnalyticsService.shared.trackAIChatOpened()
-        }
-        .onChange(of: showIndexationSheet) { oldValue, newValue in
-            // When sheet is dismissed, check if summary was created
-            if oldValue && !newValue {
-                Task {
-                    let hasSummary = await HistoricalSummaryStorage.shared.hasSummary
-                    await MainActor.run {
-                        // Hide banner if summary now exists
-                        if hasSummary {
-                            withAnimation {
-                                showIndexationBanner = false
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

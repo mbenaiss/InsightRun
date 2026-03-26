@@ -25,7 +25,7 @@ enum WorkoutKitError: LocalizedError {
         case .workoutKitNotAvailable:
             return String(localized: "WorkoutKit is not available on this device", comment: "Error when WorkoutKit is not supported")
         case .authorizationDenied:
-            return String(localized: "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable Insight Run.", comment: "Error when WorkoutKit authorization is denied")
+            return String(localized: "Workout export requires authorization. Open the Fitness app on your iPhone or Apple Watch, then try again.", comment: "Error when WorkoutKit authorization is denied")
         case .exportFailed(let error):
             let underlying = error.localizedDescription
             return String(localized: "Failed to export workout: \(underlying). Make sure WorkoutKit is authorized — try opening the Apple Watch Workout app first.", comment: "Error when export fails with guidance")
@@ -36,14 +36,6 @@ enum WorkoutKitError: LocalizedError {
         }
     }
 
-    var recoverySuggestion: String? {
-        switch self {
-        case .authorizationDenied:
-            return String(localized: "To re-authorize, you may need to delete and reinstall the app, then allow access when prompted. Alternatively, open the Fitness app on your iPhone or Apple Watch to check connected apps.", comment: "Recovery suggestion for authorization denied")
-        default:
-            return nil
-        }
-    }
 }
 
 @MainActor

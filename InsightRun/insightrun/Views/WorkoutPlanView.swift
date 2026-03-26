@@ -27,6 +27,7 @@ class WorkoutPlanViewModel: ObservableObject {
 
     // Consent state
     @Published var needsConsent = false
+    @Published var needsIndexation = false
 
     // Subscription state
     @Published var showSubscriptionPaywall = false
@@ -34,6 +35,7 @@ class WorkoutPlanViewModel: ObservableObject {
     // Export retry state
     @Published var consecutiveExportFailures: Int = 0
     @Published var exportCooldown = false
+    @Published var exportAuthDenied = false
     private static let maxExportRetries = 3
 
     // Demo mode: auto-show preview with mock data
@@ -57,6 +59,11 @@ class WorkoutPlanViewModel: ObservableObject {
 
         guard ConsentService.shared.hasConsentedToAIDataSharing else {
             needsConsent = true
+            return
+        }
+
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            needsIndexation = true
             return
         }
 
@@ -145,10 +152,21 @@ class WorkoutPlanViewModel: ObservableObject {
             showSuccessAlert = true
             print("✅ Workout exported to Fitness app")
 
-            // Track successful export
-            AnalyticsService.shared.trackWorkoutExported()
+            // Note: export analytics already tracked by WorkoutKitManager with full details
 
         } catch {
+            if let kitError = error as? WorkoutKitError, case .authorizationDenied = kitError {
+                // Authorization denied — check if this is a retry (already denied once)
+                if exportAuthDenied {
+                    // Second denial — disable export permanently
+                    self.error = String(localized: "Workout export is not authorized. Open the Fitness app, then reopen Insight Run.", comment: "Export permanently denied error")
+                } else {
+                    exportAuthDenied = true
+                    self.error = kitError.localizedDescription
+                }
+                print("❌ Export authorization denied (permanent: \(exportAuthDenied))")
+                return
+            }
             consecutiveExportFailures += 1
 
             if consecutiveExportFailures >= Self.maxExportRetries {
@@ -159,13 +177,6 @@ class WorkoutPlanViewModel: ObservableObject {
             print("❌ Export error (\(consecutiveExportFailures)/\(Self.maxExportRetries)): \(error)")
 
             // Note: detailed export failure is already tracked by WorkoutKitManager
-            // Here we only track the retry count from the UI perspective
-            if consecutiveExportFailures > 1 {
-                AnalyticsService.shared.track(.workoutExportFailed, properties: [
-                    "retry_attempt": consecutiveExportFailures,
-                    "error_message": error.localizedDescription
-                ])
-            }
 
             // Debounce: disable export for 2 seconds after failure
             exportCooldown = true
@@ -188,14 +199,8 @@ class WorkoutPlanViewModel: ObservableObject {
         // Get recent workouts to calculate average pace and trends
         let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 20)
 
-        let avgPace = calculateAveragePace(workouts: recentWorkouts)
+        let avgPace = recentWorkouts.averagePace
         let vo2Max = await healthKitManager.fetchLatestVO2Max()
-
-        // Calculate weekly volume change
-        _ = calculateWeeklyVolumeChange(workouts: recentWorkouts)
-
-        // Calculate days since last workout
-        _ = calculateDaysSinceLastWorkout(workouts: recentWorkouts)
 
         return WorkoutGenerationRequest.UserContext(
             avgPace: avgPace,
@@ -205,11 +210,6 @@ class WorkoutPlanViewModel: ObservableObject {
         )
     }
 
-    private func calculateAveragePace(workouts: [WorkoutModel]) -> Double? {
-        let paces = workouts.compactMap { $0.averagePace }
-        guard !paces.isEmpty else { return nil }
-        return paces.reduce(0, +) / Double(paces.count)
-    }
 
     private func determineFitnessLevel(avgPace: Double?, vo2Max: Double?) -> String {
         // Simple heuristic
@@ -396,6 +396,11 @@ class WorkoutPlanViewModel: ObservableObject {
             return
         }
 
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            needsIndexation = true
+            return
+        }
+
         isGeneratingSmartSuggestion = true
         smartSuggestionError = nil
 
@@ -436,7 +441,7 @@ class WorkoutPlanViewModel: ObservableObject {
             let totalDistance = recentWorkouts.compactMap { $0.distance }.reduce(0, +)
             let totalDuration = recentWorkouts.map { $0.duration }.reduce(0, +)
             let totalCalories = recentWorkouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
-            let avgPace = calculateAveragePace(workouts: recentWorkouts) ?? 0
+            let avgPace = recentWorkouts.averagePace ?? 0
 
             // Calculate trends for better suggestions
             let weeklyVolumeChange = calculateWeeklyVolumeChange(workouts: recentWorkouts)
@@ -618,11 +623,19 @@ struct WorkoutPlanView: View {
                 AIConsentSheet(
                     onConsent: {
                         viewModel.needsConsent = false
+                        Task {
+                            if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                                viewModel.needsIndexation = true
+                            }
+                        }
                     },
                     onDecline: {
                         viewModel.needsConsent = false
                     }
                 )
+            }
+            .sheet(isPresented: $viewModel.needsIndexation) {
+                HistoricalIndexationSheet()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -668,6 +681,17 @@ struct WorkoutPlanView: View {
             }
             .sheet(isPresented: $viewModel.showSuccessAlert) {
                 WorkoutExportSuccessView()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                guard viewModel.exportAuthDenied else { return }
+                Task {
+                    let authorized = await WorkoutKitManager.shared.checkAuthorizationStatus()
+                    if authorized {
+                        viewModel.exportAuthDenied = false
+                        viewModel.error = nil
+                        WorkoutKitManager.shared.exportError = nil
+                    }
+                }
             }
         }
     }
@@ -1178,7 +1202,8 @@ struct WorkoutPlanView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
                     }
-                    .disabled(WorkoutKitManager.shared.isExporting || isEditing || viewModel.exportCooldown || viewModel.consecutiveExportFailures >= 3)
+                    .disabled(WorkoutKitManager.shared.isExporting || isEditing || viewModel.exportCooldown || viewModel.consecutiveExportFailures >= 3 || viewModel.exportAuthDenied)
+                    .opacity(viewModel.exportAuthDenied ? 0.5 : 1.0)
                     .padding(.top, 8)
                 }
                 .padding(.bottom, 16)
@@ -1201,19 +1226,26 @@ struct WorkoutPlanView: View {
 
             if let exportError = WorkoutKitManager.shared.exportError,
                case .authorizationDenied = exportError {
-                Button(action: {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
+                if !viewModel.exportAuthDenied {
+                    // First denial — offer retry
+                    Button(action: {
+                        viewModel.consecutiveExportFailures = 0
+                        viewModel.error = nil
+                        WorkoutKitManager.shared.exportError = nil
+                        Task {
+                            await viewModel.exportToFitness()
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                            Text(String(localized: "Retry", comment: "Retry export authorization button"))
+                        }
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.blue)
                     }
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "gear")
-                        Text(String(localized: "Open Settings", comment: "Button to open app settings"))
-                    }
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.blue)
                 }
+                // After second denial, exportAuthDenied=true, no retry button, export button is grayed out
             }
         }
         .padding()

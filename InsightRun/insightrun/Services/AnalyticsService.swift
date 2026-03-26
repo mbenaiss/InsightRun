@@ -135,13 +135,6 @@ final class AnalyticsService {
         track(.onboardingCompleted)
     }
 
-    func trackOnboardingSkipped(stepReached: String, timeSpent: TimeInterval) {
-        track(.onboardingSkipped, properties: [
-            "step_reached": stepReached,
-            "time_spent": Int(timeSpent)
-        ])
-    }
-
     func trackHealthKitPermissionRequested() {
         track(.healthKitPermissionRequested)
     }
@@ -520,7 +513,6 @@ enum AnalyticsEvent: String {
     case onboardingStepViewed = "onboarding_step_viewed"
     case onboardingStepCompleted = "onboarding_step_completed"
     case onboardingCompleted = "onboarding_completed"
-    case onboardingSkipped = "onboarding_skipped"
     case healthKitPermissionRequested = "healthkit_permission_requested"
     case healthKitPermissionGranted = "healthkit_permission_granted"
     case healthKitPermissionDenied = "healthkit_permission_denied"

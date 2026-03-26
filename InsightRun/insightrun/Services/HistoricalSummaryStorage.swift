@@ -51,22 +51,6 @@ class HistoricalSummaryStorage {
         }
     }
 
-    /// Check if a summary needs to be generated (either doesn't exist or needs refresh)
-    func needsGeneration() -> Bool {
-        guard let summary = load() else {
-            print("📊 HistoricalSummaryStorage: No summary exists, generation needed")
-            return true
-        }
-
-        if summary.needsRefresh {
-            print("📊 HistoricalSummaryStorage: Summary is \(summary.daysSinceGeneration) days old, refresh needed")
-            return true
-        }
-
-        print("✅ HistoricalSummaryStorage: Summary is up to date (\(summary.daysSinceGeneration) days old)")
-        return false
-    }
-
     /// Delete the stored summary (useful for testing or resetting)
     func clear() {
         userDefaults.removeObject(forKey: storageKey)
@@ -79,6 +63,14 @@ class HistoricalSummaryStorage {
             if DemoMode.isEnabled { return true }
             return userDefaults.data(forKey: storageKey) != nil
         }
+    }
+
+    /// Check if indexation is required before using AI features.
+    /// Returns true when no summary exists and HealthKit is authorized.
+    func requiresIndexation() async -> Bool {
+        if DemoMode.isEnabled { return false }
+        let hasSummary = await hasSummary
+        return !hasSummary && HealthKitManager.shared.isHealthKitAuthorized
     }
 
     // MARK: - Refresh Management
@@ -112,6 +104,32 @@ class HistoricalSummaryStorage {
         let daysLeft = components.day ?? 0
 
         return max(0, daysLeft) // Never return negative
+    }
+
+    // MARK: - Banner Dismiss Cooldown
+
+    private let bannerDismissKey = "com.insightrun.indexationBannerDismissedAt"
+    private let bannerCooldownDays = 7
+
+    /// Record that the user dismissed the indexation banner
+    func dismissBanner() {
+        userDefaults.set(Date().timeIntervalSince1970, forKey: bannerDismissKey)
+    }
+
+    /// Check if the banner should be shown (respects cooldown after dismiss)
+    func shouldShowBanner() -> Bool {
+        if DemoMode.isEnabled { return false }
+        guard let dismissedTimestamp = userDefaults.object(forKey: bannerDismissKey) as? TimeInterval else {
+            return true // Never dismissed
+        }
+        let dismissedAt = Date(timeIntervalSince1970: dismissedTimestamp)
+        let cooldownEnd = Calendar.current.date(byAdding: .day, value: bannerCooldownDays, to: dismissedAt) ?? dismissedAt
+        return Date() >= cooldownEnd
+    }
+
+    /// Reset the banner dismiss state (called when indexation completes)
+    func resetBannerDismiss() {
+        userDefaults.removeObject(forKey: bannerDismissKey)
     }
 
     /// Check if a manual refresh is allowed (summary is at least 1 month old)

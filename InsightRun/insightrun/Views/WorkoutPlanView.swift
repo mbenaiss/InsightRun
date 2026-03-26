@@ -63,6 +63,7 @@ class WorkoutPlanViewModel: ObservableObject {
         }
 
         if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            AnalyticsService.shared.trackIndexationGateTriggered(source: "workout_generation")
             needsIndexation = true
             return
         }
@@ -164,6 +165,7 @@ class WorkoutPlanViewModel: ObservableObject {
                     exportAuthDenied = true
                     self.error = kitError.localizedDescription
                 }
+                AnalyticsService.shared.trackWorkoutExportAuthDenied(permanent: exportAuthDenied)
                 print("❌ Export authorization denied (permanent: \(exportAuthDenied))")
                 return
             }
@@ -397,6 +399,7 @@ class WorkoutPlanViewModel: ObservableObject {
         }
 
         if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            AnalyticsService.shared.trackIndexationGateTriggered(source: "smart_suggestion")
             needsIndexation = true
             return
         }

@@ -64,6 +64,7 @@ class DailyReadinessViewModel: ObservableObject {
 
         // Check historical indexation
         if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            AnalyticsService.shared.trackIndexationGateTriggered(source: "daily_readiness")
             needsIndexation = true
             isLoading = false
             return

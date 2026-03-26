@@ -680,7 +680,7 @@ struct WorkoutDetailView: View {
                     MarkdownView(analysis)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .onAppear {
-                            ReviewManager.shared.recordPositiveAIAnalysis()
+                            ReviewManager.shared.recordAIEngagement()
                         }
 
                     HStack {

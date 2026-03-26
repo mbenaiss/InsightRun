@@ -52,7 +52,7 @@ final class ReviewManager {
 
     /// Call this after the user views a positive AI analysis
     /// Triggers a review prompt if all other conditions are met
-    func recordPositiveAIAnalysis() {
+    func recordAIEngagement() {
         defaults.set(Date(), forKey: Keys.lastPositiveAIAnalysis)
         checkAndRequestReview()
     }

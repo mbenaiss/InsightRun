@@ -185,6 +185,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         }
 
         if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            AnalyticsService.shared.trackIndexationGateTriggered(source: "workout_analysis")
             needsIndexation = true
             return
         }

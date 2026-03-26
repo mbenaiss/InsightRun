@@ -135,7 +135,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
         // Check historical indexation (required for personalized AI)
         if await HistoricalSummaryStorage.shared.requiresIndexation() {
-            await MainActor.run { self.needsIndexation = true }
+            await MainActor.run {
+                AnalyticsService.shared.trackIndexationGateTriggered(source: "ai_chat")
+                self.needsIndexation = true
+            }
             return
         }
 

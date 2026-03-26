@@ -524,7 +524,7 @@ struct ScoreExplanationSheet: View {
                     .foregroundStyle(Color.irTextSecondary)
                     .lineSpacing(4)
                     .onAppear {
-                        ReviewManager.shared.recordPositiveAIAnalysis()
+                        ReviewManager.shared.recordAIEngagement()
                     }
 
             } else if let error = analysisVM.error {

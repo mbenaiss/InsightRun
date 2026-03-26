@@ -251,6 +251,18 @@ final class AnalyticsService {
         track(.indexationBannerDismissed)
     }
 
+    func trackIndexationGateTriggered(source: String) {
+        track(.indexationGateTriggered, properties: [
+            "source": source
+        ])
+    }
+
+    func trackWorkoutExportAuthDenied(permanent: Bool) {
+        track(.workoutExportAuthDenied, properties: [
+            "permanent": permanent
+        ])
+    }
+
     func trackIndexationStarted(workoutsCount: Int, totalBatches: Int) {
         track(.indexationStarted, properties: [
             "workouts_count": workoutsCount,
@@ -548,6 +560,10 @@ enum AnalyticsEvent: String {
     case indexationFailed = "indexation_failed"
     case indexationCancelled = "indexation_cancelled"
     case indexationRetryTapped = "indexation_retry_tapped"
+    case indexationGateTriggered = "indexation_gate_triggered"
+
+    // Workout Export
+    case workoutExportAuthDenied = "workout_export_auth_denied"
 
     // Monetization
     case paywallViewed = "paywall_viewed"

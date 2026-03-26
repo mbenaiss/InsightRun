@@ -154,7 +154,7 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         return String(format: "%.0f kcal", calories)
     }
 
-    var averagePace: Double? {
+    nonisolated var averagePace: Double? {
         guard let distance = distance, distance > 0, duration > 0 else { return nil }
         // Pace in minutes per kilometer
         let minutes = duration / 60.0
@@ -162,7 +162,7 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         return minutes / kilometers
     }
 
-    var averageSpeed: Double? {
+    nonisolated var averageSpeed: Double? {
         guard let distance = distance, duration > 0 else { return nil }
         // Speed in km/h
         let kilometers = distance / 1000.0
@@ -201,7 +201,7 @@ extension WorkoutModel {
     }
 }
 
-extension [WorkoutModel] {
+extension Array where Element == WorkoutModel {
     nonisolated var averagePace: Double? {
         let paces = compactMap { $0.averagePace }
         guard !paces.isEmpty else { return nil }

@@ -15,6 +15,7 @@ struct WorkoutComparisonView: View {
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @State private var selectedWorkout: WorkoutModel?
     @State private var cachedAnalysis: String?
+    @State private var shouldResumeComparisonAnalysis = false
 
     private let referenceWorkoutId: UUID
 
@@ -72,6 +73,27 @@ struct WorkoutComparisonView: View {
                     cachedAnalysis = aiService.streamedResponse
                     UserDefaults.standard.set(aiService.streamedResponse, forKey: cacheKey)
                 }
+            }
+            .sheet(isPresented: $aiService.needsConsent) {
+                AIConsentSheet(
+                    onConsent: {
+                        aiService.needsConsent = false
+                        Task {
+                            if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                                aiService.needsIndexation = true
+                            } else {
+                                await runComparisonAnalysisIfNeeded()
+                            }
+                        }
+                    },
+                    onDecline: {
+                        aiService.needsConsent = false
+                        shouldResumeComparisonAnalysis = false
+                    }
+                )
+            }
+            .indexationGate(isPresented: $aiService.needsIndexation) {
+                await runComparisonAnalysisIfNeeded()
             }
         }
     }
@@ -195,10 +217,7 @@ struct WorkoutComparisonView: View {
                     cachedAnalysis = nil
                     UserDefaults.standard.removeObject(forKey: cacheKey)
                     Task {
-                        await aiService.askQuestion(
-                            question: comparisonPrompt,
-                            mode: .unified
-                        )
+                        await prepareComparisonAnalysis()
                     }
                 } label: {
                     Label(
@@ -233,10 +252,7 @@ struct WorkoutComparisonView: View {
             } else {
                 Button {
                     Task {
-                        await aiService.askQuestion(
-                            question: comparisonPrompt,
-                            mode: .unified
-                        )
+                        await prepareComparisonAnalysis()
                     }
                 } label: {
                     Label(
@@ -256,6 +272,37 @@ struct WorkoutComparisonView: View {
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: Color.irShadow, radius: 8, y: 4)
+    }
+
+    private func prepareComparisonAnalysis() async {
+        shouldResumeComparisonAnalysis = true
+
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            await MainActor.run {
+                aiService.needsConsent = true
+            }
+            return
+        }
+
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            await MainActor.run {
+                AnalyticsService.shared.trackIndexationGateTriggered(source: "workout_comparison")
+                aiService.needsIndexation = true
+            }
+            return
+        }
+
+        await runComparisonAnalysisIfNeeded()
+    }
+
+    private func runComparisonAnalysisIfNeeded() async {
+        guard shouldResumeComparisonAnalysis else { return }
+        shouldResumeComparisonAnalysis = false
+
+        await aiService.askQuestion(
+            question: comparisonPrompt,
+            mode: .unified
+        )
     }
 
     // MARK: - Comparison Card

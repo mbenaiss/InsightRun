@@ -275,6 +275,7 @@ struct WorkoutAIAssistantView: View {
     @State private var lastHapticDate = Date.distantPast
     @State private var emptyStateIconScale: CGFloat = 0.9
     @State private var sendButtonPulse = false
+    @State private var pendingQuestion: String?
 
     // Haptic feedback generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -419,16 +420,21 @@ struct WorkoutAIAssistantView: View {
                     Task {
                         if await HistoricalSummaryStorage.shared.requiresIndexation() {
                             await MainActor.run { aiService.needsIndexation = true }
+                        } else {
+                            await submitPendingQuestionIfNeeded()
                         }
                     }
                 },
                 onDecline: {
                     aiService.needsConsent = false
+                    pendingQuestion = nil
                     isPresented = false
                 }
             )
         }
-        .indexationGate(isPresented: $aiService.needsIndexation)
+        .indexationGate(isPresented: $aiService.needsIndexation) {
+            await submitPendingQuestionIfNeeded()
+        }
         .onAppear {
             loadMessages()
             loadConversationHistories()
@@ -790,118 +796,135 @@ struct WorkoutAIAssistantView: View {
 
         let userQuestion = question
         question = ""
-
-        // Haptic feedback for sending message
-        impactMedium.impactOccurred()
-
-        // Add user message
-        messages.append(ChatMessage(
-            role: .user,
-            content: userQuestion,
-            timestamp: Date()
-        ))
-        isTyping = true
-        saveMessages()
-
-        // Track AI message sent
-        let contextType: AIContextType
-        switch mode {
-        case .singleWorkout:
-            contextType = .workout
-        case .recentWorkouts:
-            contextType = .workout
-        case .recoveryCoaching:
-            contextType = .recovery
-        case .unified:
-            // For unified mode, determine context based on current page
-            contextType = UnifiedAIContextProvider.shared.currentPage == .recovery ? .recovery : .workout
-        }
-        AnalyticsService.shared.trackAIMessageSent(
-            messageLength: userQuestion.count,
-            contextType: contextType
-        )
-
-        // Hide keyboard
         isTextFieldFocused = false
-
-        // Create temporary streaming message that will be updated in place
-        let streamingId = UUID()
-        streamingMessageId = streamingId
-        messages.append(ChatMessage(
-            id: streamingId,
-            role: .assistant,
-            content: "",
-            timestamp: Date()
-        ))
-
-        // Start tracking response time
-        messageStartTime = Date()
-
-        // Backend will build the context from mode data
         Task {
-            await aiService.askQuestion(
-                question: userQuestion,
-                mode: mode
+            await handleQuestionSubmission(userQuestion)
+        }
+    }
+
+    private func handleQuestionSubmission(_ userQuestion: String) async {
+        pendingQuestion = userQuestion
+
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            await MainActor.run {
+                aiService.needsConsent = true
+            }
+            return
+        }
+
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            await MainActor.run {
+                AnalyticsService.shared.trackIndexationGateTriggered(source: "ai_chat")
+                aiService.needsIndexation = true
+            }
+            return
+        }
+
+        await submitQuestion(userQuestion)
+    }
+
+    private func submitPendingQuestionIfNeeded() async {
+        guard let pendingQuestion else { return }
+        await handleQuestionSubmission(pendingQuestion)
+    }
+
+    @MainActor
+    private func contextTypeForCurrentMode() -> AIContextType {
+        switch mode {
+        case .singleWorkout, .recentWorkouts:
+            return .workout
+        case .recoveryCoaching:
+            return .recovery
+        case .unified:
+            return UnifiedAIContextProvider.shared.currentPage == .recovery ? .recovery : .workout
+        }
+    }
+
+    private func submitQuestion(_ userQuestion: String) async {
+        await MainActor.run {
+            pendingQuestion = nil
+
+            impactMedium.impactOccurred()
+
+            messages.append(ChatMessage(
+                role: .user,
+                content: userQuestion,
+                timestamp: Date()
+            ))
+            isTyping = true
+            saveMessages()
+
+            AnalyticsService.shared.trackAIMessageSent(
+                messageLength: userQuestion.count,
+                contextType: contextTypeForCurrentMode()
             )
 
-            await MainActor.run {
-                isTyping = false
+            let streamingId = UUID()
+            streamingMessageId = streamingId
+            messages.append(ChatMessage(
+                id: streamingId,
+                role: .assistant,
+                content: "",
+                timestamp: Date()
+            ))
 
-                // Calculate response time
-                let responseTime = messageStartTime.map { Int(Date().timeIntervalSince($0) * 1000) } ?? 0
+            messageStartTime = Date()
+        }
 
-                // Handle function result — replace streaming message with card message
-                if let funcResult = aiService.lastFunctionResult {
-                    if let streamingId = streamingMessageId,
-                       let index = messages.firstIndex(where: { $0.id == streamingId }) {
-                        messages[index] = ChatMessage(
-                            id: streamingId,
-                            role: .assistant,
-                            content: aiService.streamedResponse.isEmpty ? funcResult.message : aiService.streamedResponse,
-                            timestamp: messages[index].timestamp,
-                            functionName: funcResult.functionName,
-                            functionResult: funcResult.result,
-                            functionMessage: funcResult.message
-                        )
-                    }
-                }
+        await aiService.askQuestion(
+            question: userQuestion,
+            mode: mode
+        )
 
-                // Haptic feedback for response completion
-                if aiService.error == nil && (!aiService.streamedResponse.isEmpty || aiService.lastFunctionResult != nil) {
-                    notificationFeedback.notificationOccurred(.success)
+        await MainActor.run {
+            isTyping = false
 
-                    // Track AI response received
-                    AnalyticsService.shared.trackAIResponseReceived(
-                        responseTimeMs: responseTime,
-                        responseLength: aiService.streamedResponse.count
+            let responseTime = messageStartTime.map { Int(Date().timeIntervalSince($0) * 1000) } ?? 0
+
+            if let funcResult = aiService.lastFunctionResult {
+                if let streamingId = streamingMessageId,
+                   let index = messages.firstIndex(where: { $0.id == streamingId }) {
+                    messages[index] = ChatMessage(
+                        id: streamingId,
+                        role: .assistant,
+                        content: aiService.streamedResponse.isEmpty ? funcResult.message : aiService.streamedResponse,
+                        timestamp: messages[index].timestamp,
+                        functionName: funcResult.functionName,
+                        functionResult: funcResult.result,
+                        functionMessage: funcResult.message
                     )
-                } else if aiService.error != nil {
-                    notificationFeedback.notificationOccurred(.error)
-
-                    // Track AI response error
-                    AnalyticsService.shared.trackAIResponseError(
-                        errorType: "ai_service_error",
-                        errorMessage: aiService.error ?? "Unknown error"
-                    )
-
-                    // Remove empty streaming message if there was an error
-                    if let streamingId = streamingMessageId,
-                       let index = messages.firstIndex(where: { $0.id == streamingId }) {
-                        messages.remove(at: index)
-                    }
                 }
+            }
 
-                // Clear streaming state (message is already updated in messages array)
-                streamingMessageId = nil
-                aiService.streamedResponse = ""
-                messageStartTime = nil
+            if aiService.error == nil && (!aiService.streamedResponse.isEmpty || aiService.lastFunctionResult != nil) {
+                notificationFeedback.notificationOccurred(.success)
 
-                saveMessages()
+                AnalyticsService.shared.trackAIResponseReceived(
+                    responseTimeMs: responseTime,
+                    responseLength: aiService.streamedResponse.count
+                )
+            } else if aiService.error != nil {
+                notificationFeedback.notificationOccurred(.error)
 
-                // Auto-save to history after each response
-                if !messages.isEmpty && aiService.error == nil {
-                    saveCurrentConversationToHistory()
+                AnalyticsService.shared.trackAIResponseError(
+                    errorType: "ai_service_error",
+                    errorMessage: aiService.error ?? "Unknown error"
+                )
+
+                if let streamingId = streamingMessageId,
+                   let index = messages.firstIndex(where: { $0.id == streamingId }) {
+                    messages.remove(at: index)
                 }
+            }
+
+            streamingMessageId = nil
+            aiService.streamedResponse = ""
+            messageStartTime = nil
+
+            saveMessages()
+
+            if !messages.isEmpty && aiService.error == nil {
+                saveCurrentConversationToHistory()
             }
         }
     }
@@ -1328,4 +1351,3 @@ struct ConversationHistoryRow: View {
         }
     }
 }
-

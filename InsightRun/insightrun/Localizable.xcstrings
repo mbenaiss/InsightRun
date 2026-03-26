@@ -4445,7 +4445,16 @@
       }
     },
     "Good pace consistency across splits. Your cadence of 172 spm is slightly below optimal — aim for 180 spm to improve efficiency." : {
-
+      "comment" : "Blurred teaser text for locked AI analysis about pace consistency",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonne régularité d'allure sur les splits. Votre cadence de 172 ppm est légèrement sous l'optimal ; visez 180 ppm pour améliorer votre efficacité."
+          }
+        }
+      }
     },
     "Good recovery. You can do a moderate to intense workout." : {
       "comment" : "Recovery recommendation - good status",
@@ -8912,7 +8921,16 @@
       }
     },
     "Recovery heart rate dropped well, indicating solid aerobic fitness. Consider adding tempo intervals to push your threshold." : {
-
+      "comment" : "Blurred teaser text for locked AI analysis about recovery heart rate",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fréquence cardiaque redescend bien en récupération, signe d'une base aérobie solide. Envisagez d'ajouter des intervalles tempo pour travailler votre seuil."
+          }
+        }
+      }
     },
     "Recovery recommendations are based on published scientific research. Tap below to view all medical sources." : {
       "comment" : "Medical sources disclaimer text",
@@ -11869,6 +11887,7 @@
     },
     "Unable to load analysis" : {
       "comment" : "AI analysis error",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {

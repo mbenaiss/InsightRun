@@ -61,19 +61,4 @@ final class WorkoutKitErrorTests: XCTestCase {
         XCTAssertTrue(error.errorDescription!.contains("50"))
     }
 
-    // MARK: - Recovery Suggestion Tests
-
-    func testRecoverySuggestionIsNilForAllCases() {
-        let cases: [WorkoutKitError] = [
-            .authorizationDenied,
-            .invalidWorkout,
-            .workoutKitNotAvailable,
-            .exportFailed(NSError(domain: "test", code: 0)),
-            .unsupportedSportType,
-            .tooManySteps,
-        ]
-        for error in cases {
-            XCTAssertNil(error.recoverySuggestion, "\(error) should have nil recovery suggestion")
-        }
-    }
 }

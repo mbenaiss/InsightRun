@@ -11,6 +11,7 @@ import SwiftUI
 struct IndexationGateModifier: ViewModifier {
     @Binding var needsIndexation: Bool
     var onComplete: (() async -> Void)?
+    @StateObject private var manager = BatchIndexationManager.shared
 
     func body(content: Content) -> some View {
         content
@@ -18,7 +19,7 @@ struct IndexationGateModifier: ViewModifier {
                 HistoricalIndexationSheet()
             }
             .onChange(of: needsIndexation) { _, newValue in
-                if !newValue, let action = onComplete {
+                if !newValue, manager.state == .completed, let action = onComplete {
                     Task { await action() }
                 }
             }

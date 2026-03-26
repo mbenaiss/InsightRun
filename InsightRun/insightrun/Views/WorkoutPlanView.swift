@@ -10,6 +10,11 @@ import Combine
 
 @MainActor
 class WorkoutPlanViewModel: ObservableObject {
+    private enum PendingAction {
+        case generateWorkout
+        case generateSmartSuggestion
+    }
+
     @Published var promptText = ""
     @Published var isGenerating = false
     @Published var generatedWorkout: AIGeneratedWorkout?
@@ -37,6 +42,7 @@ class WorkoutPlanViewModel: ObservableObject {
     @Published var exportCooldown = false
     @Published var exportAuthDenied = false
     private static let maxExportRetries = 3
+    private var pendingAction: PendingAction?
 
     // Demo mode: auto-show preview with mock data
     func loadDemoDataIfNeeded() {
@@ -56,6 +62,7 @@ class WorkoutPlanViewModel: ObservableObject {
 
     func generateWorkout() async {
         guard !promptText.isEmpty else { return }
+        pendingAction = .generateWorkout
 
         guard ConsentService.shared.hasConsentedToAIDataSharing else {
             needsConsent = true
@@ -68,6 +75,7 @@ class WorkoutPlanViewModel: ObservableObject {
             return
         }
 
+        pendingAction = nil
         isGenerating = true
         error = nil
         showSuccessAlert = false
@@ -157,6 +165,8 @@ class WorkoutPlanViewModel: ObservableObject {
 
         } catch {
             if let kitError = error as? WorkoutKitError, case .authorizationDenied = kitError {
+                let isPermanent = exportAuthDenied
+
                 // Authorization denied — check if this is a retry (already denied once)
                 if exportAuthDenied {
                     // Second denial — disable export permanently
@@ -165,7 +175,7 @@ class WorkoutPlanViewModel: ObservableObject {
                     exportAuthDenied = true
                     self.error = kitError.localizedDescription
                 }
-                AnalyticsService.shared.trackWorkoutExportAuthDenied(permanent: exportAuthDenied)
+                AnalyticsService.shared.trackWorkoutExportAuthDenied(permanent: isPermanent)
                 print("❌ Export authorization denied (permanent: \(exportAuthDenied))")
                 return
             }
@@ -193,6 +203,7 @@ class WorkoutPlanViewModel: ObservableObject {
         promptText = ""
         error = nil
         showSuccessAlert = false
+        pendingAction = nil
     }
 
     // MARK: - Helper Methods
@@ -393,6 +404,8 @@ class WorkoutPlanViewModel: ObservableObject {
     }
 
     func generateSmartSuggestion() async {
+        pendingAction = .generateSmartSuggestion
+
         guard ConsentService.shared.hasConsentedToAIDataSharing else {
             needsConsent = true
             return
@@ -404,6 +417,7 @@ class WorkoutPlanViewModel: ObservableObject {
             return
         }
 
+        pendingAction = nil
         isGeneratingSmartSuggestion = true
         smartSuggestionError = nil
 
@@ -508,6 +522,21 @@ class WorkoutPlanViewModel: ObservableObject {
         }
 
         isGeneratingSmartSuggestion = false
+    }
+
+    func resumePendingAction() async {
+        guard let pendingAction else { return }
+
+        switch pendingAction {
+        case .generateWorkout:
+            await generateWorkout()
+        case .generateSmartSuggestion:
+            await generateSmartSuggestion()
+        }
+    }
+
+    func clearPendingAction() {
+        pendingAction = nil
     }
 
     private func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
@@ -629,15 +658,20 @@ struct WorkoutPlanView: View {
                         Task {
                             if await HistoricalSummaryStorage.shared.requiresIndexation() {
                                 viewModel.needsIndexation = true
+                            } else {
+                                await viewModel.resumePendingAction()
                             }
                         }
                     },
                     onDecline: {
                         viewModel.needsConsent = false
+                        viewModel.clearPendingAction()
                     }
                 )
             }
-            .indexationGate(isPresented: $viewModel.needsIndexation)
+            .indexationGate(isPresented: $viewModel.needsIndexation) {
+                await viewModel.resumePendingAction()
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {

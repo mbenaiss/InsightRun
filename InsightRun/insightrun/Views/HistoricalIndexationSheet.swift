@@ -79,6 +79,10 @@ struct HistoricalIndexationSheet: View {
             }
         }
         .onChange(of: manager.state) { _, newState in
+            if newState == .completed {
+                HistoricalSummaryStorage.shared.resetBannerDismiss()
+            }
+
             // Auto-dismiss on cancelled state
             if newState == .cancelled {
                 dismiss()

@@ -11,7 +11,7 @@ import SwiftUI
 struct IndexationGateModifier: ViewModifier {
     @Binding var needsIndexation: Bool
     var onComplete: (() async -> Void)?
-    @StateObject private var manager = BatchIndexationManager.shared
+    @ObservedObject private var manager = BatchIndexationManager.shared
 
     func body(content: Content) -> some View {
         content

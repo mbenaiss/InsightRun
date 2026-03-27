@@ -14,7 +14,7 @@ struct HistoricalIndexationSheet: View {
 
     // MARK: - State
 
-    @StateObject private var manager = BatchIndexationManager.shared
+    @ObservedObject private var manager = BatchIndexationManager.shared
     @State private var indexationTask: Task<Void, Never>?
 
     // MARK: - Body

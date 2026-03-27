@@ -54,6 +54,10 @@
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>POSTHOG_API_KEY</key>
+	<string>phc_khr0U4g0Tk1ev5s1a61J4wI8ibkPTnLiqgL3H4xf3ML</string>
+	<key>POSTHOG_HOST</key>
+	<string>https://eu.i.posthog.com</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Insight Run reads your workout data to provide personalized training insights and recovery recommendations.</string>
 	<key>NSHealthUpdateUsageDescription</key>

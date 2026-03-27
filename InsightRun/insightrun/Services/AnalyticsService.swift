@@ -36,10 +36,13 @@ final class AnalyticsService {
     func configure() {
         Task.detached {
             do {
-                let POSTHOG_API_KEY = "phc_khr0U4g0Tk1ev5s1a61J4wI8ibkPTnLiqgL3H4xf3ML"
-                let POSTHOG_HOST = "https://eu.i.posthog.com"
+                guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_API_KEY") as? String,
+                      let host = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_HOST") as? String else {
+                    print("❌ AnalyticsService: Missing POSTHOG_API_KEY or POSTHOG_HOST in Info.plist")
+                    return
+                }
 
-                let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
+                let config = PostHogConfig(apiKey: apiKey, host: host)
 
                 #if DEBUG
                 config.debug = true

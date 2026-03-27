@@ -10,12 +10,20 @@ import Combine
 
 @MainActor
 class ScoreAnalysisViewModel: ObservableObject {
+    private enum PendingAnalysis {
+        case score(ScoreType, Int, RecoveryMetrics, [TrendDataPoint]?)
+        case metric(MetricType, Double, String, RecoveryMetrics)
+    }
+
     @Published var analysisText: String?
     @Published var isLoading = false
     @Published var error: String?
+    @Published var needsConsent = false
+    @Published var needsIndexation = false
 
     private let aiService = WorkoutAIService()
     private var cancellables = Set<AnyCancellable>()
+    private var pendingAnalysis: PendingAnalysis?
 
     private static let cachePrefix = "ai_analysis_"
     #if DEBUG
@@ -40,6 +48,20 @@ class ScoreAnalysisViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] errorMsg in
                 self?.error = errorMsg
+            }
+            .store(in: &cancellables)
+
+        aiService.$needsConsent
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] needsConsent in
+                self?.needsConsent = needsConsent
+            }
+            .store(in: &cancellables)
+
+        aiService.$needsIndexation
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] needsIndexation in
+                self?.needsIndexation = needsIndexation
             }
             .store(in: &cancellables)
     }
@@ -73,9 +95,11 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     func analyze(scoreType: ScoreType, score: Int, recoveryMetrics: RecoveryMetrics, trendData: [TrendDataPoint]? = nil) async {
         guard !isLoading else { return }
+        pendingAnalysis = .score(scoreType, score, recoveryMetrics, trendData)
 
         if DemoMode.isEnabled {
             analysisText = MockData.sampleScoreAnalysis(for: scoreType)
+            pendingAnalysis = nil
             return
         }
 
@@ -83,12 +107,25 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         if let cached = Self.cachedAnalysis(for: identifier) {
             analysisText = cached
+            pendingAnalysis = nil
+            return
+        }
+
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            needsConsent = true
+            return
+        }
+
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            AnalyticsService.shared.trackIndexationGateTriggered(source: "score_analysis")
+            needsIndexation = true
             return
         }
 
         isLoading = true
         error = nil
         analysisText = nil
+        pendingAnalysis = nil
 
         let prompt = buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
         let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
@@ -107,6 +144,10 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         isLoading = false
 
+        if needsConsent || needsIndexation {
+            return
+        }
+
         if let text = analysisText, !text.isEmpty {
             Self.saveAnalysis(text, for: identifier)
         } else if error == nil {
@@ -118,9 +159,11 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     func analyzeMetric(metricType: MetricType, value: Double, unit: String, recoveryMetrics: RecoveryMetrics) async {
         guard !isLoading else { return }
+        pendingAnalysis = .metric(metricType, value, unit, recoveryMetrics)
 
         if DemoMode.isEnabled {
             analysisText = MockData.sampleMetricAnalysis(for: metricType)
+            pendingAnalysis = nil
             return
         }
 
@@ -128,12 +171,25 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         if let cached = Self.cachedAnalysis(for: identifier) {
             analysisText = cached
+            pendingAnalysis = nil
+            return
+        }
+
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            needsConsent = true
+            return
+        }
+
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            AnalyticsService.shared.trackIndexationGateTriggered(source: "metric_analysis")
+            needsIndexation = true
             return
         }
 
         isLoading = true
         error = nil
         analysisText = nil
+        pendingAnalysis = nil
 
         let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit)
         let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
@@ -152,10 +208,25 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         isLoading = false
 
+        if needsConsent || needsIndexation {
+            return
+        }
+
         if let text = analysisText, !text.isEmpty {
             Self.saveAnalysis(text, for: identifier)
         } else if error == nil {
             error = String(localized: "Unable to generate analysis", comment: "Score analysis error")
+        }
+    }
+
+    func resumePendingAnalysis() async {
+        guard let pendingAnalysis else { return }
+
+        switch pendingAnalysis {
+        case .score(let scoreType, let score, let recoveryMetrics, let trendData):
+            await analyze(scoreType: scoreType, score: score, recoveryMetrics: recoveryMetrics, trendData: trendData)
+        case .metric(let metricType, let value, let unit, let recoveryMetrics):
+            await analyzeMetric(metricType: metricType, value: value, unit: unit, recoveryMetrics: recoveryMetrics)
         }
     }
 

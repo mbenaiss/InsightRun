@@ -765,17 +765,6 @@
         }
       }
     },
-    "Access to export workouts was denied. Please go to Settings > Health > Data Access to enable Insight Run." : {
-      "comment" : "Error when WorkoutKit authorization is denied",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L'accès à l'export des entraînements a été refusé. Veuillez aller dans Réglages > Santé > Accès aux données pour activer Insight Run."
-          }
-        }
-      }
-    },
     "Access to your health data" : {
       "comment" : "Onboarding HealthKit title",
       "extractionState" : "manual",
@@ -3992,6 +3981,7 @@
     },
     "Failed to export workout: %@" : {
       "comment" : "Error when export fails",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -4450,6 +4440,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bonne forme générale. Vous pouvez vous entraîner normalement avec une intensité modérée à élevée."
+          }
+        }
+      }
+    },
+    "Good pace consistency across splits. Your cadence of 172 spm is slightly below optimal — aim for 180 spm to improve efficiency." : {
+      "comment" : "Blurred teaser text for locked AI analysis about pace consistency",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonne régularité d'allure sur les splits. Votre cadence de 172 ppm est légèrement sous l'optimal ; visez 180 ppm pour améliorer votre efficacité."
           }
         }
       }
@@ -5581,6 +5583,7 @@
     },
     "It's been %lld days since your last run. A light jog could boost your mood!" : {
       "comment" : "Inactivity reminder notification body",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -8917,6 +8920,18 @@
         }
       }
     },
+    "Recovery heart rate dropped well, indicating solid aerobic fitness. Consider adding tempo intervals to push your threshold." : {
+      "comment" : "Blurred teaser text for locked AI analysis about recovery heart rate",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fréquence cardiaque redescend bien en récupération, signe d'une base aérobie solide. Envisagez d'ajouter des intervalles tempo pour travailler votre seuil."
+          }
+        }
+      }
+    },
     "Recovery recommendations are based on published scientific research. Tap below to view all medical sources." : {
       "comment" : "Medical sources disclaimer text",
       "localizations" : {
@@ -9201,15 +9216,8 @@
       }
     },
     "Retry" : {
-      "comment" : "Button to retry loading data",
-      "extractionState" : "manual",
+      "comment" : "Button to retry loading data\nRetry button\nRetry button after indexation failure\nRetry export authorization button",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
@@ -11594,6 +11602,7 @@
     },
     "Time to Run! 💪" : {
       "comment" : "Inactivity reminder notification title",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -11611,17 +11620,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Astuce : Activez les permissions dans Réglages → Confidentialité → Santé → Insight Run"
-          }
-        }
-      }
-    },
-    "To re-authorize, you may need to delete and reinstall the app, then allow access when prompted. Alternatively, open the Fitness app on your iPhone or Apple Watch to check connected apps." : {
-      "comment" : "Recovery suggestion for authorization denied",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pour réautoriser, vous devrez peut-être supprimer et réinstaller l'app, puis autoriser l'accès lorsque vous y serez invité. Sinon, ouvrez l'app Forme sur votre iPhone ou Apple Watch pour vérifier les apps connectées."
           }
         }
       }
@@ -11889,6 +11887,7 @@
     },
     "Unable to load analysis" : {
       "comment" : "AI analysis error",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -12786,6 +12785,28 @@
         }
       }
     },
+    "Workout export is not authorized. Open the Fitness app, then reopen Insight Run." : {
+      "comment" : "Export permanently denied error",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'export d'entraînement n'est pas autorisé. Ouvrez l'app Forme, puis relancez Insight Run."
+          }
+        }
+      }
+    },
+    "Workout export requires authorization. Open the Fitness app on your iPhone or Apple Watch, then try again." : {
+      "comment" : "Error when WorkoutKit authorization is denied",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'export d'entraînement nécessite une autorisation. Ouvrez l'app Forme sur votre iPhone ou Apple Watch, puis réessayez."
+          }
+        }
+      }
+    },
     "Workout has too many steps (max 50)" : {
       "comment" : "Error when workout has too many steps",
       "localizations" : {
@@ -13566,6 +13587,7 @@
     },
     "Your training week is ready for review. See your progress!" : {
       "comment" : "Weekly summary notification body",
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {

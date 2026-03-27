@@ -17,6 +17,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     @Published var suggestedQuestions: [String] = []
     @Published var lastFunctionResult: BackendAPIClient.AgentFunctionResult?
     @Published var needsConsent = false
+    @Published var needsIndexation = false
 
     // Backend API client (sécurisé)
     private let backendClient = BackendAPIClient.shared
@@ -128,6 +129,15 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             await MainActor.run {
                 self.needsConsent = true
                 self.error = String(localized: "AI consent is required to analyze your workouts.", comment: "Error when AI consent is missing")
+            }
+            return
+        }
+
+        // Check historical indexation (required for personalized AI)
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            await MainActor.run {
+                AnalyticsService.shared.trackIndexationGateTriggered(source: "ai_chat")
+                self.needsIndexation = true
             }
             return
         }
@@ -305,7 +315,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             let totalDistance = recentWorkouts.compactMap { $0.distance }.reduce(0, +)
             let totalDuration = recentWorkouts.map { $0.duration }.reduce(0, +)
             let totalCalories = recentWorkouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
-            let avgPace = calculateAveragePace(workouts: recentWorkouts) ?? 0
+            let avgPace = recentWorkouts.averagePace ?? 0
 
             print("📊 WorkoutAIService: Sending \(recentWorkouts.count) recent workouts + historical context")
             if let summary = historicalSummary {
@@ -361,7 +371,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
                 let totalDuration = workouts.map { $0.duration }.reduce(0, +)
                 let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
-                let avgPace = calculateAveragePace(workouts: workouts) ?? 0
+                let avgPace = workouts.averagePace ?? 0
 
                 recentWorkoutsData = RecentWorkoutsData(
                     workouts: workouts.map { workout in
@@ -540,12 +550,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     // MARK: - Helper Functions
 
-    /// Calculate average pace across multiple workouts
-    private func calculateAveragePace(workouts: [WorkoutModel]) -> Double? {
-        let paces = workouts.compactMap { $0.averagePace }
-        guard !paces.isEmpty else { return nil }
-        return paces.reduce(0, +) / Double(paces.count)
-    }
 
     // MARK: - Profile & Baseline Loading
 

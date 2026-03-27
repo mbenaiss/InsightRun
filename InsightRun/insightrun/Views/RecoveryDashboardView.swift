@@ -612,12 +612,21 @@ struct CoachingSection: View {
             AIConsentSheet(
                 onConsent: {
                     readinessVM.needsConsent = false
-                    Task { await readinessVM.fetchDailyReadiness() }
+                    Task {
+                        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                            readinessVM.needsIndexation = true
+                        } else {
+                            await readinessVM.fetchDailyReadiness()
+                        }
+                    }
                 },
                 onDecline: {
                     readinessVM.needsConsent = false
                 }
             )
+        }
+        .indexationGate(isPresented: $readinessVM.needsIndexation) {
+            await readinessVM.fetchDailyReadiness()
         }
     }
 }

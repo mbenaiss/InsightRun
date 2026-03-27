@@ -14,7 +14,7 @@ struct HistoricalIndexationSheet: View {
 
     // MARK: - State
 
-    @StateObject private var manager = BatchIndexationManager.shared
+    @ObservedObject private var manager = BatchIndexationManager.shared
     @State private var indexationTask: Task<Void, Never>?
 
     // MARK: - Body
@@ -79,6 +79,10 @@ struct HistoricalIndexationSheet: View {
             }
         }
         .onChange(of: manager.state) { _, newState in
+            if newState == .completed {
+                HistoricalSummaryStorage.shared.resetBannerDismiss()
+            }
+
             // Auto-dismiss on cancelled state
             if newState == .cancelled {
                 dismiss()

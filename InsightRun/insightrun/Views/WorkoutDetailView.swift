@@ -13,6 +13,7 @@ import SwiftData
 import Charts
 
 struct WorkoutDetailView: View {
+    @State private var lastTrackedAnalysis: String?
     let workout: WorkoutModel
     let allWorkouts: [WorkoutModel]
     @StateObject private var viewModel: WorkoutDetailViewModel
@@ -535,10 +536,16 @@ struct WorkoutDetailView: View {
                     // Blurred fake analysis preview — text visible but unreadable
                     ZStack {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Good pace consistency across splits. Your cadence of 172 spm is slightly below optimal — aim for 180 spm to improve efficiency.")
+                            Text(String(
+                                localized: "Good pace consistency across splits. Your cadence of 172 spm is slightly below optimal — aim for 180 spm to improve efficiency.",
+                                comment: "Blurred teaser text for locked AI analysis about pace consistency"
+                            ))
                                 .font(.subheadline)
                                 .foregroundStyle(Color.irTextPrimary)
-                            Text("Recovery heart rate dropped well, indicating solid aerobic fitness. Consider adding tempo intervals to push your threshold.")
+                            Text(String(
+                                localized: "Recovery heart rate dropped well, indicating solid aerobic fitness. Consider adding tempo intervals to push your threshold.",
+                                comment: "Blurred teaser text for locked AI analysis about recovery heart rate"
+                            ))
                                 .font(.subheadline)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
@@ -633,13 +640,20 @@ struct WorkoutDetailView: View {
                             showConsentSheet = false
                             analysisViewModel.needsConsent = false
                             Task {
-                                await analysisViewModel.generateAnalysis()
+                                if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                                    analysisViewModel.needsIndexation = true
+                                } else {
+                                    await analysisViewModel.generateAnalysis()
+                                }
                             }
                         },
                         onDecline: {
                             showConsentSheet = false
                         }
                     )
+                }
+                .indexationGate(isPresented: $analysisViewModel.needsIndexation) {
+                    await analysisViewModel.generateAnalysis()
                 }
 
             } else if let error = analysisViewModel.error {
@@ -673,7 +687,10 @@ struct WorkoutDetailView: View {
                     MarkdownView(analysis)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .onAppear {
-                            ReviewManager.shared.recordPositiveAIAnalysis()
+                            if lastTrackedAnalysis != analysis {
+                                ReviewManager.shared.recordAIEngagement()
+                                lastTrackedAnalysis = analysis
+                            }
                         }
 
                     HStack {

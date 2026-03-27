@@ -22,9 +22,9 @@ final class ReviewManager {
     }
 
     private static let appStoreID = "6754607965"
-    private static let minimumWorkouts = 5
-    private static let minimumDaysSinceInstall = 3
-    private static let minimumDaysBetweenRequests = 90
+    private static let minimumWorkouts = 3
+    private static let minimumDaysSinceInstall = 2
+    private static let minimumDaysBetweenRequests = 30
     private static let maximumRequests = 3
 
     private init() {
@@ -52,7 +52,7 @@ final class ReviewManager {
 
     /// Call this after the user views a positive AI analysis
     /// Triggers a review prompt if all other conditions are met
-    func recordPositiveAIAnalysis() {
+    func recordAIEngagement() {
         defaults.set(Date(), forKey: Keys.lastPositiveAIAnalysis)
         checkAndRequestReview()
     }
@@ -80,10 +80,9 @@ final class ReviewManager {
         let workoutCount = HistoricalSummaryStorage.shared.load()?.workoutCount ?? 0
         guard workoutCount >= Self.minimumWorkouts else { return false }
 
-        // Require a recent positive AI analysis (within last 24h)
-        // This ensures we prompt when the user is most engaged/happy
+        // Require a recent positive AI analysis (within last 7 days)
         guard let lastPositive = defaults.object(forKey: Keys.lastPositiveAIAnalysis) as? Date,
-              daysSince(lastPositive) == 0 // Same day
+              daysSince(lastPositive) <= 7
         else { return false }
 
         return true

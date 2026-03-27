@@ -133,12 +133,21 @@ struct DashboardView: View {
                 AIConsentSheet(
                     onConsent: {
                         readinessVM.needsConsent = false
-                        Task { await refreshAll() }
+                        Task {
+                            if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                                readinessVM.needsIndexation = true
+                            } else {
+                                await refreshAll()
+                            }
+                        }
                     },
                     onDecline: {
                         readinessVM.needsConsent = false
                     }
                 )
+            }
+            .indexationGate(isPresented: $readinessVM.needsIndexation) {
+                await refreshAll()
             }
             .task {
                 await refreshAll()

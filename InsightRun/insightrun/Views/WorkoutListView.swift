@@ -134,8 +134,13 @@ struct WorkoutListView: View {
                     if canShowWorkouts {
                         AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
                         if revenueCatManager.hasAIAccess && HealthKitManager.shared.isHealthKitAuthorized {
-                            let needsRefresh = HistoricalSummaryStorage.shared.needsRefresh()
-                            showIndexationBanner = needsRefresh
+                            // Show banner only for refresh (summary exists but is old)
+                            // First-time indexation is now handled by AI feature gates
+                            if let summary = HistoricalSummaryStorage.shared.load() {
+                                showIndexationBanner = summary.needsRefresh && HistoricalSummaryStorage.shared.shouldShowBanner()
+                            } else {
+                                showIndexationBanner = false
+                            }
                         }
                     }
                     updateContextProvider()
@@ -427,6 +432,7 @@ struct WorkoutListView: View {
                         },
                         onDismiss: {
                             AnalyticsService.shared.trackIndexationBannerDismissed()
+                            HistoricalSummaryStorage.shared.dismissBanner()
                             showIndexationBanner = false
                         }
                     )

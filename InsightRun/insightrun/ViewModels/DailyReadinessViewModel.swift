@@ -18,6 +18,7 @@ class DailyReadinessViewModel: ObservableObject {
     @Published var suggestedWorkoutType: SuggestedWorkoutType = .rest
     @Published var insights: [ReadinessInsight] = []
     @Published var needsConsent = false
+    @Published var needsIndexation = false
     private var hasPromptedConsent = false
 
     private let backendClient = BackendAPIClient.shared
@@ -57,6 +58,14 @@ class DailyReadinessViewModel: ObservableObject {
                 needsConsent = true
                 hasPromptedConsent = true
             }
+            isLoading = false
+            return
+        }
+
+        // Check historical indexation
+        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+            AnalyticsService.shared.trackIndexationGateTriggered(source: "daily_readiness")
+            needsIndexation = true
             isLoading = false
             return
         }

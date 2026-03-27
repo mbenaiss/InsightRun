@@ -155,6 +155,7 @@ struct StravaConnectionStepView: View {
             }
         }
         .onAppear {
+            AnalyticsService.shared.trackOnboardingStepViewed(step: 4, stepName: "strava_connection")
             withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
                 titleOpacity = 1
             }

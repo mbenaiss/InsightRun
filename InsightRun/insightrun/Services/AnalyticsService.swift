@@ -36,10 +36,13 @@ final class AnalyticsService {
     func configure() {
         Task.detached {
             do {
-                let POSTHOG_API_KEY = "phc_khr0U4g0Tk1ev5s1a61J4wI8ibkPTnLiqgL3H4xf3ML"
-                let POSTHOG_HOST = "https://eu.i.posthog.com"
+                guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_API_KEY") as? String,
+                      let host = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_HOST") as? String else {
+                    print("❌ AnalyticsService: Missing POSTHOG_API_KEY or POSTHOG_HOST in Info.plist")
+                    return
+                }
 
-                let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
+                let config = PostHogConfig(apiKey: apiKey, host: host)
 
                 #if DEBUG
                 config.debug = true
@@ -133,13 +136,6 @@ final class AnalyticsService {
 
     func trackOnboardingCompleted() {
         track(.onboardingCompleted)
-    }
-
-    func trackOnboardingSkipped(stepReached: String, timeSpent: TimeInterval) {
-        track(.onboardingSkipped, properties: [
-            "step_reached": stepReached,
-            "time_spent": Int(timeSpent)
-        ])
     }
 
     func trackHealthKitPermissionRequested() {
@@ -256,6 +252,18 @@ final class AnalyticsService {
 
     func trackIndexationBannerDismissed() {
         track(.indexationBannerDismissed)
+    }
+
+    func trackIndexationGateTriggered(source: String) {
+        track(.indexationGateTriggered, properties: [
+            "source": source
+        ])
+    }
+
+    func trackWorkoutExportAuthDenied(permanent: Bool) {
+        track(.workoutExportAuthDenied, properties: [
+            "permanent": permanent
+        ])
     }
 
     func trackIndexationStarted(workoutsCount: Int, totalBatches: Int) {
@@ -520,7 +528,6 @@ enum AnalyticsEvent: String {
     case onboardingStepViewed = "onboarding_step_viewed"
     case onboardingStepCompleted = "onboarding_step_completed"
     case onboardingCompleted = "onboarding_completed"
-    case onboardingSkipped = "onboarding_skipped"
     case healthKitPermissionRequested = "healthkit_permission_requested"
     case healthKitPermissionGranted = "healthkit_permission_granted"
     case healthKitPermissionDenied = "healthkit_permission_denied"
@@ -556,6 +563,10 @@ enum AnalyticsEvent: String {
     case indexationFailed = "indexation_failed"
     case indexationCancelled = "indexation_cancelled"
     case indexationRetryTapped = "indexation_retry_tapped"
+    case indexationGateTriggered = "indexation_gate_triggered"
+
+    // Workout Export
+    case workoutExportAuthDenied = "workout_export_auth_denied"
 
     // Monetization
     case paywallViewed = "paywall_viewed"

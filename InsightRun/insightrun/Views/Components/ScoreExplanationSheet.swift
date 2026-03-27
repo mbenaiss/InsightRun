@@ -62,8 +62,8 @@ struct ScoreExplanationSheet: View {
     @State private var selectedDate: Date?
     @State private var showSubscriptionPaywall = false
     @State private var showMedicalSources = false
-    @State private var showConsentSheet = false
     @State private var historyData: [TrendDataPoint] = []
+    @State private var lastTrackedAnalysis: String?
 
     // MARK: - Score Init
 
@@ -157,6 +157,26 @@ struct ScoreExplanationSheet: View {
                 case .metric(let metricType):
                     await analysisVM.analyzeMetric(metricType: metricType, value: metricValue, unit: metricUnit, recoveryMetrics: metrics)
                 }
+            }
+            .sheet(isPresented: $analysisVM.needsConsent) {
+                AIConsentSheet(
+                    onConsent: {
+                        analysisVM.needsConsent = false
+                        Task {
+                            if await HistoricalSummaryStorage.shared.requiresIndexation() {
+                                analysisVM.needsIndexation = true
+                            } else {
+                                await analysisVM.resumePendingAnalysis()
+                            }
+                        }
+                    },
+                    onDecline: {
+                        analysisVM.needsConsent = false
+                    }
+                )
+            }
+            .indexationGate(isPresented: $analysisVM.needsIndexation) {
+                await analysisVM.resumePendingAnalysis()
             }
         }
     }
@@ -523,51 +543,26 @@ struct ScoreExplanationSheet: View {
                     .font(.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .lineSpacing(4)
+                    .onAppear {
+                        if lastTrackedAnalysis != analysis {
+                            ReviewManager.shared.recordAIEngagement()
+                            lastTrackedAnalysis = analysis
+                        }
+                    }
 
             } else if let error = analysisVM.error {
-                let isConsentError = error.lowercased().contains("consent")
-
                 VStack(spacing: 12) {
-                    Image(systemName: isConsentError ? "hand.raised.fill" : "exclamationmark.triangle")
+                    Image(systemName: "exclamationmark.triangle")
                         .font(.title2)
-                        .foregroundStyle(isConsentError ? Color.irPrimaryAccent : Color.irWarning)
+                        .foregroundStyle(Color.irWarning)
 
-                    Text(isConsentError ? error : String(localized: "Unable to load analysis", comment: "AI analysis error"))
+                    Text(error)
                         .font(.subheadline)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
-
-                    if isConsentError {
-                        Button {
-                            showConsentSheet = true
-                        } label: {
-                            Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
-                                .font(.subheadline)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .sheet(isPresented: $showConsentSheet) {
-                    AIConsentSheet(
-                        onConsent: {
-                            showConsentSheet = false
-                            Task {
-                                guard let metrics = recoveryMetrics else { return }
-                                switch mode {
-                                case .score(let scoreType):
-                                    await analysisVM.analyze(scoreType: scoreType, score: score, recoveryMetrics: metrics, trendData: trendData)
-                                case .metric(let metricType):
-                                    await analysisVM.analyzeMetric(metricType: metricType, value: metricValue, unit: metricUnit, recoveryMetrics: metrics)
-                                }
-                            }
-                        },
-                        onDecline: {
-                            showConsentSheet = false
-                        }
-                    )
-                }
 
             } else {
                 HStack {

@@ -163,8 +163,8 @@ class WorkoutPlanViewModel: ObservableObject {
 
             // Note: export analytics already tracked by WorkoutKitManager with full details
 
-        } catch {
-            if let kitError = error as? WorkoutKitError, case .authorizationDenied = kitError {
+        } catch let caughtError {
+            if let kitError = caughtError as? WorkoutKitError, case .authorizationDenied = kitError {
                 let isPermanent = exportAuthDenied
 
                 // Authorization denied — check if this is a retry (already denied once)
@@ -184,9 +184,9 @@ class WorkoutPlanViewModel: ObservableObject {
             if consecutiveExportFailures >= Self.maxExportRetries {
                 self.error = String(localized: "Export failed multiple times. Please try again later.", comment: "Export max retries error")
             } else {
-                self.error = error.localizedDescription
+                self.error = caughtError.localizedDescription
             }
-            print("❌ Export error (\(consecutiveExportFailures)/\(Self.maxExportRetries)): \(error)")
+            print("❌ Export error (\(consecutiveExportFailures)/\(Self.maxExportRetries)): \(caughtError)")
 
             // Note: detailed export failure is already tracked by WorkoutKitManager
 

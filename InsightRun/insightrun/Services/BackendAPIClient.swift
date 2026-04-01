@@ -243,7 +243,7 @@ class BackendAPIClient {
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60
+        request.timeoutInterval = 300
 
         let requestBody = BatchAnalysisRequest(
             workouts: workouts,

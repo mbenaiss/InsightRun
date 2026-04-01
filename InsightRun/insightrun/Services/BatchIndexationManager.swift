@@ -111,8 +111,23 @@ class BatchIndexationManager: ObservableObject {
 
             // Limit to max workouts and sort by date (most recent first)
             let workoutsToProcess = Array(allWorkouts.prefix(BatchIndexationConfig.maxWorkouts))
-            guard !workoutsToProcess.isEmpty else {
-                throw IndexationError.noWorkoutsFound
+
+            // No workouts: save an empty summary and complete
+            if workoutsToProcess.isEmpty {
+                let emptySummary = HistoricalSummary(
+                    summary: "",
+                    generatedDate: Date(),
+                    indexedAt: Date(),
+                    version: 1,
+                    workoutCount: 0,
+                    dateRangeStart: Date(),
+                    dateRangeEnd: Date()
+                )
+                storage.save(emptySummary)
+                progress = 1.0
+                state = .completed
+                print("✅ BatchIndexationManager: No workouts found, saved empty summary")
+                return
             }
 
             print("📊 BatchIndexationManager: Processing \(workoutsToProcess.count) workouts...")
@@ -274,7 +289,10 @@ class BatchIndexationManager: ObservableObject {
 
     /// Check if an error is not worth retrying (auth/permission errors)
     private func isNonRetryableError(_ message: String) -> Bool {
-        let nonRetryableKeywords = ["authorization", "permission", "consent", "denied", "not available"]
+        let nonRetryableKeywords = [
+            "authorization", "permission", "consent", "denied", "not available",
+            "inaccessible", "uiviewservicehostsession"
+        ]
         let lowered = message.lowercased()
         return nonRetryableKeywords.contains { lowered.contains($0) }
     }

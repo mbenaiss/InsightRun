@@ -226,9 +226,10 @@ class BatchIndexationManager: ObservableObject {
         } catch {
             print("❌ BatchIndexationManager: Indexation failed: \(error)")
             let categorizedMessage = categorizeError(error)
-            let errorDesc = error.localizedDescription.lowercased()
+            let errorDesc = error.localizedDescription
             lastErrorRetryable = !isNonRetryableError(errorDesc)
-            needsManualHealthKitSetup = errorDesc.contains("uiviewservicehostsession") || errorDesc.contains("inaccessible")
+            let lowered = errorDesc.lowercased()
+            needsManualHealthKitSetup = lowered.contains("uiviewservicehostsession") || lowered.contains("inaccessible")
             state = .failed(categorizedMessage)
             hasFailedOnce = true
 

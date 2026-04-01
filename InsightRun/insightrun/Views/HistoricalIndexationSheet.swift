@@ -278,8 +278,8 @@ struct HistoricalIndexationSheet: View {
                 }
             }
 
-            // Open Settings button (when HealthKit access is needed)
-            if !HealthKitManager.shared.isHealthDataAvailable || !HealthKitManager.shared.isHealthKitAuthorized {
+            // Open Settings button (when HealthKit access is needed or iOS dialog crashed)
+            if !HealthKitManager.shared.isHealthDataAvailable || !HealthKitManager.shared.isHealthKitAuthorized || manager.needsManualHealthKitSetup {
                 Button(action: {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         UIApplication.shared.open(url)

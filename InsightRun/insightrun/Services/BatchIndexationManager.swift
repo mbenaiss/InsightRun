@@ -57,6 +57,7 @@ class BatchIndexationManager: ObservableObject {
     @Published var needsConsent: Bool = false
     @Published var retryCount: Int = 0
     @Published var retryDisabled: Bool = false
+    @Published var needsManualHealthKitSetup: Bool = false
 
     // MARK: - Private Properties
 
@@ -225,7 +226,9 @@ class BatchIndexationManager: ObservableObject {
         } catch {
             print("❌ BatchIndexationManager: Indexation failed: \(error)")
             let categorizedMessage = categorizeError(error)
-            lastErrorRetryable = !isNonRetryableError(error.localizedDescription)
+            let errorDesc = error.localizedDescription.lowercased()
+            lastErrorRetryable = !isNonRetryableError(errorDesc)
+            needsManualHealthKitSetup = errorDesc.contains("uiviewservicehostsession") || errorDesc.contains("inaccessible")
             state = .failed(categorizedMessage)
             hasFailedOnce = true
 
@@ -307,6 +310,7 @@ class BatchIndexationManager: ObservableObject {
         retryCount = 0
         retryDisabled = false
         lastErrorRetryable = true
+        needsManualHealthKitSetup = false
     }
 
     // MARK: - Private Methods
@@ -364,6 +368,11 @@ class BatchIndexationManager: ObservableObject {
         // Auth/permission errors — not retryable
         if description.contains("authorization") || description.contains("permission") || description.contains("denied") {
             return String(localized: "Permission error. Please check HealthKit access in Settings > Health.", comment: "Indexation permission error")
+        }
+
+        // iOS system dialog crash (UIViewServiceHostSession)
+        if description.contains("uiviewservicehostsession") || description.contains("inaccessible") {
+            return String(localized: "HealthKit authorization could not be completed. Please go to Settings > Health > Insight Run to grant access manually, then try again.", comment: "Indexation iOS dialog crash error")
         }
 
         // HealthKit errors — not retryable

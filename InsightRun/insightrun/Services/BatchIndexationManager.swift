@@ -57,6 +57,7 @@ class BatchIndexationManager: ObservableObject {
     @Published var needsConsent: Bool = false
     @Published var retryCount: Int = 0
     @Published var retryDisabled: Bool = false
+    @Published var needsManualHealthKitSetup: Bool = false
 
     // MARK: - Private Properties
 
@@ -111,8 +112,23 @@ class BatchIndexationManager: ObservableObject {
 
             // Limit to max workouts and sort by date (most recent first)
             let workoutsToProcess = Array(allWorkouts.prefix(BatchIndexationConfig.maxWorkouts))
-            guard !workoutsToProcess.isEmpty else {
-                throw IndexationError.noWorkoutsFound
+
+            // No workouts: save an empty summary and complete
+            if workoutsToProcess.isEmpty {
+                let emptySummary = HistoricalSummary(
+                    summary: "",
+                    generatedDate: Date(),
+                    indexedAt: Date(),
+                    version: 1,
+                    workoutCount: 0,
+                    dateRangeStart: Date(),
+                    dateRangeEnd: Date()
+                )
+                storage.save(emptySummary)
+                progress = 1.0
+                state = .completed
+                print("✅ BatchIndexationManager: No workouts found, saved empty summary")
+                return
             }
 
             print("📊 BatchIndexationManager: Processing \(workoutsToProcess.count) workouts...")
@@ -210,7 +226,10 @@ class BatchIndexationManager: ObservableObject {
         } catch {
             print("❌ BatchIndexationManager: Indexation failed: \(error)")
             let categorizedMessage = categorizeError(error)
-            lastErrorRetryable = !isNonRetryableError(error.localizedDescription)
+            let errorDesc = error.localizedDescription
+            lastErrorRetryable = !isNonRetryableError(errorDesc)
+            let lowered = errorDesc.lowercased()
+            needsManualHealthKitSetup = lowered.contains("uiviewservicehostsession") || lowered.contains("inaccessible")
             state = .failed(categorizedMessage)
             hasFailedOnce = true
 
@@ -274,7 +293,10 @@ class BatchIndexationManager: ObservableObject {
 
     /// Check if an error is not worth retrying (auth/permission errors)
     private func isNonRetryableError(_ message: String) -> Bool {
-        let nonRetryableKeywords = ["authorization", "permission", "consent", "denied", "not available"]
+        let nonRetryableKeywords = [
+            "authorization", "permission", "consent", "denied", "not available",
+            "inaccessible", "uiviewservicehostsession"
+        ]
         let lowered = message.lowercased()
         return nonRetryableKeywords.contains { lowered.contains($0) }
     }
@@ -289,6 +311,7 @@ class BatchIndexationManager: ObservableObject {
         retryCount = 0
         retryDisabled = false
         lastErrorRetryable = true
+        needsManualHealthKitSetup = false
     }
 
     // MARK: - Private Methods
@@ -346,6 +369,11 @@ class BatchIndexationManager: ObservableObject {
         // Auth/permission errors — not retryable
         if description.contains("authorization") || description.contains("permission") || description.contains("denied") {
             return String(localized: "Permission error. Please check HealthKit access in Settings > Health.", comment: "Indexation permission error")
+        }
+
+        // iOS system dialog crash (UIViewServiceHostSession)
+        if description.contains("uiviewservicehostsession") || description.contains("inaccessible") {
+            return String(localized: "HealthKit authorization could not be completed. Please go to Settings > Health > Insight Run to grant access manually, then try again.", comment: "Indexation iOS dialog crash error")
         }
 
         // HealthKit errors — not retryable

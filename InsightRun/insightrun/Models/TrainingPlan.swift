@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - Training Plan
 
@@ -14,7 +15,7 @@ struct TrainingPlan: Identifiable, Codable {
     let name: String
     let goal: String
     let level: FitnessLevel
-    let weeks: [TrainingWeek]
+    var weeks: [TrainingWeek]
     let createdAt: Date
     let startDate: Date?
     let isActive: Bool
@@ -47,6 +48,11 @@ struct TrainingPlan: Identifiable, Codable {
         weeks.flatMap { $0.days }.filter { $0.workout != nil }.count
     }
 
+    var isCompleted: Bool {
+        let workoutDays = weeks.flatMap { $0.days }.filter { $0.workout != nil }
+        return !workoutDays.isEmpty && workoutDays.allSatisfy { $0.isCompleted }
+    }
+
     var currentWeekIndex: Int? {
         guard let start = startDate else { return nil }
         let daysSinceStart = Calendar.current.dateComponents([.day], from: start, to: Date()).day ?? 0
@@ -61,7 +67,7 @@ struct TrainingWeek: Identifiable, Codable {
     let id: UUID
     let weekNumber: Int
     let phase: TrainingPhase
-    let days: [TrainingDay]
+    var days: [TrainingDay]
     let weeklyVolume: Double? // Total distance in km
     let notes: String?
 
@@ -239,6 +245,16 @@ enum TrainingPhase: String, Codable, CaseIterable {
         }
     }
 
+    var themeColor: Color {
+        switch self {
+        case .base: return .blue
+        case .build: return .orange
+        case .peak: return .red
+        case .taper: return .green
+        case .recovery: return .purple
+        }
+    }
+
     var description: String {
         switch self {
         case .base:
@@ -327,6 +343,15 @@ enum WorkoutIntensity: String, Codable, CaseIterable {
         case .veryHard: return "red"
         }
     }
+
+    var themeColor: Color {
+        switch self {
+        case .easy: return .green
+        case .moderate: return .orange
+        case .hard: return .orange
+        case .veryHard: return .red
+        }
+    }
 }
 
 enum PlannedStepType: String, Codable, CaseIterable {
@@ -351,6 +376,17 @@ enum PlannedStepType: String, Codable, CaseIterable {
             return String(localized: "Interval", comment: "Workout step - interval")
         case .rest:
             return String(localized: "Rest", comment: "Workout step - rest")
+        }
+    }
+
+    var themeColor: Color {
+        switch self {
+        case .warmup: return .blue
+        case .work: return .orange
+        case .recovery: return .green
+        case .cooldown: return .cyan
+        case .interval: return .red
+        case .rest: return .gray
         }
     }
 }

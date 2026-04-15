@@ -28,6 +28,7 @@ import {
 import agentChatRoutes from './routes/agentChat'
 import analyzeHistoryRoutes from './routes/analyzeHistory'
 import dailyReadinessRoutes from './routes/dailyReadiness'
+import generateTrainingPlanRoutes from './routes/generateTrainingPlan'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
 import stravaRoutes from './routes/strava'
@@ -351,6 +352,14 @@ app.use('/api/analyze-history/*', async (c, next) => {
   await next()
 })
 
+// Auth middleware for /api/generate-training-plan route
+app.use('/api/generate-training-plan/*', async (c, next) => {
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+  await next()
+})
+
 // Auth middleware for /api/generate-workout route
 app.use('/api/generate-workout/*', async (c, next) => {
   if (!validateAppAuth(c)) {
@@ -401,6 +410,9 @@ app.use('/api/strava/*', async (c, next) => {
 
 // Mount analyze-history routes
 app.route('/api/analyze-history', analyzeHistoryRoutes)
+
+// Mount generate-training-plan route
+app.route('/api/generate-training-plan', generateTrainingPlanRoutes)
 
 // Mount generate-workout route
 app.route('/api/generate-workout', generateWorkoutRoutes)

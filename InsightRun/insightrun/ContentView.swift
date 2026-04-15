@@ -52,6 +52,14 @@ struct ContentView: View {
                 }
                 .tag(2)
                 .accessibilityIdentifier("tab-statistics")
+
+            // Goals Tab
+            GoalsTabView()
+                .tabItem {
+                    Label(String(localized: "tab.goals", defaultValue: "Goals"), systemImage: "target")
+                }
+                .tag(3)
+                .accessibilityIdentifier("tab-goals")
             }
             .onChange(of: selectedTab) { _, newTab in
                 // Update context provider's current page based on selected tab
@@ -59,6 +67,7 @@ struct ContentView: View {
                 case 0: .recovery  // Dashboard is recovery-focused
                 case 1: .workouts
                 case 2: .statistics
+                case 3: .workouts  // Goals tab uses workout context
                 default: .workouts
                 }
                 contextProvider.currentPage = page
@@ -137,6 +146,8 @@ struct ContentView: View {
                 StravaCache.shared.setModelContext(modelContext)
                 UnifiedWorkoutCache.shared.setModelContext(modelContext)
                 SuuntoImportService.shared.setModelContext(modelContext)
+                GoalStorage.shared.setModelContext(modelContext)
+                GoalStorage.shared.migrateFromUserDefaultsIfNeeded()
             }
         }
         .task {

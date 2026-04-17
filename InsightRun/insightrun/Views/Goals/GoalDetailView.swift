@@ -54,6 +54,17 @@ struct GoalDetailView: View {
                     if currentGoal.hasTrainingPlan {
                         Button {
                             Task {
+                                await viewModel.adaptPlanIfNeeded(for: currentGoal)
+                            }
+                        } label: {
+                            Label(
+                                String(localized: "goals.detail.adapt", defaultValue: "Adapt Plan", comment: "Goal detail - adapt plan"),
+                                systemImage: "wand.and.stars"
+                            )
+                        }
+
+                        Button {
+                            Task {
                                 await viewModel.generateTrainingPlan(for: currentGoal)
                             }
                         } label: {
@@ -113,6 +124,27 @@ struct GoalDetailView: View {
         } message: {
             if let error = viewModel.generationError {
                 Text(error)
+            }
+        }
+        .alert(
+            String(localized: "goals.detail.adaptErrorTitle", defaultValue: "Adaptation Error", comment: "Goal detail - adapt error title"),
+            isPresented: Binding(
+                get: { viewModel.adaptationError != nil },
+                set: { if !$0 { viewModel.adaptationError = nil } }
+            )
+        ) {
+            Button(String(localized: "goals.detail.ok", defaultValue: "OK", comment: "OK button")) {
+                viewModel.adaptationError = nil
+            }
+        } message: {
+            if let error = viewModel.adaptationError {
+                Text(error)
+            }
+        }
+        .task {
+            // Auto-adapt plan when opening goal detail (silently, respects throttle)
+            if currentGoal.isActive && !currentGoal.isPast && currentGoal.hasTrainingPlan {
+                await viewModel.adaptPlanIfNeeded(for: currentGoal)
             }
         }
     }
@@ -360,6 +392,33 @@ struct GoalDetailView: View {
 
     private func trainingPlanSection(_ plan: TrainingPlan) -> some View {
         VStack(alignment: .leading, spacing: Spacing.base) {
+            // Adaptation banner
+            if let assessment = plan.adaptationAssessment {
+                HStack(alignment: .top, spacing: Spacing.sm) {
+                    Image(systemName: "sparkles")
+                        .font(.caption)
+                        .foregroundStyle(Color.irPrimaryAccent)
+
+                    Text(assessment)
+                        .font(.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+                .padding(Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.irPrimaryAccent.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            }
+
+            if viewModel.isAdaptingPlan {
+                HStack(spacing: Spacing.sm) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(String(localized: "goals.detail.adapting", defaultValue: "Adapting plan...", comment: "Goal detail - adapting"))
+                        .font(.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+            }
+
             // Plan header
             Text(plan.name)
                 .font(.headline)
@@ -493,12 +552,20 @@ struct GoalDetailView: View {
                         Spacer()
 
                         // Completion toggle
-                        Button {
-                            viewModel.toggleDayCompletion(goalId: currentGoal.id, weekIndex: weekIndex, dayIndex: dayIndex)
-                        } label: {
-                            Image(systemName: day.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .font(.title3)
-                                .foregroundStyle(day.isCompleted ? Color.irSuccess : Color.irBorder)
+                        VStack(spacing: 2) {
+                            Button {
+                                viewModel.toggleDayCompletion(goalId: currentGoal.id, weekIndex: weekIndex, dayIndex: dayIndex)
+                            } label: {
+                                Image(systemName: day.isCompleted ? "checkmark.circle.fill" : "circle")
+                                    .font(.title3)
+                                    .foregroundStyle(day.isCompleted ? Color.irSuccess : Color.irBorder)
+                            }
+
+                            if day.completedWorkoutId != nil {
+                                Text(String(localized: "goals.detail.autoTracked", defaultValue: "Auto", comment: "Auto-tracked label"))
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(Color.irPrimaryAccent)
+                            }
                         }
                     }
                     .padding(Spacing.sm)

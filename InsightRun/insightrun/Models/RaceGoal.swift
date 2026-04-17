@@ -108,6 +108,19 @@ struct RaceGoal: Identifiable, Codable {
         return plan.weeks[weekIndex].phase
     }
 
+    /// Returns today's pending training session with its indices, if any
+    var todaySession: (weekIndex: Int, dayIndex: Int, day: TrainingDay)? {
+        guard let plan = trainingPlan, let weekIndex = plan.currentWeekIndex else { return nil }
+        guard weekIndex < plan.weeks.count else { return nil }
+        let todayDOW = Calendar.current.component(.weekday, from: Date()) // 1=Sunday...7=Saturday
+        guard let dow = DayOfWeek(rawValue: todayDOW) else { return nil }
+        let week = plan.weeks[weekIndex]
+        guard let dayIndex = week.days.firstIndex(where: { $0.dayOfWeek == dow }) else { return nil }
+        let day = week.days[dayIndex]
+        guard day.workout != nil, !day.isCompleted else { return nil }
+        return (weekIndex, dayIndex, day)
+    }
+
     var formattedFinishTime: String? {
         guard let time = finishTime else { return nil }
         let hours = Int(time) / 3600

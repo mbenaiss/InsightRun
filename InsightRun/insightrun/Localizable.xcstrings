@@ -4557,6 +4557,54 @@
         }
       }
     },
+    "goals.detail.adapt" : {
+      "comment" : "Goal detail - adapt plan",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Adapt Plan"
+          }
+        }
+      }
+    },
+    "goals.detail.adaptErrorTitle" : {
+      "comment" : "Goal detail - adapt error title",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Adaptation Error"
+          }
+        }
+      }
+    },
+    "goals.detail.adapting" : {
+      "comment" : "Goal detail - adapting",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Adapting plan..."
+          }
+        }
+      }
+    },
+    "goals.detail.autoTracked" : {
+      "comment" : "Auto-tracked label",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto"
+          }
+        }
+      }
+    },
     "goals.detail.completion" : {
       "comment" : "Goal detail - completion stat",
       "extractionState" : "extracted_with_value",

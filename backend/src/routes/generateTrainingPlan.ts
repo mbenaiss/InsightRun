@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
-import { estimateTokenCount, getLanguageName } from '../utils'
+import { cleanJSONResponse, estimateTokenCount, getLanguageName, getRaceDistance } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -74,17 +74,6 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 16000 // Training plans are large
 const AI_TEMPERATURE = 0.3 // Lower temperature for more consistent plans
-
-function getRaceDistance(raceType: string): string {
-  const distances: Record<string, string> = {
-    '5k': '5 km',
-    '10k': '10 km',
-    half_marathon: '21.1 km (Half Marathon)',
-    marathon: '42.195 km (Marathon)',
-    ultra: '50+ km (Ultra Marathon)',
-  }
-  return distances[raceType] || raceType
-}
 
 function buildTrainingPlanPrompt(
   request: TrainingPlanRequest,
@@ -297,14 +286,6 @@ async function callOpenRouterForPlan(
   }
 
   return data.choices[0]?.message?.content || ''
-}
-
-function cleanJSONResponse(text: string): string {
-  let cleaned = text.trim()
-  cleaned = cleaned.replace(/^```json\s*/i, '')
-  cleaned = cleaned.replace(/^```\s*/, '')
-  cleaned = cleaned.replace(/\s*```$/, '')
-  return cleaned.trim()
 }
 
 // POST /api/generate-training-plan

@@ -9,6 +9,8 @@ import SwiftUI
 
 struct GoalsTabView: View {
     @StateObject private var viewModel = GoalsViewModel()
+    @ObservedObject private var notificationRouter = NotificationRouter.shared
+    @State private var deepLinkGoalId: UUID?
 
     var body: some View {
         NavigationStack {
@@ -86,6 +88,21 @@ struct GoalsTabView: View {
                 AddGoalSheet { goal in
                     viewModel.addGoal(goal)
                 }
+            }
+            .navigationDestination(item: $deepLinkGoalId) { goalId in
+                if let goal = viewModel.goals.first(where: { $0.id == goalId }) {
+                    GoalDetailView(goal: goal, viewModel: viewModel)
+                }
+            }
+            .onChange(of: notificationRouter.pendingGoalId, initial: true) { _, goalId in
+                if let goalId {
+                    viewModel.reload()
+                    deepLinkGoalId = goalId
+                    notificationRouter.pendingGoalId = nil
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .trainingDayCompleted)) { _ in
+                viewModel.reload()
             }
         }
     }

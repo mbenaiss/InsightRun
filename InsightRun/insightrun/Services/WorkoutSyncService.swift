@@ -127,6 +127,9 @@ final class WorkoutSyncService {
 
                 print("🏃 WorkoutSyncService: \(workouts.count) new running workout(s) detected")
 
+                // Auto-match against active training plans
+                WorkoutMatchingService.shared.matchWorkouts(workouts)
+
                 self.sendNotifications(for: workouts) {
                     completion()
                 }

@@ -40,6 +40,9 @@ struct TrainingPlan: Identifiable, Codable {
         self.isActive = isActive
     }
 
+    var lastAdaptationDate: Date?
+    var adaptationAssessment: String?
+
     var totalWeeks: Int {
         weeks.count
     }
@@ -103,8 +106,8 @@ struct TrainingDay: Identifiable, Codable {
     let dayOfWeek: DayOfWeek
     let workout: PlannedWorkout?
     var isRestDay: Bool { workout == nil }
-    let isCompleted: Bool
-    let completedWorkoutId: String? // Link to actual HKWorkout
+    var isCompleted: Bool
+    var completedWorkoutId: String? // Link to actual HKWorkout
 
     private enum CodingKeys: String, CodingKey {
         case id, dayOfWeek, workout, isCompleted, completedWorkoutId

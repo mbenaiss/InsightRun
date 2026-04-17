@@ -15,6 +15,7 @@ class NotificationRouter: NSObject, ObservableObject {
 
     @Published var pendingTab: Int?
     @Published var pendingWorkoutUUID: String?
+    @Published var pendingGoalId: UUID?
     @Published var showWeeklySummary = false
 
     override private init() {

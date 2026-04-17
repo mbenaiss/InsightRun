@@ -517,6 +517,43 @@ class BackendAPIClient {
         return try decoder.decode(TrainingPlanGenerationResponse.self, from: data)
     }
 
+    // MARK: - Training Plan Adaptation
+
+    func adaptTrainingPlan(request: AdaptTrainingPlanRequest) async throws -> AdaptTrainingPlanResponse {
+        let url = URL(string: "\(baseURL)/api/adapt-training-plan")!
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = 120
+
+        let encoder = JSONEncoder()
+        urlRequest.httpBody = try encoder.encode(request)
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw BackendError.unauthorized
+        case 429:
+            throw BackendError.rateLimitExceeded
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(AdaptTrainingPlanResponse.self, from: data)
+    }
+
     // MARK: - Remote Configuration
 
     /// Fetch remote configuration (feature flags, version info, maintenance mode)

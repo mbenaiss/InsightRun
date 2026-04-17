@@ -34,6 +34,7 @@ struct DashboardView: View {
     @State private var effortTrend: [TrendDataPoint] = []
     @State private var sleepTrend: [TrendDataPoint] = []
     @State private var readinessTrend: [TrendDataPoint] = []
+    @State private var todaySession: (goal: RaceGoal, day: TrainingDay)?
 
     // MARK: - Body
 
@@ -152,23 +153,27 @@ struct DashboardView: View {
             .task {
                 await refreshAll()
                 await loadTrendData()
+                loadTodaySession()
 
                 if let recovery = recoveryVM.recoveryMetrics {
                     contextProvider.recoveryMetrics = recovery
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .trainingDayCompleted)) { _ in
+                loadTodaySession()
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 let today = Calendar.current.startOfDay(for: Date())
                 if recoveryVM.selectedDate != today {
-                    // Day changed while app was in background — full reset
+                    // Day changed while app was in background — full reset, force AI refresh
                     recoveryVM.selectedDate = today
                     recoveryVM.metricsCache.removeAll()
                     hasForwardPage = false
                     currentPage = 1
-                    Task { await refreshAll() }
+                    Task { await refreshAll(forceRefresh: true) }
                 } else {
-                    // Same day — refresh coaching with latest data
+                    // Same day — refresh local metrics but reuse cached readiness
                     Task { await refreshCoaching() }
                 }
             }
@@ -178,7 +183,7 @@ struct DashboardView: View {
     // MARK: - Data Loading
 
     @MainActor
-    private func refreshAll() async {
+    private func refreshAll(forceRefresh: Bool = false) async {
         let tls = trainingLoadService
         let selectedDate = recoveryVM.selectedDate
 
@@ -198,13 +203,13 @@ struct DashboardView: View {
             effortScore: tls.dailyEffortScore,
             cardiacLoadScore: tls.cardiacLoadScore,
             cardiacLoadStatus: tls.cardiacLoadStatus,
-            forceRefresh: true
+            forceRefresh: forceRefresh
         )
     }
 
     /// Refresh metrics with latest data (called on each foreground return)
     @MainActor
-    private func refreshCoaching() async {
+    private func refreshCoaching(forceRefresh: Bool = false) async {
         let tls = trainingLoadService
         let selectedDate = recoveryVM.selectedDate
 
@@ -221,7 +226,7 @@ struct DashboardView: View {
             effortScore: tls.dailyEffortScore,
             cardiacLoadScore: tls.cardiacLoadScore,
             cardiacLoadStatus: tls.cardiacLoadStatus,
-            forceRefresh: true
+            forceRefresh: forceRefresh
         )
     }
 
@@ -256,6 +261,15 @@ struct DashboardView: View {
                 recoveryHeader
                     .padding(.horizontal)
 
+                if recoveryVM.isToday, let session = todaySession, let workout = session.day.workout {
+                    TodaySessionCard(
+                        goal: session.goal,
+                        workout: workout,
+                        onTap: { navigateToGoalSession(session.goal) }
+                    )
+                    .padding(.horizontal)
+                }
+
                 if recoveryVM.isToday {
                     if revenueCatManager.hasAIAccess {
                         coachingSection
@@ -284,8 +298,29 @@ struct DashboardView: View {
         }
         .accessibilityIdentifier("dashboard-content")
         .refreshable {
-            await refreshAll()
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.prepare()
+            impact.impactOccurred()
+            await refreshAll(forceRefresh: true)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
+    }
+
+    // MARK: - Today Session
+
+    private func loadTodaySession() {
+        let goals = GoalStorage.shared.load()
+        for goal in goals where goal.isActive && !goal.isPast && goal.hasTrainingPlan {
+            if let session = goal.todaySession {
+                todaySession = (goal, session.day)
+                return
+            }
+        }
+        todaySession = nil
+    }
+
+    private func navigateToGoalSession(_ goal: RaceGoal) {
+        notificationRouter.pendingGoalId = goal.id
     }
 
     // MARK: - Day Navigation

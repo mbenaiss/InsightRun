@@ -108,6 +108,11 @@ struct ContentView: View {
                 notificationRouter.pendingTab = nil
             }
         }
+        .onChange(of: notificationRouter.pendingGoalId) { _, goalId in
+            if goalId != nil {
+                selectedTab = 3
+            }
+        }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()
         }

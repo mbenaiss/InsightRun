@@ -695,6 +695,26 @@ class HealthKitManager: ObservableObject {
         )
     }
 
+    // MARK: - Workout Lookup by UUID
+
+    /// Fetch basic metrics for a workout by its UUID (for training plan adaptation)
+    func fetchWorkoutBasicMetrics(uuid: UUID) async -> (distance: Double, duration: Double, pace: Double?, heartRate: Double?)? {
+        guard let workout = try? await findWorkout(with: uuid) else { return nil }
+
+        let distance = workout.totalDistance?.doubleValue(for: .meter()) ?? 0
+        let duration = workout.duration
+        let pace = distance > 0 ? (duration / 60) / (distance / 1000) : nil // min/km
+
+        // Fetch average heart rate
+        let hr = await fetchAverageHeartRate(
+            for: workout,
+            startDate: workout.startDate,
+            endDate: workout.endDate
+        )
+
+        return (distance, duration, pace, hr)
+    }
+
     // MARK: - Helper: Find Workout by UUID or Date
 
     private func findWorkout(with uuid: UUID) async throws -> HKWorkout? {

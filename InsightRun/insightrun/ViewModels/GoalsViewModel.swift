@@ -13,6 +13,8 @@ class GoalsViewModel: ObservableObject {
     @Published var goals: [RaceGoal] = []
     @Published var isGeneratingPlan = false
     @Published var generationError: String?
+    @Published var isAdaptingPlan = false
+    @Published var adaptationError: String?
     @Published var showAddGoal = false
 
     private let storage = GoalStorage.shared
@@ -111,70 +113,139 @@ class GoalsViewModel: ObservableObject {
         guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
               goals[goalIdx].trainingPlan != nil else { return }
 
-        let day = goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex]
-        goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex] = TrainingDay(
-            id: day.id,
-            dayOfWeek: day.dayOfWeek,
-            workout: day.workout,
-            isCompleted: !day.isCompleted,
-            completedWorkoutId: day.completedWorkoutId
-        )
+        goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isCompleted.toggle()
         storage.updateGoal(goals[goalIdx])
+    }
+
+    // MARK: - Training Plan Adaptation
+
+    func adaptPlanIfNeeded(for goal: RaceGoal) async {
+        guard let plan = goal.trainingPlan,
+              let weekIndex = plan.currentWeekIndex,
+              weekIndex >= 1 else { return } // Only from week 2+
+
+        // Throttle: don't adapt more than once per week
+        if let lastAdapt = plan.lastAdaptationDate,
+           Calendar.current.dateComponents([.day], from: lastAdapt, to: Date()).day ?? 0 < 7 {
+            return
+        }
+
+        let remainingWeeks = plan.weeks.count - weekIndex - 1
+        guard remainingWeeks > 0 else { return }
+
+        isAdaptingPlan = true
+        adaptationError = nil
+        defer { isAdaptingPlan = false }
+
+        do {
+            let completedWeeks = await buildCompletedWeeksData(plan: plan, upToWeek: weekIndex)
+
+            let dateFormatter = ISO8601DateFormatter()
+            let request = AdaptTrainingPlanRequest(
+                raceType: goal.raceType.rawValue,
+                targetDate: dateFormatter.string(from: goal.targetDate),
+                fitnessLevel: goal.fitnessLevel.rawValue,
+                language: Locale.current.language.languageCode?.identifier ?? "en",
+                trainingDaysPerWeek: goal.trainingDaysPerWeek,
+                preferredDays: goal.preferredDays.map { $0.rawValue },
+                targetTimeSeconds: goal.targetTime.map { Int($0) },
+                injury: goal.injury,
+                currentWeekNumber: weekIndex + 1,
+                remainingWeeksCount: remainingWeeks,
+                originalPlanName: plan.name,
+                originalPlanGoal: plan.goal,
+                completedWeeks: completedWeeks
+            )
+
+            let response = try await backendClient.adaptTrainingPlan(request: request)
+
+            let adaptedWeeks = convertAdaptedWeeks(response.plan.weeks, for: goal)
+
+            if let goalIdx = goals.firstIndex(where: { $0.id == goal.id }) {
+                // Replace future weeks only (keep completed + current week)
+                for i in 0..<adaptedWeeks.count {
+                    let targetIdx = weekIndex + 1 + i
+                    guard targetIdx < goals[goalIdx].trainingPlan!.weeks.count else { break }
+                    goals[goalIdx].trainingPlan!.weeks[targetIdx] = adaptedWeeks[i]
+                }
+                goals[goalIdx].trainingPlan!.lastAdaptationDate = Date()
+                goals[goalIdx].trainingPlan!.adaptationAssessment = response.plan.adaptation.assessment
+
+                storage.updateGoal(goals[goalIdx])
+            }
+        } catch {
+            adaptationError = error.localizedDescription
+        }
+    }
+
+    private func buildCompletedWeeksData(plan: TrainingPlan, upToWeek: Int) async -> [CompletedWeekPayload] {
+        var result: [CompletedWeekPayload] = []
+
+        for i in 0..<upToWeek {
+            let week = plan.weeks[i]
+            let workoutDays = week.days.filter { $0.workout != nil }
+            let completedCount = workoutDays.filter { $0.isCompleted }.count
+            let completionRate = workoutDays.isEmpty ? 0.0 : Double(completedCount) / Double(workoutDays.count)
+
+            var workouts: [CompletedWorkoutPayload] = []
+            for day in workoutDays {
+                let planned = PlannedWorkoutPayload(
+                    distance: day.workout?.targetDistance,
+                    duration: day.workout?.targetDuration,
+                    pace: day.workout?.targetPace,
+                    intensity: day.workout?.intensity.rawValue ?? "moderate"
+                )
+
+                var actual: ActualWorkoutPayload?
+                if let uuidString = day.completedWorkoutId,
+                   let uuid = UUID(uuidString: uuidString),
+                   let metrics = await HealthKitManager.shared.fetchWorkoutBasicMetrics(uuid: uuid) {
+                    actual = ActualWorkoutPayload(
+                        distance: metrics.distance,
+                        duration: metrics.duration,
+                        pace: metrics.pace,
+                        heartRate: metrics.heartRate
+                    )
+                }
+
+                workouts.append(CompletedWorkoutPayload(
+                    type: day.workout?.type.rawValue ?? "easy_run",
+                    planned: planned,
+                    actual: actual
+                ))
+            }
+
+            result.append(CompletedWeekPayload(
+                weekNumber: week.weekNumber,
+                phase: week.phase.rawValue,
+                completionRate: completionRate,
+                workouts: workouts
+            ))
+        }
+
+        return result
+    }
+
+    private func convertAdaptedWeeks(
+        _ weekDatas: [TrainingPlanGenerationResponse.GeneratedWeekData],
+        for goal: RaceGoal
+    ) -> [TrainingWeek] {
+        let preferredDays = goal.preferredDays.sorted(by: { $0.rawValue < $1.rawValue })
+        return weekDatas.map { convertWeekData($0, preferredDays: preferredDays, raceDayOfWeek: nil) }
     }
 
     // MARK: - Conversion
 
     private func convertResponseToPlan(_ response: TrainingPlanGenerationResponse, for goal: RaceGoal) -> TrainingPlan {
-        // Race day of week (1=Sunday...7=Saturday)
-        let raceDayOfWeek = Calendar.current.component(.weekday, from: goal.targetDate) // 1=Sunday...7=Saturday
-        let isLastWeekIndex = response.plan.weeks.count - 1
-
+        let raceDayOfWeek = Calendar.current.component(.weekday, from: goal.targetDate)
+        let lastWeekIndex = response.plan.weeks.count - 1
         let preferredDays = goal.preferredDays.sorted(by: { $0.rawValue < $1.rawValue })
 
         let weeks = response.plan.weeks.enumerated().map { weekIndex, weekData in
-            // Convert AI workouts to PlannedWorkout
-            let workouts = weekData.workouts.map { w -> PlannedWorkout in
-                let steps = (w.steps ?? []).map { s in
-                    PlannedWorkoutStep(
-                        type: PlannedStepType(rawValue: s.type) ?? .work,
-                        duration: s.duration,
-                        distance: s.distance,
-                        targetPace: s.targetPace,
-                        description: s.description
-                    )
-                }
-
-                return PlannedWorkout(
-                    type: WorkoutType(rawValue: w.type) ?? .easyRun,
-                    name: w.name,
-                    description: w.description,
-                    targetDuration: w.targetDuration,
-                    targetDistance: w.targetDistance,
-                    targetPace: w.targetPace,
-                    steps: steps,
-                    intensity: WorkoutIntensity(rawValue: w.intensity) ?? .moderate
-                )
-            }
-
-            // Map workouts to days deterministically
-            let days = mapWorkoutsToDays(
-                workouts: workouts,
+            convertWeekData(
+                weekData,
                 preferredDays: preferredDays,
-                raceDayOfWeek: weekIndex == isLastWeekIndex ? raceDayOfWeek : nil
-            )
-
-            // Normalize volume
-            let volume: Double? = {
-                guard let v = weekData.weeklyVolume else { return nil }
-                return v > 500 ? v / 1000.0 : v
-            }()
-
-            return TrainingWeek(
-                weekNumber: weekData.weekNumber,
-                phase: TrainingPhase(rawValue: weekData.phase) ?? .base,
-                days: days,
-                weeklyVolume: volume,
-                notes: weekData.notes
+                raceDayOfWeek: weekIndex == lastWeekIndex ? raceDayOfWeek : nil
             )
         }
 
@@ -191,6 +262,54 @@ class GoalsViewModel: ObservableObject {
             weeks: weeks,
             startDate: startDate,
             isActive: true
+        )
+    }
+
+    private func convertWeekData(
+        _ weekData: TrainingPlanGenerationResponse.GeneratedWeekData,
+        preferredDays: [DayOfWeek],
+        raceDayOfWeek: Int?
+    ) -> TrainingWeek {
+        let workouts = weekData.workouts.map { w -> PlannedWorkout in
+            let steps = (w.steps ?? []).map { s in
+                PlannedWorkoutStep(
+                    type: PlannedStepType(rawValue: s.type) ?? .work,
+                    duration: s.duration,
+                    distance: s.distance,
+                    targetPace: s.targetPace,
+                    description: s.description
+                )
+            }
+
+            return PlannedWorkout(
+                type: WorkoutType(rawValue: w.type) ?? .easyRun,
+                name: w.name,
+                description: w.description,
+                targetDuration: w.targetDuration,
+                targetDistance: w.targetDistance,
+                targetPace: w.targetPace,
+                steps: steps,
+                intensity: WorkoutIntensity(rawValue: w.intensity) ?? .moderate
+            )
+        }
+
+        let days = mapWorkoutsToDays(
+            workouts: workouts,
+            preferredDays: preferredDays,
+            raceDayOfWeek: raceDayOfWeek
+        )
+
+        let volume: Double? = {
+            guard let v = weekData.weeklyVolume else { return nil }
+            return v > 500 ? v / 1000.0 : v
+        }()
+
+        return TrainingWeek(
+            weekNumber: weekData.weekNumber,
+            phase: TrainingPhase(rawValue: weekData.phase) ?? .base,
+            days: days,
+            weeklyVolume: volume,
+            notes: weekData.notes
         )
     }
 

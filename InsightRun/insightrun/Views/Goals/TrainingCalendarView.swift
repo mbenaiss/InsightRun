@@ -174,12 +174,20 @@ struct TrainingCalendarView: View {
                         Spacer()
                         
                         // Completion Toggle
-                        Button {
-                            onToggleCompletion(weekIndex, dayIndex)
-                        } label: {
-                            Image(systemName: day.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .font(.title3)
-                                .foregroundStyle(day.isCompleted ? Color.irSuccess : Color.irBorder)
+                        VStack(spacing: 2) {
+                            Button {
+                                onToggleCompletion(weekIndex, dayIndex)
+                            } label: {
+                                Image(systemName: day.isCompleted ? "checkmark.circle.fill" : "circle")
+                                    .font(.title3)
+                                    .foregroundStyle(day.isCompleted ? Color.irSuccess : Color.irBorder)
+                            }
+
+                            if day.completedWorkoutId != nil {
+                                Text(String(localized: "goals.detail.autoTracked", defaultValue: "Auto", comment: "Auto-tracked label"))
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(Color.irPrimaryAccent)
+                            }
                         }
                     }
                     .padding(Spacing.sm)

@@ -30,6 +30,7 @@ struct AddGoalSheet: View {
     @State private var injuryDescription = ""
     @State private var targetTimeHours = 0
     @State private var targetTimeMinutes = 0
+    @State private var planStartDate = Calendar.current.startOfDay(for: Date())
 
     // History analysis
     @State private var historyAnalyzed = false
@@ -78,6 +79,11 @@ struct AddGoalSheet: View {
                 .onChange(of: currentStep) { _, newStep in
                     if newStep == 1 {
                         Task { await analyzeRunningHistory() }
+                    }
+                }
+                .onChange(of: targetDate) { _, _ in
+                    if planStartDate > maxPlanStartDate {
+                        planStartDate = maxPlanStartDate
                     }
                 }
 
@@ -481,6 +487,37 @@ struct AddGoalSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                 }
 
+                // Plan start date
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: Spacing.sm) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "calendar")
+                                .foregroundStyle(Color.green.gradient)
+                        }
+
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(String(localized: "goals.wizard.planStart", defaultValue: "Plan Start Date", comment: "Wizard - plan start date"))
+                                .font(.headline)
+                            Text(String(localized: "goals.wizard.planStartHint", defaultValue: "When should the training begin?", comment: "Wizard - plan start date hint"))
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+
+                        Spacer()
+
+                        DatePicker(
+                            "",
+                            selection: $planStartDate,
+                            in: Calendar.current.startOfDay(for: Date())...maxPlanStartDate,
+                            displayedComponents: .date
+                        )
+                        .labelsHidden()
+                    }
+                }
+
                 // Training days
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     HStack(spacing: Spacing.sm) {
@@ -600,6 +637,11 @@ struct AddGoalSheet: View {
                     HStack(spacing: Spacing.md) {
                         recapSmallCard(icon: "speedometer", label: String(localized: "goals.recap.level", defaultValue: "Level", comment: "Recap - level"), value: fitnessLevel.displayName)
                         recapSmallCard(icon: "calendar.badge.clock", label: String(localized: "goals.recap.frequency", defaultValue: "Frequency", comment: "Recap - frequency"), value: "\(preferredDays.count)x / " + String(localized: "goals.wizard.perWeek", defaultValue: "week", comment: ""))
+                    }
+
+                    HStack(spacing: Spacing.md) {
+                        recapSmallCard(icon: "calendar", label: String(localized: "goals.recap.planStart", defaultValue: "Start", comment: "Recap - plan start"), value: planStartDate.formatted(date: .abbreviated, time: .omitted))
+                        Spacer()
                     }
 
                     if targetTimeHours > 0 || targetTimeMinutes > 0 {
@@ -746,7 +788,8 @@ struct AddGoalSheet: View {
             trainingDaysPerWeek: trainingDaysPerWeek,
             preferredDays: Array(preferredDays),
             injury: hasInjury && !injuryDescription.isEmpty ? injuryDescription : nil,
-            targetTime: targetTimeSeconds
+            targetTime: targetTimeSeconds,
+            planStartDate: isPastRace ? nil : planStartDate
         )
         onAdd(goal)
         dismiss()
@@ -800,6 +843,14 @@ struct AddGoalSheet: View {
 
     private var daysUntilRace: Int {
         max(0, Calendar.current.dateComponents([.day], from: Date(), to: targetDate).day ?? 0)
+    }
+
+    /// Latest allowed plan start date = race date - 4 weeks (backend minimum).
+    /// Falls back to today if the race is closer than 4 weeks (defensive — step 1 validates `> now`).
+    private var maxPlanStartDate: Date {
+        let today = Calendar.current.startOfDay(for: Date())
+        let latest = Calendar.current.date(byAdding: .weekOfYear, value: -4, to: targetDate) ?? today
+        return max(today, Calendar.current.startOfDay(for: latest))
     }
 
     private var fitnessLevelDescription: String {

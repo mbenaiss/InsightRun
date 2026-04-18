@@ -80,6 +80,7 @@ class GoalsViewModel: ObservableObject {
         let request = TrainingPlanGenerationRequest(
             raceType: goal.raceType.rawValue,
             targetDate: dateFormatter.string(from: goal.targetDate),
+            startDate: goal.planStartDate.map { dateFormatter.string(from: $0) },
             fitnessLevel: goal.fitnessLevel.rawValue,
             currentWeeklyVolumeKm: nil,
             avgPace: nil,
@@ -249,11 +250,11 @@ class GoalsViewModel: ObservableObject {
             )
         }
 
-        let startDate = Calendar.current.date(
+        let startDate: Date = goal.planStartDate ?? (Calendar.current.date(
             byAdding: .weekOfYear,
             value: -weeks.count,
             to: goal.targetDate
-        ) ?? Date()
+        ) ?? Date())
 
         return TrainingPlan(
             name: response.plan.name,

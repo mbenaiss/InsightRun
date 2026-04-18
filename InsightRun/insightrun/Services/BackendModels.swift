@@ -265,6 +265,7 @@ struct SmartSuggestionResponse: Decodable {
 struct TrainingPlanGenerationRequest: Encodable {
     let raceType: String
     let targetDate: String // ISO 8601
+    let startDate: String? // ISO 8601 — user-chosen plan start date
     let fitnessLevel: String
     let currentWeeklyVolumeKm: Double?
     let avgPace: Double?

@@ -25,6 +25,7 @@ struct RaceGoal: Identifiable, Codable {
     var preferredDays: [DayOfWeek]
     var injury: String?
     var targetTime: TimeInterval? // Target finish time in seconds
+    var planStartDate: Date? // User-chosen date to start the training plan
 
     init(
         id: UUID = UUID(),
@@ -41,7 +42,8 @@ struct RaceGoal: Identifiable, Codable {
         trainingDaysPerWeek: Int = 4,
         preferredDays: [DayOfWeek] = [.monday, .wednesday, .friday, .saturday],
         injury: String? = nil,
-        targetTime: TimeInterval? = nil
+        targetTime: TimeInterval? = nil,
+        planStartDate: Date? = nil
     ) {
         self.id = id
         self.raceType = raceType
@@ -58,6 +60,7 @@ struct RaceGoal: Identifiable, Codable {
         self.preferredDays = preferredDays
         self.injury = injury
         self.targetTime = targetTime
+        self.planStartDate = planStartDate
     }
 
     // MARK: - Computed Properties

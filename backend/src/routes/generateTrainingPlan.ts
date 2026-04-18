@@ -18,6 +18,7 @@ type Variables = {
 interface TrainingPlanRequest {
   raceType: 'marathon' | 'half_marathon' | '10k' | '5k' | 'ultra'
   targetDate: string // ISO 8601
+  startDate?: string // ISO 8601 — user-chosen plan start date; defaults to now when absent
   fitnessLevel: 'beginner' | 'intermediate' | 'advanced'
   currentWeeklyVolumeKm?: number
   avgPace?: number // min/km
@@ -317,15 +318,24 @@ app.post('/', async (c) => {
       )
     }
 
-    // Calculate weeks available
+    // Calculate weeks available from the user-chosen start date (or now as fallback)
     const targetDate = new Date(body.targetDate)
     const now = new Date()
+    const parsedStart = body.startDate ? new Date(body.startDate) : now
+    // Guard against invalid ISO strings or start dates in the past
+    const startDate =
+      Number.isNaN(parsedStart.getTime()) || parsedStart.getTime() < now.getTime()
+        ? now
+        : parsedStart
     const msPerWeek = 7 * 24 * 60 * 60 * 1000
-    const weeksAvailable = Math.floor((targetDate.getTime() - now.getTime()) / msPerWeek)
+    const weeksAvailable = Math.floor((targetDate.getTime() - startDate.getTime()) / msPerWeek)
 
     if (weeksAvailable < 4) {
       return c.json(
-        { error: 'Bad Request', message: 'Target date must be at least 4 weeks away' },
+        {
+          error: 'Bad Request',
+          message: 'Plan must span at least 4 weeks from start to race date',
+        },
         400
       )
     }

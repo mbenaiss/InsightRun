@@ -24,6 +24,7 @@ class CachedRaceGoal {
     var preferredDaysRaw: String // JSON-encoded [Int]
     var injury: String?
     var targetTime: Double?
+    var planStartDate: Date?
     var trainingPlanData: Data? // JSON-encoded TrainingPlan
 
     init(from goal: RaceGoal) {
@@ -40,6 +41,7 @@ class CachedRaceGoal {
         self.trainingDaysPerWeek = goal.trainingDaysPerWeek
         self.injury = goal.injury
         self.targetTime = goal.targetTime
+        self.planStartDate = goal.planStartDate
         self.preferredDaysRaw = Self.encodePreferredDays(goal.preferredDays)
         self.trainingPlanData = Self.encodeTrainingPlan(goal.trainingPlan)
     }
@@ -77,7 +79,8 @@ class CachedRaceGoal {
             trainingDaysPerWeek: trainingDaysPerWeek,
             preferredDays: days,
             injury: injury,
-            targetTime: targetTime
+            targetTime: targetTime,
+            planStartDate: planStartDate
         )
     }
 
@@ -93,6 +96,7 @@ class CachedRaceGoal {
         self.trainingDaysPerWeek = goal.trainingDaysPerWeek
         self.injury = goal.injury
         self.targetTime = goal.targetTime
+        self.planStartDate = goal.planStartDate
         self.preferredDaysRaw = Self.encodePreferredDays(goal.preferredDays)
         self.trainingPlanData = Self.encodeTrainingPlan(goal.trainingPlan)
     }

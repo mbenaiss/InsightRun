@@ -54,6 +54,8 @@ final class DailyMetricsCache {
         let status: String
         let recommendation: String
         let suggestedWorkoutType: String
+        let effortScore: Int?
+        let cardiacLoadScore: Int?
     }
 
     // MARK: - Sleep
@@ -88,23 +90,36 @@ final class DailyMetricsCache {
 
     // MARK: - Readiness
 
-    func getCachedReadiness() -> CachedReadiness? {
+    /// Returns today's cached readiness only if the inputs (effort + cardiac load) still match.
+    /// A score mismatch invalidates the cache so a new workout or effort change triggers a re-fetch.
+    func getCachedReadiness(effortScore: Int, cardiacLoadScore: Int?) -> CachedReadiness? {
         guard let data = defaults.data(forKey: readinessKey),
               let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
-              Calendar.current.isDateInToday(cached.cacheDate) else {
+              Calendar.current.isDateInToday(cached.cacheDate),
+              cached.effortScore == effortScore,
+              cached.cardiacLoadScore == cardiacLoadScore else {
             return nil
         }
         return cached
     }
 
-    func cacheReadiness(score: Int, status: String, recommendation: String, workoutType: String) {
+    func cacheReadiness(
+        score: Int,
+        status: String,
+        recommendation: String,
+        workoutType: String,
+        effortScore: Int = 0,
+        cardiacLoadScore: Int? = nil
+    ) {
         let now = Date()
         let cached = CachedReadiness(
             cacheDate: now,
             score: score,
             status: status,
             recommendation: recommendation,
-            suggestedWorkoutType: workoutType
+            suggestedWorkoutType: workoutType,
+            effortScore: effortScore,
+            cardiacLoadScore: cardiacLoadScore
         )
         if let data = try? JSONEncoder().encode(cached) {
             defaults.set(data, forKey: readinessKey)

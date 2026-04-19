@@ -70,8 +70,13 @@ class DailyReadinessViewModel: ObservableObject {
             return
         }
 
-        // Return cached readiness if available for today (unless forced)
-        if !forceRefresh, let cached = dailyCache.getCachedReadiness() {
+        // Return cached readiness only if the inputs are unchanged (effort + cardiac load).
+        // A new workout or shifting effort score will mismatch the cache and force a fresh analysis.
+        if !forceRefresh,
+           let cached = dailyCache.getCachedReadiness(
+               effortScore: effortScore,
+               cardiacLoadScore: cardiacLoadScore
+           ) {
             readinessScore = cached.score
             status = ReadinessStatus(from: cached.status)
             recommendation = cached.recommendation
@@ -83,7 +88,11 @@ class DailyReadinessViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let recoveryMetrics = try await healthKitManager.fetchRecoveryMetrics(for: Date())
+            async let recoveryMetricsFetch = healthKitManager.fetchRecoveryMetrics(for: Date())
+            async let recentWorkoutsFetch = healthKitManager.fetchWorkouts(limit: 3)
+
+            let recoveryMetrics = try await recoveryMetricsFetch
+            let workoutPayloads = buildRecentWorkoutPayloads(from: await recentWorkoutsFetch)
             let baseline = PersonalBaselineStorage.shared.load()
 
             let activityPayload: DailyActivityPayload? = activityData.map {
@@ -104,6 +113,7 @@ class DailyReadinessViewModel: ObservableObject {
                 baseline: baseline.map { buildBaselinePayload(from: $0) },
                 dailyActivity: activityPayload,
                 cardiacLoad: cardiacPayload,
+                recentWorkouts: workoutPayloads.isEmpty ? nil : workoutPayloads,
                 language: Locale.current.language.languageCode?.identifier ?? "en"
             )
 
@@ -119,7 +129,9 @@ class DailyReadinessViewModel: ObservableObject {
                 score: response.score,
                 status: response.status,
                 recommendation: response.recommendation,
-                workoutType: response.suggestedWorkoutType
+                workoutType: response.suggestedWorkoutType,
+                effortScore: effortScore,
+                cardiacLoadScore: cardiacLoadScore
             )
 
         } catch {
@@ -152,6 +164,29 @@ class DailyReadinessViewModel: ObservableObject {
         )
     }
 
+    private static let workoutDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
+
+    private func buildRecentWorkoutPayloads(from workouts: [WorkoutModel]) -> [ReadinessWorkoutData] {
+        let now = Date()
+        return workouts.map { workout in
+            let hoursAgo = now.timeIntervalSince(workout.endDate) / 3600
+            return ReadinessWorkoutData(
+                date: Self.workoutDateFormatter.string(from: workout.startDate),
+                distanceMeters: workout.distance ?? 0,
+                durationSeconds: workout.duration,
+                avgHeartRate: workout.averageHeartRate.map { Int($0) },
+                maxHeartRate: workout.maxHeartRate.map { Int($0) },
+                pace: workout.averagePace,
+                hoursAgo: (hoursAgo * 10).rounded() / 10
+            )
+        }
+    }
+
     private func buildBaselinePayload(from baseline: PersonalBaseline) -> PersonalBaselineData {
         PersonalBaselineData(
             restingHeartRateAverage: baseline.restingHeartRateAverage,
@@ -175,7 +210,18 @@ struct DailyReadinessRequest: Encodable {
     let baseline: PersonalBaselineData?
     let dailyActivity: DailyActivityPayload?
     let cardiacLoad: CardiacLoadPayload?
+    let recentWorkouts: [ReadinessWorkoutData]?
     let language: String
+}
+
+struct ReadinessWorkoutData: Encodable {
+    let date: String
+    let distanceMeters: Double
+    let durationSeconds: Double
+    let avgHeartRate: Int?
+    let maxHeartRate: Int?
+    let pace: Double? // min/km
+    let hoursAgo: Double
 }
 
 struct DailyReadinessResponse: Decodable {

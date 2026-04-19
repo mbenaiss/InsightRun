@@ -6,7 +6,7 @@ import type {
   PersonalBaselineData,
   RecoveryData,
 } from '../types'
-import { getLanguageName } from '../utils'
+import { formatPace, getLanguageName } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -14,11 +14,22 @@ type Bindings = {
   RATE_LIMITER: KVNamespace
 }
 
+interface ReadinessWorkoutData {
+  date: string
+  distanceMeters: number
+  durationSeconds: number
+  avgHeartRate?: number
+  maxHeartRate?: number
+  pace?: number // min/km
+  hoursAgo: number
+}
+
 interface DailyReadinessRequest {
   recovery: RecoveryData
   baseline?: PersonalBaselineData
   dailyActivity?: DailyActivityData
   cardiacLoad?: CardiacLoadData
+  recentWorkouts?: ReadinessWorkoutData[]
   language: string
 }
 
@@ -66,6 +77,25 @@ const RecoveryCaps = {
   maxScoreCriticalSleep: 32,
   // Combo alert (low HRV + short sleep) is more restrictive than either alone
   maxScoreComboAlert: 30,
+} as const
+
+// Thresholds for detecting hard efforts in recent workouts
+// Two tiers: race-level efforts need longer recovery than standard hard efforts
+const EffortThresholds = {
+  hard: {
+    distanceKm: 25,
+    durationHours: 2.5,
+    avgHeartRate: 170,
+    recencyHours: 48,
+    scorePenalty: 10,
+  },
+  race: {
+    distanceKm: 35, // marathon-distance efforts
+    durationHours: 3.5,
+    recencyHours: 168, // 7 days recovery window
+    maxPenalty: 15,
+    minPenalty: 5, // degressive: penalty decreases as time passes
+  },
 } as const
 
 // Convert z-score deviation to a 0-1 score (aligned with iOS scoreFromDeviation)
@@ -627,7 +657,8 @@ function buildReadinessContext(
   recovery: RecoveryData,
   baseline?: PersonalBaselineData,
   activity?: DailyActivityData,
-  cardiacLoad?: CardiacLoadData
+  cardiacLoad?: CardiacLoadData,
+  recentWorkouts?: ReadinessWorkoutData[]
 ): string {
   let ctx = ''
 
@@ -687,6 +718,19 @@ function buildReadinessContext(
     ctx += `Baseline reliability: ${baseline.isReliable ? 'reliable' : 'building'} (${baseline.dataPointCount} data points)\n`
   }
 
+  if (recentWorkouts && recentWorkouts.length > 0) {
+    ctx += `\nRecent Workouts (last ${recentWorkouts.length}):\n`
+    for (const w of recentWorkouts) {
+      const distKm = (w.distanceMeters / 1000).toFixed(1)
+      const durMin = Math.round(w.durationSeconds / 60)
+      ctx += `- ${w.date} (${w.hoursAgo.toFixed(0)}h ago): ${distKm} km in ${durMin} min`
+      if (w.pace) ctx += `, pace ${formatPace(w.pace)}`
+      if (w.avgHeartRate) ctx += `, avg HR ${w.avgHeartRate} bpm`
+      if (w.maxHeartRate) ctx += `, max HR ${w.maxHeartRate} bpm`
+      ctx += '\n'
+    }
+  }
+
   return ctx
 }
 
@@ -700,7 +744,8 @@ async function generateAIRecommendation(
   recovery: RecoveryData,
   baseline?: PersonalBaselineData,
   activity?: DailyActivityData,
-  cardiacLoad?: CardiacLoadData
+  cardiacLoad?: CardiacLoadData,
+  recentWorkouts?: ReadinessWorkoutData[]
 ): Promise<string> {
   const langName = getLanguageName(language)
   const readinessContext = buildReadinessContext(
@@ -709,7 +754,8 @@ async function generateAIRecommendation(
     recovery,
     baseline,
     activity,
-    cardiacLoad
+    cardiacLoad,
+    recentWorkouts
   )
 
   const systemPrompt = `You are an expert running coach analyzing daily readiness data.
@@ -718,9 +764,12 @@ Your job is to produce a concise, actionable coaching recommendation (2-3 senten
 Rules:
 - If cardiac load status is "overreaching", you MUST recommend rest or very light active recovery.
 - If the runner already exercised today (exercise minutes >= 20), acknowledge the session and do not push for more training.
+- If recent workouts data is provided, factor the training load into your recommendation:
+  * Race effort (>=${EffortThresholds.race.distanceKm} km or >=${EffortThresholds.race.durationHours}h): requires 5-7 days recovery. Even 3-4 days after a marathon, recommend only easy walks, stretching, or complete rest. Be explicit about the remaining recovery time needed.
+  * Hard effort (>=${EffortThresholds.hard.distanceKm} km, >=${EffortThresholds.hard.durationHours}h, or avg HR >=${EffortThresholds.hard.avgHeartRate} bpm) in the last ${EffortThresholds.hard.recencyHours}h: push towards easier training or rest.
 - Always factor the cardiac load trend into your recommendation.
 - Respond in ${langName}. No markdown, no bullet points — plain text only.
-- Be specific: reference actual metric values when relevant (e.g., sleep duration, HRV).
+- Be specific: reference actual metric values when relevant (e.g., sleep duration, HRV, recent workout distance).
 - Keep it warm, motivating, and actionable.`
 
   const userPrompt = `Here is the runner's readiness data for today:\n\n${readinessContext}\n\nGive your coaching recommendation.`
@@ -776,7 +825,7 @@ app.post('/', async (c) => {
     const language = body.language || 'en'
 
     // Calculate readiness score
-    const { score, insights } = calculateReadinessScore(body.recovery, body.baseline)
+    let { score, insights } = calculateReadinessScore(body.recovery, body.baseline)
 
     // Add daily activity insights
     if (body.dailyActivity) {
@@ -799,6 +848,77 @@ app.post('/', async (c) => {
           cl.status === 'maintaining' ? 'at' : cl.status === 'increasing' ? 'above' : 'below',
         message: `Training load is ${cl.status}`,
       })
+    }
+
+    // Add recent workouts insight and adjust score for hard efforts
+    if (body.recentWorkouts && body.recentWorkouts.length > 0) {
+      const mostRecent = body.recentWorkouts[0]
+      const distKm = mostRecent.distanceMeters / 1000
+
+      insights.push({
+        metric: 'Recent Workout',
+        value: distKm,
+        comparison: distKm >= 15 ? 'above' : distKm >= 5 ? 'at' : 'below',
+        message: `Last workout: ${distKm.toFixed(1)} km, ${Math.round(mostRecent.durationSeconds / 60)} min (${mostRecent.hoursAgo.toFixed(0)}h ago)`,
+      })
+
+      // Penalize score based on effort level and recency
+      // Race-level efforts (marathon+) have a 7-day recovery window with degressive penalty
+      // Standard hard efforts have a 48h window with fixed penalty
+      let effortPenalty = 0
+      let effortWorkout: ReadinessWorkoutData | undefined
+
+      for (const w of body.recentWorkouts) {
+        const km = w.distanceMeters / 1000
+        const hours = w.durationSeconds / 3600
+
+        // Check race-level effort first (marathon+): 7-day degressive penalty
+        if (
+          w.hoursAgo <= EffortThresholds.race.recencyHours &&
+          (km >= EffortThresholds.race.distanceKm || hours >= EffortThresholds.race.durationHours)
+        ) {
+          const recoveryProgress = w.hoursAgo / EffortThresholds.race.recencyHours
+          const penalty = Math.round(
+            EffortThresholds.race.maxPenalty -
+              recoveryProgress *
+                (EffortThresholds.race.maxPenalty - EffortThresholds.race.minPenalty)
+          )
+          if (penalty > effortPenalty) {
+            effortPenalty = penalty
+            effortWorkout = w
+          }
+          continue
+        }
+
+        // Check standard hard effort: 48h fixed penalty
+        if (
+          w.hoursAgo <= EffortThresholds.hard.recencyHours &&
+          (km >= EffortThresholds.hard.distanceKm ||
+            hours >= EffortThresholds.hard.durationHours ||
+            (w.avgHeartRate != null && w.avgHeartRate >= EffortThresholds.hard.avgHeartRate))
+        ) {
+          if (EffortThresholds.hard.scorePenalty > effortPenalty) {
+            effortPenalty = EffortThresholds.hard.scorePenalty
+            effortWorkout = w
+          }
+        }
+      }
+
+      if (effortWorkout && effortPenalty > 0) {
+        score = Math.max(0, score - effortPenalty)
+        const km = (effortWorkout.distanceMeters / 1000).toFixed(1)
+        const isRace =
+          effortWorkout.distanceMeters / 1000 >= EffortThresholds.race.distanceKm ||
+          effortWorkout.durationSeconds / 3600 >= EffortThresholds.race.durationHours
+        insights.push({
+          metric: 'Recent Training Load',
+          value: effortWorkout.hoursAgo,
+          comparison: 'above',
+          message: isRace
+            ? `Race effort detected (${km} km, ${effortWorkout.hoursAgo.toFixed(0)}h ago) — full recovery takes 5-7 days, prioritize rest`
+            : `Hard workout detected (${km} km, ${effortWorkout.hoursAgo.toFixed(0)}h ago) — your body may need extra recovery time`,
+        })
+      }
     }
 
     const status = getStatusFromScore(score)
@@ -825,7 +945,8 @@ app.post('/', async (c) => {
         body.recovery,
         body.baseline,
         body.dailyActivity,
-        body.cardiacLoad
+        body.cardiacLoad,
+        body.recentWorkouts
       )
     } catch (aiError) {
       console.warn('AI recommendation failed, falling back to static:', aiError)

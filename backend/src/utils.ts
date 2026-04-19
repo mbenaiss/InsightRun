@@ -124,6 +124,25 @@ export function formatPace(pace: number): string {
   return `${minutes}'${seconds.toString().padStart(2, '0')}"/km`
 }
 
+export function cleanJSONResponse(text: string): string {
+  let cleaned = text.trim()
+  cleaned = cleaned.replace(/^```json\s*/i, '')
+  cleaned = cleaned.replace(/^```\s*/, '')
+  cleaned = cleaned.replace(/\s*```$/, '')
+  return cleaned.trim()
+}
+
+export function getRaceDistance(raceType: string): string {
+  const distances: Record<string, string> = {
+    '5k': '5 km',
+    '10k': '10 km',
+    half_marathon: '21.1 km (Half Marathon)',
+    marathon: '42.195 km (Marathon)',
+    ultra: '50+ km (Ultra Marathon)',
+  }
+  return distances[raceType] || raceType
+}
+
 const LANGUAGE_NAMES: Record<string, string> = {
   fr: 'French',
   en: 'English',

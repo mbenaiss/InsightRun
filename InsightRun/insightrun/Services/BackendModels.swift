@@ -259,3 +259,126 @@ struct WorkoutGenerationResponse: Decodable {
 struct SmartSuggestionResponse: Decodable {
     let suggestion: String
 }
+
+// MARK: - Training Plan Generation
+
+struct TrainingPlanGenerationRequest: Encodable {
+    let raceType: String
+    let targetDate: String // ISO 8601
+    let startDate: String? // ISO 8601 — user-chosen plan start date
+    let fitnessLevel: String
+    let currentWeeklyVolumeKm: Double?
+    let avgPace: Double?
+    let language: String
+    let trainingDaysPerWeek: Int?
+    let preferredDays: [Int]? // 1=Sunday...7=Saturday
+    let injury: String?
+    let targetTimeSeconds: Int? // Target finish time in seconds
+}
+
+struct TrainingPlanGenerationResponse: Decodable {
+    let plan: GeneratedTrainingPlanData
+    let metadata: TrainingPlanMetadata
+
+    struct GeneratedTrainingPlanData: Decodable {
+        let name: String
+        let goal: String
+        let weeks: [GeneratedWeekData]
+    }
+
+    struct GeneratedWeekData: Decodable {
+        let weekNumber: Int
+        let phase: String
+        let workouts: [GeneratedPlannedWorkoutData]
+        let weeklyVolume: Double?
+        let notes: String?
+    }
+
+    struct GeneratedPlannedWorkoutData: Decodable {
+        let type: String
+        let name: String
+        let description: String
+        let targetDuration: Double?
+        let targetDistance: Double?
+        let targetPace: String?
+        let intensity: String
+        let steps: [GeneratedStepData]?
+    }
+
+    struct GeneratedStepData: Decodable {
+        let type: String
+        let duration: Double?
+        let distance: Double?
+        let targetPace: String?
+        let description: String
+    }
+
+    struct TrainingPlanMetadata: Decodable {
+        let generationTimeMs: Int
+        let modelUsed: String
+        let attempts: Int
+        let weeksGenerated: Int
+    }
+}
+
+// MARK: - Training Plan Adaptation
+
+struct AdaptTrainingPlanRequest: Encodable {
+    let raceType: String
+    let targetDate: String
+    let fitnessLevel: String
+    let language: String
+    let trainingDaysPerWeek: Int
+    let preferredDays: [Int]
+    let targetTimeSeconds: Int?
+    let injury: String?
+    let currentWeekNumber: Int
+    let remainingWeeksCount: Int
+    let originalPlanName: String
+    let originalPlanGoal: String
+    let completedWeeks: [CompletedWeekPayload]
+}
+
+struct CompletedWeekPayload: Encodable {
+    let weekNumber: Int
+    let phase: String
+    let completionRate: Double
+    let workouts: [CompletedWorkoutPayload]
+}
+
+struct CompletedWorkoutPayload: Encodable {
+    let type: String
+    let planned: PlannedWorkoutPayload
+    let actual: ActualWorkoutPayload?
+}
+
+struct PlannedWorkoutPayload: Encodable {
+    let distance: Double?
+    let duration: Double?
+    let pace: String?
+    let intensity: String
+}
+
+struct ActualWorkoutPayload: Encodable {
+    let distance: Double
+    let duration: Double
+    let pace: Double?
+    let heartRate: Double?
+}
+
+struct AdaptTrainingPlanResponse: Decodable {
+    let plan: AdaptedPlanData
+    let metadata: TrainingPlanGenerationResponse.TrainingPlanMetadata
+
+    struct AdaptedPlanData: Decodable {
+        let weeks: [TrainingPlanGenerationResponse.GeneratedWeekData]
+        let adaptation: AdaptationAnalysis
+    }
+
+    struct AdaptationAnalysis: Decodable {
+        let assessment: String
+        let adjustments: String
+        let goalAchievable: Bool
+        let confidenceLevel: String
+    }
+}

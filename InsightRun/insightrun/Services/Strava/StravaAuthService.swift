@@ -183,6 +183,11 @@ class StravaAuthService: ObservableObject {
         let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             self.currentAuthSession = ASWebAuthenticationSession(url: url, callbackURLScheme: "insightrun") { callbackURL, error in
                 if let error = error {
+                    // User closed the OAuth popup. Treat as a skip, not a technical failure.
+                    if let asError = error as? ASWebAuthenticationSessionError, asError.code == .canceledLogin {
+                        continuation.resume(throwing: StravaAuthError.userCancelled)
+                        return
+                    }
                     continuation.resume(throwing: StravaAuthError.authenticationFailed(error.localizedDescription))
                     return
                 }
@@ -309,6 +314,7 @@ class StravaAuthService: ObservableObject {
 enum StravaAuthError: LocalizedError {
     case invalidURL
     case authenticationFailed(String)
+    case userCancelled
     case noCallbackURL
     case invalidCode
     case tokenExchangeFailed
@@ -322,6 +328,8 @@ enum StravaAuthError: LocalizedError {
             return "Invalid Strava URL"
         case .authenticationFailed(let reason):
             return "Authentication failed: \(reason)"
+        case .userCancelled:
+            return "Strava authentication was cancelled"
         case .noCallbackURL:
             return "No callback URL received"
         case .invalidCode:

@@ -55,8 +55,12 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Authorization
 
-    func requestAuthorization() async throws {
-        if DemoMode.isEnabled { return }
+    /// Request HealthKit authorization and return whether the user actually
+    /// granted data access. HealthKit does not expose allow/deny for privacy
+    /// reasons, so the return value is determined by probing `checkDataAccess()`.
+    @discardableResult
+    func requestAuthorization() async throws -> Bool {
+        if DemoMode.isEnabled { return true }
 
         guard HKHealthStore.isHealthDataAvailable() else {
             throw HealthKitError.notAvailable
@@ -155,10 +159,14 @@ class HealthKitManager: ObservableObject {
             WorkoutSyncService.shared.startObserving()
             SleepObserverService.shared.startObserving()
 
-            // Track permission granted (user allowed access)
-            AnalyticsService.shared.trackHealthKitPermissionGranted()
+            let hasAccess = await checkDataAccess()
+            if hasAccess {
+                AnalyticsService.shared.trackHealthKitPermissionGranted()
+            } else {
+                AnalyticsService.shared.trackHealthKitPermissionDenied()
+            }
+            return hasAccess
         } catch {
-            // Track permission denied
             AnalyticsService.shared.trackHealthKitPermissionDenied()
             throw error
         }

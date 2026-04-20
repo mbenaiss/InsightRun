@@ -9,6 +9,7 @@
 import Foundation
 import Combine
 import HealthKit
+import UIKit
 
 // MARK: - Indexation State
 
@@ -58,12 +59,16 @@ class BatchIndexationManager: ObservableObject {
     @Published var retryCount: Int = 0
     @Published var retryDisabled: Bool = false
     @Published var needsManualHealthKitSetup: Bool = false
+    @Published var needsGuidedAccessDisabled: Bool = false
 
     // MARK: - Private Properties
 
     private var isCancelled = false
     private var indexationStartTime: Date?
     private var lastErrorRetryable = true
+    private var currentPhase: String = "idle"
+    private var totalWorkoutCount: Int = 0
+    private var lastBatchWorkoutCount: Int = 0
     static let maxRetries = 3
     private let healthKitManager = HealthKitManager.shared
     private let backendClient = BackendAPIClient.shared
@@ -86,13 +91,28 @@ class BatchIndexationManager: ObservableObject {
             return
         }
 
+        currentPhase = "preflight"
+
+        // Guided Access blocks HealthKit's privacy UI *and* "Open Settings".
+        // Surface a dedicated state instead of letting indexation fail with an
+        // opaque UIViewServiceHostSession error and polluting analytics.
+        if UIAccessibility.isGuidedAccessEnabled {
+            needsGuidedAccessDisabled = true
+            state = .failed(String(localized: "Guided Access is active. Triple-click the side button to disable it, then try again.", comment: "Indexation guided access active error"))
+            lastErrorRetryable = false
+            return
+        }
+
         isCancelled = false
         state = .loading(progress: 0.0)
         progress = 0.0
         indexationStartTime = Date()
+        totalWorkoutCount = 0
+        lastBatchWorkoutCount = 0
 
         do {
             // Step 0: Verify HealthKit availability and authorization
+            currentPhase = "healthkit_auth"
             guard healthKitManager.isHealthDataAvailable else {
                 throw IndexationError.healthKitNotAvailable
             }
@@ -102,6 +122,7 @@ class BatchIndexationManager: ObservableObject {
             }
 
             // Step 1: Fetch total workouts
+            currentPhase = "fetch_workouts"
             print("📊 BatchIndexationManager: Fetching workouts from HealthKit...")
             let allWorkouts = try await healthKitManager.fetchRunningWorkouts()
 
@@ -112,6 +133,7 @@ class BatchIndexationManager: ObservableObject {
 
             // Limit to max workouts and sort by date (most recent first)
             let workoutsToProcess = Array(allWorkouts.prefix(BatchIndexationConfig.maxWorkouts))
+            totalWorkoutCount = workoutsToProcess.count
 
             // No workouts: save an empty summary and complete
             if workoutsToProcess.isEmpty {
@@ -156,6 +178,7 @@ class BatchIndexationManager: ObservableObject {
                 }
 
                 currentBatch = batchIndex + 1
+                currentPhase = "batch_\(currentBatch)_of_\(totalBatches)"
                 print("📊 BatchIndexationManager: Processing batch \(currentBatch)/\(totalBatches) with requestType: \(batchRequestType)...")
 
                 let startIndex = batchIndex * BatchIndexationConfig.batchSize
@@ -164,6 +187,7 @@ class BatchIndexationManager: ObservableObject {
 
                 // Convert batch workouts to WorkoutData
                 let batchData = try await processBatch(batchWorkouts)
+                lastBatchWorkoutCount = batchData.count
 
                 // Send batch to backend for analysis
                 let batchResponse = try await backendClient.analyzeBatch(
@@ -198,6 +222,7 @@ class BatchIndexationManager: ObservableObject {
             }
 
             // Step 4: Consolidation
+            currentPhase = "consolidation"
             print("📊 BatchIndexationManager: Starting final consolidation...")
             state = .loading(progress: 0.70)
             progress = 0.70
@@ -210,6 +235,7 @@ class BatchIndexationManager: ObservableObject {
             )
 
             // Step 5: Complete
+            currentPhase = "completed"
             progress = 1.0
             state = .completed
 
@@ -227,7 +253,7 @@ class BatchIndexationManager: ObservableObject {
             print("❌ BatchIndexationManager: Indexation failed: \(error)")
             let categorizedMessage = categorizeError(error)
             let errorDesc = error.localizedDescription
-            lastErrorRetryable = !isNonRetryableError(errorDesc)
+            lastErrorRetryable = !isNonRetryableError(error)
             let lowered = errorDesc.lowercased()
             needsManualHealthKitSetup = lowered.contains("uiviewservicehostsession") || lowered.contains("inaccessible")
             state = .failed(categorizedMessage)
@@ -291,13 +317,27 @@ class BatchIndexationManager: ObservableObject {
         try await startIndexation()
     }
 
-    /// Check if an error is not worth retrying (auth/permission errors)
-    private func isNonRetryableError(_ message: String) -> Bool {
+    /// Check if an error is not worth retrying (client-side issues that
+    /// won't self-heal: auth/permission errors, malformed payloads, etc.)
+    private func isNonRetryableError(_ error: Error) -> Bool {
+        if let backendError = error as? BackendError {
+            switch backendError {
+            case .unauthorized, .blocked, .invalidResponse:
+                return true
+            case .unknownError(let code, _):
+                // HTTP 4xx (except 408 Timeout and 429 Rate Limit) = client error.
+                // Retrying the same request will yield the same result.
+                return (400..<500).contains(code) && code != 408 && code != 429
+            case .rateLimitExceeded, .serverError:
+                return false
+            }
+        }
+
         let nonRetryableKeywords = [
             "authorization", "permission", "consent", "denied", "not available",
             "inaccessible", "uiviewservicehostsession"
         ]
-        let lowered = message.lowercased()
+        let lowered = error.localizedDescription.lowercased()
         return nonRetryableKeywords.contains { lowered.contains($0) }
     }
 
@@ -312,6 +352,10 @@ class BatchIndexationManager: ObservableObject {
         retryDisabled = false
         lastErrorRetryable = true
         needsManualHealthKitSetup = false
+        needsGuidedAccessDisabled = false
+        currentPhase = "idle"
+        totalWorkoutCount = 0
+        lastBatchWorkoutCount = 0
     }
 
     // MARK: - Private Methods
@@ -324,8 +368,15 @@ class BatchIndexationManager: ObservableObject {
             "debug_error_full": String(describing: error),
             "retry_count": retryCount,
             "categorized_message": categorizedMessage,
-            "is_retryable": lastErrorRetryable
+            "is_retryable": lastErrorRetryable,
+            "phase": currentPhase,
+            "total_workout_count": totalWorkoutCount,
+            "last_batch_workout_count": lastBatchWorkoutCount
         ]
+
+        if let startTime = indexationStartTime {
+            props["elapsed_seconds"] = Int(Date().timeIntervalSince(startTime))
+        }
 
         if currentBatch > 0 { props["failed_at_batch"] = currentBatch }
         if totalBatches > 0 { props["total_batches"] = totalBatches }
@@ -345,6 +396,10 @@ class BatchIndexationManager: ObservableObject {
 
         if let backendError = error as? BackendError {
             props["backend_error"] = String(describing: backendError)
+            if case .unknownError(let code, let body) = backendError {
+                props["http_status_code"] = code
+                if let body = body { props["http_response_body"] = body }
+            }
         }
 
         return props
@@ -361,9 +416,20 @@ class BatchIndexationManager: ObservableObject {
                 return String(localized: "No internet connection. Please check your network and try again.", comment: "Indexation network error")
             case .timedOut:
                 return String(localized: "The request timed out. Please try again.", comment: "Indexation timeout error")
+            case .cancelled:
+                // -999: request cancelled, typically because the app was
+                // backgrounded mid-request during a long batch call.
+                return String(localized: "Indexation was interrupted. Keep the app open and try again.", comment: "Indexation cancelled error")
             default:
                 return String(localized: "A network error occurred. Please try again.", comment: "Indexation generic network error")
             }
+        }
+
+        // Backend rejected the payload (HTTP 4xx) — retrying won't help
+        if let backendError = error as? BackendError,
+           case .unknownError(let code, _) = backendError,
+           (400..<500).contains(code) {
+            return String(localized: "One of your workouts contains invalid data. Please contact support.", comment: "Indexation backend 4xx error")
         }
 
         // Auth/permission errors — not retryable

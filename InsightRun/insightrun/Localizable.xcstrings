@@ -5726,6 +5726,18 @@
         }
       }
     },
+    "goals.recap.planStart" : {
+      "comment" : "Recap - plan start",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Start"
+          }
+        }
+      }
+    },
     "goals.recap.remaining" : {
       "comment" : "Recap - remaining",
       "localizations" : {
@@ -5965,6 +5977,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "semaine"
+          }
+        }
+      }
+    },
+    "goals.wizard.planStart" : {
+      "comment" : "Wizard - plan start date",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan Start Date"
+          }
+        }
+      }
+    },
+    "goals.wizard.planStartHint" : {
+      "comment" : "Wizard - plan start date hint",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "When should the training begin?"
           }
         }
       }
@@ -6657,6 +6693,9 @@
           }
         }
       }
+    },
+    "Guided Access is active. Triple-click the side button to disable it, then try again." : {
+      "comment" : "Indexation guided access active error"
     },
     "h" : {
       "comment" : "Hours unit abbreviation",
@@ -7529,6 +7568,9 @@
           }
         }
       }
+    },
+    "Indexation was interrupted. Keep the app open and try again." : {
+      "comment" : "Indexation cancelled error"
     },
     "Inference error: %@" : {
       "comment" : "Error: inference error with details"
@@ -10000,6 +10042,9 @@
           }
         }
       }
+    },
+    "One of your workouts contains invalid data. Please contact support." : {
+      "comment" : "Indexation backend 4xx error"
     },
     "Open" : {
       "comment" : "Open goal type",

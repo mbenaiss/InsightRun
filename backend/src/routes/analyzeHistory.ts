@@ -1,7 +1,7 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
-import { captureLLMEvent, createPostHogClient } from '../posthog'
+import { captureLLMEvent, captureZodRejection, createPostHogClient } from '../posthog'
 import type { QuotaCheck } from '../quota'
 import type {
   BatchAnalysisResponse,
@@ -250,6 +250,16 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
         return `${path}: ${err.message}`
       })
 
+      captureZodRejection(c, {
+        event: 'indexation_backend_rejected',
+        route: 'batch',
+        error: validationResult.error,
+        extra: {
+          batch_index: typeof body?.batchIndex === 'number' ? body.batchIndex : null,
+          workout_count: Array.isArray(body?.workouts) ? body.workouts.length : null,
+        },
+      })
+
       return c.json(
         {
           error: 'Bad Request',
@@ -392,6 +402,18 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
       const errorMessages = validationResult.error.issues.map((err) => {
         const path = err.path.join('.')
         return `${path}: ${err.message}`
+      })
+
+      captureZodRejection(c, {
+        event: 'indexation_backend_rejected',
+        route: 'consolidate',
+        error: validationResult.error,
+        extra: {
+          batch_summary_count: Array.isArray(body?.batchSummaries)
+            ? body.batchSummaries.length
+            : null,
+          total_workouts: typeof body?.totalWorkouts === 'number' ? body.totalWorkouts : null,
+        },
       })
 
       return c.json(

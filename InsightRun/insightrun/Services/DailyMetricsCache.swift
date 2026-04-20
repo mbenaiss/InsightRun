@@ -28,8 +28,7 @@ final class DailyMetricsCache {
     #endif
 
     private var readinessKey: String {
-        let lang = Locale.current.language.languageCode?.identifier ?? "en"
-        return "\(readinessKeyPrefix)_\(lang)"
+        return "\(readinessKeyPrefix)_\(AppLanguage.current)"
     }
 
     // MARK: - Cached Models

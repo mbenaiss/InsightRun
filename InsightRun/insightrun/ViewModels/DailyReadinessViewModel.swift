@@ -114,7 +114,7 @@ class DailyReadinessViewModel: ObservableObject {
                 dailyActivity: activityPayload,
                 cardiacLoad: cardiacPayload,
                 recentWorkouts: workoutPayloads.isEmpty ? nil : workoutPayloads,
-                language: Locale.current.language.languageCode?.identifier ?? "en"
+                language: AppLanguage.current
             )
 
             let response = try await backendClient.fetchDailyReadiness(request: request)

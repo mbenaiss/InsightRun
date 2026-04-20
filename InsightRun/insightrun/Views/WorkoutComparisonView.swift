@@ -160,7 +160,7 @@ struct WorkoutComparisonView: View {
     // MARK: - AI Comparison Analysis
 
     private var isFrench: Bool {
-        Locale.current.language.languageCode?.identifier == "fr"
+        AppLanguage.current == "fr"
     }
 
     private var comparisonPrompt: String {

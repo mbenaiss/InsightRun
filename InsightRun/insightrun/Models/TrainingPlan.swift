@@ -17,7 +17,7 @@ struct TrainingPlan: Identifiable, Codable {
     let level: FitnessLevel
     var weeks: [TrainingWeek]
     let createdAt: Date
-    let startDate: Date?
+    var startDate: Date?
     let isActive: Bool
 
     init(
@@ -58,7 +58,10 @@ struct TrainingPlan: Identifiable, Codable {
 
     var currentWeekIndex: Int? {
         guard let start = startDate else { return nil }
-        let daysSinceStart = Calendar.current.dateComponents([.day], from: start, to: Date()).day ?? 0
+        let today = Calendar.current.startOfDay(for: Date())
+        let planStart = Calendar.current.startOfDay(for: start)
+        let daysSinceStart = Calendar.current.dateComponents([.day], from: planStart, to: today).day ?? 0
+        guard daysSinceStart >= 0 else { return nil }
         let weekIndex = daysSinceStart / 7
         return weekIndex < weeks.count ? weekIndex : nil
     }
@@ -413,5 +416,18 @@ enum DayOfWeek: Int, Codable, CaseIterable {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         return formatter.weekdaySymbols[self.rawValue - 1]
+    }
+
+    /// Locale-independent English name used for serialization (e.g., AI payload).
+    var canonicalName: String {
+        switch self {
+        case .sunday: return "sunday"
+        case .monday: return "monday"
+        case .tuesday: return "tuesday"
+        case .wednesday: return "wednesday"
+        case .thursday: return "thursday"
+        case .friday: return "friday"
+        case .saturday: return "saturday"
+        }
     }
 }

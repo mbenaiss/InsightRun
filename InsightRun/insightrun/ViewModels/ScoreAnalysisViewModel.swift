@@ -70,7 +70,7 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     private static func cacheKey(for identifier: String) -> String {
         let dateString = DateFormatter.cacheDateFormatter.string(from: Date())
-        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        let lang = AppLanguage.current
         return "\(cachePrefix)\(identifier)_\(lang)_\(dateString)"
     }
 
@@ -128,7 +128,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         pendingAnalysis = nil
 
         let prompt = buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
-        let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
+        let userLanguage = AppLanguage.current
 
         await aiService.askQuestion(
             question: prompt,
@@ -192,7 +192,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         pendingAnalysis = nil
 
         let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit)
-        let userLanguage = Locale.current.language.languageCode?.identifier ?? "en"
+        let userLanguage = AppLanguage.current
 
         await aiService.askQuestion(
             question: prompt,

@@ -435,7 +435,8 @@ class BackendAPIClient {
             profile: nil,
             baseline: nil,
             recentWorkouts: recentWorkoutsData,
-            historicalSummary: historicalSummary
+            historicalSummary: historicalSummary,
+            trainingPlan: nil
         )
 
         let requestBody = ChatRequestV2(

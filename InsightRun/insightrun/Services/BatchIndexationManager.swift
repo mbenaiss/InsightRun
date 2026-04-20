@@ -182,7 +182,7 @@ class BatchIndexationManager: ObservableObject {
             var lastSkippedError: BackendError?
             let batchRequestType = RequestType.batchProcessing.rawValue // Backend selects optimal model
             let consolidationRequestType = RequestType.moderate.rawValue // Backend selects optimal model
-            let language = Locale.current.language.languageCode?.identifier ?? "en"
+            let language = AppLanguage.current
 
             // Step 3: Process batches
             for batchIndex in 0..<totalBatches {

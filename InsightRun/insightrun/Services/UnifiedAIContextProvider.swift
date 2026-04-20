@@ -56,6 +56,12 @@ class UnifiedAIContextProvider: ObservableObject {
         }
     }
 
+    /// The currently-active goal with a training plan, if any.
+    /// Reads directly from `GoalStorage` — goals data is light and changes outside this provider.
+    var activeGoalWithPlan: RaceGoal? {
+        GoalStorage.shared.load().first { $0.isActive && !$0.isPast && $0.hasTrainingPlan }
+    }
+
     /// Load recent workouts with metrics
     func loadRecentWorkouts() async {
         isLoadingWorkouts = true

@@ -229,8 +229,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     // MARK: - Payload Builder
 
     private func getUserLanguage() -> String {
-        // Get user's preferred language
-        let preferredLanguage = Locale.current.language.languageCode?.identifier ?? "en"
+        let preferredLanguage = AppLanguage.current
 
         // Map to supported language codes
         let supportedLanguages = ["fr", "en", "es", "de", "it", "pt", "nl", "ja", "zh", "ko", "ar"]
@@ -293,7 +292,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             profile: healthProfile,
             baseline: personalBaseline,
             recentWorkouts: nil,
-            historicalSummary: historicalSummary?.summary
+            historicalSummary: historicalSummary?.summary,
+            trainingPlan: nil
         )
 
         // Extract data from mode (always keep profile and baseline)
@@ -305,7 +305,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 profile: healthProfile,
                 baseline: personalBaseline,
                 recentWorkouts: nil,
-                historicalSummary: historicalSummary?.summary
+                historicalSummary: historicalSummary?.summary,
+                trainingPlan: nil
             )
         case .recentWorkouts(let workouts, let metricsDict):
             // ✅ OPTIMIZATION: Limit to 10 most recent workouts
@@ -339,7 +340,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     weeklyVolumeChange: nil,
                     daysSinceLastWorkout: nil
                 ),
-                historicalSummary: historicalSummary?.summary
+                historicalSummary: historicalSummary?.summary,
+                trainingPlan: nil
             )
         case .recoveryCoaching(let recoveryMetrics):
             chatData = ChatDataPayload(
@@ -348,16 +350,16 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 profile: healthProfile,
                 baseline: personalBaseline,
                 recentWorkouts: nil,
-                historicalSummary: historicalSummary?.summary
+                historicalSummary: historicalSummary?.summary,
+                trainingPlan: nil
             )
         case .unified:
-            // Unified mode - load all data from UnifiedAIContextProvider
-            let (workouts, metricsDict, recoveryMetrics, selectedWorkout, selectedMetrics) = await MainActor.run {
+            let (workouts, metricsDict, recoveryMetrics, selectedWorkout, selectedMetrics, activeGoal) = await MainActor.run {
                 let cp = UnifiedAIContextProvider.shared
-                return (cp.recentWorkouts, cp.workoutsMetrics, cp.recoveryMetrics, cp.selectedWorkout, cp.selectedWorkoutMetrics)
+                return (cp.recentWorkouts, cp.workoutsMetrics, cp.recoveryMetrics, cp.selectedWorkout, cp.selectedWorkoutMetrics, cp.activeGoalWithPlan)
             }
 
-            print("📊 WorkoutAIService: Unified mode - \(workouts.count) workouts, recovery: \(recoveryMetrics != nil)")
+            print("📊 WorkoutAIService: Unified mode - \(workouts.count) workouts, recovery: \(recoveryMetrics != nil), goal: \(activeGoal?.raceName ?? "none")")
 
             // Build recovery data if available
             var recoveryData: RecoveryData? = nil
@@ -399,7 +401,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 profile: healthProfile,
                 baseline: personalBaseline,
                 recentWorkouts: recentWorkoutsData,
-                historicalSummary: historicalSummary?.summary
+                historicalSummary: historicalSummary?.summary,
+                trainingPlan: activeGoal.flatMap { convertToTrainingPlanData(goal: $0) }
             )
         }
 
@@ -463,6 +466,84 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     time: split.timeFormatted
                 )
             }
+        )
+    }
+
+    private func convertToTrainingPlanData(goal: RaceGoal) -> TrainingPlanData? {
+        guard let plan = goal.trainingPlan else { return nil }
+
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withFullDate]
+
+        let currentIndex = plan.currentWeekIndex ?? 0
+        let weeksData = plan.weeks.enumerated().map { index, week -> TrainingWeekData in
+            let includeSteps = abs(index - currentIndex) <= 1
+            return TrainingWeekData(
+                weekNumber: week.weekNumber,
+                phase: week.phase.rawValue,
+                volumeKm: week.weeklyVolume,
+                notes: week.notes,
+                days: week.days.map { day in
+                    TrainingDayData(
+                        dayOfWeek: day.dayOfWeek.canonicalName,
+                        isRestDay: day.isRestDay,
+                        isCompleted: day.isCompleted,
+                        autoMatched: day.completedWorkoutId != nil,
+                        workout: day.workout.map { convertPlannedWorkout($0, includeSteps: includeSteps) }
+                    )
+                }
+            )
+        }
+
+        let todaySessionData: PlannedWorkoutData? = {
+            guard let session = goal.todaySession, let workout = session.day.workout else { return nil }
+            return convertPlannedWorkout(workout, includeSteps: true)
+        }()
+
+        return TrainingPlanData(
+            raceName: goal.raceName,
+            raceType: goal.raceType.rawValue,
+            raceDistanceKm: goal.raceType.distanceKm,
+            targetDate: isoFormatter.string(from: goal.targetDate),
+            daysRemaining: goal.daysRemaining,
+            fitnessLevel: goal.fitnessLevel.rawValue,
+            targetTimeSeconds: goal.targetTime.map { Int($0) },
+            preferredDays: goal.preferredDays.map { $0.canonicalName },
+            injury: goal.injury,
+            planName: plan.name,
+            planGoal: plan.goal,
+            planStartDate: plan.startDate.map { isoFormatter.string(from: $0) },
+            totalWeeks: plan.totalWeeks,
+            currentWeekNumber: plan.currentWeekIndex.map { $0 + 1 },
+            currentPhase: goal.currentPhase?.rawValue,
+            completedWorkouts: goal.completedWorkouts,
+            totalPlannedWorkouts: goal.totalPlannedWorkouts,
+            completionRate: goal.workoutCompletionRate,
+            lastAdaptationDate: plan.lastAdaptationDate.map { isoFormatter.string(from: $0) },
+            adaptationAssessment: plan.adaptationAssessment,
+            weeks: weeksData,
+            todaySession: todaySessionData
+        )
+    }
+
+    private func convertPlannedWorkout(_ workout: PlannedWorkout, includeSteps: Bool) -> PlannedWorkoutData {
+        PlannedWorkoutData(
+            name: workout.name,
+            type: workout.type.rawValue,
+            intensity: workout.intensity.rawValue,
+            description: workout.description,
+            targetDistanceM: workout.targetDistance,
+            targetDurationS: workout.targetDuration,
+            targetPace: workout.targetPace,
+            steps: includeSteps ? workout.steps.map { step in
+                PlannedWorkoutStepData(
+                    type: step.type.rawValue,
+                    description: step.description,
+                    durationS: step.duration,
+                    distanceM: step.distance,
+                    targetPace: step.targetPace
+                )
+            } : []
         )
     }
 

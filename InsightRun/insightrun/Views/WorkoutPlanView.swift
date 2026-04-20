@@ -94,7 +94,7 @@ class WorkoutPlanViewModel: ObservableObject {
             let userContext = await buildEnrichedUserContext()
 
             // Get user language
-            let language = Locale.current.language.languageCode?.identifier ?? "en"
+            let language = AppLanguage.current
 
             // Call backend (backend selects optimal model based on requestType)
             let response = try await backendClient.generateWorkout(
@@ -480,7 +480,7 @@ class WorkoutPlanViewModel: ObservableObject {
                 daysSinceLastWorkout: daysSinceLastWorkout
             )
 
-            let language = Locale.current.language.languageCode?.identifier ?? "en"
+            let language = AppLanguage.current
 
             // 4. Call smart suggestion endpoint with enriched payload
             let response = try await backendClient.generateSmartWorkoutSuggestion(

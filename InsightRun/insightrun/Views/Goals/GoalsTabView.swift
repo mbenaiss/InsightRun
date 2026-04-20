@@ -104,6 +104,15 @@ struct GoalsTabView: View {
             .onReceive(NotificationCenter.default.publisher(for: .trainingDayCompleted)) { _ in
                 viewModel.reload()
             }
+            .task {
+                let key = "goals.lastCatchUpAt"
+                let now = Date().timeIntervalSince1970
+                let last = UserDefaults.standard.double(forKey: key)
+                guard now - last > 300 else { return } // throttle: 5 min
+                UserDefaults.standard.set(now, forKey: key)
+                await WorkoutMatchingService.shared.catchUpMatch()
+                viewModel.reload()
+            }
         }
     }
 

@@ -10,10 +10,12 @@ import SwiftUI
 struct GoalDetailView: View {
     let goal: RaceGoal
     @ObservedObject var viewModel: GoalsViewModel
+    @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @State private var showDeleteConfirmation = false
     @State private var showRenameAlert = false
     @State private var renameText = ""
     @State private var selectedPlanTab = 0 // 0 = current week, 1 = full plan
+    @State private var showSubscriptionPaywall = false
     @Environment(\.dismiss) private var dismiss
 
     private var currentGoal: RaceGoal {
@@ -54,19 +56,17 @@ struct GoalDetailView: View {
                     if currentGoal.hasTrainingPlan {
                         Button {
                             Task {
-                                await viewModel.adaptPlanIfNeeded(for: currentGoal)
+                                await viewModel.setPlanStartDate(goalId: currentGoal.id, newStart: Date())
                             }
                         } label: {
                             Label(
-                                String(localized: "goals.detail.adapt", defaultValue: "Adapt Plan", comment: "Goal detail - adapt plan"),
-                                systemImage: "wand.and.stars"
+                                String(localized: "goals.detail.startToday", defaultValue: "Start Today", comment: "Goal detail - start today"),
+                                systemImage: "calendar.badge.clock"
                             )
                         }
 
                         Button {
-                            Task {
-                                await viewModel.generateTrainingPlan(for: currentGoal)
-                            }
+                            handleGenerateTap(for: currentGoal)
                         } label: {
                             Label(
                                 String(localized: "goals.detail.regenerate", defaultValue: "Regenerate Plan", comment: "Goal detail - regenerate"),
@@ -141,11 +141,46 @@ struct GoalDetailView: View {
                 Text(error)
             }
         }
+        .sheet(isPresented: $showSubscriptionPaywall) {
+            SubscriptionPaywallView(isInitialFlow: false)
+                .environmentObject(revenueCatManager)
+        }
+        .sheet(isPresented: $viewModel.needsConsent) {
+            AIConsentSheet(
+                onConsent: {
+                    viewModel.needsConsent = false
+                    Task { await viewModel.resumePendingGeneration() }
+                },
+                onDecline: {
+                    viewModel.needsConsent = false
+                    viewModel.clearPendingGeneration()
+                }
+            )
+        }
         .task {
             // Auto-adapt plan when opening goal detail (silently, respects throttle)
             if currentGoal.isActive && !currentGoal.isPast && currentGoal.hasTrainingPlan {
                 await viewModel.adaptPlanIfNeeded(for: currentGoal)
             }
+        }
+    }
+
+    // MARK: - Plan Generation Tap Handling
+
+    private var generateButtonTitle: String {
+        if revenueCatManager.hasAIAccess {
+            return String(localized: "goals.detail.generateButton", defaultValue: "Generate My Plan", comment: "Goal button")
+        }
+        return String(localized: "goals.detail.subscribeToGenerate", defaultValue: "Subscribe to Unlock", comment: "Goal button - subscribe CTA")
+    }
+
+    private func handleGenerateTap(for goal: RaceGoal) {
+        if !revenueCatManager.hasAIAccess {
+            showSubscriptionPaywall = true
+            return
+        }
+        Task {
+            await viewModel.generateTrainingPlan(for: goal)
         }
     }
 
@@ -164,7 +199,7 @@ struct GoalDetailView: View {
                             Image(systemName: currentGoal.raceType.icon)
                                 .foregroundStyle(Color.irPrimaryAccent.gradient)
                         }
-                        
+
                         Text(currentGoal.raceType.displayName)
                             .font(.headline)
                             .foregroundStyle(Color.irTextSecondary)
@@ -174,15 +209,6 @@ struct GoalDetailView: View {
                         .font(.title3)
                         .fontWeight(.bold)
                         .foregroundStyle(Color.irTextPrimary)
-
-                    Text(currentGoal.fitnessLevel.displayName)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.irPrimaryAccent)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, 4)
-                        .background(Color.irPrimaryAccent.opacity(0.1))
-                        .clipShape(Capsule())
                 }
 
                 Spacer()
@@ -191,6 +217,32 @@ struct GoalDetailView: View {
                 if !currentGoal.isPast {
                     countdownRing
                 }
+            }
+
+            // Target time
+            if let formatted = currentGoal.formattedTargetTime {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "stopwatch.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irPrimaryAccent)
+
+                    Text(String(localized: "goals.detail.targetTime", defaultValue: "Target time", comment: "Goal detail - target time label"))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.irTextSecondary)
+
+                    Spacer()
+
+                    Text(formatted)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.irTextPrimary)
+                        .monospacedDigit()
+                }
+                .padding(Spacing.md)
+                .frame(maxWidth: .infinity)
+                .background(Color.irSurface.opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             }
 
             // Stats Dashboard
@@ -367,13 +419,11 @@ struct GoalDetailView: View {
                 }
 
                 Button {
-                    Task {
-                        await viewModel.generateTrainingPlan(for: currentGoal)
-                    }
+                    handleGenerateTap(for: currentGoal)
                 } label: {
                     HStack {
-                        Image(systemName: "sparkles")
-                        Text(String(localized: "goals.detail.generateButton", defaultValue: "Generate My Plan", comment: "Goal button"))
+                        Image(systemName: revenueCatManager.hasAIAccess ? "sparkles" : "lock.fill")
+                        Text(generateButtonTitle)
                     }
                     .font(.headline)
                     .foregroundStyle(.white)
@@ -419,11 +469,6 @@ struct GoalDetailView: View {
                 }
             }
 
-            // Plan header
-            Text(plan.name)
-                .font(.headline)
-                .foregroundStyle(Color.irTextPrimary)
-
             Text(plan.goal)
                 .font(.subheadline)
                 .foregroundStyle(Color.irTextSecondary)
@@ -458,8 +503,42 @@ struct GoalDetailView: View {
 
     // MARK: - Current Week View
 
+    @ViewBuilder
     private func currentWeekView(_ plan: TrainingPlan) -> some View {
-        let weekIndex = plan.currentWeekIndex ?? 0
+        if let weekIndex = plan.currentWeekIndex {
+            weekContent(plan, weekIndex: weekIndex)
+        } else if let start = plan.startDate, start > Date() {
+            planNotStartedView(start: start)
+        } else {
+            weekContent(plan, weekIndex: 0)
+        }
+    }
+
+    private func planNotStartedView(start: Date) -> some View {
+        let days = max(0, Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: Calendar.current.startOfDay(for: start)).day ?? 0)
+        let template = String(localized: "goals.plan.notStartedMessage", defaultValue: "Your training plan begins on %1$@ (in %2$d days).", comment: "Plan not started - message: %1$@ = date, %2$d = days")
+        let message = String(format: template, start.formatted(date: .long, time: .omitted), days)
+
+        return VStack(spacing: Spacing.md) {
+            Image(systemName: "calendar.badge.clock")
+                .font(.largeTitle)
+                .foregroundStyle(Color.irPrimaryAccent.gradient)
+
+            Text(String(localized: "goals.plan.notStartedTitle", defaultValue: "Plan starts soon", comment: "Plan not started - title"))
+                .font(.headline)
+                .foregroundStyle(Color.irTextPrimary)
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(Color.irTextSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Spacing.xl)
+        .cardStyle(padding: 0)
+    }
+
+    private func weekContent(_ plan: TrainingPlan, weekIndex: Int) -> some View {
         let week = plan.weeks[weekIndex]
 
         return VStack(alignment: .leading, spacing: Spacing.md) {

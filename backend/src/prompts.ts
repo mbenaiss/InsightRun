@@ -529,7 +529,7 @@ function buildTrainingPlanContext(plan: TrainingPlanData): string {
     const formatted =
       h > 0
         ? `${h}h${m.toString().padStart(2, '0')}m${s > 0 ? s.toString().padStart(2, '0') : ''}`
-        : `${m}m${s > 0 ? s.toString().padStart(2, '0') + 's' : ''}`
+        : `${m}m${s > 0 ? `${s.toString().padStart(2, '0')}s` : ''}`
     context += `- **Target finish time:** ${formatted}\n`
   }
   if (plan.injury) {
@@ -614,7 +614,11 @@ function formatPlannedWorkoutInline(w: PlannedWorkoutData): string {
   if (w.targetDistanceM != null) stats.push(`${(w.targetDistanceM / 1000).toFixed(1)} km`)
   if (w.targetDurationS != null) {
     const mins = Math.round(w.targetDurationS / 60)
-    stats.push(mins >= 60 ? `${Math.floor(mins / 60)}h${(mins % 60).toString().padStart(2, '0')}` : `${mins} min`)
+    stats.push(
+      mins >= 60
+        ? `${Math.floor(mins / 60)}h${(mins % 60).toString().padStart(2, '0')}`
+        : `${mins} min`
+    )
   }
   if (w.targetPace) stats.push(`pace ${w.targetPace}`)
   if (stats.length > 0) parts.push(stats.join(' · '))

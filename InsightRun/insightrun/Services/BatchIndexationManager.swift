@@ -60,6 +60,7 @@ class BatchIndexationManager: ObservableObject {
     @Published var retryDisabled: Bool = false
     @Published var needsManualHealthKitSetup: Bool = false
     @Published var needsGuidedAccessDisabled: Bool = false
+    @Published var skippedWorkoutCount: Int = 0
 
     // MARK: - Private Properties
 
@@ -109,6 +110,7 @@ class BatchIndexationManager: ObservableObject {
         indexationStartTime = Date()
         totalWorkoutCount = 0
         lastBatchWorkoutCount = 0
+        skippedWorkoutCount = 0
 
         do {
             // Step 0: Verify HealthKit availability and authorization
@@ -166,6 +168,7 @@ class BatchIndexationManager: ObservableObject {
             )
 
             var batchSummaries: [String] = []
+            var lastSkippedError: BackendError?
             let batchRequestType = RequestType.batchProcessing.rawValue // Backend selects optimal model
             let consolidationRequestType = RequestType.moderate.rawValue // Backend selects optimal model
             let language = Locale.current.language.languageCode?.identifier ?? "en"
@@ -189,24 +192,33 @@ class BatchIndexationManager: ObservableObject {
                 let batchData = try await processBatch(batchWorkouts)
                 lastBatchWorkoutCount = batchData.count
 
-                // Send batch to backend for analysis
-                let batchResponse = try await backendClient.analyzeBatch(
-                    workouts: batchData,
-                    batchIndex: batchIndex,
-                    requestType: batchRequestType,
-                    model: nil, // Backend will select model
-                    language: language
-                )
+                do {
+                    let batchResponse = try await backendClient.analyzeBatch(
+                        workouts: batchData,
+                        batchIndex: batchIndex,
+                        requestType: batchRequestType,
+                        model: nil, // Backend will select model
+                        language: language
+                    )
+                    batchSummaries.append(batchResponse.partialSummary)
+                } catch let backendError as BackendError where Self.isClient4xx(backendError) {
+                    // Client-side rejection (typically a malformed workout).
+                    // Skip the batch, track for diagnostics, keep indexing —
+                    // a partial summary beats a hard failure for the user.
+                    skippedWorkoutCount += batchWorkouts.count
+                    lastSkippedError = backendError
+                    AnalyticsService.shared.track(
+                        .indexationFailed,
+                        properties: indexationDebugInfo(error: backendError, categorizedMessage: "skipped_batch_4xx")
+                    )
+                    print("⚠️ BatchIndexationManager: Batch \(currentBatch) skipped (\(backendError.localizedDescription)) — \(batchWorkouts.count) workouts excluded")
+                }
 
-                // Collect partial summary
-                batchSummaries.append(batchResponse.partialSummary)
-
-                // Update progress (0-70%)
+                // Update progress (0-70%) regardless of success/skip
                 let batchProgress = Double(currentBatch) / Double(totalBatches)
                 progress = batchProgress * BatchIndexationConfig.batchProcessingWeight
                 state = .loading(progress: progress)
 
-                // Track batch processed
                 AnalyticsService.shared.trackIndexationBatchProcessed(
                     batchNumber: currentBatch,
                     totalBatches: totalBatches,
@@ -214,6 +226,13 @@ class BatchIndexationManager: ObservableObject {
                 )
 
                 print("📊 BatchIndexationManager: Batch \(currentBatch) completed (\(Int(progress * 100))%)")
+            }
+
+            // If every batch was rejected by the server, surface the last
+            // error so the user sees something — otherwise we'd consolidate
+            // an empty list and fail in a more confusing way.
+            if batchSummaries.isEmpty, let lastSkippedError {
+                throw lastSkippedError
             }
 
             guard !isCancelled else {
@@ -227,9 +246,10 @@ class BatchIndexationManager: ObservableObject {
             state = .loading(progress: 0.70)
             progress = 0.70
 
+            let indexedWorkoutCount = workoutsToProcess.count - skippedWorkoutCount
             try await consolidateAndSave(
                 batchSummaries: batchSummaries,
-                totalWorkouts: workoutsToProcess.count,
+                totalWorkouts: indexedWorkoutCount,
                 requestType: consolidationRequestType,
                 language: language
             )
@@ -239,15 +259,18 @@ class BatchIndexationManager: ObservableObject {
             progress = 1.0
             state = .completed
 
-            // Track indexation completed
             let duration = indexationStartTime.map { Date().timeIntervalSince($0) } ?? 0
             AnalyticsService.shared.trackIndexationCompleted(
-                workoutsCount: workoutsToProcess.count,
+                workoutsCount: indexedWorkoutCount,
                 durationSeconds: duration,
                 totalBatches: totalBatches
             )
 
-            print("✅ BatchIndexationManager: Indexation completed successfully!")
+            if skippedWorkoutCount > 0 {
+                print("✅ BatchIndexationManager: Indexation completed — \(skippedWorkoutCount) workouts excluded (\(indexedWorkoutCount)/\(workoutsToProcess.count) indexed)")
+            } else {
+                print("✅ BatchIndexationManager: Indexation completed successfully!")
+            }
 
         } catch {
             print("❌ BatchIndexationManager: Indexation failed: \(error)")
@@ -317,6 +340,15 @@ class BatchIndexationManager: ObservableObject {
         try await startIndexation()
     }
 
+    /// HTTP 4xx client errors (excluding 408 Timeout and 429 Rate Limit) —
+    /// retrying the same payload yields the same result.
+    static func isClient4xx(_ error: BackendError) -> Bool {
+        if case .unknownError(let code, _) = error {
+            return (400..<500).contains(code) && code != 408 && code != 429
+        }
+        return false
+    }
+
     /// Check if an error is not worth retrying (client-side issues that
     /// won't self-heal: auth/permission errors, malformed payloads, etc.)
     private func isNonRetryableError(_ error: Error) -> Bool {
@@ -324,10 +356,8 @@ class BatchIndexationManager: ObservableObject {
             switch backendError {
             case .unauthorized, .blocked, .invalidResponse:
                 return true
-            case .unknownError(let code, _):
-                // HTTP 4xx (except 408 Timeout and 429 Rate Limit) = client error.
-                // Retrying the same request will yield the same result.
-                return (400..<500).contains(code) && code != 408 && code != 429
+            case .unknownError:
+                return Self.isClient4xx(backendError)
             case .rateLimitExceeded, .serverError:
                 return false
             }
@@ -356,6 +386,7 @@ class BatchIndexationManager: ObservableObject {
         currentPhase = "idle"
         totalWorkoutCount = 0
         lastBatchWorkoutCount = 0
+        skippedWorkoutCount = 0
     }
 
     // MARK: - Private Methods
@@ -371,7 +402,8 @@ class BatchIndexationManager: ObservableObject {
             "is_retryable": lastErrorRetryable,
             "phase": currentPhase,
             "total_workout_count": totalWorkoutCount,
-            "last_batch_workout_count": lastBatchWorkoutCount
+            "last_batch_workout_count": lastBatchWorkoutCount,
+            "skipped_workout_count": skippedWorkoutCount
         ]
 
         if let startTime = indexationStartTime {

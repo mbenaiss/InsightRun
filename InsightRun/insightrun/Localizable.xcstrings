@@ -6695,7 +6695,16 @@
       }
     },
     "Guided Access is active. Triple-click the side button to disable it, then try again." : {
-      "comment" : "Indexation guided access active error"
+      "comment" : "Indexation guided access active error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'accès guidé est activé. Triple-cliquez sur le bouton latéral pour le désactiver, puis réessayez."
+          }
+        }
+      }
     },
     "h" : {
       "comment" : "Hours unit abbreviation",
@@ -7570,7 +7579,16 @@
       }
     },
     "Indexation was interrupted. Keep the app open and try again." : {
-      "comment" : "Indexation cancelled error"
+      "comment" : "Indexation cancelled error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'indexation a été interrompue. Gardez l'application ouverte et réessayez."
+          }
+        }
+      }
     },
     "Inference error: %@" : {
       "comment" : "Error: inference error with details"
@@ -10044,7 +10062,16 @@
       }
     },
     "One of your workouts contains invalid data. Please contact support." : {
-      "comment" : "Indexation backend 4xx error"
+      "comment" : "Indexation backend 4xx error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'une de vos séances contient des données invalides. Veuillez contacter le support."
+          }
+        }
+      }
     },
     "Open" : {
       "comment" : "Open goal type",

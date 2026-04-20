@@ -134,8 +134,19 @@ class BatchIndexationManager: ObservableObject {
             }
 
             // Limit to max workouts and sort by date (most recent first)
-            let workoutsToProcess = Array(allWorkouts.prefix(BatchIndexationConfig.maxWorkouts))
-            totalWorkoutCount = workoutsToProcess.count
+            let allCandidates = Array(allWorkouts.prefix(BatchIndexationConfig.maxWorkouts))
+            totalWorkoutCount = allCandidates.count
+
+            // Backend Zod enforces `duration > 0` on every workout. Third-party
+            // imports (Strava/Garmin/manual entries) occasionally land in
+            // HealthKit with zero or NaN duration — drop them pre-flight so one
+            // malformed record doesn't reject a whole 50-workout batch.
+            let workoutsToProcess = allCandidates.filter { $0.duration.isFinite && $0.duration > 0 }
+            let preflightDropped = allCandidates.count - workoutsToProcess.count
+            if preflightDropped > 0 {
+                skippedWorkoutCount += preflightDropped
+                print("⚠️ BatchIndexationManager: \(preflightDropped) workouts excluded (invalid duration)")
+            }
 
             // No workouts: save an empty summary and complete
             if workoutsToProcess.isEmpty {
@@ -498,12 +509,17 @@ class BatchIndexationManager: ObservableObject {
             // Fetch essential metrics (use try? to continue on error)
             let metrics = try? await healthKitManager.fetchEssentialMetrics(for: workout)
 
-            // Convert to WorkoutData
+            // Clamp numeric fields to what the backend Zod schema accepts:
+            // `distance` must be >= 0, any number must be finite (NaN/Inf from
+            // third-party imports gets serialized to null and rejected).
+            let safeDistance = max(workout.distance ?? 0, 0)
+            let safeCalories = workout.totalEnergyBurned.flatMap { $0.isFinite ? max($0, 0) : nil }
+
             let workoutData = WorkoutData(
                 date: ISO8601DateFormatter().string(from: workout.startDate),
                 duration: workout.duration,
-                distance: workout.distance ?? 0,
-                calories: workout.totalEnergyBurned,
+                distance: safeDistance,
+                calories: safeCalories,
                 pace: workout.averagePace,
                 speed: workout.averageSpeed,
                 heartRate: metrics?.heartRate.map { hr in

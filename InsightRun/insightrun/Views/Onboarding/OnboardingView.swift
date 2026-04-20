@@ -53,7 +53,7 @@ struct OnboardingView: View {
                         }
                     },
                     onSkip: {
-                        // User skipped HealthKit — they'll see authorizationView in WorkoutListView
+                        AnalyticsService.shared.trackOnboardingStepCompleted(step: 2, stepName: "healthkit_permission")
                         withAnimation {
                             currentStep = 2
                         }

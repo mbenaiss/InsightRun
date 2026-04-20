@@ -59,7 +59,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -106,7 +106,7 @@ class BackendAPIClient {
                     case 500...599:
                         throw BackendError.serverError
                     default:
-                        throw BackendError.unknownError(httpResponse.statusCode)
+                        throw BackendError.unknownError(code: httpResponse.statusCode, body: nil)
                     }
 
                     for try await line in bytes.lines {
@@ -183,7 +183,7 @@ class BackendAPIClient {
                     case 500...599:
                         throw BackendError.serverError
                     default:
-                        throw BackendError.unknownError(httpResponse.statusCode)
+                        throw BackendError.unknownError(code: httpResponse.statusCode, body: nil)
                     }
 
                     for try await line in bytes.lines {
@@ -274,7 +274,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -325,7 +325,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -405,7 +405,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -468,7 +468,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -510,7 +510,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -547,7 +547,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -584,7 +584,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -628,7 +628,7 @@ class BackendAPIClient {
         case 500...599:
             throw BackendError.serverError
         default:
-            throw BackendError.unknownError(httpResponse.statusCode)
+            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
         }
 
         let decoder = JSONDecoder()
@@ -666,7 +666,7 @@ enum BackendError: LocalizedError {
     case rateLimitExceeded
     case serverError
     case invalidResponse
-    case unknownError(Int)
+    case unknownError(code: Int, body: String?)
 
     var errorDescription: String? {
         switch self {
@@ -680,8 +680,14 @@ enum BackendError: LocalizedError {
             return String(localized: "Server error. Please try again.", comment: "Backend error: server error")
         case .invalidResponse:
             return String(localized: "Invalid response from server", comment: "Backend error: invalid response")
-        case .unknownError(let code):
+        case .unknownError(let code, _):
             return String(localized: "Unknown error (HTTP \(code))", comment: "Backend error: unknown HTTP error")
         }
+    }
+
+    /// Truncate a response body to a preview suitable for analytics.
+    static func bodyPreview(from data: Data, maxBytes: Int = 500) -> String? {
+        guard !data.isEmpty else { return nil }
+        return String(data: data.prefix(maxBytes), encoding: .utf8)
     }
 }

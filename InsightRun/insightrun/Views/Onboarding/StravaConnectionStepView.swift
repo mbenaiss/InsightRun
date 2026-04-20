@@ -180,11 +180,13 @@ struct StravaConnectionStepView: View {
 
                 // Trigger initial sync after successful authentication
                 await triggerInitialSync()
+            } catch StravaAuthError.userCancelled {
+                AnalyticsService.shared.trackStravaConnectionSkipped()
+                print("ℹ️ Strava authentication cancelled by user")
             } catch {
                 errorMessage = error.localizedDescription
                 showError = true
 
-                // Track connection failure
                 AnalyticsService.shared.trackStravaConnectionFailed(
                     errorType: String(describing: type(of: error)),
                     errorMessage: error.localizedDescription

@@ -176,10 +176,7 @@ struct HealthKitPermissionStepView: View {
 
         Task {
             do {
-                try await HealthKitManager.shared.requestAuthorization()
-
-                // Check if we actually got access
-                let hasAccess = await HealthKitManager.shared.checkDataAccess()
+                let hasAccess = try await HealthKitManager.shared.requestAuthorization()
 
                 await MainActor.run {
                     isRequesting = false
@@ -187,7 +184,6 @@ struct HealthKitPermissionStepView: View {
                     if hasAccess {
                         onContinue()
                     } else {
-                        // User denied — offer to skip or open Settings
                         errorMessage = String(localized: "You can grant access later in Settings. Some features won't be available without HealthKit.", comment: "Onboarding HealthKit denied message")
                         showError = true
                     }

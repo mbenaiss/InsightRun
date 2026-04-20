@@ -381,7 +381,7 @@ class WorkoutPlanViewModel: ObservableObject {
             self.error = String(localized: "Server error. Please try again.", comment: "Workout generation error")
         case .invalidResponse:
             self.error = String(localized: "Invalid response from server", comment: "Workout generation error")
-        case .unknownError(let code):
+        case .unknownError(let code, _):
             self.error = String(localized: "Error %@", comment: "Workout generation error").replacingOccurrences(of: "%@", with: String(code))
         }
 

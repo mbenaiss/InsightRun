@@ -205,7 +205,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 errorMessage = String(localized: "Server error. Try again later.", comment: "Error message for server errors")
             case .invalidResponse:
                 errorMessage = String(localized: "Invalid response from server", comment: "Error message for invalid server responses")
-            case .unknownError(let code):
+            case .unknownError(let code, _):
                 errorMessage = String(localized: "Error %@. Try again later.", comment: "Generic error message with error code").replacingOccurrences(of: "%@", with: String(code))
             }
 

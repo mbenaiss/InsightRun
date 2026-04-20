@@ -125,14 +125,22 @@ struct RaceGoal: Identifiable, Codable {
     }
 
     var formattedFinishTime: String? {
-        guard let time = finishTime else { return nil }
-        let hours = Int(time) / 3600
-        let minutes = (Int(time) % 3600) / 60
-        let seconds = Int(time) % 60
+        finishTime.map(Self.formatClockTime)
+    }
+
+    var formattedTargetTime: String? {
+        targetTime.map(Self.formatClockTime)
+    }
+
+    private static func formatClockTime(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
         if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
         }
-        return String(format: "%d:%02d", minutes, seconds)
+        return String(format: "%d:%02d", minutes, secs)
     }
 }
 

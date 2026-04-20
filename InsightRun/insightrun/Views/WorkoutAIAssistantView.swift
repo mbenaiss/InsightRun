@@ -436,8 +436,8 @@ struct WorkoutAIAssistantView: View {
             await submitPendingQuestionIfNeeded()
         }
         .onAppear {
-            loadMessages()
             loadConversationHistories()
+            archivePersistedMessagesAndReset()
             // Don't auto-focus keyboard on appear to avoid taking up screen space
             // isTextFieldFocused = true
 
@@ -984,11 +984,21 @@ struct WorkoutAIAssistantView: View {
         }
     }
 
-    private func loadMessages() {
+    /// On each chat open: archive any in-progress conversation into history and start fresh.
+    private func archivePersistedMessagesAndReset() {
         if let data = UserDefaults.standard.data(forKey: "workout_chat_messages"),
-           let decoded = try? JSONDecoder().decode([ChatMessage].self, from: data) {
+           let decoded = try? JSONDecoder().decode([ChatMessage].self, from: data),
+           !decoded.isEmpty {
             messages = decoded
+            saveCurrentConversationToHistory()
+            UserDefaults.standard.removeObject(forKey: "workout_chat_messages")
         }
+
+        if !messages.isEmpty { messages = [] }
+        currentConversationId = UUID()
+        aiService.streamedResponse = ""
+        aiService.error = nil
+        streamingMessageId = nil
     }
 
     // MARK: - Conversation History Persistence

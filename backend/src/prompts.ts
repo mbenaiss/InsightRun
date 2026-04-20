@@ -2,8 +2,12 @@ import type {
   ChatDataPayload,
   HealthProfileData,
   PersonalBaselineData,
+  PlannedWorkoutData,
   RecentWorkoutsData,
   RecoveryData,
+  TrainingDayData,
+  TrainingPlanData,
+  TrainingWeekData,
   WorkoutData,
 } from './types'
 import { formatDistance, formatDuration, formatPace, getLanguageName } from './utils'
@@ -510,6 +514,124 @@ function buildBaselineContext(baseline: PersonalBaselineData): string {
   return context
 }
 
+// Build training plan context for the AI (active race goal + full plan structure)
+function buildTrainingPlanContext(plan: TrainingPlanData): string {
+  let context = `# 🎯 Active Race Goal & Training Plan\n\n`
+
+  context += `## Race\n`
+  context += `- **Event:** ${plan.raceName} (${plan.raceType}, ${plan.raceDistanceKm.toFixed(1)} km)\n`
+  context += `- **Target date:** ${plan.targetDate} — **${plan.daysRemaining} days remaining**\n`
+  context += `- **Runner level:** ${plan.fitnessLevel}\n`
+  if (plan.targetTimeSeconds) {
+    const h = Math.floor(plan.targetTimeSeconds / 3600)
+    const m = Math.floor((plan.targetTimeSeconds % 3600) / 60)
+    const s = plan.targetTimeSeconds % 60
+    const formatted =
+      h > 0
+        ? `${h}h${m.toString().padStart(2, '0')}m${s > 0 ? s.toString().padStart(2, '0') : ''}`
+        : `${m}m${s > 0 ? s.toString().padStart(2, '0') + 's' : ''}`
+    context += `- **Target finish time:** ${formatted}\n`
+  }
+  if (plan.injury) {
+    context += `- **Known injury / constraint:** ${plan.injury}\n`
+  }
+  context += `- **Preferred training days:** ${plan.preferredDays.join(', ')}\n\n`
+
+  context += `## Plan overview\n`
+  context += `- **Name:** ${plan.planName}\n`
+  context += `- **Goal:** ${plan.planGoal}\n`
+  context += `- **Duration:** ${plan.totalWeeks} weeks`
+  if (plan.planStartDate) {
+    context += ` (started ${plan.planStartDate})`
+  }
+  context += `\n`
+  if (plan.currentWeekNumber) {
+    context += `- **Current week:** ${plan.currentWeekNumber} / ${plan.totalWeeks}`
+    if (plan.currentPhase) {
+      context += ` — phase: ${plan.currentPhase}`
+    }
+    context += `\n`
+  } else {
+    context += `- **Status:** plan has not started yet\n`
+  }
+  context += `- **Progress:** ${plan.completedWorkouts} / ${plan.totalPlannedWorkouts} workouts completed (${Math.round(plan.completionRate * 100)}%)\n`
+  if (plan.lastAdaptationDate) {
+    context += `- **Last adaptation:** ${plan.lastAdaptationDate}`
+    if (plan.adaptationAssessment) {
+      context += ` — ${plan.adaptationAssessment}`
+    }
+    context += `\n`
+  }
+  context += `\n`
+
+  if (plan.todaySession) {
+    context += `## Today's session\n`
+    context += formatPlannedWorkoutInline(plan.todaySession)
+    context += `\n\n`
+  }
+
+  context += `## Week-by-week breakdown\n`
+  for (const week of plan.weeks) {
+    context += formatTrainingWeek(week, plan.currentWeekNumber)
+  }
+
+  return context
+}
+
+function formatTrainingWeek(week: TrainingWeekData, currentWeekNumber?: number | null): string {
+  const isCurrent = currentWeekNumber === week.weekNumber
+  const marker = isCurrent ? ' 👈 current' : ''
+  let out = `\n### Week ${week.weekNumber} — ${week.phase}${week.volumeKm != null ? ` · ${week.volumeKm.toFixed(1)} km planned` : ''}${marker}\n`
+  if (week.notes) {
+    out += `> ${week.notes}\n`
+  }
+  for (const day of week.days) {
+    out += formatTrainingDay(day)
+  }
+  return out
+}
+
+function formatTrainingDay(day: TrainingDayData): string {
+  const dayLabel = day.dayOfWeek.charAt(0).toUpperCase() + day.dayOfWeek.slice(1)
+  if (day.isRestDay) {
+    return `- **${dayLabel}** — rest day\n`
+  }
+  const status = day.isCompleted
+    ? day.autoMatched
+      ? '✅ completed (auto-matched)'
+      : '✅ completed (manual)'
+    : '⏳ pending'
+  if (!day.workout) {
+    return `- **${dayLabel}** — ${status}\n`
+  }
+  return `- **${dayLabel}** — ${status} — ${formatPlannedWorkoutInline(day.workout)}\n`
+}
+
+function formatPlannedWorkoutInline(w: PlannedWorkoutData): string {
+  const parts: string[] = []
+  parts.push(`**${w.name}** (${w.type}, ${w.intensity})`)
+  const stats: string[] = []
+  if (w.targetDistanceM != null) stats.push(`${(w.targetDistanceM / 1000).toFixed(1)} km`)
+  if (w.targetDurationS != null) {
+    const mins = Math.round(w.targetDurationS / 60)
+    stats.push(mins >= 60 ? `${Math.floor(mins / 60)}h${(mins % 60).toString().padStart(2, '0')}` : `${mins} min`)
+  }
+  if (w.targetPace) stats.push(`pace ${w.targetPace}`)
+  if (stats.length > 0) parts.push(stats.join(' · '))
+  if (w.description) parts.push(`_${w.description}_`)
+  if (w.steps.length > 0) {
+    const stepParts = w.steps.map((s) => {
+      const bits: string[] = [s.type]
+      if (s.distanceM != null) bits.push(`${(s.distanceM / 1000).toFixed(1)}km`)
+      if (s.durationS != null) bits.push(`${Math.round(s.durationS / 60)}min`)
+      if (s.targetPace) bits.push(`@${s.targetPace}`)
+      return bits.join(' ')
+    })
+    parts.push(`steps: [${stepParts.join(' → ')}]`)
+  }
+  return parts.join(' — ')
+}
+
 // Main function to build the complete system prompt
 export function buildWorkoutCoachPrompt(data: ChatDataPayload, language: string): string {
   const langName = getLanguageName(language)
@@ -579,6 +701,11 @@ Provide specific, actionable coaching insights by:
     systemPrompt += `# Historical Training Profile\n\n`
     systemPrompt += data.historicalSummary
     systemPrompt += `\n\n---\n\n`
+  }
+
+  if (data.trainingPlan) {
+    systemPrompt += buildTrainingPlanContext(data.trainingPlan)
+    systemPrompt += `\n`
   }
 
   if (data.recovery) {

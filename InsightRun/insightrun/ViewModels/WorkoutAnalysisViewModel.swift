@@ -103,7 +103,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
     /// Get analysis prompt in user's language
     private func getAnalysisPrompt() -> String {
-        let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
+        let languageCode = AppLanguage.current
 
         if languageCode == "fr" {
             return """

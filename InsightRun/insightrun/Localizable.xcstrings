@@ -4557,18 +4557,6 @@
         }
       }
     },
-    "goals.detail.adapt" : {
-      "comment" : "Goal detail - adapt plan",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Adapt Plan"
-          }
-        }
-      }
-    },
     "goals.detail.adaptErrorTitle" : {
       "comment" : "Goal detail - adapt error title",
       "extractionState" : "extracted_with_value",
@@ -4905,6 +4893,58 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Renommer l'objectif"
+          }
+        }
+      }
+    },
+    "goals.detail.startToday" : {
+      "comment" : "Goal detail - start today",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Today"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer aujourd'hui"
+          }
+        }
+      }
+    },
+    "goals.detail.subscribeToGenerate" : {
+      "comment" : "Goal button - subscribe CTA",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe to Unlock"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'abonner pour débloquer"
+          }
+        }
+      }
+    },
+    "goals.detail.targetTime" : {
+      "comment" : "Goal detail - target time label",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Target time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objectif temps"
           }
         }
       }
@@ -5617,6 +5657,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plan complet"
+          }
+        }
+      }
+    },
+    "goals.plan.notStartedMessage" : {
+      "comment" : "Plan not started - message: %1$@ = date, %2$d = days",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your training plan begins on %1$@ (in %2$d days)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton plan d'entraînement démarre le %1$@ (dans %2$d jours)."
+          }
+        }
+      }
+    },
+    "goals.plan.notStartedTitle" : {
+      "comment" : "Plan not started - title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plan starts soon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plan à venir"
           }
         }
       }

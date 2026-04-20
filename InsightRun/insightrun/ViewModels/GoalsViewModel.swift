@@ -16,6 +16,9 @@ class GoalsViewModel: ObservableObject {
     @Published var isAdaptingPlan = false
     @Published var adaptationError: String?
     @Published var showAddGoal = false
+    @Published var needsConsent = false
+
+    private var pendingGenerationGoal: RaceGoal?
 
     private let storage = GoalStorage.shared
     private let backendClient = BackendAPIClient.shared
@@ -73,6 +76,13 @@ class GoalsViewModel: ObservableObject {
     // MARK: - Training Plan Generation
 
     func generateTrainingPlan(for goal: RaceGoal) async {
+        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+            pendingGenerationGoal = goal
+            needsConsent = true
+            return
+        }
+
+        pendingGenerationGoal = nil
         isGeneratingPlan = true
         generationError = nil
 
@@ -84,7 +94,7 @@ class GoalsViewModel: ObservableObject {
             fitnessLevel: goal.fitnessLevel.rawValue,
             currentWeeklyVolumeKm: nil,
             avgPace: nil,
-            language: Locale.current.language.languageCode?.identifier ?? "en",
+            language: AppLanguage.current,
             trainingDaysPerWeek: goal.trainingDaysPerWeek,
             preferredDays: goal.preferredDays.map { $0.rawValue },
             injury: goal.injury,
@@ -108,6 +118,18 @@ class GoalsViewModel: ObservableObject {
         isGeneratingPlan = false
     }
 
+    // MARK: - Pending Generation (resume after consent)
+
+    func resumePendingGeneration() async {
+        guard let goal = pendingGenerationGoal else { return }
+        pendingGenerationGoal = nil
+        await generateTrainingPlan(for: goal)
+    }
+
+    func clearPendingGeneration() {
+        pendingGenerationGoal = nil
+    }
+
     // MARK: - Day Completion
 
     func toggleDayCompletion(goalId: UUID, weekIndex: Int, dayIndex: Int) {
@@ -118,9 +140,29 @@ class GoalsViewModel: ObservableObject {
         storage.updateGoal(goals[goalIdx])
     }
 
+    /// Shift the plan start to a new date (keeps the plan structure, just re-anchors it).
+    /// Triggers a retro-match so any recent HealthKit workout falling into the new window gets linked.
+    func setPlanStartDate(goalId: UUID, newStart: Date) async {
+        guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
+              goals[goalIdx].trainingPlan != nil else { return }
+
+        let start = Calendar.current.startOfDay(for: newStart)
+        goals[goalIdx].planStartDate = start
+        goals[goalIdx].trainingPlan!.startDate = start
+        storage.updateGoal(goals[goalIdx])
+
+        await WorkoutMatchingService.shared.catchUpMatch()
+        reload()
+    }
+
     // MARK: - Training Plan Adaptation
 
     func adaptPlanIfNeeded(for goal: RaceGoal) async {
+        // Silent guards: adaptation runs in the background, never show sheets.
+        // If the user lost access or revoked consent, skip until they re-engage via generation.
+        guard RevenueCatManager.shared.hasAIAccess,
+              ConsentService.shared.hasConsentedToAIDataSharing else { return }
+
         guard let plan = goal.trainingPlan,
               let weekIndex = plan.currentWeekIndex,
               weekIndex >= 1 else { return } // Only from week 2+
@@ -146,7 +188,7 @@ class GoalsViewModel: ObservableObject {
                 raceType: goal.raceType.rawValue,
                 targetDate: dateFormatter.string(from: goal.targetDate),
                 fitnessLevel: goal.fitnessLevel.rawValue,
-                language: Locale.current.language.languageCode?.identifier ?? "en",
+                language: AppLanguage.current,
                 trainingDaysPerWeek: goal.trainingDaysPerWeek,
                 preferredDays: goal.preferredDays.map { $0.rawValue },
                 targetTimeSeconds: goal.targetTime.map { Int($0) },

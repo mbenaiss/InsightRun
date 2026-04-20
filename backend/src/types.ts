@@ -176,6 +176,69 @@ export interface ChatDataPayload {
   baseline?: PersonalBaselineData
   recentWorkouts?: RecentWorkoutsData
   historicalSummary?: string // One-time deep analysis summary
+  trainingPlan?: TrainingPlanData // Active race goal + training plan
+}
+
+// MARK: - Training Plan (sent by iOS when user has an active race goal)
+
+export interface PlannedWorkoutStepData {
+  type: string
+  description: string
+  durationS?: number | null
+  distanceM?: number | null
+  targetPace?: string | null
+}
+
+export interface PlannedWorkoutData {
+  name: string
+  type: string
+  intensity: string
+  description: string
+  targetDistanceM?: number | null
+  targetDurationS?: number | null
+  targetPace?: string | null
+  steps: PlannedWorkoutStepData[]
+}
+
+export interface TrainingDayData {
+  dayOfWeek: string
+  isRestDay: boolean
+  isCompleted: boolean
+  autoMatched: boolean
+  workout?: PlannedWorkoutData | null
+}
+
+export interface TrainingWeekData {
+  weekNumber: number
+  phase: string
+  volumeKm?: number | null
+  notes?: string | null
+  days: TrainingDayData[]
+}
+
+export interface TrainingPlanData {
+  raceName: string
+  raceType: string
+  raceDistanceKm: number
+  targetDate: string
+  daysRemaining: number
+  fitnessLevel: string
+  targetTimeSeconds?: number | null
+  preferredDays: string[]
+  injury?: string | null
+  planName: string
+  planGoal: string
+  planStartDate?: string | null
+  totalWeeks: number
+  currentWeekNumber?: number | null
+  currentPhase?: string | null
+  completedWorkouts: number
+  totalPlannedWorkouts: number
+  completionRate: number
+  lastAdaptationDate?: string | null
+  adaptationAssessment?: string | null
+  weeks: TrainingWeekData[]
+  todaySession?: PlannedWorkoutData | null
 }
 
 export interface ChatRequestV2 {

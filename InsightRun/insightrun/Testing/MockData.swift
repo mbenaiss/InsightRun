@@ -284,8 +284,7 @@ enum MockData {
     // MARK: - Sample Workout AI Analysis
 
     static var sampleWorkoutAnalysis: String {
-        let lang = Locale.current.language.languageCode?.identifier ?? "en"
-        return lang == "fr" ? sampleWorkoutAnalysisFR : sampleWorkoutAnalysisEN
+        return AppLanguage.current == "fr" ? sampleWorkoutAnalysisFR : sampleWorkoutAnalysisEN
     }
 
     private static let sampleWorkoutAnalysisEN = """
@@ -335,7 +334,7 @@ enum MockData {
     // MARK: - Sample Score Analysis (Demo Mode)
 
     static func sampleScoreAnalysis(for scoreType: ScoreType) -> String {
-        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        let lang = AppLanguage.current
         switch scoreType {
         case .effort:
             return lang == "fr"
@@ -357,7 +356,7 @@ enum MockData {
     }
 
     static func sampleMetricAnalysis(for metricType: MetricType) -> String {
-        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        let lang = AppLanguage.current
         switch metricType {
         case .hrv:
             return lang == "fr"

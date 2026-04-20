@@ -39,6 +39,71 @@ struct ChatDataPayload: Encodable {
     let baseline: PersonalBaselineData?
     let recentWorkouts: RecentWorkoutsData?
     let historicalSummary: String? // One-time deep analysis summary
+    let trainingPlan: TrainingPlanData?
+}
+
+// MARK: - Training Plan Data (sent to AI)
+
+struct TrainingPlanData: Encodable {
+    let raceName: String
+    let raceType: String
+    let raceDistanceKm: Double
+    let targetDate: String // ISO-8601 date
+    let daysRemaining: Int
+    let fitnessLevel: String
+    let targetTimeSeconds: Int?
+    let preferredDays: [String]
+    let injury: String?
+
+    let planName: String
+    let planGoal: String
+    let planStartDate: String? // ISO-8601
+    let totalWeeks: Int
+    let currentWeekNumber: Int? // 1-indexed, nil if plan not started
+    let currentPhase: String?
+    let completedWorkouts: Int
+    let totalPlannedWorkouts: Int
+    let completionRate: Double
+    let lastAdaptationDate: String?
+    let adaptationAssessment: String?
+
+    let weeks: [TrainingWeekData]
+    let todaySession: PlannedWorkoutData?
+}
+
+struct TrainingWeekData: Encodable {
+    let weekNumber: Int
+    let phase: String
+    let volumeKm: Double?
+    let notes: String?
+    let days: [TrainingDayData]
+}
+
+struct TrainingDayData: Encodable {
+    let dayOfWeek: String
+    let isRestDay: Bool
+    let isCompleted: Bool
+    let autoMatched: Bool
+    let workout: PlannedWorkoutData?
+}
+
+struct PlannedWorkoutData: Encodable {
+    let name: String
+    let type: String
+    let intensity: String
+    let description: String
+    let targetDistanceM: Double?
+    let targetDurationS: Double?
+    let targetPace: String?
+    let steps: [PlannedWorkoutStepData]
+}
+
+struct PlannedWorkoutStepData: Encodable {
+    let type: String
+    let description: String
+    let durationS: Double?
+    let distanceM: Double?
+    let targetPace: String?
 }
 
 // MARK: - Workout Data

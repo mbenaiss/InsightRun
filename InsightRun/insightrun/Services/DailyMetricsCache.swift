@@ -2,8 +2,8 @@
 //  DailyMetricsCache.swift
 //  InsightRun
 //
-//  UserDefaults cache for daily sleep and readiness metrics.
-//  Sleep and readiness are computed once per day then frozen.
+//  UserDefaults cache for daily readiness metrics.
+//  Readiness is computed once per day then frozen (keyed on effort + cardiac load).
 //
 
 import Foundation
@@ -12,7 +12,6 @@ final class DailyMetricsCache {
     static let shared = DailyMetricsCache()
 
     private(set) var defaults: UserDefaults
-    private let sleepKey = "com.insightrun.dailySleepCache"
     private let readinessKeyPrefix = "com.insightrun.dailyReadinessCache"
 
     private init() {
@@ -33,20 +32,6 @@ final class DailyMetricsCache {
 
     // MARK: - Cached Models
 
-    struct CachedSleepData: Codable {
-        let cacheDate: Date
-        let qualityScore: Int
-        let totalSleepDuration: TimeInterval
-        let timeInBed: TimeInterval
-        let sleepStart: Date
-        let sleepEnd: Date
-        let deepSleepDuration: TimeInterval?
-        let coreSleepDuration: TimeInterval?
-        let remSleepDuration: TimeInterval?
-        let awakeDuration: TimeInterval?
-        let napDuration: TimeInterval?
-    }
-
     struct CachedReadiness: Codable {
         let cacheDate: Date
         let score: Int
@@ -55,36 +40,6 @@ final class DailyMetricsCache {
         let suggestedWorkoutType: String
         let effortScore: Int?
         let cardiacLoadScore: Int?
-    }
-
-    // MARK: - Sleep
-
-    func getCachedSleepData() -> CachedSleepData? {
-        guard let data = defaults.data(forKey: sleepKey),
-              let cached = try? JSONDecoder().decode(CachedSleepData.self, from: data),
-              Calendar.current.isDateInToday(cached.cacheDate) else {
-            return nil
-        }
-        return cached
-    }
-
-    func cacheSleepData(_ sleep: SleepData) {
-        let cached = CachedSleepData(
-            cacheDate: Date(),
-            qualityScore: sleep.qualityScore,
-            totalSleepDuration: sleep.totalSleepDuration,
-            timeInBed: sleep.timeInBed,
-            sleepStart: sleep.sleepStart,
-            sleepEnd: sleep.sleepEnd,
-            deepSleepDuration: sleep.deepSleepDuration,
-            coreSleepDuration: sleep.coreSleepDuration,
-            remSleepDuration: sleep.remSleepDuration,
-            awakeDuration: sleep.awakeDuration,
-            napDuration: sleep.napDuration
-        )
-        if let data = try? JSONEncoder().encode(cached) {
-            defaults.set(data, forKey: sleepKey)
-        }
     }
 
     // MARK: - Readiness
@@ -144,22 +99,5 @@ final class DailyMetricsCache {
         let key = Self.historicalReadinessPrefix + Self.dateFormatter.string(from: date)
         guard defaults.object(forKey: key) != nil else { return nil }
         return defaults.integer(forKey: key)
-    }
-
-    // MARK: - Conversion
-
-    func toSleepData(_ cached: CachedSleepData) -> SleepData {
-        SleepData(
-            date: cached.cacheDate,
-            sleepStart: cached.sleepStart,
-            sleepEnd: cached.sleepEnd,
-            totalSleepDuration: cached.totalSleepDuration,
-            timeInBed: cached.timeInBed,
-            deepSleepDuration: cached.deepSleepDuration,
-            coreSleepDuration: cached.coreSleepDuration,
-            remSleepDuration: cached.remSleepDuration,
-            awakeDuration: cached.awakeDuration,
-            napDuration: cached.napDuration
-        )
     }
 }

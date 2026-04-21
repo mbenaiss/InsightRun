@@ -34,7 +34,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
     // MARK: - Cache Key Tests
 
     func testCacheKeyContainsLanguageAndDate() {
-        let key = sut.testCacheKey(for: "score_effort")
+        let key = sut.testCacheKey(for: "score_effort", value: "75")
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
 
         XCTAssertTrue(key.contains(lang), "Cache key should contain language code")
@@ -42,10 +42,17 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
     }
 
     func testCacheKeyDifferentIdentifiersProduceDifferentKeys() {
-        let key1 = sut.testCacheKey(for: "score_effort")
-        let key2 = sut.testCacheKey(for: "score_sleep")
+        let key1 = sut.testCacheKey(for: "score_effort", value: "75")
+        let key2 = sut.testCacheKey(for: "score_sleep", value: "75")
 
         XCTAssertNotEqual(key1, key2, "Different identifiers should produce different cache keys")
+    }
+
+    func testCacheKeyDifferentValuesProduceDifferentKeys() {
+        let key1 = sut.testCacheKey(for: "score_sleep", value: "65")
+        let key2 = sut.testCacheKey(for: "score_sleep", value: "82")
+
+        XCTAssertNotEqual(key1, key2, "Different values should produce different cache keys")
     }
 
     // MARK: - Cache Save/Retrieve Tests
@@ -54,26 +61,44 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let identifier = "test_metric"
         let text = "This is a cached analysis"
 
-        sut.testSaveAnalysis(text, for: identifier)
-        let retrieved = sut.testCachedAnalysis(for: identifier)
+        sut.testSaveAnalysis(text, for: identifier, value: "42")
+        let retrieved = sut.testCachedAnalysis(for: identifier, value: "42")
 
         XCTAssertEqual(retrieved, text, "Retrieved analysis should match saved text")
     }
 
     func testCachedAnalysisReturnsNilWhenEmpty() {
-        let result = sut.testCachedAnalysis(for: "nonexistent_identifier")
+        let result = sut.testCachedAnalysis(for: "nonexistent_identifier", value: "42")
         XCTAssertNil(result, "Should return nil for non-cached identifier")
+    }
+
+    func testCachedAnalysisReturnsNilForDifferentValue() {
+        let identifier = "score_sleep"
+        sut.testSaveAnalysis("analysis for 65", for: identifier, value: "65")
+
+        let result = sut.testCachedAnalysis(for: identifier, value: "82")
+        XCTAssertNil(result, "Should return nil when value differs — prevents stale analysis when score changes")
     }
 
     func testCleanOldCacheRemovesOldEntries() {
         let identifier = "test_clean"
-        let oldKey = "ai_analysis_\(identifier)_en_2020-01-01"
+        let oldKey = "ai_analysis_\(identifier)_en_2020-01-01_v50"
         testDefaults.set("old", forKey: oldKey)
 
-        sut.testSaveAnalysis("new", for: identifier)
+        sut.testSaveAnalysis("new", for: identifier, value: "75")
 
         let oldValue = testDefaults.string(forKey: oldKey)
         XCTAssertNil(oldValue, "Old cache entries should be cleaned up")
+    }
+
+    func testCleanOldCacheRemovesPreviousValueForSameDay() {
+        let identifier = "score_sleep"
+        sut.testSaveAnalysis("analysis for 65", for: identifier, value: "65")
+
+        sut.testSaveAnalysis("analysis for 82", for: identifier, value: "82")
+
+        XCTAssertNil(sut.testCachedAnalysis(for: identifier, value: "65"), "Previous value's analysis should be cleaned up")
+        XCTAssertEqual(sut.testCachedAnalysis(for: identifier, value: "82"), "analysis for 82", "New value's analysis should be kept")
     }
 
     // MARK: - Build Prompt Tests

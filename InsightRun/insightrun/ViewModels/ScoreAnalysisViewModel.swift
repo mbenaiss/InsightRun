@@ -68,18 +68,20 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     // MARK: - Cache
 
-    private static func cacheKey(for identifier: String) -> String {
+    // Cache key includes the value so that a changing score/metric invalidates
+    // the cached analysis instead of returning a stale explanation.
+    private static func cacheKey(for identifier: String, value: String) -> String {
         let dateString = DateFormatter.cacheDateFormatter.string(from: Date())
         let lang = AppLanguage.current
-        return "\(cachePrefix)\(identifier)_\(lang)_\(dateString)"
+        return "\(cachePrefix)\(identifier)_\(lang)_\(dateString)_v\(value)"
     }
 
-    private static func cachedAnalysis(for identifier: String) -> String? {
-        Self.defaults.string(forKey: cacheKey(for: identifier))
+    private static func cachedAnalysis(for identifier: String, value: String) -> String? {
+        Self.defaults.string(forKey: cacheKey(for: identifier, value: value))
     }
 
-    private static func saveAnalysis(_ text: String, for identifier: String) {
-        let key = cacheKey(for: identifier)
+    private static func saveAnalysis(_ text: String, for identifier: String, value: String) {
+        let key = cacheKey(for: identifier, value: value)
         Self.defaults.set(text, forKey: key)
         cleanOldCache(currentKey: key, identifier: identifier)
     }
@@ -104,8 +106,9 @@ class ScoreAnalysisViewModel: ObservableObject {
         }
 
         let identifier = "score_\(scoreType.id)"
+        let valueKey = String(score)
 
-        if let cached = Self.cachedAnalysis(for: identifier) {
+        if let cached = Self.cachedAnalysis(for: identifier, value: valueKey) {
             analysisText = cached
             pendingAnalysis = nil
             return
@@ -149,7 +152,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         }
 
         if let text = analysisText, !text.isEmpty {
-            Self.saveAnalysis(text, for: identifier)
+            Self.saveAnalysis(text, for: identifier, value: valueKey)
         } else if error == nil {
             error = String(localized: "Unable to generate analysis", comment: "Score analysis error")
         }
@@ -168,8 +171,9 @@ class ScoreAnalysisViewModel: ObservableObject {
         }
 
         let identifier = "metric_\(metricType)"
+        let valueKey = String(format: "%.1f", value)
 
-        if let cached = Self.cachedAnalysis(for: identifier) {
+        if let cached = Self.cachedAnalysis(for: identifier, value: valueKey) {
             analysisText = cached
             pendingAnalysis = nil
             return
@@ -213,7 +217,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         }
 
         if let text = analysisText, !text.isEmpty {
-            Self.saveAnalysis(text, for: identifier)
+            Self.saveAnalysis(text, for: identifier, value: valueKey)
         } else if error == nil {
             error = String(localized: "Unable to generate analysis", comment: "Score analysis error")
         }
@@ -298,16 +302,16 @@ class ScoreAnalysisViewModel: ObservableObject {
     // MARK: - Test Helpers
 
     #if DEBUG
-    func testCacheKey(for identifier: String) -> String {
-        Self.cacheKey(for: identifier)
+    func testCacheKey(for identifier: String, value: String) -> String {
+        Self.cacheKey(for: identifier, value: value)
     }
 
-    func testCachedAnalysis(for identifier: String) -> String? {
-        Self.cachedAnalysis(for: identifier)
+    func testCachedAnalysis(for identifier: String, value: String) -> String? {
+        Self.cachedAnalysis(for: identifier, value: value)
     }
 
-    func testSaveAnalysis(_ text: String, for identifier: String) {
-        Self.saveAnalysis(text, for: identifier)
+    func testSaveAnalysis(_ text: String, for identifier: String, value: String) {
+        Self.saveAnalysis(text, for: identifier, value: value)
     }
 
     func testBuildPrompt(scoreType: ScoreType, score: Int, trendData: [TrendDataPoint]? = nil) -> String {

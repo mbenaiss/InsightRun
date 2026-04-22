@@ -234,15 +234,104 @@ async function callOpenRouterNonStreaming(
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+// Drop workouts that would fail Zod's strict contract (duration > 0, distance >= 0,
+// non-empty date, finite numbers). One malformed third-party import (Strava/Garmin
+// with 0 or NaN duration) otherwise rejects the whole 50-workout batch and
+// blocks indexation indefinitely for users on older iOS builds that lack
+// client-side sanitization. Returns {cleaned, dropped} so the caller can
+// log how many records were filtered without altering the strict schema.
+function preflightFilterWorkouts(body: unknown): { cleaned: unknown; dropped: number } {
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !Array.isArray((body as { workouts?: unknown }).workouts)
+  ) {
+    return { cleaned: body, dropped: 0 }
+  }
+
+  const workouts = (body as { workouts: unknown[] }).workouts
+  const isValidWorkout = (w: unknown): boolean => {
+    if (typeof w !== 'object' || w === null) return false
+    const wo = w as Record<string, unknown>
+    const duration = wo.duration
+    const distance = wo.distance
+    const date = wo.date
+    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) return false
+    if (typeof distance !== 'number' || !Number.isFinite(distance) || distance < 0) return false
+    if (typeof date !== 'string' || date.length === 0) return false
+    return true
+  }
+
+  const kept = workouts.filter(isValidWorkout)
+  const dropped = workouts.length - kept.length
+  if (dropped === 0) return { cleaned: body, dropped: 0 }
+  return {
+    cleaned: { ...(body as Record<string, unknown>), workouts: kept },
+    dropped,
+  }
+}
+
 // POST /batch - Analyze a batch of up to 50 workouts
 app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables }>) => {
   const startTime = Date.now()
 
   try {
-    const body = await c.req.json()
+    const rawBody = (await c.req.json()) as Record<string, unknown>
+    const { cleaned: cleanedBody, dropped: droppedCount } = preflightFilterWorkouts(rawBody)
+    const rawBatchIndex =
+      typeof rawBody.batchIndex === 'number' ? (rawBody.batchIndex as number) : null
+    const rawWorkoutCount = Array.isArray(rawBody.workouts)
+      ? (rawBody.workouts as unknown[]).length
+      : null
+
+    if (droppedCount > 0 && c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+      const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+      const posthog = createPostHogClient({
+        apiKey: c.env.POSTHOG_API_KEY,
+        host: c.env.POSTHOG_HOST,
+      })
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            await posthog.captureImmediate({
+              distinctId: userId,
+              event: 'indexation_backend_filtered',
+              properties: {
+                route: 'batch',
+                dropped_count: droppedCount,
+                batch_index: rawBatchIndex,
+                original_count: rawWorkoutCount,
+                app: 'healthapp',
+                environment: 'production',
+              },
+            })
+            await posthog.shutdown()
+          } catch (error) {
+            console.error('PostHog capture error:', error)
+          }
+        })()
+      )
+    }
+
+    // Edge case: every workout in the batch was malformed. Return a placeholder
+    // (non-empty — consolidate's schema requires string().min(1)) with 200 so
+    // indexation keeps going and earlier batches still get consolidated.
+    const cleanedWorkouts = (cleanedBody as { workouts?: unknown[] }).workouts
+    if (droppedCount > 0 && Array.isArray(cleanedWorkouts) && cleanedWorkouts.length === 0) {
+      console.log(
+        `⚠️ Batch ${rawBatchIndex ?? '?'}: all ${droppedCount} workouts filtered, returning placeholder summary`
+      )
+      const placeholderResponse: BatchAnalysisResponse = {
+        batchIndex: rawBatchIndex ?? 0,
+        partialSummary: '(Batch skipped: all workouts had invalid or incomplete data.)',
+        workoutCount: 0,
+        tokenCount: 0,
+      }
+      return c.json(placeholderResponse)
+    }
 
     // Validate request with Zod
-    const validationResult = batchAnalysisRequestSchema.safeParse(body)
+    const validationResult = batchAnalysisRequestSchema.safeParse(cleanedBody)
 
     if (!validationResult.success) {
       const errorMessages = validationResult.error.issues.map((err) => {
@@ -255,8 +344,8 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
         route: 'batch',
         error: validationResult.error,
         extra: {
-          batch_index: typeof body?.batchIndex === 'number' ? body.batchIndex : null,
-          workout_count: Array.isArray(body?.workouts) ? body.workouts.length : null,
+          batch_index: rawBatchIndex,
+          workout_count: rawWorkoutCount,
         },
       })
 

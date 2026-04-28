@@ -86,6 +86,7 @@ class GoalsViewModel: ObservableObject {
         isGeneratingPlan = true
         generationError = nil
 
+        let weeksCount = Self.computeWeeksCount(for: goal)
         let dateFormatter = ISO8601DateFormatter()
         let request = TrainingPlanGenerationRequest(
             raceType: goal.raceType.rawValue,
@@ -98,12 +99,13 @@ class GoalsViewModel: ObservableObject {
             trainingDaysPerWeek: goal.trainingDaysPerWeek,
             preferredDays: goal.preferredDays.map { $0.rawValue },
             injury: goal.injury,
-            targetTimeSeconds: goal.targetTime.map { Int($0) }
+            targetTimeSeconds: goal.targetTime.map { Int($0) },
+            weeksCount: weeksCount
         )
 
         do {
             let response = try await backendClient.generateTrainingPlan(request: request)
-            let plan = convertResponseToPlan(response, for: goal)
+            let plan = convertResponseToPlan(response, for: goal, weeksCount: weeksCount)
 
             if let index = goals.firstIndex(where: { $0.id == goal.id }) {
                 goals[index].trainingPlan = plan
@@ -137,6 +139,21 @@ class GoalsViewModel: ObservableObject {
               goals[goalIdx].trainingPlan != nil else { return }
 
         goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isCompleted.toggle()
+        if goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isCompleted {
+            goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isSkipped = false
+        }
+        storage.updateGoal(goals[goalIdx])
+    }
+
+    func toggleDaySkipped(goalId: UUID, weekIndex: Int, dayIndex: Int) {
+        guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
+              goals[goalIdx].trainingPlan != nil else { return }
+
+        goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isSkipped.toggle()
+        if goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isSkipped {
+            goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isCompleted = false
+            goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].completedWorkoutId = nil
+        }
         storage.updateGoal(goals[goalIdx])
     }
 
@@ -158,16 +175,25 @@ class GoalsViewModel: ObservableObject {
     // MARK: - Training Plan Adaptation
 
     func adaptPlanIfNeeded(for goal: RaceGoal) async {
-        // Silent guards: adaptation runs in the background, never show sheets.
-        // If the user lost access or revoked consent, skip until they re-engage via generation.
         guard RevenueCatManager.shared.hasAIAccess,
               ConsentService.shared.hasConsentedToAIDataSharing else { return }
+        guard !isAdaptingPlan, !isGeneratingPlan else { return }
 
         guard let plan = goal.trainingPlan,
               let weekIndex = plan.currentWeekIndex,
-              weekIndex >= 1 else { return } // Only from week 2+
+              weekIndex >= 1,
+              let startDate = plan.startDate else { return }
 
-        // Throttle: don't adapt more than once per week
+        // Adaptation runs only at the very start of a training week (day 0–1).
+        // Mid-week or end-of-week shifts would invalidate sessions the user is about to do.
+        let daysIntoCurrentWeek = (Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: startDate),
+            to: Calendar.current.startOfDay(for: Date())
+        ).day ?? 0) % 7
+        guard daysIntoCurrentWeek <= 1 else { return }
+
+        if plan.lastAdaptationWeekIndex == weekIndex { return }
         if let lastAdapt = plan.lastAdaptationDate,
            Calendar.current.dateComponents([.day], from: lastAdapt, to: Date()).day ?? 0 < 7 {
             return
@@ -182,6 +208,7 @@ class GoalsViewModel: ObservableObject {
 
         do {
             let completedWeeks = await buildCompletedWeeksData(plan: plan, upToWeek: weekIndex)
+            let originalRemaining = buildOriginalRemainingWeeks(plan: plan, fromWeek: weekIndex + 1)
 
             let dateFormatter = ISO8601DateFormatter()
             let request = AdaptTrainingPlanRequest(
@@ -197,21 +224,27 @@ class GoalsViewModel: ObservableObject {
                 remainingWeeksCount: remainingWeeks,
                 originalPlanName: plan.name,
                 originalPlanGoal: plan.goal,
-                completedWeeks: completedWeeks
+                completedWeeks: completedWeeks,
+                originalRemainingWeeks: originalRemaining
             )
 
             let response = try await backendClient.adaptTrainingPlan(request: request)
 
-            let adaptedWeeks = convertAdaptedWeeks(response.plan.weeks, for: goal)
+            let adaptedWeeks = convertAdaptedWeeks(
+                response.plan.weeks,
+                for: goal,
+                startTargetIndex: weekIndex + 1,
+                raceWeekIndex: plan.weeks.count - 1
+            )
 
             if let goalIdx = goals.firstIndex(where: { $0.id == goal.id }) {
-                // Replace future weeks only (keep completed + current week)
                 for i in 0..<adaptedWeeks.count {
                     let targetIdx = weekIndex + 1 + i
                     guard targetIdx < goals[goalIdx].trainingPlan!.weeks.count else { break }
                     goals[goalIdx].trainingPlan!.weeks[targetIdx] = adaptedWeeks[i]
                 }
                 goals[goalIdx].trainingPlan!.lastAdaptationDate = Date()
+                goals[goalIdx].trainingPlan!.lastAdaptationWeekIndex = weekIndex
                 goals[goalIdx].trainingPlan!.adaptationAssessment = response.plan.adaptation.assessment
 
                 storage.updateGoal(goals[goalIdx])
@@ -221,14 +254,49 @@ class GoalsViewModel: ObservableObject {
         }
     }
 
-    private func buildCompletedWeeksData(plan: TrainingPlan, upToWeek: Int) async -> [CompletedWeekPayload] {
-        var result: [CompletedWeekPayload] = []
+    private func buildOriginalRemainingWeeks(plan: TrainingPlan, fromWeek: Int) -> [OriginalRemainingWeekPayload] {
+        guard fromWeek < plan.weeks.count else { return [] }
+        return plan.weeks[fromWeek..<plan.weeks.count].map { week in
+            let workouts = week.days.compactMap { day -> OriginalRemainingWorkoutPayload? in
+                guard let w = day.workout else { return nil }
+                return OriginalRemainingWorkoutPayload(
+                    type: w.type.rawValue,
+                    name: w.name,
+                    intensity: w.intensity.rawValue,
+                    targetDistance: w.targetDistance,
+                    targetDuration: w.targetDuration,
+                    targetPace: w.targetPace
+                )
+            }
+            return OriginalRemainingWeekPayload(
+                weekNumber: week.weekNumber,
+                phase: week.phase.rawValue,
+                weeklyVolumeKm: week.weeklyVolume,
+                workouts: workouts
+            )
+        }
+    }
 
+    private func buildCompletedWeeksData(plan: TrainingPlan, upToWeek: Int) async -> [CompletedWeekPayload] {
+        var completedUUIDs: [UUID] = []
+        for i in 0..<upToWeek {
+            for day in plan.weeks[i].days where day.workout != nil {
+                if let uuidString = day.completedWorkoutId, let uuid = UUID(uuidString: uuidString) {
+                    completedUUIDs.append(uuid)
+                }
+            }
+        }
+
+        let metricsMap = await fetchMetricsInParallel(uuids: completedUUIDs)
+
+        var result: [CompletedWeekPayload] = []
         for i in 0..<upToWeek {
             let week = plan.weeks[i]
             let workoutDays = week.days.filter { $0.workout != nil }
             let completedCount = workoutDays.filter { $0.isCompleted }.count
-            let completionRate = workoutDays.isEmpty ? 0.0 : Double(completedCount) / Double(workoutDays.count)
+            let completionRate: Double = workoutDays.isEmpty
+                ? 1.0
+                : Double(completedCount) / Double(workoutDays.count)
 
             var workouts: [CompletedWorkoutPayload] = []
             for day in workoutDays {
@@ -242,7 +310,7 @@ class GoalsViewModel: ObservableObject {
                 var actual: ActualWorkoutPayload?
                 if let uuidString = day.completedWorkoutId,
                    let uuid = UUID(uuidString: uuidString),
-                   let metrics = await HealthKitManager.shared.fetchWorkoutBasicMetrics(uuid: uuid) {
+                   let metrics = metricsMap[uuid] {
                     actual = ActualWorkoutPayload(
                         distance: metrics.distance,
                         duration: metrics.duration,
@@ -254,7 +322,8 @@ class GoalsViewModel: ObservableObject {
                 workouts.append(CompletedWorkoutPayload(
                     type: day.workout?.type.rawValue ?? "easy_run",
                     planned: planned,
-                    actual: actual
+                    actual: actual,
+                    skipped: day.isSkipped ? true : nil
                 ))
             }
 
@@ -269,26 +338,100 @@ class GoalsViewModel: ObservableObject {
         return result
     }
 
+    private func fetchMetricsInParallel(
+        uuids: [UUID]
+    ) async -> [UUID: (distance: Double, duration: Double, pace: Double?, heartRate: Double?)] {
+        await withTaskGroup(
+            of: (UUID, (distance: Double, duration: Double, pace: Double?, heartRate: Double?)?).self
+        ) { group in
+            for uuid in uuids {
+                group.addTask {
+                    let metrics = await HealthKitManager.shared.fetchWorkoutBasicMetrics(uuid: uuid)
+                    return (uuid, metrics)
+                }
+            }
+            var map: [UUID: (distance: Double, duration: Double, pace: Double?, heartRate: Double?)] = [:]
+            for await (uuid, metrics) in group {
+                if let metrics { map[uuid] = metrics }
+            }
+            return map
+        }
+    }
+
     private func convertAdaptedWeeks(
         _ weekDatas: [TrainingPlanGenerationResponse.GeneratedWeekData],
-        for goal: RaceGoal
+        for goal: RaceGoal,
+        startTargetIndex: Int,
+        raceWeekIndex: Int
     ) -> [TrainingWeek] {
         let preferredDays = goal.preferredDays.sorted(by: { $0.rawValue < $1.rawValue })
-        return weekDatas.map { convertWeekData($0, preferredDays: preferredDays, raceDayOfWeek: nil) }
+        let raceDayOfWeek = Calendar.current.component(.weekday, from: goal.targetDate)
+        let raceDistanceMeters = goal.raceType.distanceKm * 1000
+
+        return weekDatas.enumerated().map { offset, data in
+            let absoluteIdx = startTargetIndex + offset
+            let isRaceWeek = absoluteIdx == raceWeekIndex
+            return convertWeekData(
+                data,
+                preferredDays: preferredDays,
+                raceDayOfWeek: isRaceWeek ? raceDayOfWeek : nil,
+                raceDistanceMeters: isRaceWeek ? raceDistanceMeters : nil
+            )
+        }
     }
 
     // MARK: - Conversion
 
-    private func convertResponseToPlan(_ response: TrainingPlanGenerationResponse, for goal: RaceGoal) -> TrainingPlan {
+    private static func computeWeeksCount(for goal: RaceGoal) -> Int {
+        let planStart = goal.planStartDate ?? Date()
+        let seconds = goal.targetDate.timeIntervalSince(planStart)
+        let weeks = Int(ceil(seconds / (7 * 86400)))
+        return max(4, min(24, weeks))
+    }
+
+    private func buildSkeletonPlan(for goal: RaceGoal, weeksCount: Int) -> [TrainingWeek] {
+        let raceDOW = DayOfWeek(rawValue: Calendar.current.component(.weekday, from: goal.targetDate)) ?? .sunday
+        let raceDistanceMeters = goal.raceType.distanceKm * 1000
+        let allDays: [DayOfWeek] = [.sunday, .monday, .tuesday, .wednesday, .thursday, .friday, .saturday]
+
+        return (0..<weeksCount).map { index in
+            let isRaceWeek = index == weeksCount - 1
+            let days = allDays.map { day -> TrainingDay in
+                if isRaceWeek, day == raceDOW {
+                    let raceWorkout = PlannedWorkout(
+                        type: .longRun,
+                        name: String(localized: "goals.plan.raceDayName", defaultValue: "Race day", comment: "Placeholder name for the race workout"),
+                        description: goal.raceType.displayName,
+                        targetDuration: goal.targetTime,
+                        targetDistance: raceDistanceMeters,
+                        intensity: .veryHard
+                    )
+                    return TrainingDay(dayOfWeek: day, workout: raceWorkout)
+                }
+                return TrainingDay(dayOfWeek: day, workout: nil)
+            }
+            return TrainingWeek(weekNumber: index + 1, phase: .base, days: days)
+        }
+    }
+
+    private func convertResponseToPlan(
+        _ response: TrainingPlanGenerationResponse,
+        for goal: RaceGoal,
+        weeksCount: Int
+    ) -> TrainingPlan {
         let raceDayOfWeek = Calendar.current.component(.weekday, from: goal.targetDate)
-        let lastWeekIndex = response.plan.weeks.count - 1
         let preferredDays = goal.preferredDays.sorted(by: { $0.rawValue < $1.rawValue })
         let raceDistanceMeters = goal.raceType.distanceKm * 1000
+        let lastIndex = weeksCount - 1
 
-        let weeks = response.plan.weeks.enumerated().map { weekIndex, weekData in
-            let isRaceWeek = weekIndex == lastWeekIndex
-            return convertWeekData(
-                weekData,
+        var weeks = buildSkeletonPlan(for: goal, weeksCount: weeksCount)
+
+        for received in response.plan.weeks {
+            let idx = received.weekNumber - 1
+            guard idx >= 0, idx < weeksCount else { continue }
+            let isRaceWeek = idx == lastIndex
+            weeks[idx] = convertWeekData(
+                received,
                 preferredDays: preferredDays,
                 raceDayOfWeek: isRaceWeek ? raceDayOfWeek : nil,
                 raceDistanceMeters: isRaceWeek ? raceDistanceMeters : nil
@@ -388,6 +531,11 @@ class GoalsViewModel: ObservableObject {
 
         let availableDays = preferredDays.filter { !assignedDays.contains($0) }
 
+        if remainingWorkouts.count > availableDays.count {
+            let dropped = remainingWorkouts.count - availableDays.count
+            print("⚠️ GoalsViewModel.mapWorkoutsToDays: dropping \(dropped) workout(s) — \(remainingWorkouts.count) sessions for \(availableDays.count) preferred day(s)")
+        }
+
         for (index, workout) in remainingWorkouts.enumerated() {
             guard index < availableDays.count else { break }
             let day = availableDays[index]
@@ -402,8 +550,6 @@ class GoalsViewModel: ObservableObject {
         }
     }
 
-    // The AI is instructed to put the race first, but doesn't always comply —
-    // matching by distance makes scheduling robust against mis-ordered workouts.
     private static func identifyRaceWorkoutIndex(
         in workouts: [PlannedWorkout],
         raceDistanceMeters: Double?

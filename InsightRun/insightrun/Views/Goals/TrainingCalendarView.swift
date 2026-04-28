@@ -11,6 +11,7 @@ struct TrainingCalendarView: View {
     let goal: RaceGoal
     let plan: TrainingPlan
     let onToggleCompletion: (Int, Int) -> Void
+    var onToggleSkip: ((Int, Int) -> Void)? = nil
 
     @State private var expandedWeekIndex: Int?
     @State private var selectedWorkout: SelectedWorkout?
@@ -31,8 +32,30 @@ struct TrainingCalendarView: View {
             }
         }
         .sheet(item: $selectedWorkout) { selected in
-            PlannedWorkoutDetailView(workout: selected.workout, day: selected.day)
+            let isRace = Self.isRaceDay(plan: plan, goal: goal, weekIndex: selected.weekIndex, day: selected.day)
+            PlannedWorkoutDetailView(
+                workout: selected.workout,
+                day: selected.day,
+                isPast: Self.isDayPast(plan: plan, weekIndex: selected.weekIndex, day: selected.day),
+                onToggleSkip: isRace ? nil : onToggleSkip.map { handler in
+                    { handler(selected.weekIndex, selected.dayIndex) }
+                }
+            )
         }
+    }
+
+    static func isDayPast(plan: TrainingPlan, weekIndex: Int, day: TrainingDay) -> Bool {
+        guard let currentWeek = plan.currentWeekIndex else { return false }
+        if weekIndex < currentWeek { return true }
+        if weekIndex > currentWeek { return false }
+        let todayWeekday = Calendar.current.component(.weekday, from: Date())
+        return day.dayOfWeek.rawValue < todayWeekday
+    }
+
+    static func isRaceDay(plan: TrainingPlan, goal: RaceGoal, weekIndex: Int, day: TrainingDay) -> Bool {
+        guard weekIndex == plan.weeks.count - 1 else { return false }
+        let raceWeekday = Calendar.current.component(.weekday, from: goal.targetDate)
+        return day.dayOfWeek.rawValue == raceWeekday
     }
 
     // MARK: - Week Row

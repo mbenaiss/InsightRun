@@ -494,6 +494,13 @@ struct GoalDetailView: View {
                             weekIndex: weekIndex,
                             dayIndex: dayIndex
                         )
+                    },
+                    onToggleSkip: { weekIndex, dayIndex in
+                        viewModel.toggleDaySkipped(
+                            goalId: currentGoal.id,
+                            weekIndex: weekIndex,
+                            dayIndex: dayIndex
+                        )
                     }
                 )
             }
@@ -596,9 +603,19 @@ struct GoalDetailView: View {
                 .frame(width: 30, alignment: .leading)
 
             if let workout = day.workout {
-                // Workout card
                 NavigationLink {
-                    PlannedWorkoutDetailView(workout: workout, day: day)
+                    PlannedWorkoutDetailView(
+                        workout: workout,
+                        day: day,
+                        isPast: isDayPast(weekIndex: weekIndex, day: day),
+                        onToggleSkip: isRaceDay(weekIndex: weekIndex, day: day) ? nil : {
+                            viewModel.toggleDaySkipped(
+                                goalId: currentGoal.id,
+                                weekIndex: weekIndex,
+                                dayIndex: dayIndex
+                            )
+                        }
+                    )
                 } label: {
                     HStack(spacing: Spacing.sm) {
                         Rectangle()
@@ -630,20 +647,23 @@ struct GoalDetailView: View {
 
                         Spacer()
 
-                        // Completion toggle
                         VStack(spacing: 2) {
                             Button {
                                 viewModel.toggleDayCompletion(goalId: currentGoal.id, weekIndex: weekIndex, dayIndex: dayIndex)
                             } label: {
-                                Image(systemName: day.isCompleted ? "checkmark.circle.fill" : "circle")
+                                Image(systemName: dayStatusIcon(day))
                                     .font(.title3)
-                                    .foregroundStyle(day.isCompleted ? Color.irSuccess : Color.irBorder)
+                                    .foregroundStyle(dayStatusColor(day))
                             }
 
                             if day.completedWorkoutId != nil {
                                 Text(String(localized: "goals.detail.autoTracked", defaultValue: "Auto", comment: "Auto-tracked label"))
                                     .font(.system(size: 8, weight: .bold))
                                     .foregroundStyle(Color.irPrimaryAccent)
+                            } else if day.isSkipped {
+                                Text(String(localized: "goals.detail.skipped", defaultValue: "Skipped", comment: "Skipped label"))
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(Color.irTextSecondary)
                             }
                         }
                     }
@@ -665,6 +685,28 @@ struct GoalDetailView: View {
                 .padding(.vertical, Spacing.xs)
             }
         }
+    }
+
+    private func isDayPast(weekIndex: Int, day: TrainingDay) -> Bool {
+        guard let plan = currentGoal.trainingPlan else { return false }
+        return TrainingCalendarView.isDayPast(plan: plan, weekIndex: weekIndex, day: day)
+    }
+
+    private func isRaceDay(weekIndex: Int, day: TrainingDay) -> Bool {
+        guard let plan = currentGoal.trainingPlan else { return false }
+        return TrainingCalendarView.isRaceDay(plan: plan, goal: currentGoal, weekIndex: weekIndex, day: day)
+    }
+
+    private func dayStatusIcon(_ day: TrainingDay) -> String {
+        if day.isCompleted { return "checkmark.circle.fill" }
+        if day.isSkipped { return "minus.circle.fill" }
+        return "circle"
+    }
+
+    private func dayStatusColor(_ day: TrainingDay) -> Color {
+        if day.isCompleted { return Color.irSuccess }
+        if day.isSkipped { return Color.irTextSecondary.opacity(0.6) }
+        return Color.irBorder
     }
 
 }

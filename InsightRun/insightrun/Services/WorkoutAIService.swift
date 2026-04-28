@@ -541,7 +541,8 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     description: step.description,
                     durationS: step.duration,
                     distanceM: step.distance,
-                    targetPace: step.targetPace
+                    targetPace: step.targetPace,
+                    repetitions: step.repetitions
                 )
             } : []
         )

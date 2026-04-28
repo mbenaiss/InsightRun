@@ -137,25 +137,29 @@ final class WorkoutMatchingService {
         hkDistance: Double,
         hkDuration: TimeInterval
     ) -> Bool {
+        // Targets exclude cooldown — a skipped cooldown shouldn't fail the match.
+        let targetDistance = planned.targetDistanceWithoutCooldown
+        let targetDuration = planned.targetDurationWithoutCooldown
+
         switch planned.type {
         case .easyRun, .recovery:
-            let distanceOK = withinTolerance(hkDistance, target: planned.targetDistance, tol: easyDistanceTolerance) ?? true
-            let durationOK = withinTolerance(hkDuration, target: planned.targetDuration, tol: easyDurationTolerance) ?? true
+            let distanceOK = withinTolerance(hkDistance, target: targetDistance, tol: easyDistanceTolerance) ?? true
+            let durationOK = withinTolerance(hkDuration, target: targetDuration, tol: easyDurationTolerance) ?? true
             return distanceOK || durationOK
 
         case .longRun:
             // Distance is the point of a long run — a short steady run that happens
             // to last the same duration shouldn't count.
-            guard let distanceOK = withinTolerance(hkDistance, target: planned.targetDistance, tol: longRunDistanceTolerance) else {
+            guard let distanceOK = withinTolerance(hkDistance, target: targetDistance, tol: longRunDistanceTolerance) else {
                 // No target distance — fall back to duration, same tolerance.
-                return withinTolerance(hkDuration, target: planned.targetDuration, tol: longRunDistanceTolerance) ?? false
+                return withinTolerance(hkDuration, target: targetDuration, tol: longRunDistanceTolerance) ?? false
             }
             return distanceOK
 
         case .tempo:
             // Distance window + pace coherence. Without targetPace we can't
             // distinguish a tempo from an easy run at the same distance.
-            let distanceOK = withinTolerance(hkDistance, target: planned.targetDistance, tol: tempoDistanceTolerance) ?? false
+            let distanceOK = withinTolerance(hkDistance, target: targetDistance, tol: tempoDistanceTolerance) ?? false
             guard distanceOK,
                   let targetPaceSec = parseTargetPaceSecPerKm(planned.targetPace),
                   hkDistance > 0

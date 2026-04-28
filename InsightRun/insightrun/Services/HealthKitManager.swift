@@ -2755,6 +2755,9 @@ class HealthKitManager: ObservableObject {
         async let activeCalories = fetchSumQuantitySafe(
             for: .activeEnergyBurned, start: start, end: end, unit: .kilocalorie()
         )
+        async let basalCalories = fetchSumQuantitySafe(
+            for: .basalEnergyBurned, start: start, end: end, unit: .kilocalorie()
+        )
         async let exerciseMinutes = fetchSumQuantitySafe(
             for: .appleExerciseTime, start: start, end: end, unit: .minute()
         )
@@ -2764,6 +2767,7 @@ class HealthKitManager: ObservableObject {
         return DailyActivityData(
             steps: await steps ?? 0,
             activeCalories: await activeCalories ?? 0,
+            basalCalories: await basalCalories ?? 0,
             exerciseMinutes: await exerciseMinutes ?? 0,
             activeCaloriesGoal: resolvedGoals.activeCaloriesGoal,
             exerciseMinutesGoal: resolvedGoals.exerciseMinutesGoal

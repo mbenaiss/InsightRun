@@ -85,26 +85,41 @@ class WorkoutKitManager: ObservableObject {
             throw WorkoutKitError.unsupportedSportType // Not supported in MVP
         }
 
-        // Separate warmup, cooldown, and main blocks
+        // Separate warmup, cooldown, and main blocks.
+        // When a work/interval step has repetitions > 1 and is immediately
+        // followed by a recovery step, both are grouped into a single
+        // IntervalBlock with iterations = repetitions — so a "6×800m récup
+        // 400m" workout becomes ONE block of (800m + 400m) repeated 6 times,
+        // not 6 separate blocks. This matches Apple Fitness's native rendering.
         var warmupWorkoutStep: WorkoutKit.WorkoutStep?
         var cooldownWorkoutStep: WorkoutKit.WorkoutStep?
         var blocks: [IntervalBlock] = []
 
-        for step in aiWorkout.steps {
-            // Assign first warmup step to warmup parameter
-            if step.type == .warmup && warmupWorkoutStep == nil {
+        var i = 0
+        while i < aiWorkout.steps.count {
+            let step = aiWorkout.steps[i]
+
+            if step.type == .warmup, warmupWorkoutStep == nil {
                 warmupWorkoutStep = try convertToWorkoutStep(step)
+                i += 1
+                continue
             }
-            // Assign last cooldown step to cooldown parameter
-            else if step.type == .cooldown {
+            if step.type == .cooldown {
                 cooldownWorkoutStep = try convertToWorkoutStep(step)
+                i += 1
+                continue
             }
-            // All other steps (work, recovery, interval) go to blocks
-            else {
-                let intervalStep = try convertToIntervalStep(step)
-                let block = IntervalBlock(steps: [intervalStep], iterations: 1)
-                blocks.append(block)
+
+            let iterations = max(step.repetitions ?? 1, 1)
+            var blockSteps = [try convertToIntervalStep(step)]
+            if iterations > 1,
+               i + 1 < aiWorkout.steps.count,
+               aiWorkout.steps[i + 1].type == .recovery {
+                blockSteps.append(try convertToIntervalStep(aiWorkout.steps[i + 1]))
+                i += 1
             }
+            blocks.append(IntervalBlock(steps: blockSteps, iterations: iterations))
+            i += 1
         }
 
         // Create custom workout with proper warmup and cooldown

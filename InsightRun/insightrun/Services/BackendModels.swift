@@ -104,6 +104,7 @@ struct PlannedWorkoutStepData: Encodable {
     let durationS: Double?
     let distanceM: Double?
     let targetPace: String?
+    let repetitions: Int?
 }
 
 // MARK: - Workout Data
@@ -304,6 +305,7 @@ struct WorkoutGenerationResponse: Decodable {
         let targetPaceMin: String? // Minimum pace for range (e.g., "6:52")
         let targetPaceMax: String? // Maximum pace for range (e.g., "7:22")
         let targetHeartRateZone: Int?
+        let repetitions: Int? // Set on a work/interval step. The trailing recovery step is implicitly repeated the same number of times.
         let instructions: String?
     }
 
@@ -375,6 +377,7 @@ struct TrainingPlanGenerationResponse: Decodable {
         let duration: Double?
         let distance: Double?
         let targetPace: String?
+        let repetitions: Int?
         let description: String
     }
 

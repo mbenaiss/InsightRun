@@ -181,6 +181,33 @@ struct PlannedWorkout: Identifiable, Codable {
         guard let distance = targetDistance else { return "" }
         return String(format: "%.1f km", distance / 1000)
     }
+
+    /// Target duration excluding cooldown steps. Used for auto-matching
+    /// completed workouts: if a runner skips the cooldown, the session
+    /// should still be considered complete.
+    var targetDurationWithoutCooldown: TimeInterval? {
+        guard let total = targetDuration else { return nil }
+        let cooldownDuration = steps
+            .filter { $0.type == .cooldown }
+            .compactMap { $0.duration }
+            .reduce(0, +)
+        guard cooldownDuration > 0 else { return total }
+        let adjusted = total - cooldownDuration
+        return adjusted > 0 ? adjusted : total
+    }
+
+    /// Target distance excluding cooldown steps. Same rationale as
+    /// `targetDurationWithoutCooldown`.
+    var targetDistanceWithoutCooldown: Double? {
+        guard let total = targetDistance else { return nil }
+        let cooldownDistance = steps
+            .filter { $0.type == .cooldown }
+            .compactMap { $0.distance }
+            .reduce(0, +)
+        guard cooldownDistance > 0 else { return total }
+        let adjusted = total - cooldownDistance
+        return adjusted > 0 ? adjusted : total
+    }
 }
 
 // MARK: - Planned Workout Step
@@ -191,6 +218,7 @@ struct PlannedWorkoutStep: Identifiable, Codable {
     let duration: TimeInterval? // in seconds
     let distance: Double? // in meters
     let targetPace: String?
+    let repetitions: Int? // Set on a work/interval step. The trailing recovery step is implicitly repeated the same number of times.
     let description: String
 
     init(
@@ -199,6 +227,7 @@ struct PlannedWorkoutStep: Identifiable, Codable {
         duration: TimeInterval? = nil,
         distance: Double? = nil,
         targetPace: String? = nil,
+        repetitions: Int? = nil,
         description: String
     ) {
         self.id = id
@@ -206,6 +235,7 @@ struct PlannedWorkoutStep: Identifiable, Codable {
         self.duration = duration
         self.distance = distance
         self.targetPace = targetPace
+        self.repetitions = repetitions
         self.description = description
     }
 }

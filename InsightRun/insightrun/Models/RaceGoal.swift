@@ -132,7 +132,7 @@ struct RaceGoal: Identifiable, Codable {
         targetTime.map(Self.formatClockTime)
     }
 
-    private static func formatClockTime(_ seconds: TimeInterval) -> String {
+    nonisolated private static func formatClockTime(_ seconds: TimeInterval) -> String {
         let total = Int(seconds)
         let hours = total / 3600
         let minutes = (total % 3600) / 60

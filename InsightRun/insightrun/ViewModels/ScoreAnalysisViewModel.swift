@@ -160,7 +160,7 @@ class ScoreAnalysisViewModel: ObservableObject {
 
     // MARK: - Metric Analysis
 
-    func analyzeMetric(metricType: MetricType, value: Double, unit: String, recoveryMetrics: RecoveryMetrics) async {
+    func analyzeMetric(metricType: MetricType, value: Double, unit: String, recoveryMetrics: RecoveryMetrics, activityData: DailyActivityData? = nil) async {
         guard !isLoading else { return }
         pendingAnalysis = .metric(metricType, value, unit, recoveryMetrics)
 
@@ -195,7 +195,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         analysisText = nil
         pendingAnalysis = nil
 
-        let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit)
+        let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit, activityData: activityData)
         let userLanguage = AppLanguage.current
 
         await aiService.askQuestion(
@@ -240,7 +240,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         Locale.current.englishLanguageName
     }
 
-    private func buildMetricPrompt(metricType: MetricType, value: Double, unit: String) -> String {
+    private func buildMetricPrompt(metricType: MetricType, value: Double, unit: String, activityData: DailyActivityData? = nil) -> String {
         let formattedValue = String(format: "%.1f", value)
         let lang = userLanguageName
 
@@ -256,6 +256,15 @@ class ScoreAnalysisViewModel: ObservableObject {
 
         case .oxygenSaturation:
             return "My oxygen saturation is \(formattedValue)%. Briefly analyze my blood oxygenation level. Give me 1 tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
+
+        case .totalCalories:
+            let totalKcal = String(format: "%.0f", value)
+            if let activity = activityData {
+                let basal = String(format: "%.0f", activity.basalCalories)
+                let active = String(format: "%.0f", activity.activeCalories)
+                return "My total calories burned today is \(totalKcal) kcal: \(basal) kcal basal (resting metabolism) + \(active) kcal active (movement & exercise). Briefly analyze what this energy expenditure says about my activity level today, and whether the active vs basal split looks healthy. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
+            }
+            return "My total calories burned today is \(totalKcal) kcal (basal metabolism + active calories combined). Briefly analyze my daily energy expenditure. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
         default:
             return "Analyze this health metric: \(formattedValue) \(unit). Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."

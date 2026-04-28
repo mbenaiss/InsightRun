@@ -305,7 +305,7 @@ struct WorkoutGenerationResponse: Decodable {
         let targetPaceMin: String? // Minimum pace for range (e.g., "6:52")
         let targetPaceMax: String? // Maximum pace for range (e.g., "7:22")
         let targetHeartRateZone: Int?
-        let repetitions: Int? // Set on a work/interval step. The trailing recovery step is implicitly repeated the same number of times.
+        let repetitions: Int?
         let instructions: String?
     }
 

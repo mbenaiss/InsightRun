@@ -38,7 +38,7 @@ interface WorkoutStep {
   targetPaceMin?: string // "4:30" format (for ranges)
   targetPaceMax?: string // "4:45" format (for ranges)
   targetHeartRateZone?: number // 1-5
-  repetitions?: number // For "N×distance" intervals — set on the work/interval step. The next recovery step (if any) is repeated implicitly the same number of times.
+  repetitions?: number
   instructions?: string
 }
 

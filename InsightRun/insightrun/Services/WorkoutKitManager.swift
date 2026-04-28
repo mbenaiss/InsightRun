@@ -85,12 +85,8 @@ class WorkoutKitManager: ObservableObject {
             throw WorkoutKitError.unsupportedSportType // Not supported in MVP
         }
 
-        // Separate warmup, cooldown, and main blocks.
-        // When a work/interval step has repetitions > 1 and is immediately
-        // followed by a recovery step, both are grouped into a single
-        // IntervalBlock with iterations = repetitions — so a "6×800m récup
-        // 400m" workout becomes ONE block of (800m + 400m) repeated 6 times,
-        // not 6 separate blocks. This matches Apple Fitness's native rendering.
+        // A repeated work step + trailing recovery are grouped into one IntervalBlock
+        // with iterations = repetitions, matching Apple Fitness's native rendering.
         var warmupWorkoutStep: WorkoutKit.WorkoutStep?
         var cooldownWorkoutStep: WorkoutKit.WorkoutStep?
         var blocks: [IntervalBlock] = []

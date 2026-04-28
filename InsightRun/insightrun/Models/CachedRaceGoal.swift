@@ -106,9 +106,7 @@ class CachedRaceGoal {
         (try? String(data: JSONEncoder().encode(days.map { $0.rawValue }), encoding: .utf8)) ?? "[]"
     }
 
-    // TrainingPlan's Codable conformance is implicitly main-actor isolated via the
-    // SwiftData @Model class context, so encoding/decoding must hop to the main actor
-    // to satisfy Swift 6 strict concurrency.
+    // @MainActor — TrainingPlan's Codable conformance is main-actor isolated via @Model.
     @MainActor
     private static func encodeTrainingPlan(_ plan: TrainingPlan?) -> Data? {
         guard let plan else { return nil }

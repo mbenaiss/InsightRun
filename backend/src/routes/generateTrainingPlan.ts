@@ -61,7 +61,7 @@ interface GeneratedWorkoutStep {
   duration?: number // seconds
   distance?: number // meters
   targetPace?: string
-  repetitions?: number // For "N×distance" intervals — set on the work/interval step. The next recovery step is repeated implicitly the same number of times.
+  repetitions?: number
   description: string
 }
 

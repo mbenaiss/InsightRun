@@ -57,7 +57,8 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
     var targetPaceMin: String? // Format: "4:30" per km (for range minimum)
     var targetPaceMax: String? // Format: "4:45" per km (for range maximum)
     var targetHeartRateZone: Int? // 1-5
-    var repetitions: Int? // Set on a work/interval step. The next recovery step is implicitly repeated the same number of times.
+    /// Set on a work/interval step. The trailing recovery step is implicitly repeated the same number of times.
+    var repetitions: Int?
     var instructions: String?
 
     enum StepType: String, Codable {
@@ -131,58 +132,32 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         }
 
         // If goal is duration, calculate distance based on pace
-        if goal.type == .duration {
-            // Try to get pace value (either single or average of range)
-            let paceStr: String?
-            if let pace = targetPace {
-                // Single pace value
-                paceStr = pace
-            } else if let paceMin = targetPaceMin, let paceMax = targetPaceMax {
-                // Calculate average pace from range for distance estimation
-                let minComponents = paceMin.split(separator: ":")
-                let maxComponents = paceMax.split(separator: ":")
-
-                guard minComponents.count == 2, maxComponents.count == 2,
-                      let minMinutes = Double(minComponents[0]),
-                      let minSeconds = Double(minComponents[1]),
-                      let maxMinutes = Double(maxComponents[0]),
-                      let maxSeconds = Double(maxComponents[1]) else {
-                    return 0
-                }
-
-                let minPaceMinutes = minMinutes + (minSeconds / 60.0)
-                let maxPaceMinutes = maxMinutes + (maxSeconds / 60.0)
-                let avgPaceMinutes = (minPaceMinutes + maxPaceMinutes) / 2.0
-
-                // Convert back to "M:SS" format for parsing below
-                let avgMinutes = Int(avgPaceMinutes)
-                let avgSeconds = Int((avgPaceMinutes - Double(avgMinutes)) * 60)
-                paceStr = "\(avgMinutes):\(String(format: "%02d", avgSeconds))"
-            } else {
-                paceStr = nil
-            }
-
-            if let paceStr = paceStr {
-                // Parse pace string (e.g., "5:30" → 5.5 minutes per km)
-                let paceComponents = paceStr.split(separator: ":")
-                guard paceComponents.count == 2,
-                      let minutes = Double(paceComponents[0]),
-                      let seconds = Double(paceComponents[1]) else {
-                    return 0
-                }
-
-                let paceMinutesPerKm = minutes + (seconds / 60.0)
-                let durationMinutes = goal.value / 60.0
-
-                // Distance in km = duration / pace
-                let distanceKm = durationMinutes / paceMinutesPerKm
-
-                // Return in meters
-                return distanceKm * 1000.0
-            }
+        if goal.type == .duration, let paceMinutesPerKm = averagePaceMinutesPerKm() {
+            let durationMinutes = goal.value / 60.0
+            return (durationMinutes / paceMinutesPerKm) * 1000.0
         }
 
         return 0
+    }
+
+    func averagePaceMinutesPerKm() -> Double? {
+        if let pace = targetPace {
+            return Self.parsePaceMinutesPerKm(pace)
+        }
+        if let paceMin = targetPaceMin, let paceMax = targetPaceMax,
+           let minPace = Self.parsePaceMinutesPerKm(paceMin),
+           let maxPace = Self.parsePaceMinutesPerKm(paceMax) {
+            return (minPace + maxPace) / 2.0
+        }
+        return nil
+    }
+
+    private static func parsePaceMinutesPerKm(_ raw: String) -> Double? {
+        let parts = raw.split(separator: ":")
+        guard parts.count == 2,
+              let minutes = Double(parts[0]),
+              let seconds = Double(parts[1]) else { return nil }
+        return minutes + (seconds / 60.0)
     }
 
     // Formatted distance for display
@@ -302,23 +277,27 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         }
     }
 
-    // Calculate total distance from steps (including estimated from duration+pace).
-    // Steps with repetitions > 1 contribute reps times; the recovery step that
-    // immediately follows is implicitly repeated as well.
     var calculatedTotalDistance: Double {
-        // If total distance is explicitly provided, use it
         if let total = totalDistance, total > 0 {
             return total
         }
+        return walkSteps { $0.calculatedDistance }
+    }
 
+    var calculatedEstimatedDuration: TimeInterval {
+        walkSteps(singleStepEstimatedDuration)
+    }
+
+    // Repeated work + trailing recovery are both counted reps times (mirrors WorkoutKit grouping).
+    private func walkSteps(_ value: (WorkoutStep) -> Double) -> Double {
         var sum: Double = 0
         var i = 0
         while i < steps.count {
             let step = steps[i]
-            let reps = max(step.repetitions ?? 1, 1)
-            sum += step.calculatedDistance * Double(reps)
+            let reps = Double(max(step.repetitions ?? 1, 1))
+            sum += value(step) * reps
             if reps > 1, i + 1 < steps.count, steps[i + 1].type == .recovery {
-                sum += steps[i + 1].calculatedDistance * Double(reps)
+                sum += value(steps[i + 1]) * reps
                 i += 2
             } else {
                 i += 1
@@ -327,27 +306,8 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         return sum
     }
 
-    // Calculate estimated duration from steps (source of truth).
-    // Mirrors calculatedTotalDistance: repetitions multiply both the work step
-    // and its trailing recovery step.
-    var calculatedEstimatedDuration: TimeInterval {
-        var sum: TimeInterval = 0
-        var i = 0
-        while i < steps.count {
-            let step = steps[i]
-            let reps = max(step.repetitions ?? 1, 1)
-            sum += singleStepEstimatedDuration(step) * Double(reps)
-            if reps > 1, i + 1 < steps.count, steps[i + 1].type == .recovery {
-                sum += singleStepEstimatedDuration(steps[i + 1]) * Double(reps)
-                i += 2
-            } else {
-                i += 1
-            }
-        }
-        return sum
-    }
+    private static let fallbackPaceMinutesPerKm: Double = 5.0
 
-    // Estimated duration of one iteration of a step (no repetition multiplication)
     private func singleStepEstimatedDuration(_ step: WorkoutStep) -> TimeInterval {
         if step.goal.type == .duration {
             return step.goal.value
@@ -355,39 +315,9 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         guard step.goal.type == .distance else {
             return 0
         }
-
         let km = step.goal.value / 1000.0
-
-        // Try to get pace value (either single or average of range)
-        if let pace = step.targetPace {
-            let paceComponents = pace.split(separator: ":")
-            guard paceComponents.count == 2,
-                  let minutes = Double(paceComponents[0]),
-                  let seconds = Double(paceComponents[1]) else {
-                return km * 5.0 * 60.0
-            }
-            let paceMinutesPerKm = minutes + (seconds / 60.0)
-            return km * paceMinutesPerKm * 60.0
-        }
-
-        if let paceMin = step.targetPaceMin, let paceMax = step.targetPaceMax {
-            let minComponents = paceMin.split(separator: ":")
-            let maxComponents = paceMax.split(separator: ":")
-            guard minComponents.count == 2, maxComponents.count == 2,
-                  let minMinutes = Double(minComponents[0]),
-                  let minSeconds = Double(minComponents[1]),
-                  let maxMinutes = Double(maxComponents[0]),
-                  let maxSeconds = Double(maxComponents[1]) else {
-                return km * 5.0 * 60.0
-            }
-            let minPaceMinutes = minMinutes + (minSeconds / 60.0)
-            let maxPaceMinutes = maxMinutes + (maxSeconds / 60.0)
-            let avgPaceMinutes = (minPaceMinutes + maxPaceMinutes) / 2.0
-            return km * avgPaceMinutes * 60.0
-        }
-
-        // Fallback to 5:00/km if no pace specified
-        return km * 5.0 * 60.0
+        let paceMinutesPerKm = step.averagePaceMinutesPerKm() ?? Self.fallbackPaceMinutesPerKm
+        return km * paceMinutesPerKm * 60.0
     }
 }
 

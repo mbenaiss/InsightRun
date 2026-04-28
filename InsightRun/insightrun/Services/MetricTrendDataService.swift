@@ -105,10 +105,8 @@ final class MetricTrendDataService {
         return points
     }
 
-    /// Daily total calories burned (active + basal) over the trailing window.
-    /// Sequential to avoid stacking another TaskGroup on top of effortTrend's —
-    /// running both in parallel via async let saturates HKHealthStore and was
-    /// causing main-thread stack overflows during dashboard load.
+    // Sequential — running this in parallel with effortTrend's TaskGroup saturates
+    // HKHealthStore and crashes the main thread during dashboard load.
     func caloriesTotalTrend(days: Int = 7) async -> [TrendDataPoint] {
         cleanExpiredCache()
         let cacheKey = "calories_total_\(days)"

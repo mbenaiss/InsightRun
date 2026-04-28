@@ -168,11 +168,10 @@ struct DailyActivityData {
     let basalCalories: Double
     let exerciseMinutes: Double
 
-    /// Personal goals from Apple Activity Rings (nil = use fixed fallback)
+    // nil → use fixed fallback (Apple Activity Rings goals)
     let activeCaloriesGoal: Double?
     let exerciseMinutesGoal: Double?
 
-    /// Active + basal — what the user typically thinks of as "daily calories burned"
     var totalCalories: Double {
         activeCalories + basalCalories
     }

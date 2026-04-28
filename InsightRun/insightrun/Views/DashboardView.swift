@@ -589,11 +589,6 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Sleep Section
-    //
-    // Implementation moved to SleepSectionView (View struct, end of file) to keep
-    // dayPage's generic-type chain simple — see comment near CaloriesSectionView.
-
     // MARK: - Weekly Activity Stats
 
     private var weeklyActivitySection: some View {
@@ -857,12 +852,10 @@ private struct RecoveryHeaderView: View {
         .environmentObject(RevenueCatManager.shared)
 }
 
-// MARK: - Calories Section
-//
-// Extracted as a View struct rather than a `@ViewBuilder` computed property
-// to break the generic-type chain in DashboardView.dayPage. Adding this section
-// inline pushed SwiftUI's runtime generic substitution past its stack limit
-// (EXC_BAD_ACCESS code=2 in swift::SubstGenericParametersFromMetadata).
+// MARK: - Section Views
+
+// Extracted as structs (not @ViewBuilder properties) — inlining hit
+// EXC_BAD_ACCESS in swift::SubstGenericParametersFromMetadata via dayPage's generic chain.
 
 private struct CaloriesSectionView: View {
     let activity: DailyActivityData?
@@ -887,10 +880,6 @@ private struct CaloriesSectionView: View {
         }
     }
 }
-
-// MARK: - Sleep Section
-//
-// Extracted to break the parent generic-type chain in DashboardView.dayPage.
 
 private struct SleepSectionView: View {
     let sleep: SleepData?

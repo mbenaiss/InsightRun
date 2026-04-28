@@ -14146,18 +14146,6 @@
         }
       }
     },
-    "Total Calories" : {
-      "comment" : "Total calories title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Calories totales"
-          }
-        }
-      }
-    },
     "Total calories burned per day, combining basal metabolism (energy spent at rest) with active calories from movement and exercise. A useful proxy for daily energy expenditure." : {
       "comment" : "Total calories explanation",
       "extractionState" : "manual",

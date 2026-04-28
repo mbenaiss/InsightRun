@@ -182,30 +182,18 @@ struct PlannedWorkout: Identifiable, Codable {
         return String(format: "%.1f km", distance / 1000)
     }
 
-    /// Target duration excluding cooldown steps. Used for auto-matching
-    /// completed workouts: if a runner skips the cooldown, the session
-    /// should still be considered complete.
+    // Excludes cooldown so a skipped cooldown doesn't fail auto-matching.
     var targetDurationWithoutCooldown: TimeInterval? {
-        guard let total = targetDuration else { return nil }
-        let cooldownDuration = steps
-            .filter { $0.type == .cooldown }
-            .compactMap { $0.duration }
-            .reduce(0, +)
-        guard cooldownDuration > 0 else { return total }
-        let adjusted = total - cooldownDuration
-        return adjusted > 0 ? adjusted : total
+        targetDuration.map { totalMinusCooldown($0, keyPath: \.duration) }
     }
 
-    /// Target distance excluding cooldown steps. Same rationale as
-    /// `targetDurationWithoutCooldown`.
     var targetDistanceWithoutCooldown: Double? {
-        guard let total = targetDistance else { return nil }
-        let cooldownDistance = steps
-            .filter { $0.type == .cooldown }
-            .compactMap { $0.distance }
-            .reduce(0, +)
-        guard cooldownDistance > 0 else { return total }
-        let adjusted = total - cooldownDistance
+        targetDistance.map { totalMinusCooldown($0, keyPath: \.distance) }
+    }
+
+    private func totalMinusCooldown(_ total: Double, keyPath: KeyPath<PlannedWorkoutStep, Double?>) -> Double {
+        let cooldown = steps.filter { $0.type == .cooldown }.compactMap { $0[keyPath: keyPath] }.reduce(0, +)
+        let adjusted = total - cooldown
         return adjusted > 0 ? adjusted : total
     }
 }
@@ -218,7 +206,7 @@ struct PlannedWorkoutStep: Identifiable, Codable {
     let duration: TimeInterval? // in seconds
     let distance: Double? // in meters
     let targetPace: String?
-    let repetitions: Int? // Set on a work/interval step. The trailing recovery step is implicitly repeated the same number of times.
+    let repetitions: Int?
     let description: String
 
     init(

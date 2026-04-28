@@ -208,7 +208,7 @@ struct ScoreExplanationSheet: View {
             case .recoveryScore: return String(localized: "Recovery Score", comment: "Recovery score title")
             case .sleepDuration: return String(localized: "Sleep Duration", comment: "Sleep duration title")
             case .sleepEfficiency: return String(localized: "Sleep Efficiency", comment: "Sleep efficiency title")
-            case .totalCalories: return String(localized: "Total Calories", comment: "Total calories title")
+            case .totalCalories: return String(localized: "Total calories", comment: "Total calories metric title")
             }
         }
     }

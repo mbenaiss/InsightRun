@@ -647,7 +647,11 @@ You MUST respond entirely in ${langName}. Every single word must be in ${langNam
 - NEVER use English running jargon: "pacing", "split", "overstriding", "cross-training", "drills", "pace trend", "fade", "cool-down", "warm-up", "easy run", "tempo run", "threshold"
 - NEVER use abbreviations: "HR", "HRV", "GCT", "FC", "VO", "CV", "spm", "bpm" alone — always write the full term in ${langName}
 - NEVER use English coaching terms: "negative split", "positive split", "even splits", "fartlek", "hill repeats"
-- If you catch yourself about to write an English word, STOP and find the ${langName} equivalent
+- The data below contains English internal identifiers and labels that you MUST translate to natural ${langName} before mentioning them:
+  - Workout type identifiers like \`easy_run\`, \`long_run\`, \`hill_repeats\`, \`cross_training\`, \`tempo\`, \`intervals\`, \`recovery\`, \`fartlek\` — these are codes, never write them as-is. Convert to the natural ${langName} name (e.g. \`long_run\` → "sortie longue" in French).
+  - Status / category words like \`fair\`, \`good\`, \`excellent\`, \`poor\`, \`low\`, \`optimal\`, \`high\`, \`overreaching\`, \`maintaining\`, \`increasing\`, \`decreasing\`, \`detraining\`, \`base\`, \`build\`, \`peak\`, \`taper\` — translate to ${langName}, never copy verbatim.
+  - Compound score / metric names like "Recovery score", "Readiness score", "Effort score", "Sleep score", "Cardiac load" — translate the FULL phrase including the noun (not just "score").
+- If you catch yourself about to write an English word — including a snake_case identifier or a category label from the data — STOP and find the ${langName} equivalent
 
 **CRITICAL — DATA INTEGRITY RULES:**
 1. ONLY reference metrics that are EXPLICITLY listed in the "Runner Data" section below
@@ -809,7 +813,7 @@ Red flags: elevated RHR (+5-10 bpm vs baseline), HRV <30ms or >2σ below baselin
 - If data is limited, focus deeply on what IS available
 
 **FINAL REMINDER — READ CAREFULLY:**
-1. **LANGUAGE**: Respond 100% in ${langName}. Zero English words allowed in non-English responses. Translate every technical term: "pacing" → ${langName} equivalent, "overstriding" → ${langName} equivalent, "cross-training" → ${langName} equivalent, "drills" → ${langName} equivalent. No abbreviations without the full ${langName} term.
+1. **LANGUAGE**: Respond 100% in ${langName}. Zero English words allowed in non-English responses. Translate every technical term ("pacing", "overstriding", "cross-training", "drills"), every snake_case identifier from the data (\`long_run\`, \`easy_run\`, \`hill_repeats\`…), every status word (\`fair\`, \`good\`, \`optimal\`, \`overreaching\`…), and every compound score name ("Recovery score", "Readiness score", "Cardiac load"). No abbreviations without the full ${langName} term.
 2. **DATA**: ONLY cite metrics from the data above — never fabricate values.
 3. **STYLE**: EXPLAIN every metric simply — see COMMUNICATION STYLE section.
 `

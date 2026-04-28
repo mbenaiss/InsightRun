@@ -386,6 +386,10 @@ enum MockData {
             return lang == "fr"
                 ? "Score de récupération global très positif. Tous vos indicateurs physiologiques sont dans les plages optimales."
                 : "Overall recovery score is very positive. All your physiological indicators are within optimal ranges."
+        case .totalCalories:
+            return lang == "fr"
+                ? "2 350 kcal brûlées aujourd'hui (1 750 au repos + 600 actives) — dépense énergétique conforme à votre niveau d'activité habituel."
+                : "2,350 kcal burned today (1,750 at rest + 600 active) — energy expenditure consistent with your typical activity level."
         }
     }
 

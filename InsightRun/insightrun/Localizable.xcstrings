@@ -787,6 +787,18 @@
         }
       }
     },
+    "Active" : {
+      "comment" : "Active calories label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active"
+          }
+        }
+      }
+    },
     "Active Calories" : {
       "comment" : "Active calories metric label\nEffort calories label",
       "localizations" : {
@@ -1993,6 +2005,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les objectifs de calories et d'exercice utilisent vos objectifs personnels des Anneaux d'Activité Apple. Si indisponibles, les valeurs par défaut sont 400 kcal et 30 min (OMS, 2020). Objectif de pas : 10 000/jour (Tudor-Locke, 2004)."
+          }
+        }
+      }
+    },
+    "Calories breakdown" : {
+      "comment" : "Calories breakdown card header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Répartition des calories"
           }
         }
       }
@@ -11476,6 +11500,18 @@
         }
       }
     },
+    "Resting" : {
+      "comment" : "Basal/resting calories label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au repos"
+          }
+        }
+      }
+    },
     "Resting Heart Rate" : {
       "comment" : "Medical source category: Resting HR",
       "extractionState" : "manual",
@@ -14094,6 +14130,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trop de données dans la conversation. Veuillez démarrer une nouvelle session."
+          }
+        }
+      }
+    },
+    "Total calories" : {
+      "comment" : "Total calories metric title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calories totales"
+          }
+        }
+      }
+    },
+    "Total Calories" : {
+      "comment" : "Total calories title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calories totales"
+          }
+        }
+      }
+    },
+    "Total calories burned per day, combining basal metabolism (energy spent at rest) with active calories from movement and exercise. A useful proxy for daily energy expenditure." : {
+      "comment" : "Total calories explanation",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calories totales brûlées par jour : métabolisme de base (énergie dépensée au repos) plus calories actives liées au mouvement et à l'exercice. Un bon indicateur de la dépense énergétique quotidienne."
           }
         }
       }

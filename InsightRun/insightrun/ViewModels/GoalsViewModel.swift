@@ -283,12 +283,15 @@ class GoalsViewModel: ObservableObject {
         let raceDayOfWeek = Calendar.current.component(.weekday, from: goal.targetDate)
         let lastWeekIndex = response.plan.weeks.count - 1
         let preferredDays = goal.preferredDays.sorted(by: { $0.rawValue < $1.rawValue })
+        let raceDistanceMeters = goal.raceType.distanceKm * 1000
 
         let weeks = response.plan.weeks.enumerated().map { weekIndex, weekData in
-            convertWeekData(
+            let isRaceWeek = weekIndex == lastWeekIndex
+            return convertWeekData(
                 weekData,
                 preferredDays: preferredDays,
-                raceDayOfWeek: weekIndex == lastWeekIndex ? raceDayOfWeek : nil
+                raceDayOfWeek: isRaceWeek ? raceDayOfWeek : nil,
+                raceDistanceMeters: isRaceWeek ? raceDistanceMeters : nil
             )
         }
 
@@ -311,7 +314,8 @@ class GoalsViewModel: ObservableObject {
     private func convertWeekData(
         _ weekData: TrainingPlanGenerationResponse.GeneratedWeekData,
         preferredDays: [DayOfWeek],
-        raceDayOfWeek: Int?
+        raceDayOfWeek: Int?,
+        raceDistanceMeters: Double? = nil
     ) -> TrainingWeek {
         let workouts = weekData.workouts.map { w -> PlannedWorkout in
             let steps = (w.steps ?? []).map { s in
@@ -320,6 +324,7 @@ class GoalsViewModel: ObservableObject {
                     duration: s.duration,
                     distance: s.distance,
                     targetPace: s.targetPace,
+                    repetitions: s.repetitions,
                     description: s.description
                 )
             }
@@ -339,7 +344,8 @@ class GoalsViewModel: ObservableObject {
         let days = mapWorkoutsToDays(
             workouts: workouts,
             preferredDays: preferredDays,
-            raceDayOfWeek: raceDayOfWeek
+            raceDayOfWeek: raceDayOfWeek,
+            raceDistanceMeters: raceDistanceMeters
         )
 
         let volume: Double? = {
@@ -359,11 +365,15 @@ class GoalsViewModel: ObservableObject {
     /// Map a list of workouts to a 7-day week using preferred days.
     /// - workouts: ordered list from AI (key session first)
     /// - preferredDays: user's selected training days
-    /// - raceDayOfWeek: if set, the first workout (race) goes on this day (last week only)
+    /// - raceDayOfWeek: if set, identifies the race-week and pins the race to this day
+    /// - raceDistanceMeters: if set (race week), used to identify which workout in the
+    ///   list IS the race (closest targetDistance match). The AI is asked to put the
+    ///   race first, but doesn't always — distance matching makes this robust.
     private func mapWorkoutsToDays(
         workouts: [PlannedWorkout],
         preferredDays: [DayOfWeek],
-        raceDayOfWeek: Int?
+        raceDayOfWeek: Int?,
+        raceDistanceMeters: Double? = nil
     ) -> [TrainingDay] {
         let allDays: [DayOfWeek] = [.sunday, .monday, .tuesday, .wednesday, .thursday, .friday, .saturday]
 
@@ -376,7 +386,12 @@ class GoalsViewModel: ObservableObject {
         if let raceDay = raceDayOfWeek,
            let raceDOW = DayOfWeek(rawValue: raceDay),
            !remainingWorkouts.isEmpty {
-            assignments[raceDOW] = remainingWorkouts.removeFirst()
+            let raceIndex = Self.identifyRaceWorkoutIndex(
+                in: remainingWorkouts,
+                raceDistanceMeters: raceDistanceMeters
+            )
+            let raceWorkout = remainingWorkouts.remove(at: raceIndex)
+            assignments[raceDOW] = raceWorkout
             assignedDays.insert(raceDOW)
         }
 
@@ -396,5 +411,26 @@ class GoalsViewModel: ObservableObject {
                 workout: assignments[day]
             )
         }
+    }
+
+    /// Find the workout most likely to be the race in a race-week list.
+    /// If `raceDistanceMeters` is provided, picks the workout whose `targetDistance`
+    /// is closest to it. Otherwise falls back to index 0 (the AI is instructed to
+    /// list the race first, but enforcing a distance match avoids mis-scheduling
+    /// when it doesn't comply).
+    private static func identifyRaceWorkoutIndex(
+        in workouts: [PlannedWorkout],
+        raceDistanceMeters: Double?
+    ) -> Int {
+        guard let target = raceDistanceMeters else { return 0 }
+        let indexed = workouts.enumerated()
+        let best = indexed.min { lhs, rhs in
+            // Workouts without a targetDistance are pushed to the end of the
+            // ranking by treating them as infinitely far from the target.
+            let lhsDiff = lhs.element.targetDistance.map { abs($0 - target) } ?? .greatestFiniteMagnitude
+            let rhsDiff = rhs.element.targetDistance.map { abs($0 - target) } ?? .greatestFiniteMagnitude
+            return lhsDiff < rhsDiff
+        }
+        return best?.offset ?? 0
     }
 }

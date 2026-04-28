@@ -100,7 +100,8 @@ struct ScoreExplanationSheet: View {
         deviationStatus: DeviationStatus?,
         baseline: PersonalBaseline?,
         trendData: [TrendDataPoint]? = nil,
-        recoveryMetrics: RecoveryMetrics? = nil
+        recoveryMetrics: RecoveryMetrics? = nil,
+        activityData: DailyActivityData? = nil
     ) {
         self.mode = .metric(metricType)
         self.metricValue = currentValue
@@ -113,7 +114,7 @@ struct ScoreExplanationSheet: View {
         self.sleepDurationHours = nil
         self.sleepEfficiency = nil
         self.cardiacLoadStatus = nil
-        self.activityData = nil
+        self.activityData = activityData
     }
 
     // MARK: - Body
@@ -155,7 +156,13 @@ struct ScoreExplanationSheet: View {
                 case .score(let scoreType):
                     await analysisVM.analyze(scoreType: scoreType, score: score, recoveryMetrics: metrics, trendData: trendData)
                 case .metric(let metricType):
-                    await analysisVM.analyzeMetric(metricType: metricType, value: metricValue, unit: metricUnit, recoveryMetrics: metrics)
+                    await analysisVM.analyzeMetric(
+                        metricType: metricType,
+                        value: metricValue,
+                        unit: metricUnit,
+                        recoveryMetrics: metrics,
+                        activityData: activityData
+                    )
                 }
             }
             .sheet(isPresented: $analysisVM.needsConsent) {
@@ -201,6 +208,7 @@ struct ScoreExplanationSheet: View {
             case .recoveryScore: return String(localized: "Recovery Score", comment: "Recovery score title")
             case .sleepDuration: return String(localized: "Sleep Duration", comment: "Sleep duration title")
             case .sleepEfficiency: return String(localized: "Sleep Efficiency", comment: "Sleep efficiency title")
+            case .totalCalories: return String(localized: "Total Calories", comment: "Total calories title")
             }
         }
     }
@@ -259,6 +267,11 @@ struct ScoreExplanationSheet: View {
     private var metricBody: some View {
         VStack(spacing: 24) {
             metricValueCard
+
+            if case .metric(.totalCalories) = mode, let activity = activityData {
+                caloriesBreakdownCard(activity)
+            }
+
             aiInsightCard
             metricHistoryChart
 
@@ -270,6 +283,63 @@ struct ScoreExplanationSheet: View {
             metricReferenceCard
         }
         .padding()
+    }
+
+    // MARK: - Calories Breakdown Card
+
+    private func caloriesBreakdownCard(_ activity: DailyActivityData) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Image(systemName: "flame.fill")
+                    .foregroundStyle(Color.orange.gradient)
+
+                Text(String(localized: "Calories breakdown", comment: "Calories breakdown card header"))
+                    .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
+
+                Spacer()
+            }
+
+            HStack(spacing: 16) {
+                caloriesBreakdownTile(
+                    label: String(localized: "Resting", comment: "Basal/resting calories label"),
+                    value: activity.basalCalories,
+                    iconName: "moon.zzz.fill",
+                    tint: .indigo
+                )
+                caloriesBreakdownTile(
+                    label: String(localized: "Active", comment: "Active calories label"),
+                    value: activity.activeCalories,
+                    iconName: "figure.run",
+                    tint: .orange
+                )
+            }
+        }
+        .padding(20)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func caloriesBreakdownTile(label: String, value: Double, iconName: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: iconName)
+                    .font(.caption)
+                    .foregroundStyle(tint)
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(String(format: "%.0f", value))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.irTextPrimary)
+                Text("kcal")
+                    .font(.caption)
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Effort Activity Card
@@ -1451,6 +1521,7 @@ struct ScoreExplanationSheet: View {
         case .oxygenSaturation: return "drop.fill"
         case .sleepDuration: return "bed.double.fill"
         case .sleepEfficiency: return "chart.bar.fill"
+        case .totalCalories: return "flame.fill"
         }
     }
 
@@ -1463,6 +1534,7 @@ struct ScoreExplanationSheet: View {
         case .oxygenSaturation: return .cyan
         case .sleepDuration: return .indigo
         case .sleepEfficiency: return .green
+        case .totalCalories: return .orange
         }
     }
 
@@ -1482,6 +1554,8 @@ struct ScoreExplanationSheet: View {
             return String(localized: "Adults typically need 7-9 hours of sleep per night for optimal recovery and health. Both too little and too much sleep can negatively impact performance.", comment: "Sleep duration explanation")
         case .sleepEfficiency:
             return String(localized: "Sleep efficiency is the percentage of time in bed actually spent sleeping. Good sleep efficiency is above 85%.", comment: "Sleep efficiency explanation")
+        case .totalCalories:
+            return String(localized: "Total calories burned per day, combining basal metabolism (energy spent at rest) with active calories from movement and exercise. A useful proxy for daily energy expenditure.", comment: "Total calories explanation")
         }
     }
 

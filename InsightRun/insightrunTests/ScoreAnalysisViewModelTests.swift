@@ -201,6 +201,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let activity = DailyActivityData(
             steps: 10_000,
             activeCalories: 400,
+            basalCalories: 0,
             exerciseMinutes: 30,
             activeCaloriesGoal: 400,
             exerciseMinutesGoal: 30
@@ -213,6 +214,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let activity = DailyActivityData(
             steps: 0,
             activeCalories: 0,
+            basalCalories: 0,
             exerciseMinutes: 0,
             activeCaloriesGoal: 400,
             exerciseMinutesGoal: 30
@@ -225,6 +227,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let activity = DailyActivityData(
             steps: 5_000,
             activeCalories: 200,
+            basalCalories: 0,
             exerciseMinutes: 15,
             activeCaloriesGoal: 400,
             exerciseMinutesGoal: 30
@@ -237,6 +240,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let activity = DailyActivityData(
             steps: 20_000,
             activeCalories: 800,
+            basalCalories: 0,
             exerciseMinutes: 60,
             activeCaloriesGoal: 400,
             exerciseMinutesGoal: 30
@@ -249,6 +253,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let activity = DailyActivityData(
             steps: 10_000,
             activeCalories: 400,
+            basalCalories: 0,
             exerciseMinutes: 30,
             activeCaloriesGoal: nil,
             exerciseMinutesGoal: nil
@@ -262,6 +267,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let stepsOnly = DailyActivityData(
             steps: 10_000,
             activeCalories: 0,
+            basalCalories: 0,
             exerciseMinutes: 0,
             activeCaloriesGoal: 400,
             exerciseMinutesGoal: 30

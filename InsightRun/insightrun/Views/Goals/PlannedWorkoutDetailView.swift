@@ -369,6 +369,7 @@ struct PlannedWorkoutDetailView: View {
                 type: stepType,
                 goal: WorkoutGoal(type: goalType, value: goalValue),
                 targetPace: step.targetPace,
+                repetitions: step.repetitions,
                 instructions: step.description
             )
         }

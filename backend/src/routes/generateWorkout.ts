@@ -38,6 +38,7 @@ interface WorkoutStep {
   targetPaceMin?: string // "4:30" format (for ranges)
   targetPaceMax?: string // "4:45" format (for ranges)
   targetHeartRateZone?: number // 1-5
+  repetitions?: number // For "N×distance" intervals — set on the work/interval step. The next recovery step (if any) is repeated implicitly the same number of times.
   instructions?: string
 }
 
@@ -93,6 +94,14 @@ If the user provides a pre-formatted workout with phases, parse it exactly:
 - Map phase names to types: warmup/warm-up → "warmup", tempo/seuil/threshold → "work", intervals/répétitions → "interval", recovery/récupération → "recovery", cooldown/retour au calme → "cooldown", endurance/easy → "work"
 - Convert: "10 min" → 600 seconds, "5 km" → 5000 meters
 - Keep phases in the exact order provided.
+
+REPETITIONS RULE (CRITICAL — never multiply distances):
+- For "N × distance" workouts (e.g. "6×800m récup 400m"), generate ONE "interval"/"work" step with the unit value (800m) and "repetitions": N. NEVER output a single step with the multiplied distance (4800m is wrong).
+- The "recovery" step that immediately follows is implicitly repeated the same number of times — do NOT duplicate it, do NOT set "repetitions" on the recovery step.
+- Omit "repetitions" (or set to 1) for non-repeated steps.
+- Example "6×800m at 3:30/km récup 400m at 5:30/km":
+  { "type": "interval", "goal": { "type": "distance", "value": 800 }, "repetitions": 6, "targetPace": "3:30" },
+  { "type": "recovery", "goal": { "type": "distance", "value": 400 }, "targetPace": "5:30" }
 
 PACE RULES:
 - Exact pace (e.g., "5:30/km") → use "targetPace": "5:30"
@@ -153,6 +162,13 @@ function validateWorkoutJSON(data: unknown): data is AIGeneratedWorkout {
     if (step.goal.type !== 'open' && (typeof step.goal.value !== 'number' || step.goal.value <= 0))
       return false
     if (step.targetHeartRateZone && (step.targetHeartRateZone < 1 || step.targetHeartRateZone > 5))
+      return false
+    if (
+      step.repetitions !== undefined &&
+      (typeof step.repetitions !== 'number' ||
+        step.repetitions < 1 ||
+        !Number.isInteger(step.repetitions))
+    )
       return false
   }
 

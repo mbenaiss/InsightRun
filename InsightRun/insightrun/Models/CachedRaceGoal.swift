@@ -27,6 +27,7 @@ class CachedRaceGoal {
     var planStartDate: Date?
     var trainingPlanData: Data? // JSON-encoded TrainingPlan
 
+    @MainActor
     init(from goal: RaceGoal) {
         self.id = goal.id.uuidString
         self.raceType = goal.raceType.rawValue
@@ -46,6 +47,7 @@ class CachedRaceGoal {
         self.trainingPlanData = Self.encodeTrainingPlan(goal.trainingPlan)
     }
 
+    @MainActor
     func toRaceGoal() -> RaceGoal? {
         guard let uuid = UUID(uuidString: id),
               let type = RaceType(rawValue: raceType),
@@ -58,11 +60,7 @@ class CachedRaceGoal {
             return rawValues.compactMap { DayOfWeek(rawValue: $0) }
         }()
 
-        let plan: TrainingPlan? = {
-            guard let data = trainingPlanData else { return nil }
-            decoder.dateDecodingStrategy = .iso8601
-            return try? decoder.decode(TrainingPlan.self, from: data)
-        }()
+        let plan: TrainingPlan? = Self.decodeTrainingPlan(trainingPlanData)
 
         return RaceGoal(
             id: uuid,
@@ -84,6 +82,7 @@ class CachedRaceGoal {
         )
     }
 
+    @MainActor
     func update(from goal: RaceGoal) {
         self.raceType = goal.raceType.rawValue
         self.raceName = goal.raceName
@@ -107,10 +106,22 @@ class CachedRaceGoal {
         (try? String(data: JSONEncoder().encode(days.map { $0.rawValue }), encoding: .utf8)) ?? "[]"
     }
 
+    // TrainingPlan's Codable conformance is implicitly main-actor isolated via the
+    // SwiftData @Model class context, so encoding/decoding must hop to the main actor
+    // to satisfy Swift 6 strict concurrency.
+    @MainActor
     private static func encodeTrainingPlan(_ plan: TrainingPlan?) -> Data? {
         guard let plan else { return nil }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         return try? encoder.encode(plan)
+    }
+
+    @MainActor
+    private static func decodeTrainingPlan(_ data: Data?) -> TrainingPlan? {
+        guard let data else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(TrainingPlan.self, from: data)
     }
 }

@@ -61,6 +61,7 @@ enum MetricType {
     case oxygenSaturation
     case sleepDuration
     case sleepEfficiency
+    case totalCalories
 }
 
 // MARK: - Trend Data Point
@@ -84,6 +85,7 @@ struct MetricTrendCard: View {
     let trendData: [TrendDataPoint]?
     let baseline: PersonalBaseline?
     let recoveryMetrics: RecoveryMetrics?
+    let activityData: DailyActivityData?
 
     @State private var showingDetail = false
 
@@ -97,7 +99,8 @@ struct MetricTrendCard: View {
         metricType: MetricType = .hrv,
         trendData: [TrendDataPoint]? = nil,
         baseline: PersonalBaseline? = nil,
-        recoveryMetrics: RecoveryMetrics? = nil
+        recoveryMetrics: RecoveryMetrics? = nil,
+        activityData: DailyActivityData? = nil
     ) {
         self.icon = icon
         self.iconColor = iconColor
@@ -109,6 +112,7 @@ struct MetricTrendCard: View {
         self.trendData = trendData
         self.baseline = baseline
         self.recoveryMetrics = recoveryMetrics
+        self.activityData = activityData
     }
 
     var body: some View {
@@ -185,7 +189,8 @@ struct MetricTrendCard: View {
                 deviationStatus: deviationStatus,
                 baseline: baseline,
                 trendData: trendData,
-                recoveryMetrics: recoveryMetrics
+                recoveryMetrics: recoveryMetrics,
+                activityData: activityData
             )
         }
     }

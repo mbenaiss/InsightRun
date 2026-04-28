@@ -105,6 +105,36 @@ final class MetricTrendDataService {
         return points
     }
 
+    /// Daily total calories burned (active + basal) over the trailing window.
+    /// Sequential to avoid stacking another TaskGroup on top of effortTrend's —
+    /// running both in parallel via async let saturates HKHealthStore and was
+    /// causing main-thread stack overflows during dashboard load.
+    func caloriesTotalTrend(days: Int = 7) async -> [TrendDataPoint] {
+        cleanExpiredCache()
+        let cacheKey = "calories_total_\(days)"
+        if let cached = cache[cacheKey], Date().timeIntervalSince(cached.timestamp) < cacheDuration {
+            return cached.data
+        }
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let hkManager = HealthKitManager.shared
+
+        var points: [TrendDataPoint] = []
+        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
+            let activity = await hkManager.fetchDailyActivityData(for: date)
+            if activity.totalCalories > 0 {
+                points.append(TrendDataPoint(date: date, value: activity.totalCalories))
+            }
+        }
+
+        if !points.isEmpty {
+            cache[cacheKey] = (points, Date())
+        }
+        return points
+    }
+
     func sleepTrend(days: Int = 7) async -> [TrendDataPoint] {
         cleanExpiredCache()
         let cacheKey = "sleep_\(days)"

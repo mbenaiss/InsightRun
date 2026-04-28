@@ -61,6 +61,7 @@ interface GeneratedWorkoutStep {
   duration?: number // seconds
   distance?: number // meters
   targetPace?: string
+  repetitions?: number // For "N×distance" intervals — set on the work/interval step. The next recovery step is repeated implicitly the same number of times.
   description: string
 }
 
@@ -141,7 +142,16 @@ CRITICAL RULES:
 - Gradually increase weekly volume (no more than 10% per week).
 - Include a taper phase (1-3 weeks before race depending on distance).
 - The LAST week must include the race itself as a workout (type matching the race distance).
+- In the LAST week, the race workout MUST be the FIRST entry of the "workouts" array (index 0). The client uses array order to schedule the race on race day — getting this wrong puts the race on the wrong day of the week.
 - Order workouts by importance: key session first, then secondary sessions, then easy/recovery last.
+
+REPETITIONS RULE (CRITICAL — never multiply distances):
+- For "N × distance" interval sessions (e.g. "6×800m récup 400m"), generate ONE step with type "interval" or "work" carrying the unit value (800m) and "repetitions": N. NEVER output a single step with the multiplied distance (4800m is wrong).
+- The "recovery" step that immediately follows is implicitly repeated the same number of times — do NOT duplicate it, do NOT set "repetitions" on the recovery step.
+- Omit "repetitions" (or set to 1) for non-repeated steps.
+- Example for an intervals workout "6×800m at 3:30/km récup 400m at 5:30/km":
+  { "type": "interval", "distance": 800, "targetPace": "3:30", "repetitions": 6, "description": "Effort 800m" },
+  { "type": "recovery", "distance": 400, "targetPace": "5:30", "description": "Récupération active" }
 
 PHASE ALLOCATION GUIDELINES:
 - 5K (6-10 weeks): 40% base, 30% build, 20% peak, 10% taper

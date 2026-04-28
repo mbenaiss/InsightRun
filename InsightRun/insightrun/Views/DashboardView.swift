@@ -34,6 +34,7 @@ struct DashboardView: View {
     @State private var effortTrend: [TrendDataPoint] = []
     @State private var sleepTrend: [TrendDataPoint] = []
     @State private var readinessTrend: [TrendDataPoint] = []
+    @State private var caloriesTotalTrend: [TrendDataPoint] = []
     @State private var todaySession: (goal: RaceGoal, day: TrainingDay)?
 
     // MARK: - Body
@@ -240,6 +241,7 @@ struct DashboardView: View {
         async let effort = service.effortTrend()
         async let sleep = service.sleepTrend()
         async let readiness = service.readinessTrend()
+        async let caloriesTotal = service.caloriesTotalTrend()
 
         hrvTrend = await hrv
         rhrTrend = await rhr
@@ -248,6 +250,7 @@ struct DashboardView: View {
         effortTrend = await effort
         sleepTrend = await sleep
         readinessTrend = await readiness
+        caloriesTotalTrend = await caloriesTotal
     }
 
     // MARK: - Day Page
@@ -290,7 +293,14 @@ struct DashboardView: View {
                 trendsSection
                     .padding(.horizontal)
 
-                sleepSection
+                CaloriesSectionView(
+                    activity: latestActivityData,
+                    trendData: caloriesTotalTrend,
+                    recoveryMetrics: recoveryVM.recoveryMetrics
+                )
+                .padding(.horizontal)
+
+                SleepSectionView(sleep: recoveryVM.recoveryMetrics?.sleepData)
                     .padding(.horizontal)
             }
             .padding(.top, Spacing.sm)
@@ -580,78 +590,9 @@ struct DashboardView: View {
     }
 
     // MARK: - Sleep Section
-
-    @ViewBuilder
-    private var sleepSection: some View {
-        if let sleep = recoveryVM.recoveryMetrics?.sleepData {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                Label(
-                    String(localized: "Sleep", comment: "Section header for sleep metrics"),
-                    systemImage: "moon.fill"
-                )
-                .font(.headline)
-                .foregroundStyle(Color.irTextPrimary)
-
-                HealthMetricRow(
-                    icon: "moon.fill",
-                    iconColor: .indigo,
-                    title: String(localized: "Sleep session", comment: "Label for time of sleep session"),
-                    value: sleep.formattedSleepTime
-                )
-
-                HealthMetricRow(
-                    icon: "bed.double.fill",
-                    iconColor: .blue,
-                    title: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
-                    value: sleep.formattedTotalSleep
-                )
-
-                if let napDuration = sleep.formattedNapDuration {
-                    HealthMetricRow(
-                        icon: "powersleep",
-                        iconColor: .orange,
-                        title: String(localized: "Naps", comment: "Label for nap duration"),
-                        value: napDuration
-                    )
-                }
-
-                HealthMetricRow(
-                    icon: "chart.bar.fill",
-                    iconColor: .teal,
-                    title: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
-                    value: String(format: "%.0f%%", sleep.sleepEfficiency)
-                )
-
-                if let deep = sleep.deepSleepDuration,
-                   let core = sleep.coreSleepDuration,
-                   let rem = sleep.remSleepDuration {
-                    Divider()
-                        .padding(.vertical, Spacing.xxs)
-
-                    Text(String(localized: "Sleep stages", comment: "Section header for sleep stages breakdown"))
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
-
-                    SleepStageRow(
-                        stage: String(localized: "Deep", comment: "Deep sleep stage label"),
-                        duration: deep,
-                        color: .blue
-                    )
-                    SleepStageRow(
-                        stage: String(localized: "Light", comment: "Light sleep stage label"),
-                        duration: core,
-                        color: .cyan
-                    )
-                    SleepStageRow(
-                        stage: String(localized: "REM", comment: "REM sleep stage label"),
-                        duration: rem,
-                        color: .indigo
-                    )
-                }
-            }
-            .cardStyle()
-        }
-    }
+    //
+    // Implementation moved to SleepSectionView (View struct, end of file) to keep
+    // dayPage's generic-type chain simple — see comment near CaloriesSectionView.
 
     // MARK: - Weekly Activity Stats
 
@@ -914,4 +855,114 @@ private struct RecoveryHeaderView: View {
     DashboardView()
         .environment(ThemeManager())
         .environmentObject(RevenueCatManager.shared)
+}
+
+// MARK: - Calories Section
+//
+// Extracted as a View struct rather than a `@ViewBuilder` computed property
+// to break the generic-type chain in DashboardView.dayPage. Adding this section
+// inline pushed SwiftUI's runtime generic substitution past its stack limit
+// (EXC_BAD_ACCESS code=2 in swift::SubstGenericParametersFromMetadata).
+
+private struct CaloriesSectionView: View {
+    let activity: DailyActivityData?
+    let trendData: [TrendDataPoint]
+    let recoveryMetrics: RecoveryMetrics?
+
+    var body: some View {
+        if let activity {
+            MetricTrendCard(
+                icon: "flame.fill",
+                iconColor: .orange,
+                title: String(localized: "Total calories", comment: "Total calories metric title"),
+                value: activity.totalCalories,
+                unit: "kcal",
+                deviationStatus: nil,
+                metricType: .totalCalories,
+                trendData: trendData,
+                baseline: nil,
+                recoveryMetrics: recoveryMetrics,
+                activityData: activity
+            )
+        }
+    }
+}
+
+// MARK: - Sleep Section
+//
+// Extracted to break the parent generic-type chain in DashboardView.dayPage.
+
+private struct SleepSectionView: View {
+    let sleep: SleepData?
+
+    var body: some View {
+        if let sleep {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Label(
+                    String(localized: "Sleep", comment: "Section header for sleep metrics"),
+                    systemImage: "moon.fill"
+                )
+                .font(.headline)
+                .foregroundStyle(Color.irTextPrimary)
+
+                HealthMetricRow(
+                    icon: "moon.fill",
+                    iconColor: .indigo,
+                    title: String(localized: "Sleep session", comment: "Label for time of sleep session"),
+                    value: sleep.formattedSleepTime
+                )
+
+                HealthMetricRow(
+                    icon: "bed.double.fill",
+                    iconColor: .blue,
+                    title: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
+                    value: sleep.formattedTotalSleep
+                )
+
+                if let napDuration = sleep.formattedNapDuration {
+                    HealthMetricRow(
+                        icon: "powersleep",
+                        iconColor: .orange,
+                        title: String(localized: "Naps", comment: "Label for nap duration"),
+                        value: napDuration
+                    )
+                }
+
+                HealthMetricRow(
+                    icon: "chart.bar.fill",
+                    iconColor: .teal,
+                    title: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
+                    value: String(format: "%.0f%%", sleep.sleepEfficiency)
+                )
+
+                if let deep = sleep.deepSleepDuration,
+                   let core = sleep.coreSleepDuration,
+                   let rem = sleep.remSleepDuration {
+                    Divider()
+                        .padding(.vertical, Spacing.xxs)
+
+                    Text(String(localized: "Sleep stages", comment: "Section header for sleep stages breakdown"))
+                        .font(.subheadline)
+                        .foregroundStyle(Color.irTextSecondary)
+
+                    SleepStageRow(
+                        stage: String(localized: "Deep", comment: "Deep sleep stage label"),
+                        duration: deep,
+                        color: .blue
+                    )
+                    SleepStageRow(
+                        stage: String(localized: "Light", comment: "Light sleep stage label"),
+                        duration: core,
+                        color: .cyan
+                    )
+                    SleepStageRow(
+                        stage: String(localized: "REM", comment: "REM sleep stage label"),
+                        duration: rem,
+                        color: .indigo
+                    )
+                }
+            }
+            .cardStyle()
+        }
+    }
 }

@@ -165,9 +165,15 @@ struct DailyActivity: Identifiable {
 struct DailyActivityData {
     let steps: Double
     let activeCalories: Double
+    let basalCalories: Double
     let exerciseMinutes: Double
 
     /// Personal goals from Apple Activity Rings (nil = use fixed fallback)
     let activeCaloriesGoal: Double?
     let exerciseMinutesGoal: Double?
+
+    /// Active + basal — what the user typically thinks of as "daily calories burned"
+    var totalCalories: Double {
+        activeCalories + basalCalories
+    }
 }

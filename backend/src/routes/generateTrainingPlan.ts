@@ -27,6 +27,7 @@ interface TrainingPlanRequest {
   preferredDays?: number[] // 1=Sunday...7=Saturday
   injury?: string // injury or constraint description
   targetTimeSeconds?: number // target finish time in seconds
+  weeksCount?: number // optional client-computed plan length; backend recomputes if absent
 }
 
 interface GeneratedTrainingWeek {
@@ -76,6 +77,7 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 16000 // Training plans are large
 const AI_TEMPERATURE = 0.3 // Lower temperature for more consistent plans
+const OPENROUTER_TIMEOUT_MS = 90_000 // Bound the upstream call so we fail fast on hung models
 
 function buildTrainingPlanPrompt(
   request: TrainingPlanRequest,
@@ -252,6 +254,62 @@ function validateTrainingPlanJSON(data: unknown): data is GeneratedTrainingPlan 
       )
         return false
       if (!['easy', 'moderate', 'hard', 'very_hard'].includes(workout.intensity)) return false
+
+      // Backwards-compatible numeric guards: only reject values that are explicitly
+      // present and clearly broken (NaN, negative, non-finite). Missing fields stay valid.
+      if (workout.targetDuration != null) {
+        if (
+          typeof workout.targetDuration !== 'number' ||
+          !Number.isFinite(workout.targetDuration) ||
+          workout.targetDuration < 0
+        )
+          return false
+      }
+      if (workout.targetDistance != null) {
+        if (
+          typeof workout.targetDistance !== 'number' ||
+          !Number.isFinite(workout.targetDistance) ||
+          workout.targetDistance < 0
+        )
+          return false
+      }
+
+      if (Array.isArray(workout.steps)) {
+        for (const step of workout.steps) {
+          // All step fields are validated only when present — keeps tolerance with older
+          // model outputs that may omit fields the prompt now requires.
+          if (
+            step.type != null &&
+            !['warmup', 'work', 'recovery', 'cooldown', 'interval', 'rest'].includes(step.type)
+          )
+            return false
+
+          if (step.duration != null) {
+            if (
+              typeof step.duration !== 'number' ||
+              !Number.isFinite(step.duration) ||
+              step.duration < 0
+            )
+              return false
+          }
+          if (step.distance != null) {
+            if (
+              typeof step.distance !== 'number' ||
+              !Number.isFinite(step.distance) ||
+              step.distance < 0
+            )
+              return false
+          }
+
+          if (
+            step.repetitions != null &&
+            (typeof step.repetitions !== 'number' ||
+              step.repetitions < 1 ||
+              !Number.isInteger(step.repetitions))
+          )
+            return false
+        }
+      }
     }
   }
 
@@ -276,27 +334,35 @@ async function callOpenRouterForPlan(
     response_format: { type: 'json_object' },
   }
 
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://insightrun.ai',
-      'X-Title': 'insightRun.ai',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS)
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
+  try {
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://insightrun.ai',
+        'X-Title': 'insightRun.ai',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
+    }
+
+    const data = (await response.json()) as {
+      choices: Array<{ message: { content: string } }>
+    }
+
+    return data.choices[0]?.message?.content || ''
+  } finally {
+    clearTimeout(timer)
   }
-
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>
-  }
-
-  return data.choices[0]?.message?.content || ''
 }
 
 // POST /api/generate-training-plan
@@ -338,7 +404,9 @@ app.post('/', async (c) => {
         ? now
         : parsedStart
     const msPerWeek = 7 * 24 * 60 * 60 * 1000
-    const weeksAvailable = Math.floor((targetDate.getTime() - startDate.getTime()) / msPerWeek)
+    const weeksFromDates = Math.floor((targetDate.getTime() - startDate.getTime()) / msPerWeek)
+    const weeksAvailable =
+      typeof body.weeksCount === 'number' && body.weeksCount > 0 ? body.weeksCount : weeksFromDates
 
     if (weeksAvailable < 4) {
       return c.json(

@@ -10,10 +10,13 @@ import SwiftUI
 struct PlannedWorkoutDetailView: View {
     let workout: PlannedWorkout
     let day: TrainingDay
+    var isPast: Bool = false
+    var onToggleSkip: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var isExporting = false
     @State private var showExportSuccess = false
     @State private var exportError: String?
+    @State private var showSkipConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -27,7 +30,13 @@ struct PlannedWorkoutDetailView: View {
                         stepsCard
                     }
 
-                    exportCard
+                    if !isPast {
+                        exportCard
+
+                        if onToggleSkip != nil {
+                            skipCard
+                        }
+                    }
                 }
                 .padding()
             }
@@ -60,6 +69,22 @@ struct PlannedWorkoutDetailView: View {
                 if let error = exportError {
                     Text(error)
                 }
+            }
+            .confirmationDialog(
+                String(localized: "goals.workout.skipConfirmTitle", defaultValue: "Skip this workout?", comment: "Skip workout confirmation title"),
+                isPresented: $showSkipConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button(
+                    String(localized: "goals.workout.skipConfirm", defaultValue: "Skip", comment: "Skip workout confirm button"),
+                    role: .destructive
+                ) {
+                    onToggleSkip?()
+                    dismiss()
+                }
+                Button(String(localized: "common.cancel", defaultValue: "Cancel", comment: "Cancel"), role: .cancel) {}
+            } message: {
+                Text(String(localized: "goals.workout.skipConfirmMessage", defaultValue: "The coach will treat this as a deliberate de-load when adapting upcoming weeks.", comment: "Skip workout confirmation message"))
             }
         }
     }
@@ -331,6 +356,62 @@ struct PlannedWorkoutDetailView: View {
                 .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 6, y: 3)
             }
             .disabled(isExporting)
+        }
+        .cardStyle(padding: Spacing.lg)
+    }
+
+    // MARK: - Skip Card
+
+    private var skipCard: some View {
+        VStack(spacing: Spacing.md) {
+            HStack(spacing: Spacing.md) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Radius.sm)
+                        .fill(.gray.opacity(0.1))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: day.isSkipped ? "arrow.uturn.backward" : "forward.end.fill")
+                        .font(.title3)
+                        .foregroundStyle(.gray.gradient)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(day.isSkipped
+                        ? String(localized: "goals.workout.unskipTitle", defaultValue: "Unskip workout", comment: "Unskip workout title")
+                        : String(localized: "goals.workout.skipTitle", defaultValue: "Skip this workout", comment: "Skip workout title")
+                    )
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                    Text(day.isSkipped
+                        ? String(localized: "goals.workout.unskipHint", defaultValue: "Restore this session in your plan", comment: "Unskip workout hint")
+                        : String(localized: "goals.workout.skipHint", defaultValue: "Tells the coach to drop it from progress tracking", comment: "Skip workout hint")
+                    )
+                        .font(.caption2)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+
+                Spacer()
+            }
+
+            Button {
+                if day.isSkipped {
+                    onToggleSkip?()
+                    dismiss()
+                } else {
+                    showSkipConfirmation = true
+                }
+            } label: {
+                Text(day.isSkipped
+                    ? String(localized: "goals.workout.unskipButton", defaultValue: "Restore workout", comment: "Restore workout button")
+                    : String(localized: "goals.workout.skipButton", defaultValue: "Skip workout", comment: "Skip workout button")
+                )
+                .font(.headline)
+                .foregroundStyle(Color.irTextPrimary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.md)
+                .background(Color.irSurface)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            }
+            .disabled(day.isCompleted)
         }
         .cardStyle(padding: Spacing.lg)
     }

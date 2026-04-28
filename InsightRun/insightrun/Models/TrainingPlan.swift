@@ -42,6 +42,7 @@ struct TrainingPlan: Identifiable, Codable {
 
     var lastAdaptationDate: Date?
     var adaptationAssessment: String?
+    var lastAdaptationWeekIndex: Int?
 
     var totalWeeks: Int {
         weeks.count
@@ -110,10 +111,11 @@ struct TrainingDay: Identifiable, Codable {
     let workout: PlannedWorkout?
     var isRestDay: Bool { workout == nil }
     var isCompleted: Bool
-    var completedWorkoutId: String? // Link to actual HKWorkout
+    var completedWorkoutId: String?
+    var isSkipped: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case id, dayOfWeek, workout, isCompleted, completedWorkoutId
+        case id, dayOfWeek, workout, isCompleted, completedWorkoutId, isSkipped
     }
 
     init(
@@ -121,13 +123,25 @@ struct TrainingDay: Identifiable, Codable {
         dayOfWeek: DayOfWeek,
         workout: PlannedWorkout? = nil,
         isCompleted: Bool = false,
-        completedWorkoutId: String? = nil
+        completedWorkoutId: String? = nil,
+        isSkipped: Bool = false
     ) {
         self.id = id
         self.dayOfWeek = dayOfWeek
         self.workout = workout
         self.isCompleted = isCompleted
         self.completedWorkoutId = completedWorkoutId
+        self.isSkipped = isSkipped
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.dayOfWeek = try c.decode(DayOfWeek.self, forKey: .dayOfWeek)
+        self.workout = try c.decodeIfPresent(PlannedWorkout.self, forKey: .workout)
+        self.isCompleted = try c.decode(Bool.self, forKey: .isCompleted)
+        self.completedWorkoutId = try c.decodeIfPresent(String.self, forKey: .completedWorkoutId)
+        self.isSkipped = try c.decodeIfPresent(Bool.self, forKey: .isSkipped) ?? false
     }
 }
 
@@ -182,7 +196,6 @@ struct PlannedWorkout: Identifiable, Codable {
         return String(format: "%.1f km", distance / 1000)
     }
 
-    // Excludes cooldown so a skipped cooldown doesn't fail auto-matching.
     var targetDurationWithoutCooldown: TimeInterval? {
         targetDuration.map { totalMinusCooldown($0, keyPath: \.duration) }
     }

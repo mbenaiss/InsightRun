@@ -341,6 +341,7 @@ struct TrainingPlanGenerationRequest: Encodable {
     let preferredDays: [Int]? // 1=Sunday...7=Saturday
     let injury: String?
     let targetTimeSeconds: Int? // Target finish time in seconds
+    let weeksCount: Int?
 }
 
 struct TrainingPlanGenerationResponse: Decodable {
@@ -405,6 +406,7 @@ struct AdaptTrainingPlanRequest: Encodable {
     let originalPlanName: String
     let originalPlanGoal: String
     let completedWeeks: [CompletedWeekPayload]
+    let originalRemainingWeeks: [OriginalRemainingWeekPayload]?
 }
 
 struct CompletedWeekPayload: Encodable {
@@ -418,6 +420,23 @@ struct CompletedWorkoutPayload: Encodable {
     let type: String
     let planned: PlannedWorkoutPayload
     let actual: ActualWorkoutPayload?
+    let skipped: Bool?
+}
+
+struct OriginalRemainingWeekPayload: Encodable {
+    let weekNumber: Int
+    let phase: String
+    let weeklyVolumeKm: Double?
+    let workouts: [OriginalRemainingWorkoutPayload]
+}
+
+struct OriginalRemainingWorkoutPayload: Encodable {
+    let type: String
+    let name: String
+    let intensity: String
+    let targetDistance: Double?
+    let targetDuration: Double?
+    let targetPace: String?
 }
 
 struct PlannedWorkoutPayload: Encodable {

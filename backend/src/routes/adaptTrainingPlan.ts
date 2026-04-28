@@ -18,33 +18,50 @@ type Variables = {
 interface CompletedWorkoutData {
   type: string
   planned: {
-    distance?: number // meters
-    duration?: number // seconds
+    distance?: number
+    duration?: number
     pace?: string
     intensity: string
   }
   actual?: {
-    distance: number // meters
-    duration: number // seconds
-    pace?: number // min/km
+    distance: number
+    duration: number
+    pace?: number
     heartRate?: number
   }
+  skipped?: boolean
 }
 
 interface CompletedWeekData {
   weekNumber: number
   phase: string
-  completionRate: number // 0.0 - 1.0
+  completionRate: number
   workouts: CompletedWorkoutData[]
+}
+
+interface OriginalRemainingWorkoutData {
+  type: string
+  name: string
+  intensity: string
+  targetDistance?: number
+  targetDuration?: number
+  targetPace?: string
+}
+
+interface OriginalRemainingWeekData {
+  weekNumber: number
+  phase: string
+  weeklyVolumeKm?: number
+  workouts: OriginalRemainingWorkoutData[]
 }
 
 interface AdaptTrainingPlanRequest {
   raceType: 'marathon' | 'half_marathon' | '10k' | '5k' | 'ultra'
-  targetDate: string // ISO 8601
+  targetDate: string
   fitnessLevel: 'beginner' | 'intermediate' | 'advanced'
   language: string
   trainingDaysPerWeek: number
-  preferredDays: number[] // 1=Sunday...7=Saturday
+  preferredDays: number[]
   targetTimeSeconds?: number
   injury?: string
   currentWeekNumber: number
@@ -52,6 +69,7 @@ interface AdaptTrainingPlanRequest {
   originalPlanName: string
   originalPlanGoal: string
   completedWeeks: CompletedWeekData[]
+  originalRemainingWeeks?: OriginalRemainingWeekData[]
 }
 
 interface GeneratedWorkoutStep {
@@ -59,6 +77,7 @@ interface GeneratedWorkoutStep {
   duration?: number
   distance?: number
   targetPace?: string
+  repetitions?: number
   description: string
 }
 
@@ -98,6 +117,7 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 16000
 const AI_TEMPERATURE = 0.3
+const OPENROUTER_TIMEOUT_MS = 90_000
 
 function formatCompletedWeeks(weeks: CompletedWeekData[]): string {
   return weeks
@@ -112,14 +132,34 @@ function formatCompletedWeeks(weeks: CompletedWeekData[]): string {
             line += ` ${Math.round(w.actual.duration / 60)} min`
             if (w.actual.pace) line += ` @ ${w.actual.pace.toFixed(2)} min/km`
             if (w.actual.heartRate) line += ` HR ${Math.round(w.actual.heartRate)} bpm`
+          } else if (w.skipped) {
+            line += ' | SKIPPED (intentional — user opted out)'
           } else {
-            line += ' | SKIPPED'
+            line += ' | MISSED (no recorded workout)'
           }
           return line
         })
         .join('\n')
 
       return `Week ${week.weekNumber} (${week.phase}) — ${Math.round(week.completionRate * 100)}% completed:\n${workoutLines}`
+    })
+    .join('\n\n')
+}
+
+function formatOriginalRemainingWeeks(weeks: OriginalRemainingWeekData[]): string {
+  return weeks
+    .map((week) => {
+      const header = `Week ${week.weekNumber} (${week.phase})${week.weeklyVolumeKm ? ` — ${week.weeklyVolumeKm.toFixed(1)} km` : ''}`
+      const workoutLines = week.workouts
+        .map((w) => {
+          let line = `  - ${w.type} (${w.intensity}): "${w.name}"`
+          if (w.targetDistance) line += ` | ${(w.targetDistance / 1000).toFixed(1)} km`
+          if (w.targetDuration) line += ` ${Math.round(w.targetDuration / 60)} min`
+          if (w.targetPace) line += ` @ ${w.targetPace}/km`
+          return line
+        })
+        .join('\n')
+      return `${header}\n${workoutLines}`
     })
     .join('\n\n')
 }
@@ -131,6 +171,10 @@ function buildAdaptationPrompt(request: AdaptTrainingPlanRequest): {
   const langName = getLanguageName(request.language)
   const raceDistance = getRaceDistance(request.raceType)
   const completedWeeksStr = formatCompletedWeeks(request.completedWeeks)
+  const originalRemainingStr =
+    request.originalRemainingWeeks && request.originalRemainingWeeks.length > 0
+      ? formatOriginalRemainingWeeks(request.originalRemainingWeeks)
+      : ''
 
   const dayNames: Record<number, string> = {
     1: 'Sunday',
@@ -177,12 +221,18 @@ CRITICAL RULES:
 - Analyze actual vs planned performance to determine if the runner is ahead, on track, or behind.
 - Adjust difficulty accordingly: increase if ahead, maintain if on track, decrease if behind.
 - Generate exactly ${request.trainingDaysPerWeek} workouts per week.
+- You MUST output exactly ${request.remainingWeeksCount} week(s) — no more, no less. The LAST of those weeks is the race week and MUST include the race itself as a workout.
+- In the LAST week, the race workout MUST be the FIRST entry of the "workouts" array (index 0). The client uses array order to schedule the race on race day.
 - DO NOT assign days of the week. The client app handles day scheduling.
 - Distances in meters, durations in seconds.
 - Weekly volume (weeklyVolume) MUST be in kilometers (not meters).
 - Gradually adjust weekly volume (no more than 10% change per week).
-- Maintain proper phase progression for the remaining weeks.
-- The LAST week must include the race itself as a workout.${request.injury ? `\n- IMPORTANT: The runner has an injury/constraint: "${request.injury}". Adapt accordingly.` : ''}
+- Maintain proper phase progression for the remaining weeks.${request.injury ? `\n- IMPORTANT: The runner has an injury/constraint: "${request.injury}". Adapt accordingly.` : ''}
+${originalRemainingStr ? `- The "ORIGINAL REMAINING PLAN" section below shows the previously planned weeks. PRESERVE the phase sequence and pedagogical intent (key sessions, long runs, taper structure) — adjust volume/intensity/pace, not the overall blueprint, unless performance data clearly demands a structural change.` : ''}
+
+SKIPPED vs MISSED:
+- "SKIPPED (intentional — user opted out)" → user deliberately removed this session. Treat as a deliberate de-load, not a failure. Do not penalize completion rate aggressively.
+- "MISSED (no recorded workout)" → likely fatigue, life event, or sync issue. Treat as a real signal of overload or scheduling stress.
 
 ADAPTATION GUIDELINES:
 - If completion rate < 60%: reduce volume and intensity, add more recovery
@@ -233,7 +283,7 @@ RUNNER CONTEXT:
 ${contextStr}
 
 COMPLETED WEEKS (planned vs actual):
-${completedWeeksStr}`
+${completedWeeksStr}${originalRemainingStr ? `\n\nORIGINAL REMAINING PLAN (the weeks you are adapting — preserve phase intent, adjust load):\n${originalRemainingStr}` : ''}`
 
   const userPrompt = `Adapt the remaining ${request.remainingWeeksCount} weeks of the training plan for a ${raceDistance} race. The runner is at week ${request.currentWeekNumber} of the plan. Analyze their performance data and generate optimized remaining weeks.`
 
@@ -249,6 +299,15 @@ function validateAdaptedPlanJSON(data: unknown): data is AdaptedTrainingPlan {
   if (!plan.adaptation || typeof plan.adaptation !== 'object') return false
   if (typeof plan.adaptation.assessment !== 'string') return false
   if (typeof plan.adaptation.goalAchievable !== 'boolean') return false
+
+  // Optional fields — validated only when present, kept lenient for older model outputs.
+  if (plan.adaptation.adjustments != null && typeof plan.adaptation.adjustments !== 'string')
+    return false
+  if (
+    plan.adaptation.confidenceLevel != null &&
+    !['high', 'medium', 'low'].includes(plan.adaptation.confidenceLevel)
+  )
+    return false
 
   for (const week of plan.weeks) {
     if (typeof week.weekNumber !== 'number') return false
@@ -271,6 +330,58 @@ function validateAdaptedPlanJSON(data: unknown): data is AdaptedTrainingPlan {
       )
         return false
       if (!['easy', 'moderate', 'hard', 'very_hard'].includes(workout.intensity)) return false
+
+      if (workout.targetDuration != null) {
+        if (
+          typeof workout.targetDuration !== 'number' ||
+          !Number.isFinite(workout.targetDuration) ||
+          workout.targetDuration < 0
+        )
+          return false
+      }
+      if (workout.targetDistance != null) {
+        if (
+          typeof workout.targetDistance !== 'number' ||
+          !Number.isFinite(workout.targetDistance) ||
+          workout.targetDistance < 0
+        )
+          return false
+      }
+
+      if (Array.isArray(workout.steps)) {
+        for (const step of workout.steps) {
+          if (
+            step.type != null &&
+            !['warmup', 'work', 'recovery', 'cooldown', 'interval', 'rest'].includes(step.type)
+          )
+            return false
+
+          if (step.duration != null) {
+            if (
+              typeof step.duration !== 'number' ||
+              !Number.isFinite(step.duration) ||
+              step.duration < 0
+            )
+              return false
+          }
+          if (step.distance != null) {
+            if (
+              typeof step.distance !== 'number' ||
+              !Number.isFinite(step.distance) ||
+              step.distance < 0
+            )
+              return false
+          }
+
+          if (
+            step.repetitions != null &&
+            (typeof step.repetitions !== 'number' ||
+              step.repetitions < 1 ||
+              !Number.isInteger(step.repetitions))
+          )
+            return false
+        }
+      }
     }
   }
 
@@ -338,6 +449,9 @@ app.post('/', async (c) => {
     while (attempts < maxAttempts && !adaptedPlan) {
       attempts++
 
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS)
+
       try {
         const response = await fetch(OPENROUTER_API_URL, {
           method: 'POST',
@@ -358,6 +472,7 @@ app.post('/', async (c) => {
             stream: false,
             response_format: { type: 'json_object' },
           }),
+          signal: controller.signal,
         })
 
         if (!response.ok) {
@@ -391,6 +506,8 @@ app.post('/', async (c) => {
         if (attempts >= maxAttempts) {
           throw parseError
         }
+      } finally {
+        clearTimeout(timer)
       }
     }
 

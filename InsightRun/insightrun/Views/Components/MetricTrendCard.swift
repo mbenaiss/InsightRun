@@ -72,6 +72,15 @@ struct TrendDataPoint: Identifiable {
     let value: Double
 }
 
+struct CaloriesBreakdownPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let active: Double
+    let resting: Double
+
+    var total: Double { active + resting }
+}
+
 // MARK: - Metric Trend Card
 
 struct MetricTrendCard: View {
@@ -86,6 +95,7 @@ struct MetricTrendCard: View {
     let baseline: PersonalBaseline?
     let recoveryMetrics: RecoveryMetrics?
     let activityData: DailyActivityData?
+    let caloriesBreakdown: [CaloriesBreakdownPoint]?
 
     @State private var showingDetail = false
 
@@ -100,7 +110,8 @@ struct MetricTrendCard: View {
         trendData: [TrendDataPoint]? = nil,
         baseline: PersonalBaseline? = nil,
         recoveryMetrics: RecoveryMetrics? = nil,
-        activityData: DailyActivityData? = nil
+        activityData: DailyActivityData? = nil,
+        caloriesBreakdown: [CaloriesBreakdownPoint]? = nil
     ) {
         self.icon = icon
         self.iconColor = iconColor
@@ -113,6 +124,7 @@ struct MetricTrendCard: View {
         self.baseline = baseline
         self.recoveryMetrics = recoveryMetrics
         self.activityData = activityData
+        self.caloriesBreakdown = caloriesBreakdown
     }
 
     var body: some View {
@@ -190,7 +202,8 @@ struct MetricTrendCard: View {
                 baseline: baseline,
                 trendData: trendData,
                 recoveryMetrics: recoveryMetrics,
-                activityData: activityData
+                activityData: activityData,
+                caloriesBreakdown: caloriesBreakdown
             )
         }
     }

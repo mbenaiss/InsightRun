@@ -11,12 +11,15 @@ struct PlannedWorkoutDetailView: View {
     let workout: PlannedWorkout
     let day: TrainingDay
     var isPast: Bool = false
+    var currentDate: Date? = nil
     var onToggleSkip: (() -> Void)? = nil
+    var onMove: ((Date?) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var isExporting = false
     @State private var showExportSuccess = false
     @State private var exportError: String?
     @State private var showSkipConfirmation = false
+    @State private var showMoveSheet = false
 
     var body: some View {
         NavigationStack {
@@ -32,6 +35,10 @@ struct PlannedWorkoutDetailView: View {
 
                     if !isPast {
                         exportCard
+
+                        if onMove != nil {
+                            moveCard
+                        }
 
                         if onToggleSkip != nil {
                             skipCard
@@ -69,6 +76,22 @@ struct PlannedWorkoutDetailView: View {
                 if let error = exportError {
                     Text(error)
                 }
+            }
+            .sheet(isPresented: $showMoveSheet) {
+                MoveWorkoutSheet(
+                    initialDate: currentDate ?? Date(),
+                    hasOverride: day.dateOverride != nil,
+                    onConfirm: { newDate in
+                        onMove?(newDate)
+                        showMoveSheet = false
+                        dismiss()
+                    },
+                    onClearOverride: {
+                        onMove?(nil)
+                        showMoveSheet = false
+                        dismiss()
+                    }
+                )
             }
             .confirmationDialog(
                 String(localized: "goals.workout.skipConfirmTitle", defaultValue: "Skip this workout?", comment: "Skip workout confirmation title"),
@@ -360,6 +383,59 @@ struct PlannedWorkoutDetailView: View {
         .cardStyle(padding: Spacing.lg)
     }
 
+    // MARK: - Move Card
+
+    private var moveCard: some View {
+        VStack(spacing: Spacing.md) {
+            HStack(spacing: Spacing.md) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Radius.sm)
+                        .fill(.blue.opacity(0.1))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.title3)
+                        .foregroundStyle(.blue.gradient)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "goals.workout.moveTitle", defaultValue: "Reschedule", comment: "Move workout card title"))
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                    Text(moveCardSubtitle)
+                        .font(.caption2)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+
+                Spacer()
+            }
+
+            Button {
+                showMoveSheet = true
+            } label: {
+                Text(day.dateOverride != nil
+                    ? String(localized: "goals.workout.moveAgainButton", defaultValue: "Pick a new date", comment: "Move workout button - already moved")
+                    : String(localized: "goals.workout.moveButton", defaultValue: "Move to another day", comment: "Move workout button")
+                )
+                .font(.headline)
+                .foregroundStyle(Color.irTextPrimary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.md)
+                .background(Color.irSurface)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            }
+            .disabled(day.isCompleted)
+        }
+        .cardStyle(padding: Spacing.lg)
+    }
+
+    private var moveCardSubtitle: String {
+        if let override = day.dateOverride {
+            let template = String(localized: "goals.workout.moveSubtitleMoved", defaultValue: "Moved to %@", comment: "Move workout subtitle - moved (date)")
+            return String(format: template, override.formatted(date: .abbreviated, time: .omitted))
+        }
+        return String(localized: "goals.workout.moveSubtitle", defaultValue: "Shift this session to another date — the rest of the plan stays the same", comment: "Move workout subtitle")
+    }
+
     // MARK: - Skip Card
 
     private var skipCard: some View {
@@ -550,6 +626,91 @@ struct PlannedWorkoutDetailView: View {
             return String(localized: "goals.workout.purpose.fartlek", defaultValue: "Fun speed play that develops pace awareness", comment: "Workout purpose - fartlek")
         case .crossTraining:
             return String(localized: "goals.workout.purpose.crossTraining", defaultValue: "Reduces injury risk while maintaining fitness", comment: "Workout purpose - cross training")
+        }
+    }
+}
+
+// MARK: - Move Workout Sheet
+
+private struct MoveWorkoutSheet: View {
+    let initialDate: Date
+    let hasOverride: Bool
+    let onConfirm: (Date) -> Void
+    let onClearOverride: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedDate: Date
+
+    init(
+        initialDate: Date,
+        hasOverride: Bool,
+        onConfirm: @escaping (Date) -> Void,
+        onClearOverride: @escaping () -> Void
+    ) {
+        self.initialDate = initialDate
+        self.hasOverride = hasOverride
+        self.onConfirm = onConfirm
+        self.onClearOverride = onClearOverride
+        self._selectedDate = State(initialValue: initialDate)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: Spacing.lg) {
+                Text(String(localized: "goals.workout.movePrompt", defaultValue: "Pick the new date for this session. The rest of your plan stays unchanged.", comment: "Move workout prompt"))
+                    .font(.subheadline)
+                    .foregroundStyle(Color.irTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                DatePicker(
+                    String(localized: "goals.workout.moveDateLabel", defaultValue: "New date", comment: "Move workout date picker label"),
+                    selection: $selectedDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .padding(.horizontal)
+
+                Spacer()
+
+                VStack(spacing: Spacing.sm) {
+                    Button {
+                        onConfirm(selectedDate)
+                    } label: {
+                        Text(String(localized: "goals.workout.moveConfirm", defaultValue: "Move session", comment: "Move workout confirm button"))
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Spacing.md)
+                            .background(Color.irPrimaryAccent.gradient)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                    }
+                    .disabled(Calendar.current.isDate(selectedDate, inSameDayAs: initialDate))
+
+                    if hasOverride {
+                        Button(role: .destructive) {
+                            onClearOverride()
+                        } label: {
+                            Text(String(localized: "goals.workout.moveReset", defaultValue: "Reset to original date", comment: "Reset workout move button"))
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, Spacing.sm)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+            }
+            .background(Color.irBackgroundApp)
+            .navigationTitle(String(localized: "goals.workout.moveNavTitle", defaultValue: "Reschedule session", comment: "Move workout navigation title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(String(localized: "common.cancel", defaultValue: "Cancel", comment: "Cancel")) {
+                        dismiss()
+                    }
+                }
+            }
+            .presentationDetents([.large])
         }
     }
 }

@@ -157,6 +157,17 @@ class GoalsViewModel: ObservableObject {
         storage.updateGoal(goals[goalIdx])
     }
 
+    /// Move a planned session to a new date without changing anything else in the plan.
+    /// Pass `nil` to clear an existing override.
+    func setDayDateOverride(goalId: UUID, weekIndex: Int, dayIndex: Int, newDate: Date?) {
+        guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
+              goals[goalIdx].trainingPlan != nil else { return }
+
+        let normalized = newDate.map { Calendar.current.startOfDay(for: $0) }
+        goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].dateOverride = normalized
+        storage.updateGoal(goals[goalIdx])
+    }
+
     /// Shift the plan start to a new date (keeps the plan structure, just re-anchors it).
     /// Triggers a retro-match so any recent HealthKit workout falling into the new window gets linked.
     func setPlanStartDate(goalId: UUID, newStart: Date) async {

@@ -74,19 +74,10 @@ final class WorkoutMatchingService {
         let workoutDuration = hkWorkout.duration
 
         for goal in activeGoals {
-            guard let plan = goal.trainingPlan, let startDate = plan.startDate else { continue }
+            guard let plan = goal.trainingPlan, plan.startDate != nil else { continue }
 
-            let planStart = Calendar.current.startOfDay(for: startDate)
-            let daysSinceStart = Calendar.current.dateComponents([.day], from: planStart, to: workoutDate).day ?? -1
-            guard daysSinceStart >= 0 else { continue }
-
-            let weekIndex = daysSinceStart / 7
-            guard weekIndex < plan.weeks.count else { continue }
-
-            let workoutDOW = Calendar.current.component(.weekday, from: hkWorkout.startDate)
-            let week = plan.weeks[weekIndex]
-            guard let dayIndex = week.days.firstIndex(where: { $0.dayOfWeek.rawValue == workoutDOW }) else { continue }
-            let day = week.days[dayIndex]
+            guard let (weekIndex, dayIndex) = Self.locateDay(in: plan, for: workoutDate) else { continue }
+            let day = plan.weeks[weekIndex].days[dayIndex]
 
             guard let planned = day.workout, !day.isCompleted else { continue }
             guard Self.shouldAttemptAutoMatch(planned.type) else { continue }
@@ -116,6 +107,39 @@ final class WorkoutMatchingService {
             print("WorkoutMatchingService: Matched workout to \(planned.name) in \(goal.raceName)")
             return // One workout matches at most one planned session
         }
+    }
+
+    /// Resolve which (week, day) cell a workout date maps to. A user-chosen override
+    /// always wins (so a moved session can still auto-match); otherwise we fall back
+    /// to the natural week/day-of-week computation.
+    static func locateDay(in plan: TrainingPlan, for workoutDate: Date) -> (weekIndex: Int, dayIndex: Int)? {
+        let calendar = Calendar.current
+        let target = calendar.startOfDay(for: workoutDate)
+
+        for (weekIdx, week) in plan.weeks.enumerated() {
+            for (dayIdx, day) in week.days.enumerated() {
+                guard let override = day.dateOverride else { continue }
+                if calendar.isDate(override, inSameDayAs: target) {
+                    return (weekIdx, dayIdx)
+                }
+            }
+        }
+
+        guard let startDate = plan.startDate else { return nil }
+        let planStart = calendar.startOfDay(for: startDate)
+        let daysSinceStart = calendar.dateComponents([.day], from: planStart, to: target).day ?? -1
+        guard daysSinceStart >= 0 else { return nil }
+
+        let weekIndex = daysSinceStart / 7
+        guard weekIndex < plan.weeks.count else { return nil }
+
+        let workoutDOW = calendar.component(.weekday, from: workoutDate)
+        let week = plan.weeks[weekIndex]
+        guard let dayIndex = week.days.firstIndex(where: {
+            $0.dayOfWeek.rawValue == workoutDOW && $0.dateOverride == nil
+        }) else { return nil }
+
+        return (weekIndex, dayIndex)
     }
 
     // MARK: - Matching rules

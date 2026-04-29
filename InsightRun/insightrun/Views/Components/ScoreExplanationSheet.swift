@@ -50,6 +50,7 @@ struct ScoreExplanationSheet: View {
     private let metricUnit: String
     private let deviationStatus: DeviationStatus?
     private let baseline: PersonalBaseline?
+    private let caloriesBreakdown: [CaloriesBreakdownPoint]?
 
     // Shared
     var trendData: [TrendDataPoint]?
@@ -89,6 +90,7 @@ struct ScoreExplanationSheet: View {
         self.metricUnit = ""
         self.deviationStatus = nil
         self.baseline = nil
+        self.caloriesBreakdown = nil
     }
 
     // MARK: - Metric Init
@@ -101,7 +103,8 @@ struct ScoreExplanationSheet: View {
         baseline: PersonalBaseline?,
         trendData: [TrendDataPoint]? = nil,
         recoveryMetrics: RecoveryMetrics? = nil,
-        activityData: DailyActivityData? = nil
+        activityData: DailyActivityData? = nil,
+        caloriesBreakdown: [CaloriesBreakdownPoint]? = nil
     ) {
         self.mode = .metric(metricType)
         self.metricValue = currentValue
@@ -115,6 +118,7 @@ struct ScoreExplanationSheet: View {
         self.sleepEfficiency = nil
         self.cardiacLoadStatus = nil
         self.activityData = activityData
+        self.caloriesBreakdown = caloriesBreakdown
     }
 
     // MARK: - Body
@@ -273,7 +277,14 @@ struct ScoreExplanationSheet: View {
             }
 
             aiInsightCard
-            metricHistoryChart
+
+            if case .metric(.totalCalories) = mode,
+               let breakdown = caloriesBreakdown,
+               !breakdown.isEmpty {
+                caloriesStackedHistoryChart(breakdown)
+            } else {
+                metricHistoryChart
+            }
 
             if let baseline = baseline {
                 baselineComparisonCard(baseline)
@@ -1013,6 +1024,119 @@ struct ScoreExplanationSheet: View {
         .padding(20)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20)))
+    }
+
+    // MARK: - Calories Stacked Bar Chart
+
+    private func caloriesStackedHistoryChart(_ data: [CaloriesBreakdownPoint]) -> some View {
+        let activeColor = Color.green
+        let restingColor = Color.orange
+        let activeLabel = String(localized: "Active", comment: "Active calories label")
+        let restingLabel = String(localized: "Resting", comment: "Basal/resting calories label")
+
+        let selected: CaloriesBreakdownPoint? = {
+            guard !data.isEmpty else { return nil }
+            guard let selectedDate else { return data.last }
+            return data.min(by: { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) })
+        }()
+
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text(String(localized: "7-Day History", comment: "History chart header"))
+                    .font(.headline)
+                    .foregroundStyle(Color.irTextPrimary)
+
+                Spacer()
+
+                if let selected {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text(String(format: "%.0f", selected.total))
+                                .font(.system(.title3, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color.irTextPrimary)
+
+                            Text("kcal")
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+
+                        Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+                            .font(.caption2)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                    .animation(.easeInOut(duration: 0.15), value: selected.id)
+                }
+            }
+
+            Chart {
+                ForEach(data) { point in
+                    BarMark(
+                        x: .value("Date", point.date, unit: .day),
+                        y: .value("Calories", point.resting)
+                    )
+                    .foregroundStyle(by: .value("Type", restingLabel))
+
+                    BarMark(
+                        x: .value("Date", point.date, unit: .day),
+                        y: .value("Calories", point.active)
+                    )
+                    .foregroundStyle(by: .value("Type", activeLabel))
+                }
+
+                if let selected {
+                    RuleMark(x: .value("Date", selected.date, unit: .day))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                }
+            }
+            .chartForegroundStyleScale([
+                restingLabel: restingColor,
+                activeLabel: activeColor,
+            ])
+            .chartLegend(position: .bottom, alignment: .leading)
+            .chartXSelection(value: $selectedDate)
+            .frame(height: 220)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 1)) { _ in
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(.caption2)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) { _ in
+                    AxisValueLabel().font(.caption2)
+                    AxisGridLine()
+                }
+            }
+
+            if let selected {
+                HStack(spacing: 16) {
+                    breakdownLegendItem(color: activeColor, label: activeLabel, value: selected.active)
+                    breakdownLegendItem(color: restingColor, label: restingLabel, value: selected.resting)
+                    Spacer()
+                }
+            }
+        }
+        .padding(20)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func breakdownLegendItem(color: Color, label: String, value: Double) -> some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 10, height: 10)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(Color.irTextSecondary)
+                Text(String(format: "%.0f kcal", value))
+                    .font(.caption.monospacedDigit())
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.irTextPrimary)
+            }
+        }
     }
 
     // MARK: - Shared Chart Helpers

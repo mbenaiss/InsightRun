@@ -22,12 +22,16 @@ final class MetricTrendDataService {
     }
 
     private var cache: [String: (data: [TrendDataPoint], timestamp: Date)] = [:]
+    private var caloriesBreakdownCache: [String: (data: [CaloriesBreakdownPoint], timestamp: Date)] = [:]
     private let cacheDuration: TimeInterval = Constants.cacheDurationSeconds
 
     private init() {}
 
     private func cleanExpiredCache() {
         cache = cache.filter { _, entry in
+            Date().timeIntervalSince(entry.timestamp) < cacheDuration
+        }
+        caloriesBreakdownCache = caloriesBreakdownCache.filter { _, entry in
             Date().timeIntervalSince(entry.timestamp) < cacheDuration
         }
     }
@@ -129,6 +133,41 @@ final class MetricTrendDataService {
 
         if !points.isEmpty {
             cache[cacheKey] = (points, Date())
+        }
+        return points
+    }
+
+    /// Daily active vs. resting calories for the last `days` days.
+    /// Built from the same `fetchDailyActivityData` source as `caloriesTotalTrend` —
+    /// kept as a separate query so the dashboard's total-calories card can reuse the
+    /// existing trend without paying for the breakdown.
+    func caloriesBreakdownTrend(days: Int = 7) async -> [CaloriesBreakdownPoint] {
+        cleanExpiredCache()
+        let cacheKey = "calories_breakdown_\(days)"
+        if let cached = caloriesBreakdownCache[cacheKey],
+           Date().timeIntervalSince(cached.timestamp) < cacheDuration {
+            return cached.data
+        }
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let hkManager = HealthKitManager.shared
+
+        var points: [CaloriesBreakdownPoint] = []
+        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
+            let activity = await hkManager.fetchDailyActivityData(for: date)
+            if activity.totalCalories > 0 {
+                points.append(CaloriesBreakdownPoint(
+                    date: date,
+                    active: activity.activeCalories,
+                    resting: activity.basalCalories
+                ))
+            }
+        }
+
+        if !points.isEmpty {
+            caloriesBreakdownCache[cacheKey] = (points, Date())
         }
         return points
     }

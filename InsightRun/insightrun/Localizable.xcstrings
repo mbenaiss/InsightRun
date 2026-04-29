@@ -6053,6 +6053,186 @@
         }
       }
     },
+    "goals.workout.moveAgainButton" : {
+      "comment" : "Move workout button - already moved",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a new date"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir une nouvelle date"
+          }
+        }
+      }
+    },
+    "goals.workout.moveButton" : {
+      "comment" : "Move workout button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to another day"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer à un autre jour"
+          }
+        }
+      }
+    },
+    "goals.workout.moveConfirm" : {
+      "comment" : "Move workout confirm button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move session"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer la séance"
+          }
+        }
+      }
+    },
+    "goals.workout.moveDateLabel" : {
+      "comment" : "Move workout date picker label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New date"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle date"
+          }
+        }
+      }
+    },
+    "goals.workout.moveNavTitle" : {
+      "comment" : "Move workout navigation title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reschedule session"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replanifier la séance"
+          }
+        }
+      }
+    },
+    "goals.workout.movePrompt" : {
+      "comment" : "Move workout prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick the new date for this session. The rest of your plan stays unchanged."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez la nouvelle date pour cette séance. Le reste du plan reste inchangé."
+          }
+        }
+      }
+    },
+    "goals.workout.moveReset" : {
+      "comment" : "Reset workout move button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset to original date"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revenir à la date d'origine"
+          }
+        }
+      }
+    },
+    "goals.workout.moveSubtitle" : {
+      "comment" : "Move workout subtitle",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift this session to another date — the rest of the plan stays the same"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décale cette séance à une autre date — le reste du plan ne change pas"
+          }
+        }
+      }
+    },
+    "goals.workout.moveSubtitleMoved" : {
+      "comment" : "Move workout subtitle - moved (date)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moved to %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacée au %@"
+          }
+        }
+      }
+    },
+    "goals.workout.moveTitle" : {
+      "comment" : "Move workout card title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reschedule"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replanifier"
+          }
+        }
+      }
+    },
     "goals.workout.pace" : {
       "comment" : "Workout detail - pace",
       "extractionState" : "extracted_with_value",
@@ -12873,6 +13053,10 @@
           }
         }
       }
+    },
+    "Type" : {
+      "comment" : "Label for resting calories in the stacked bar chart.",
+      "isCommentAutoGenerated" : true
     },
     "Unable to calculate readiness score. Please try again." : {
       "comment" : "Error message when readiness calculation fails",

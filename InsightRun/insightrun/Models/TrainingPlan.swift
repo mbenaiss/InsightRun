@@ -66,6 +66,24 @@ struct TrainingPlan: Identifiable, Codable {
         let weekIndex = daysSinceStart / 7
         return weekIndex < weeks.count ? weekIndex : nil
     }
+
+    /// Date a given (week, day) cell falls on, ignoring any user-chosen override.
+    /// Returns `nil` when the plan has no start date.
+    func naturalDate(weekIndex: Int, day: TrainingDay) -> Date? {
+        guard let start = startDate, weekIndex >= 0, weekIndex < weeks.count else { return nil }
+        let calendar = Calendar.current
+        let planStart = calendar.startOfDay(for: start)
+        let planStartDOW = calendar.component(.weekday, from: planStart)
+        var dayDelta = day.dayOfWeek.rawValue - planStartDOW
+        if dayDelta < 0 { dayDelta += 7 }
+        return calendar.date(byAdding: .day, value: weekIndex * 7 + dayDelta, to: planStart)
+    }
+
+    /// Effective date a session is performed on — the user override when present,
+    /// otherwise the date computed from the plan's start and the day's weekday.
+    func effectiveDate(weekIndex: Int, day: TrainingDay) -> Date? {
+        day.dateOverride ?? naturalDate(weekIndex: weekIndex, day: day)
+    }
 }
 
 // MARK: - Training Week
@@ -113,9 +131,13 @@ struct TrainingDay: Identifiable, Codable {
     var isCompleted: Bool
     var completedWorkoutId: String?
     var isSkipped: Bool
+    /// User-chosen date override. When set, the session is performed on this date
+    /// instead of the date implied by `dayOfWeek` and the plan's start. The plan
+    /// structure (week + dayOfWeek) is preserved — only the displayed date shifts.
+    var dateOverride: Date?
 
     private enum CodingKeys: String, CodingKey {
-        case id, dayOfWeek, workout, isCompleted, completedWorkoutId, isSkipped
+        case id, dayOfWeek, workout, isCompleted, completedWorkoutId, isSkipped, dateOverride
     }
 
     init(
@@ -124,7 +146,8 @@ struct TrainingDay: Identifiable, Codable {
         workout: PlannedWorkout? = nil,
         isCompleted: Bool = false,
         completedWorkoutId: String? = nil,
-        isSkipped: Bool = false
+        isSkipped: Bool = false,
+        dateOverride: Date? = nil
     ) {
         self.id = id
         self.dayOfWeek = dayOfWeek
@@ -132,6 +155,7 @@ struct TrainingDay: Identifiable, Codable {
         self.isCompleted = isCompleted
         self.completedWorkoutId = completedWorkoutId
         self.isSkipped = isSkipped
+        self.dateOverride = dateOverride
     }
 
     init(from decoder: Decoder) throws {
@@ -142,6 +166,7 @@ struct TrainingDay: Identifiable, Codable {
         self.isCompleted = try c.decode(Bool.self, forKey: .isCompleted)
         self.completedWorkoutId = try c.decodeIfPresent(String.self, forKey: .completedWorkoutId)
         self.isSkipped = try c.decodeIfPresent(Bool.self, forKey: .isSkipped) ?? false
+        self.dateOverride = try c.decodeIfPresent(Date.self, forKey: .dateOverride)
     }
 }
 

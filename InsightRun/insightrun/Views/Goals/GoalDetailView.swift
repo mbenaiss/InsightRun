@@ -501,6 +501,14 @@ struct GoalDetailView: View {
                             weekIndex: weekIndex,
                             dayIndex: dayIndex
                         )
+                    },
+                    onMoveDay: { weekIndex, dayIndex, newDate in
+                        viewModel.setDayDateOverride(
+                            goalId: currentGoal.id,
+                            weekIndex: weekIndex,
+                            dayIndex: dayIndex,
+                            newDate: newDate
+                        )
                     }
                 )
             }
@@ -608,11 +616,20 @@ struct GoalDetailView: View {
                         workout: workout,
                         day: day,
                         isPast: isDayPast(weekIndex: weekIndex, day: day),
+                        currentDate: currentGoal.trainingPlan?.effectiveDate(weekIndex: weekIndex, day: day),
                         onToggleSkip: isRaceDay(weekIndex: weekIndex, day: day) ? nil : {
                             viewModel.toggleDaySkipped(
                                 goalId: currentGoal.id,
                                 weekIndex: weekIndex,
                                 dayIndex: dayIndex
+                            )
+                        },
+                        onMove: isRaceDay(weekIndex: weekIndex, day: day) ? nil : { newDate in
+                            viewModel.setDayDateOverride(
+                                goalId: currentGoal.id,
+                                weekIndex: weekIndex,
+                                dayIndex: dayIndex,
+                                newDate: newDate
                             )
                         }
                     )

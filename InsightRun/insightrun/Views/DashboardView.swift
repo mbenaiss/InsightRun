@@ -35,6 +35,7 @@ struct DashboardView: View {
     @State private var sleepTrend: [TrendDataPoint] = []
     @State private var readinessTrend: [TrendDataPoint] = []
     @State private var caloriesTotalTrend: [TrendDataPoint] = []
+    @State private var caloriesBreakdownTrend: [CaloriesBreakdownPoint] = []
     @State private var todaySession: (goal: RaceGoal, day: TrainingDay)?
 
     // MARK: - Body
@@ -242,6 +243,7 @@ struct DashboardView: View {
         async let sleep = service.sleepTrend()
         async let readiness = service.readinessTrend()
         async let caloriesTotal = service.caloriesTotalTrend()
+        async let caloriesBreakdown = service.caloriesBreakdownTrend()
 
         hrvTrend = await hrv
         rhrTrend = await rhr
@@ -251,6 +253,7 @@ struct DashboardView: View {
         sleepTrend = await sleep
         readinessTrend = await readiness
         caloriesTotalTrend = await caloriesTotal
+        caloriesBreakdownTrend = await caloriesBreakdown
     }
 
     // MARK: - Day Page
@@ -296,6 +299,7 @@ struct DashboardView: View {
                 CaloriesSectionView(
                     activity: latestActivityData,
                     trendData: caloriesTotalTrend,
+                    breakdownData: caloriesBreakdownTrend,
                     recoveryMetrics: recoveryVM.recoveryMetrics
                 )
                 .padding(.horizontal)
@@ -860,6 +864,7 @@ private struct RecoveryHeaderView: View {
 private struct CaloriesSectionView: View {
     let activity: DailyActivityData?
     let trendData: [TrendDataPoint]
+    let breakdownData: [CaloriesBreakdownPoint]
     let recoveryMetrics: RecoveryMetrics?
 
     var body: some View {
@@ -875,7 +880,8 @@ private struct CaloriesSectionView: View {
                 trendData: trendData,
                 baseline: nil,
                 recoveryMetrics: recoveryMetrics,
-                activityData: activity
+                activityData: activity,
+                caloriesBreakdown: breakdownData
             )
         }
     }

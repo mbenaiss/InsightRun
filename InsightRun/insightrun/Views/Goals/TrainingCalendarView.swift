@@ -12,6 +12,7 @@ struct TrainingCalendarView: View {
     let plan: TrainingPlan
     let onToggleCompletion: (Int, Int) -> Void
     var onToggleSkip: ((Int, Int) -> Void)? = nil
+    var onMoveDay: ((Int, Int, Date?) -> Void)? = nil
 
     @State private var expandedWeekIndex: Int?
     @State private var selectedWorkout: SelectedWorkout?
@@ -37,8 +38,12 @@ struct TrainingCalendarView: View {
                 workout: selected.workout,
                 day: selected.day,
                 isPast: Self.isDayPast(plan: plan, weekIndex: selected.weekIndex, day: selected.day),
+                currentDate: plan.effectiveDate(weekIndex: selected.weekIndex, day: selected.day),
                 onToggleSkip: isRace ? nil : onToggleSkip.map { handler in
                     { handler(selected.weekIndex, selected.dayIndex) }
+                },
+                onMove: isRace ? nil : onMoveDay.map { handler in
+                    { newDate in handler(selected.weekIndex, selected.dayIndex, newDate) }
                 }
             )
         }
@@ -172,18 +177,30 @@ struct TrainingCalendarView: View {
                             .clipShape(Capsule())
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(workout.name)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(Color.irTextPrimary)
-                                .lineLimit(1)
-                            
+                            HStack(spacing: 4) {
+                                Text(workout.name)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Color.irTextPrimary)
+                                    .lineLimit(1)
+
+                                if let override = day.dateOverride {
+                                    Label(
+                                        override.formatted(date: .abbreviated, time: .omitted),
+                                        systemImage: "arrow.right.circle.fill"
+                                    )
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.blue)
+                                    .labelStyle(CompactLabelStyle())
+                                }
+                            }
+
                             HStack(spacing: 6) {
                                 if !workout.formattedDistance.isEmpty {
                                     Label(workout.formattedDistance, systemImage: "ruler")
                                 } else if !workout.formattedDuration.isEmpty {
                                     Label(workout.formattedDuration, systemImage: "clock")
                                 }
-                                
+
                                 if let pace = workout.targetPace {
                                     Text("•")
                                     Text(pace)

@@ -19,7 +19,7 @@ struct GoalsTabView: View {
                 if viewModel.activeGoals.isEmpty && viewModel.pastGoals.isEmpty && viewModel.raceHistory.isEmpty {
                     emptyState
                 } else {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: Spacing.dash) {
                         // Top row: "Plans & Races" eyebrow + "+" button (V4 dash header)
                         HStack(alignment: .center) {
                             Text(String(
@@ -27,7 +27,7 @@ struct GoalsTabView: View {
                                 defaultValue: "Plans & Races",
                                 comment: "Goals tab - top eyebrow"
                             ).uppercased())
-                            .font(.system(size: 11, weight: .bold))
+                            .font(IRFont.eyebrow.weight(.bold))
                             .tracking(1.76)
                             .foregroundStyle(Color.irTextSecondary.opacity(0.6))
 
@@ -38,7 +38,7 @@ struct GoalsTabView: View {
                             } label: {
                                 ZStack {
                                     Circle()
-                                        .fill(Color.irSurface)
+                                        .fill(Color.irCard2)
                                         .overlay(
                                             Circle()
                                                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
@@ -46,14 +46,14 @@ struct GoalsTabView: View {
                                         .frame(width: 32, height: 32)
 
                                     Image(systemName: "plus")
-                                        .font(.system(size: 14, weight: .heavy))
+                                        .font(IRFont.body.weight(.heavy))
                                         .foregroundStyle(Color.irPrimaryAccent)
                                 }
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("goals-add")
                         }
-                        .padding(.top, 4)
+                        .padding(.top, Spacing.xxs)
 
                         // Title
                         Text(String(
@@ -61,7 +61,7 @@ struct GoalsTabView: View {
                             defaultValue: "Goals",
                             comment: "Goals tab title"
                         ))
-                        .font(.system(size: 34, weight: .heavy))
+                        .font(IRFont.title1.weight(.heavy))
                         .tracking(-1.0)
                         .foregroundStyle(Color.irTextPrimary)
 
@@ -73,7 +73,7 @@ struct GoalsTabView: View {
                                     comment: "Goals tab - upcoming section"
                                 ))
 
-                                LazyVStack(spacing: 12) {
+                                LazyVStack(spacing: Spacing.md) {
                                     ForEach(viewModel.activeGoals) { goal in
                                         NavigationLink(destination: GoalDetailView(goal: goal, viewModel: viewModel)) {
                                             GoalCard(goal: goal)
@@ -92,7 +92,7 @@ struct GoalsTabView: View {
                                     comment: "Goals tab - past section"
                                 ))
 
-                                LazyVStack(spacing: 12) {
+                                LazyVStack(spacing: Spacing.md) {
                                     ForEach(viewModel.pastGoals) { goal in
                                         NavigationLink(destination: GoalDetailView(goal: goal, viewModel: viewModel)) {
                                             GoalCard(goal: goal)
@@ -112,7 +112,7 @@ struct GoalsTabView: View {
                                     comment: "Goals tab - history section"
                                 ))
 
-                                LazyVStack(spacing: 8) {
+                                LazyVStack(spacing: Spacing.sm) {
                                     ForEach(viewModel.raceHistory) { goal in
                                         RaceHistoryCard(goal: goal) {
                                             viewModel.deleteGoal(goal)
@@ -122,9 +122,9 @@ struct GoalsTabView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.top, 12)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, Spacing.cardPadding)
+                    .padding(.top, Spacing.md)
+                    .padding(.bottom, Spacing.xl)
                 }
             }
             .background(Color.irBackgroundApp)
@@ -173,19 +173,19 @@ struct GoalsTabView: View {
                     .frame(width: 160, height: 160)
 
                 Image(systemName: "target")
-                    .font(.system(size: 80))
+                    .font(IRFont.numXL)
                     .foregroundStyle(Color.irPrimaryAccent.gradient)
                     .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 10, x: 0, y: 5)
             }
 
             VStack(spacing: Spacing.md) {
                 Text(String(localized: "goals.empty.title", defaultValue: "No Goals Yet", comment: "Goals tab - empty title"))
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "goals.empty.description", defaultValue: "Set a race goal and get a personalized training plan, or log your past races.", comment: "Goals tab - empty description"))
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.xxl)
@@ -198,8 +198,8 @@ struct GoalsTabView: View {
                     Image(systemName: "plus")
                     Text(String(localized: "goals.empty.addButton", defaultValue: "Add a Goal", comment: "Goals tab - add button"))
                 }
-                .font(.headline)
-                .foregroundStyle(.white)
+                .font(IRFont.headline)
+                .foregroundStyle(Color.irCardBackground)
                 .padding(.horizontal, Spacing.xl)
                 .padding(.vertical, Spacing.md)
                 .background(Color.irPrimaryAccent.gradient)
@@ -230,7 +230,7 @@ struct GoalCountdownRing: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.06), lineWidth: strokeWidth)
+                .stroke(Color.irBorder, lineWidth: strokeWidth)
 
             Circle()
                 .trim(from: 0, to: progress)
@@ -242,12 +242,11 @@ struct GoalCountdownRing: View {
 
             VStack(spacing: 2) {
                 Text("\(days)")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(IRFont.numSM.weight(.heavy))
                     .tracking(-0.88) // -0.04em on 22pt
                     .foregroundStyle(Color.irPrimaryAccent)
-                    .monospacedDigit()
                 Text(String(localized: "goals.card.days", defaultValue: "days", comment: "Goal card - days label").uppercased())
-                    .font(.system(size: 8, weight: .bold))
+                    .font(IRFont.eyebrow.weight(.bold))
                     .tracking(0.8) // 0.1em on 8pt
                     .foregroundStyle(Color.irTextSecondary.opacity(0.6))
             }
@@ -291,26 +290,26 @@ struct GoalCard: View {
     var body: some View {
         VStack(spacing: 0) {
             // Top: icon + race info + countdown
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .center, spacing: Spacing.dash) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: Radius.sm)
                         .fill(Color.irPrimaryAccent.opacity(0.20))
                         .frame(width: 44, height: 44)
 
                     Image(systemName: goal.raceType.icon)
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(IRFont.title3.weight(.semibold))
                         .foregroundStyle(Color.irPrimaryAccent)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(distanceLabel) · \(formattedDate)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(IRFont.monoSM)
                         .tracking(0.44) // 0.04em on 11pt
                         .foregroundStyle(Color.irTextSecondary.opacity(0.6))
                         .lineLimit(1)
 
                     Text(goal.raceName)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(IRFont.numSM.weight(.bold))
                         .tracking(-0.18) // -0.01em on 18pt
                         .foregroundStyle(Color.irTextPrimary)
                         .lineLimit(1)
@@ -322,16 +321,16 @@ struct GoalCard: View {
                     GoalCountdownRing(days: goal.daysRemaining)
                 } else {
                     Text(String(localized: "goals.card.completed", defaultValue: "Completed", comment: "Goal card - completed label"))
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .fontWeight(.bold)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.irTextPrimary)
                         .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, Spacing.xxs)
                         .background(Color.irSuccess.gradient)
                         .clipShape(Capsule())
                 }
             }
-            .padding(18)
+            .padding(Spacing.cardPadding)
 
             // Bottom: phase + progress
             if goal.hasTrainingPlan {
@@ -339,15 +338,15 @@ struct GoalCard: View {
                     .fill(Color.irBorder)
                     .frame(height: 0.5)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
                     HStack {
                         if let phase = goal.currentPhase {
-                            HStack(spacing: 6) {
+                            HStack(spacing: Spacing.xs) {
                                 Circle()
                                     .fill(Color.irPrimaryAccent)
                                     .frame(width: 7, height: 7)
                                 Text(phase.displayName)
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(IRFont.caption.weight(.semibold))
                                     .foregroundStyle(Color.irTextPrimary)
                             }
                         }
@@ -355,14 +354,14 @@ struct GoalCard: View {
                         Spacer()
 
                         Text("\(goal.completedWorkouts) / \(goal.totalPlannedWorkouts) " + String(localized: "goals.card.workouts", defaultValue: "workouts", comment: "Goal card - workouts count"))
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(IRFont.monoSM)
                             .foregroundStyle(Color.irTextSecondary)
                     }
 
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.white.opacity(0.06))
+                                .fill(Color.irBorder)
                                 .frame(height: 4)
 
                             RoundedRectangle(cornerRadius: 2)
@@ -372,9 +371,9 @@ struct GoalCard: View {
                     }
                     .frame(height: 4)
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 12)
-                .padding(.bottom, 14)
+                .padding(.horizontal, Spacing.cardPadding)
+                .padding(.top, Spacing.md)
+                .padding(.bottom, Spacing.dash)
             } else if !goal.isPastRace {
                 Rectangle()
                     .fill(Color.irBorder)
@@ -382,33 +381,33 @@ struct GoalCard: View {
 
                 HStack(spacing: Spacing.xs) {
                     Image(systemName: "sparkles")
-                        .font(.caption)
+                        .font(IRFont.caption)
                     Text(String(localized: "goals.card.generateHint", defaultValue: "Tap to generate training plan", comment: "Goal card - no plan hint"))
-                        .font(.caption)
+                        .font(IRFont.caption)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(IRFont.microLabel.weight(.bold))
                         .foregroundStyle(Color.irTextSecondary)
                 }
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.irPrimaryAccent)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
+                .padding(.horizontal, Spacing.cardPadding)
+                .padding(.vertical, Spacing.md)
             }
         }
         .background(
             LinearGradient(
                 colors: [
                     Color.irPrimaryAccent.opacity(0.08).blendedOver(Color.irCardBackground),
-                    Color.black.opacity(0.04).blendedOver(Color.irCardBackground)
+                    Color.irTextPrimary.opacity(0.04).blendedOver(Color.irCardBackground)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irPrimaryAccent.opacity(0.30), lineWidth: 0.5)
         )
     }
@@ -451,25 +450,25 @@ struct RaceHistoryCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.purple.opacity(0.18))
+                RoundedRectangle(cornerRadius: Radius.xs)
+                    .fill(Color.irPurple.opacity(0.18))
                     .frame(width: 40, height: 40)
 
                 Image(systemName: "trophy")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.purple)
+                    .font(IRFont.title3.weight(.semibold))
+                    .foregroundStyle(Color.irPurple)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(goal.raceName)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(IRFont.body.weight(.bold))
                     .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
 
                 Text("\(formattedDate) · \(formattedDistance)")
-                    .font(.system(size: 11))
+                    .font(IRFont.eyebrow)
                     .foregroundStyle(Color.irTextSecondary)
             }
 
@@ -478,20 +477,20 @@ struct RaceHistoryCard: View {
             if let time = goal.formattedFinishTime {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(time)
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                        .font(IRFont.monoSM.weight(.bold))
                         .foregroundStyle(Color.irTextPrimary)
                     Text(String(localized: "goals.history.finishTime", defaultValue: "Finish Time", comment: "Race history - finish time label").uppercased())
-                        .font(.system(size: 9, weight: .bold))
+                        .font(IRFont.eyebrow.weight(.bold))
                         .tracking(0.9) // 0.1em on 9pt
                         .foregroundStyle(Color.irTextSecondary.opacity(0.6))
                 }
             }
         }
-        .padding(14)
+        .padding(Spacing.dash)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
         .contextMenu {

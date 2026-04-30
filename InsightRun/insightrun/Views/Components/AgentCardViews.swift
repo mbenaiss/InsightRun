@@ -14,36 +14,36 @@ struct WorkoutCardView: View {
     let message: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             // Header
             HStack {
                 Image(systemName: workoutIcon)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .font(.title3)
+                    .font(IRFont.title3)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(workoutTypeName)
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(Color.irTextPrimary)
 
                     Text(String(localized: "\(workout.duration) min", comment: "Workout duration"))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "figure.run.circle.fill")
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -54,35 +54,35 @@ struct WorkoutCardView: View {
 
             // Steps
             ForEach(workout.steps) { step in
-                HStack(spacing: 10) {
+                HStack(spacing: Spacing.md) {
                     Image(systemName: step.stepIcon)
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(stepColor(step.type))
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(stepTypeName(step.type))
-                                .font(.subheadline)
+                                .font(IRFont.body)
                                 .fontWeight(.medium)
                                 .foregroundStyle(Color.irTextPrimary)
 
                             Text(String(localized: "\(step.duration) min", comment: "Step duration in minutes"))
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irTextSecondary)
-                                .padding(.horizontal, 6)
+                                .padding(.horizontal, Spacing.xs)
                                 .padding(.vertical, 2)
                                 .background(Color.irBackgroundApp)
                                 .clipShape(Capsule())
                         }
 
                         Text(step.description)
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
 
                         if let pace = step.targetPace {
                             Text(String(localized: "Target: \(pace) /km", comment: "Target pace"))
-                                .font(.caption2)
+                                .font(IRFont.microLabel)
                                 .foregroundStyle(Color.irPrimaryAccent)
                         }
                     }
@@ -92,14 +92,14 @@ struct WorkoutCardView: View {
             // Message
             if let message = message, !message.isEmpty {
                 Text(message)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
-                    .padding(.top, 4)
+                    .padding(.top, Spacing.xxs)
             }
         }
-        .padding(16)
+        .padding(Spacing.base)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 
@@ -142,11 +142,11 @@ struct WorkoutCardView: View {
 
     private func stepColor(_ type: String) -> Color {
         switch type {
-        case "warmup": return .orange
-        case "cooldown": return .blue
-        case "intervals": return .red
-        case "tempo": return .purple
-        default: return .green
+        case "warmup": return Color.irWarning
+        case "cooldown": return Color.irPrimaryAccent
+        case "intervals": return Color.irError
+        case "tempo": return Color.irPurple
+        default: return Color.irSuccess
         }
     }
 }
@@ -158,38 +158,38 @@ struct TrendAnalysisCardView: View {
     let message: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             // Header
             HStack {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.purple, .pink],
+                            colors: [Color.irPurple, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .font(.title3)
+                    .font(IRFont.title3)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(trend.metricDisplayName)
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(Color.irTextPrimary)
 
                     Text(trend.periodDisplayName)
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
                 Spacer()
 
                 // Trend indicator
-                HStack(spacing: 4) {
+                HStack(spacing: Spacing.xxs) {
                     Image(systemName: trend.trendIcon)
-                        .font(.title3)
+                        .font(IRFont.title3)
 
                     Text(String(format: "%+.1f%%", trend.percentageChange))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .fontWeight(.bold)
                 }
                 .foregroundStyle(trendColor)
@@ -204,23 +204,23 @@ struct TrendAnalysisCardView: View {
                     .frame(width: 8, height: 8)
 
                 Text(trendLabel)
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.medium)
                     .foregroundStyle(trendColor)
             }
 
             // Insights
             if !trend.insights.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     ForEach(trend.insights, id: \.self) { insight in
-                        HStack(alignment: .top, spacing: 8) {
+                        HStack(alignment: .top, spacing: Spacing.sm) {
                             Image(systemName: "lightbulb.fill")
-                                .font(.caption2)
+                                .font(IRFont.microLabel)
                                 .foregroundStyle(Color.irWarning)
                                 .padding(.top, 2)
 
                             Text(insight)
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
                     }
@@ -230,22 +230,22 @@ struct TrendAnalysisCardView: View {
             // Message
             if let message = message, !message.isEmpty {
                 Text(message)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
-                    .padding(.top, 4)
+                    .padding(.top, Spacing.xxs)
             }
         }
-        .padding(16)
+        .padding(Spacing.base)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 
     private var trendColor: Color {
         switch trend.trend {
-        case "improving": return .green
-        case "declining": return .red
-        default: return .orange
+        case "improving": return Color.irSuccess
+        case "declining": return Color.irError
+        default: return Color.irWarning
         }
     }
 

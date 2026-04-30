@@ -17,7 +17,7 @@ struct WelcomeStepView: View {
             primaryTitle: String(localized: "Get started", comment: "Onboarding continue button"),
             primaryAction: onContinue
         ) {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.xl) {
                 AnimatedOnboardingIllustration(type: .welcome)
 
                 OnboardingEditorialHeader(
@@ -26,7 +26,7 @@ struct WelcomeStepView: View {
                     body: String(localized: "Your intelligent running coach. Detailed metrics, AI analysis, recovery and progression — in one place.", comment: "Onboarding welcome subtitle")
                 )
 
-                VStack(spacing: 8) {
+                VStack(spacing: Spacing.sm) {
                     OnboardingFeatureCard(
                         icon: "chart.line.uptrend.xyaxis",
                         iconTint: .irPrimaryAccent,

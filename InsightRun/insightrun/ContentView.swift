@@ -61,6 +61,7 @@ struct ContentView: View {
                 .tag(3)
                 .accessibilityIdentifier("tab-goals")
             }
+            .tint(Color.irPrimaryAccent)
             .onChange(of: selectedTab) { _, newTab in
                 // Update context provider's current page based on selected tab
                 let page: AIContextPage = switch newTab {

@@ -16,28 +16,28 @@ struct IndexationBannerView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.base) {
             // Header with icon and dismiss button
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 // Running icon
                 Image(systemName: "figure.run.circle.fill")
-                    .font(.system(size: 32))
+                    .font(IRFont.title1)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
 
                 // Title and description
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(String(localized: "Update Athletic Profile", comment: "Banner title for profile update"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(Color.irTextPrimary)
 
                     Text(String(localized: "Sync your recent workouts for better AI insights", comment: "Banner description for profile update"))
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                         .lineLimit(2)
                 }
@@ -47,50 +47,50 @@ struct IndexationBannerView: View {
                 // Dismiss button
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
+                        .font(IRFont.numSM)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
 
             // Action buttons
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 // Later button
                 Button(action: onDismiss) {
                     Text(String(localized: "Later", comment: "Dismiss banner button"))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.medium)
                         .foregroundStyle(Color.irTextSecondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, Spacing.md)
                         .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
                 }
 
                 // Sync button
                 Button(action: onSyncTapped) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: Spacing.xs) {
                         Image(systemName: "arrow.clockwise")
                         Text(String(localized: "Synchronize", comment: "Sync button in banner"))
                     }
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.irTextPrimary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, Spacing.md)
                     .background(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
                 }
             }
         }
         .padding()
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .shadow(color: Color.irShadowStrong, radius: 8, y: 4)
     }
 }

@@ -23,13 +23,13 @@ struct WeeklyActivityCard: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack {
                     Text(weekLabel)
-                        .font(.system(size: 12))
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
 
                     Spacer()
 
                     Text(totalDistanceLabel)
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(IRFont.monoSM)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
 
@@ -45,9 +45,9 @@ struct WeeklyActivityCard: View {
             .padding(Spacing.lg - 2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: Radius.xl)
+                RoundedRectangle(cornerRadius: Radius.md)
                     .strokeBorder(Color.irBorder, lineWidth: 0.5)
             )
         }
@@ -57,13 +57,13 @@ struct WeeklyActivityCard: View {
     private func statColumn(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .font(IRFont.title3.weight(.bold))
                 .foregroundStyle(Color.irTextPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
             Text(label)
-                .font(.system(size: 10))
+                .font(IRFont.microLabel)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -90,7 +90,7 @@ struct BarChartRow: View {
                 ForEach(Array(values.enumerated()), id: \.offset) { idx, v in
                     let h = max(2, CGFloat(v / maxValue) * height)
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(idx == highlighted ? Color.irAIAccent : Color.white.opacity(0.18))
+                        .fill(idx == highlighted ? Color.irAIAccent : Color.irBorderStrong)
                         .frame(width: barWidth, height: h)
                 }
             }

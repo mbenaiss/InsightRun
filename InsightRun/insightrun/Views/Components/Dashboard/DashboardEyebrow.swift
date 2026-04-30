@@ -12,20 +12,20 @@ struct DashboardEyebrow: View {
     let title: String
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             Rectangle()
                 .fill(Color.irTextSecondary.opacity(0.5))
                 .frame(width: 18, height: 1)
 
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .bold))
+                .font(IRFont.eyebrow.weight(.bold))
                 .tracking(1.4)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.7))
 
             Spacer()
         }
-        .padding(.horizontal, 4)
-        .padding(.bottom, 8)
+        .padding(.horizontal, Spacing.xxs)
+        .padding(.bottom, Spacing.sm)
     }
 }
 

@@ -28,12 +28,12 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     Text(String(localized: "Settings", comment: "Navigation title for settings view"))
-                        .font(.system(size: 34, weight: .heavy))
+                        .font(IRFont.title1.weight(.heavy))
                         .tracking(-1.0)
                         .foregroundStyle(Color.irTextPrimary)
-                        .padding(.top, 4)
+                        .padding(.top, Spacing.xxs)
 
                     sectionSubscription
                     sectionAppearance
@@ -51,8 +51,8 @@ struct SettingsView: View {
                     #endif
                     sectionAbout
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 32)
+                .padding(.horizontal, Spacing.cardPadding)
+                .padding(.bottom, Spacing.xxl)
             }
             .background(Color.irBackgroundApp)
             .navigationBarHidden(true)
@@ -156,10 +156,10 @@ struct SettingsView: View {
             title: String(localized: "Appearance"),
             footer: String(localized: "Choose the app theme. System mode automatically adapts to your iOS settings.")
         ) {
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 iconTile(systemName: "paintbrush", color: Color.irPrimaryAccent)
                 Text(String(localized: "Appearance"))
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(IRFont.body.weight(.semibold))
                     .foregroundStyle(Color.irTextPrimary)
                 Spacer()
                 Picker("", selection: Bindable(themeManager).selectedTheme) {
@@ -177,8 +177,8 @@ struct SettingsView: View {
                     )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, Spacing.base)
+            .padding(.vertical, Spacing.dash)
         }
     }
 
@@ -228,7 +228,7 @@ struct SettingsView: View {
                 rowDivider
                 settingsToggleRow(
                     icon: "calendar",
-                    iconColor: Color.purple,
+                    iconColor: Color.irPurple,
                     title: String(localized: "Weekly Summary", comment: "Weekly summary notification toggle"),
                     subtitle: notificationManager.isWeeklySummaryEnabled ? String(localized: "Sunday at 6:00 PM", comment: "Weekly summary schedule") : nil,
                     isOn: Binding(
@@ -404,15 +404,15 @@ struct SettingsView: View {
     private var sectionStrava: some View {
         sectionContainer(title: String(localized: "Integrations")) {
             if stravaAuth.isAuthenticated {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: Spacing.md) {
                         iconTile(systemName: "checkmark.circle.fill", color: Color.irSuccess)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(String(localized: "Strava Connected"))
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(IRFont.body.weight(.semibold))
                                 .foregroundStyle(Color.irTextPrimary)
                             Text(lastSyncResult ?? String(localized: "Activities syncing automatically"))
-                                .font(.system(size: 11))
+                                .font(IRFont.eyebrow)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
                         Spacer(minLength: 8)
@@ -421,8 +421,8 @@ struct SettingsView: View {
                         .frame(height: 18)
                         .padding(.leading, 44)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .padding(.horizontal, Spacing.base)
+                .padding(.vertical, Spacing.dash)
 
                 rowDivider
                 settingsButtonRow(
@@ -463,8 +463,8 @@ struct SettingsView: View {
                     isLoading: false,
                     variant: .orange
                 )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .padding(.horizontal, Spacing.base)
+                .padding(.vertical, Spacing.dash)
             }
         }
     }
@@ -478,7 +478,7 @@ struct SettingsView: View {
         ) {
             settingsButtonRow(
                 icon: "heart.text.square",
-                iconColor: .pink,
+                iconColor: Color.irError,
                 title: String(localized: "Health Permissions"),
                 subtitle: String(localized: "Manage read and write access"),
                 trailing: .external
@@ -527,7 +527,7 @@ struct SettingsView: View {
                 revenueCatManager.debugTestFlightOverride = true
             }
             rowDivider
-            settingsButtonRow(icon: "globe", iconColor: .indigo, title: String(localized: "Simuler Production")) {
+            settingsButtonRow(icon: "globe", iconColor: Color.irPrimaryAccent, title: String(localized: "Simuler Production")) {
                 revenueCatManager.debugTestFlightOverride = false
             }
             rowDivider
@@ -556,7 +556,7 @@ struct SettingsView: View {
                 revenueCatManager.hasSeenInitialPaywall = false
             }
             rowDivider
-            settingsButtonRow(icon: "arrow.uturn.backward.circle.badge.ellipsis", iconColor: .purple, title: String(localized: "Réinitialiser l'onboarding")) {
+            settingsButtonRow(icon: "arrow.uturn.backward.circle.badge.ellipsis", iconColor: Color.irPurple, title: String(localized: "Réinitialiser l'onboarding")) {
                 OnboardingManager.shared.resetOnboarding()
             }
             rowDivider
@@ -587,19 +587,19 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: 18)
+                RoundedRectangle(cornerRadius: Radius.md)
                     .strokeBorder(Color.irBorder, lineWidth: 0.5)
             )
 
             if let footer {
                 Text(footer)
-                    .font(.system(size: 11))
+                    .font(IRFont.eyebrow)
                     .lineSpacing(2)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.7))
-                    .padding(.horizontal, 4)
-                    .padding(.top, 8)
+                    .padding(.horizontal, Spacing.xxs)
+                    .padding(.top, Spacing.sm)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -615,11 +615,11 @@ struct SettingsView: View {
 
     private func iconTile(systemName: String, color: Color) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: Radius.xs)
                 .fill(color.opacity(0.16))
                 .frame(width: 32, height: 32)
             Image(systemName: systemName)
-                .font(.system(size: 14, weight: .regular))
+                .font(IRFont.body)
                 .foregroundStyle(color)
         }
     }
@@ -630,23 +630,23 @@ struct SettingsView: View {
         title: String,
         subtitle: String? = nil
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             iconTile(systemName: icon, color: iconColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(IRFont.body.weight(.semibold))
                     .foregroundStyle(Color.irTextPrimary)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(IRFont.eyebrow)
                         .lineSpacing(1)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
             Spacer(minLength: 8)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, Spacing.base)
+        .padding(.vertical, Spacing.dash)
     }
 
     private func settingsValueRow(
@@ -655,18 +655,18 @@ struct SettingsView: View {
         title: String,
         value: String
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             iconTile(systemName: icon, color: iconColor)
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(IRFont.body.weight(.semibold))
                 .foregroundStyle(Color.irTextPrimary)
             Spacer()
             Text(value)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .font(IRFont.monoSM.weight(.medium))
                 .foregroundStyle(Color.irTextSecondary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, Spacing.base)
+        .padding(.vertical, Spacing.dash)
     }
 
     private func settingsToggleRow(
@@ -676,15 +676,15 @@ struct SettingsView: View {
         subtitle: String? = nil,
         isOn: Binding<Bool>
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             iconTile(systemName: icon, color: iconColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(IRFont.body.weight(.semibold))
                     .foregroundStyle(Color.irTextPrimary)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(IRFont.eyebrow)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
@@ -693,8 +693,8 @@ struct SettingsView: View {
                 .labelsHidden()
                 .tint(Color.irPrimaryAccent)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, Spacing.base)
+        .padding(.vertical, Spacing.dash)
     }
 
     enum RowTrailing {
@@ -715,15 +715,15 @@ struct SettingsView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 iconTile(systemName: icon, color: iconColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(IRFont.body.weight(.semibold))
                         .foregroundStyle(titleColor)
                     if let subtitle {
                         Text(subtitle)
-                            .font(.system(size: 11))
+                            .font(IRFont.eyebrow)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -731,11 +731,11 @@ struct SettingsView: View {
                 switch trailing {
                 case .chevron:
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(IRFont.eyebrow.weight(.semibold))
                         .foregroundStyle(Color.irTextSecondary)
                 case .external:
                     Image(systemName: "arrow.up.forward")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(IRFont.eyebrow.weight(.semibold))
                         .foregroundStyle(Color.irTextSecondary)
                 case .progress:
                     ProgressView().controlSize(.small).tint(Color.irPrimaryAccent)
@@ -743,8 +743,8 @@ struct SettingsView: View {
                     EmptyView()
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, Spacing.base)
+            .padding(.vertical, Spacing.dash)
             .contentShape(Rectangle())
             .opacity(disabled ? 0.5 : 1)
         }

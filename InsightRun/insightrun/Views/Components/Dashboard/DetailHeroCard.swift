@@ -31,8 +31,8 @@ struct DetailHeroCard: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .padding(.horizontal, 18)
+        .padding(.vertical, Spacing.lg)
+        .padding(.horizontal, Spacing.cardPadding)
         .background(
             LinearGradient(
                 colors: [
@@ -43,9 +43,9 @@ struct DetailHeroCard: View {
                 endPoint: .bottom
             )
         )
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -77,7 +77,7 @@ struct DetailHeroCard: View {
 
     private func arcTrack(cx: CGFloat, cy: CGFloat, radius: CGFloat, stroke: CGFloat) -> some View {
         DetailHalfArc(progress: 1.0)
-            .stroke(Color.white.opacity(0.06), style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+            .stroke(Color.irBorder, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
             .frame(width: radius * 2, height: radius * 2)
             .position(x: cx, y: cy)
     }
@@ -105,7 +105,7 @@ struct DetailHeroCard: View {
                     p.move(to: CGPoint(x: cx + cos(angle) * r1, y: cy + sin(angle) * r1))
                     p.addLine(to: CGPoint(x: cx + cos(angle) * r2, y: cy + sin(angle) * r2))
                 }
-                .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                .stroke(Color.irTextPrimary.opacity(0.18), lineWidth: 1)
             }
         }
     }
@@ -116,7 +116,7 @@ struct DetailHeroCard: View {
 
         return ZStack {
             Circle()
-                .fill(Color.white)
+                .fill(Color.irTextPrimary)
                 .frame(width: 10, height: 10)
                 .position(dot)
 
@@ -131,7 +131,7 @@ struct DetailHeroCard: View {
         VStack(spacing: 2) {
             HStack(alignment: .lastTextBaseline, spacing: 3) {
                 Text(valueLabel)
-                    .font(.system(size: 68, weight: .heavy, design: .rounded))
+                    .font(IRFont.numXL.weight(.heavy))
                     .kerning(-3)
                     .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
@@ -139,13 +139,13 @@ struct DetailHeroCard: View {
 
                 if let unitLabel {
                     Text(unitLabel)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(IRFont.footnote.weight(.semibold))
                         .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
             }
 
             Text(statusLabel.uppercased())
-                .font(.system(size: 9, weight: .bold))
+                .font(IRFont.eyebrow.weight(.bold))
                 .tracking(2.5)
                 .foregroundStyle(accent)
         }
@@ -155,10 +155,10 @@ struct DetailHeroCard: View {
     // MARK: Raw value variant (no gauge)
 
     private var rawValue: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .lastTextBaseline, spacing: 4) {
+        VStack(spacing: Spacing.sm) {
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                 Text(valueLabel)
-                    .font(.system(size: 64, weight: .heavy, design: .rounded))
+                    .font(IRFont.numXL.weight(.heavy))
                     .kerning(-2)
                     .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
@@ -166,17 +166,17 @@ struct DetailHeroCard: View {
 
                 if let unitLabel {
                     Text(unitLabel)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(IRFont.bodyEmphasized.weight(.semibold))
                         .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
             }
 
             Text(statusLabel.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(IRFont.microLabel.weight(.bold))
                 .tracking(2.5)
                 .foregroundStyle(accent)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, Spacing.sm)
     }
 }
 
@@ -197,7 +197,7 @@ private struct DetailHalfArc: Shape {
 }
 
 #Preview {
-    VStack(spacing: 16) {
+    VStack(spacing: Spacing.base) {
         DetailHeroCard(
             valueLabel: "47",
             unitLabel: "/100",

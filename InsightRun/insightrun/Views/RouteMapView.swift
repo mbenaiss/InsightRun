@@ -33,19 +33,19 @@ struct RouteMapView: View {
         Map(position: $position) {
             // Draw the route as a polyline
             MapPolyline(coordinates: routePoints.map { $0.coordinate })
-                .stroke(.blue, lineWidth: 4)
+                .stroke(Color.irPrimaryAccent, lineWidth: 4)
 
             // Start marker
             if let start = routePoints.first {
                 Annotation(String(localized: "workout.detail.start"), coordinate: start.coordinate) {
                     ZStack {
                         Circle()
-                            .fill(.green)
+                            .fill(Color.irSuccess)
                             .frame(width: 30, height: 30)
 
                         Image(systemName: "play.fill")
-                            .foregroundStyle(.white)
-                            .font(.caption)
+                            .foregroundStyle(Color.irTextPrimary)
+                            .font(IRFont.caption)
                     }
                 }
             }
@@ -55,12 +55,12 @@ struct RouteMapView: View {
                 Annotation(String(localized: "workout.detail.finish"), coordinate: end.coordinate) {
                     ZStack {
                         Circle()
-                            .fill(.red)
+                            .fill(Color.irError)
                             .frame(width: 30, height: 30)
 
                         Image(systemName: "flag.fill")
-                            .foregroundStyle(.white)
-                            .font(.caption)
+                            .foregroundStyle(Color.irTextPrimary)
+                            .font(IRFont.caption)
                     }
                 }
             }

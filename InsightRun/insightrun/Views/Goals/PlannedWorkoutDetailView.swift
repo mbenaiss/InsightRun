@@ -56,7 +56,7 @@ struct PlannedWorkoutDetailView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
+                            .font(IRFont.title2)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -117,23 +117,23 @@ struct PlannedWorkoutDetailView: View {
     private var headerCard: some View {
         HStack(spacing: Spacing.md) {
             ZStack {
-                RoundedRectangle(cornerRadius: Radius.md)
+                RoundedRectangle(cornerRadius: Radius.sm)
                     .fill(workout.intensity.themeColor.opacity(0.1))
                     .frame(width: 56, height: 56)
 
                 Image(systemName: workout.type.icon)
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .foregroundStyle(workout.intensity.themeColor.gradient)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(workout.name)
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 HStack(spacing: Spacing.sm) {
                     Text(workout.type.displayName)
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .fontWeight(.bold)
                         .foregroundStyle(Color.irTextSecondary)
                         .textCase(.uppercase)
@@ -142,9 +142,9 @@ struct PlannedWorkoutDetailView: View {
                         .foregroundStyle(Color.irBorder)
 
                     Text(workout.intensity.displayName)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(IRFont.microLabel.weight(.bold))
                         .foregroundStyle(workout.intensity.themeColor)
-                        .padding(.horizontal, 6)
+                        .padding(.horizontal, Spacing.xs)
                         .padding(.vertical, 2)
                         .background(workout.intensity.themeColor.opacity(0.1))
                         .clipShape(Capsule())
@@ -155,7 +155,7 @@ struct PlannedWorkoutDetailView: View {
             
             if day.isCompleted {
                 Image(systemName: "checkmark.seal.fill")
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .foregroundStyle(Color.irSuccess.gradient)
             }
         }
@@ -170,31 +170,29 @@ struct PlannedWorkoutDetailView: View {
             if !metrics.isEmpty {
                 HStack(spacing: Spacing.xs) {
                     ForEach(Array(metrics.enumerated()), id: \.offset) { index, metric in
-                        VStack(spacing: 4) {
+                        VStack(spacing: Spacing.xxs) {
                             ZStack {
                                 Circle()
                                     .fill(Color.irPrimaryAccent.opacity(0.05))
                                     .frame(width: 32, height: 32)
                                 Image(systemName: metric.icon)
-                                    .font(.caption2)
+                                    .font(IRFont.microLabel)
                                     .foregroundStyle(Color.irPrimaryAccent)
                             }
-                            
+
                             Text(metric.value)
-                                .font(.headline)
-                                .fontWeight(.bold)
+                                .font(IRFont.numSM.weight(.bold))
                                 .foregroundStyle(Color.irTextPrimary)
-                                .monospacedDigit()
-                            
+
                             Text(metric.label)
-                                .font(.system(size: 9, weight: .bold))
+                                .font(IRFont.eyebrow.weight(.bold))
                                 .foregroundStyle(Color.irTextSecondary)
                                 .textCase(.uppercase)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.sm)
-                        .background(Color.irSurface.opacity(0.3))
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                        .background(Color.irCard2.opacity(0.3))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
                 }
             }
@@ -208,20 +206,20 @@ struct PlannedWorkoutDetailView: View {
             HStack(spacing: Spacing.sm) {
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.1))
+                        .fill(Color.irPurple.opacity(0.1))
                         .frame(width: 36, height: 36)
                     Image(systemName: "sparkles")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.purple.gradient)
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irPurple.gradient)
                 }
 
                 Text(String(localized: "goals.workout.aiExplanation", defaultValue: "Coach's Briefing", comment: "Workout detail - AI explanation title"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
             }
 
             Text(workout.description)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary.opacity(0.9))
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
@@ -229,22 +227,22 @@ struct PlannedWorkoutDetailView: View {
             // Workout purpose badge
             HStack(spacing: Spacing.sm) {
                 Image(systemName: workoutPurposeIcon)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irPrimaryAccent)
                 Text(workoutPurposeText)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.irTextSecondary)
             }
             .padding(Spacing.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.irPrimaryAccent.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
         }
         .cardStyle(padding: Spacing.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
-                .stroke(Color.purple.opacity(0.1), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Radius.md)
+                .stroke(Color.irPurple.opacity(0.1), lineWidth: 1)
         )
     }
 
@@ -253,7 +251,7 @@ struct PlannedWorkoutDetailView: View {
     private var stepsCard: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             Text(String(localized: "goals.workout.stepsTitle", defaultValue: "Workout Structure", comment: "Workout detail - steps title"))
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
 
             VStack(spacing: 0) {
@@ -268,8 +266,8 @@ struct PlannedWorkoutDetailView: View {
                                     .shadow(color: step.type.themeColor.opacity(0.3), radius: 4)
                                 
                                 Text("\(index + 1)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
+                                    .font(IRFont.microLabel.weight(.bold))
+                                    .foregroundStyle(Color.irTextPrimary)
                             }
 
                             if index < workout.steps.count - 1 {
@@ -284,10 +282,10 @@ struct PlannedWorkoutDetailView: View {
                         .frame(width: 24)
 
                         // Step content
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
                             HStack {
                                 Text(step.type.displayName)
-                                    .font(.subheadline)
+                                    .font(IRFont.body)
                                     .fontWeight(.bold)
                                     .foregroundStyle(Color.irTextPrimary)
 
@@ -301,22 +299,22 @@ struct PlannedWorkoutDetailView: View {
                                         Text(String(format: "%.0f m", distance))
                                     }
                                 }
-                                .font(.system(.caption, design: .monospaced))
+                                .font(IRFont.monoSM)
                                 .fontWeight(.bold)
                                 .foregroundStyle(Color.irTextSecondary)
                             }
 
                             Text(step.description)
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irTextSecondary)
                                 .lineLimit(2)
 
                             if let pace = step.targetPace {
-                                HStack(spacing: 4) {
+                                HStack(spacing: Spacing.xxs) {
                                     Image(systemName: "speedometer")
-                                        .font(.system(size: 10))
+                                        .font(IRFont.microLabel)
                                     Text(pace + "/km")
-                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                        .font(IRFont.monoSM.weight(.bold))
                                 }
                                 .foregroundStyle(Color.irPrimaryAccent)
                                 .padding(.top, 2)
@@ -336,20 +334,20 @@ struct PlannedWorkoutDetailView: View {
         VStack(spacing: Spacing.lg) {
             HStack(spacing: Spacing.md) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: Radius.sm)
-                        .fill(.orange.opacity(0.1))
+                    RoundedRectangle(cornerRadius: Radius.xs)
+                        .fill(Color.irWarning.opacity(0.1))
                         .frame(width: 44, height: 44)
                     Image(systemName: "applewatch")
-                        .font(.title3)
-                        .foregroundStyle(.orange.gradient)
+                        .font(IRFont.title3)
+                        .foregroundStyle(Color.irWarning.gradient)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(localized: "goals.workout.exportTitle", defaultValue: "Apple Watch Sync", comment: "Workout detail - export title"))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.bold)
                     Text(String(localized: "goals.workout.exportHint", defaultValue: "Start this workout from your wrist", comment: "Workout detail - export hint"))
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
@@ -370,12 +368,12 @@ struct PlannedWorkoutDetailView: View {
                         : String(localized: "goals.workout.exportButton", defaultValue: "Sync to Fitness", comment: "Workout detail - export button")
                     )
                 }
-                .font(.headline)
-                .foregroundStyle(.white)
+                .font(IRFont.headline)
+                .foregroundStyle(Color.irCardBackground)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
                 .background(Color.irPrimaryAccent.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 6, y: 3)
             }
             .disabled(isExporting)
@@ -389,20 +387,20 @@ struct PlannedWorkoutDetailView: View {
         VStack(spacing: Spacing.md) {
             HStack(spacing: Spacing.md) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: Radius.sm)
-                        .fill(.blue.opacity(0.1))
+                    RoundedRectangle(cornerRadius: Radius.xs)
+                        .fill(Color.irPrimaryAccent.opacity(0.1))
                         .frame(width: 44, height: 44)
                     Image(systemName: "calendar.badge.clock")
-                        .font(.title3)
-                        .foregroundStyle(.blue.gradient)
+                        .font(IRFont.title3)
+                        .foregroundStyle(Color.irPrimaryAccent.gradient)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(localized: "goals.workout.moveTitle", defaultValue: "Reschedule", comment: "Move workout card title"))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.bold)
                     Text(moveCardSubtitle)
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
@@ -416,12 +414,12 @@ struct PlannedWorkoutDetailView: View {
                     ? String(localized: "goals.workout.moveAgainButton", defaultValue: "Pick a new date", comment: "Move workout button - already moved")
                     : String(localized: "goals.workout.moveButton", defaultValue: "Move to another day", comment: "Move workout button")
                 )
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(Color.irSurface)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                .background(Color.irCard2)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
             .disabled(day.isCompleted)
         }
@@ -442,12 +440,12 @@ struct PlannedWorkoutDetailView: View {
         VStack(spacing: Spacing.md) {
             HStack(spacing: Spacing.md) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: Radius.sm)
-                        .fill(.gray.opacity(0.1))
+                    RoundedRectangle(cornerRadius: Radius.xs)
+                        .fill(Color.irTextTertiary.opacity(0.1))
                         .frame(width: 44, height: 44)
                     Image(systemName: day.isSkipped ? "arrow.uturn.backward" : "forward.end.fill")
-                        .font(.title3)
-                        .foregroundStyle(.gray.gradient)
+                        .font(IRFont.title3)
+                        .foregroundStyle(Color.irTextTertiary.gradient)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -455,13 +453,13 @@ struct PlannedWorkoutDetailView: View {
                         ? String(localized: "goals.workout.unskipTitle", defaultValue: "Unskip workout", comment: "Unskip workout title")
                         : String(localized: "goals.workout.skipTitle", defaultValue: "Skip this workout", comment: "Skip workout title")
                     )
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.bold)
                     Text(day.isSkipped
                         ? String(localized: "goals.workout.unskipHint", defaultValue: "Restore this session in your plan", comment: "Unskip workout hint")
                         : String(localized: "goals.workout.skipHint", defaultValue: "Tells the coach to drop it from progress tracking", comment: "Skip workout hint")
                     )
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
@@ -480,12 +478,12 @@ struct PlannedWorkoutDetailView: View {
                     ? String(localized: "goals.workout.unskipButton", defaultValue: "Restore workout", comment: "Restore workout button")
                     : String(localized: "goals.workout.skipButton", defaultValue: "Skip workout", comment: "Skip workout button")
                 )
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(Color.irSurface)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                .background(Color.irCard2)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
             .disabled(day.isCompleted)
         }
@@ -657,7 +655,7 @@ private struct MoveWorkoutSheet: View {
         NavigationStack {
             VStack(spacing: Spacing.lg) {
                 Text(String(localized: "goals.workout.movePrompt", defaultValue: "Pick the new date for this session. The rest of your plan stays unchanged.", comment: "Move workout prompt"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
@@ -677,12 +675,12 @@ private struct MoveWorkoutSheet: View {
                         onConfirm(selectedDate)
                     } label: {
                         Text(String(localized: "goals.workout.moveConfirm", defaultValue: "Move session", comment: "Move workout confirm button"))
-                            .font(.headline)
-                            .foregroundStyle(.white)
+                            .font(IRFont.headline)
+                            .foregroundStyle(Color.irCardBackground)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.md)
                             .background(Color.irPrimaryAccent.gradient)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
                     .disabled(Calendar.current.isDate(selectedDate, inSameDayAs: initialDate))
 
@@ -691,7 +689,7 @@ private struct MoveWorkoutSheet: View {
                             onClearOverride()
                         } label: {
                             Text(String(localized: "goals.workout.moveReset", defaultValue: "Reset to original date", comment: "Reset workout move button"))
-                                .font(.subheadline)
+                                .font(IRFont.body)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, Spacing.sm)
                         }

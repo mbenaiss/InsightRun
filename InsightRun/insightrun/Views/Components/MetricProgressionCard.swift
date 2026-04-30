@@ -19,15 +19,15 @@ struct MetricProgressionCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             header
             chartView
         }
-        .padding(16)
+        .padding(Spacing.base)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -35,9 +35,9 @@ struct MetricProgressionCard: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             Text(series.name)
-                .font(.system(size: 13, weight: .semibold))
+                .font(IRFont.footnote.weight(.semibold))
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
@@ -51,7 +51,7 @@ struct MetricProgressionCard: View {
                     showingInfo = true
                 } label: {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 13))
+                        .font(IRFont.footnote)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
                 .buttonStyle(.plain)
@@ -65,40 +65,40 @@ struct MetricProgressionCard: View {
     // MARK: - Chart
 
     private var chartView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             // Current average value
             if let point = selectedPoint {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
                     Text(formatValue(point.value))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(IRFont.numMD)
                         .foregroundStyle(Color.irTextPrimary)
 
                     Text(series.unit)
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.medium)
                         .foregroundStyle(Color.irTextSecondary)
 
                     Spacer()
 
                     Text(formatDate(point.date))
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
                     Text(formatValue(series.average))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(IRFont.numMD)
                         .foregroundStyle(Color.irTextPrimary)
 
                     Text(series.unit)
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.medium)
                         .foregroundStyle(Color.irTextSecondary)
 
                     Spacer()
 
                     Text(String(localized: "progression.average", defaultValue: "avg", comment: "Average label"))
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
@@ -159,7 +159,7 @@ struct MetricProgressionCard: View {
                     AxisValueLabel {
                         if let val = value.as(Double.self) {
                             Text(formatValue(val))
-                                .font(.caption2)
+                                .font(IRFont.microLabel)
                         }
                     }
                 }
@@ -210,16 +210,16 @@ struct TrendBadge: View {
     var body: some View {
         HStack(spacing: 2) {
             Image(systemName: percentage > 0 ? "arrow.up.right" : "arrow.down.right")
-                .font(.caption2)
+                .font(IRFont.microLabel)
 
             Text(String(format: "%@%.0f%%", percentage >= 0 ? "+" : "", percentage))
-                .font(.caption2)
+                .font(IRFont.microLabel)
                 .fontWeight(.semibold)
         }
-        .foregroundStyle(isPositive ? .green : .red)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background((isPositive ? Color.green : Color.red).opacity(0.12))
+        .foregroundStyle(isPositive ? Color.irSuccess : Color.irError)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xxs)
+        .background((isPositive ? Color.irSuccess : Color.irError).opacity(0.12))
         .clipShape(Capsule())
     }
 }

@@ -31,8 +31,8 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             // Progress Indicator
             OnboardingProgressView(currentStep: currentStep, totalSteps: totalSteps)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
+                .padding(.top, Spacing.base)
+                .padding(.bottom, Spacing.sm)
 
             // Steps
             TabView(selection: $currentStep) {
@@ -111,8 +111,8 @@ struct OnboardingProgressView: View {
     let totalSteps: Int
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 4) {
+        VStack(spacing: Spacing.xs) {
+            HStack(spacing: Spacing.xxs) {
                 ForEach(0..<totalSteps, id: \.self) { step in
                     Capsule()
                         .fill(step <= currentStep ? Color.irPrimaryAccent : Color.irBorder)
@@ -120,10 +120,11 @@ struct OnboardingProgressView: View {
                         .animation(.easeInOut, value: currentStep)
                 }
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, Spacing.cardPadding)
 
             Text(String(localized: "Step \(currentStep + 1) of \(totalSteps)", comment: "Onboarding progress text"))
-                .font(.system(size: 10, weight: .semibold))
+                .font(IRFont.microLabel)
+                .fontWeight(.semibold)
                 .tracking(0.6)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.7))
         }

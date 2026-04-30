@@ -28,25 +28,25 @@ struct RecoveryCalendarView: View {
             VStack(spacing: 0) {
                 // Month Header
                 monthHeader
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.top, Spacing.base)
 
                 // Days of Week Header
                 daysOfWeekHeader
-                    .padding(.horizontal, 12)
-                    .padding(.top, 20)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.top, Spacing.lg)
 
                 // Calendar Grid
                 calendarGrid
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.top, Spacing.sm)
 
                 Spacer()
 
                 // Bottom Bar
                 bottomBar
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.bottom, Spacing.lg)
             }
             .background(Color.irBackgroundApp)
             .navigationBarTitleDisplayMode(.inline)
@@ -56,7 +56,7 @@ struct RecoveryCalendarView: View {
                         isPresented = false
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
+                            .font(IRFont.title2)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -80,14 +80,14 @@ struct RecoveryCalendarView: View {
             Button {
                 // Future: show month picker
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     Text(monthYearString)
-                        .font(.title2)
+                        .font(IRFont.title2)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.irTextPrimary)
 
                     Image(systemName: "chevron.down")
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.irTextSecondary)
                 }
@@ -96,12 +96,12 @@ struct RecoveryCalendarView: View {
             Spacer()
 
             // Navigation Arrows
-            HStack(spacing: 16) {
+            HStack(spacing: Spacing.base) {
                 Button {
                     goToPreviousMonth()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.body)
+                        .font(IRFont.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.irTextPrimary)
                         .frame(width: 40, height: 40)
@@ -113,7 +113,7 @@ struct RecoveryCalendarView: View {
                     goToNextMonth()
                 } label: {
                     Image(systemName: "chevron.right")
-                        .font(.body)
+                        .font(IRFont.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(canGoToNextMonth ? Color.irTextPrimary : Color.irTextSecondary.opacity(0.5))
                         .frame(width: 40, height: 40)
@@ -131,7 +131,7 @@ struct RecoveryCalendarView: View {
         HStack(spacing: 0) {
             ForEach(daysOfWeek, id: \.self) { day in
                 Text(day)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.irTextSecondary)
                     .frame(maxWidth: .infinity)
@@ -174,7 +174,7 @@ struct RecoveryCalendarView: View {
                 }
             }
         } label: {
-            VStack(spacing: 4) {
+            VStack(spacing: Spacing.xxs) {
                 // Recovery Score Ring
                 ZStack {
                     // Background ring
@@ -196,7 +196,7 @@ struct RecoveryCalendarView: View {
 
                     // Day number
                     Text("\(calendar.component(.day, from: date))")
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(isToday ? .bold : .medium)
                         .foregroundStyle(isFuture ? Color.irTextSecondary.opacity(0.4) : Color.irTextPrimary)
                 }
@@ -204,13 +204,13 @@ struct RecoveryCalendarView: View {
                 // Sleep indicator (if score is low, show bed icon)
                 if let score = score, score < 50, !isFuture {
                     Image(systemName: "bed.double.fill")
-                        .font(.system(size: 10))
+                        .font(IRFont.microLabel)
                         .foregroundStyle(scoreColor(for: score))
                 }
             }
             .frame(height: 70)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: Radius.sm)
                     .fill(isSelected ? Color.irCardBackground : Color.clear)
             )
         }
@@ -232,11 +232,11 @@ struct RecoveryCalendarView: View {
                 }
             } label: {
                 Text(String(localized: "Today", comment: "Button to go to today"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.irTextPrimary)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.md)
                     .background(Color.irCardBackground)
                     .clipShape(Capsule())
             }
@@ -248,7 +248,7 @@ struct RecoveryCalendarView: View {
                 // Future: show info about calendar
             } label: {
                 Image(systemName: "info.circle")
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .foregroundStyle(Color.irTextSecondary)
                     .frame(width: 50, height: 50)
                     .background(Color.irCardBackground)
@@ -323,13 +323,13 @@ struct RecoveryCalendarView: View {
     private func scoreColor(for score: Int) -> Color {
         switch score {
         case 67...100:
-            return .green
+            return Color.irSuccess
         case 50..<67:
-            return .yellow
+            return Color.irWarning
         case 33..<50:
-            return .orange
+            return Color.irWarning
         default:
-            return .red
+            return Color.irError
         }
     }
 

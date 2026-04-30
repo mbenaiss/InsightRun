@@ -25,7 +25,7 @@ struct HistoricalIndexationSheet: View {
                 // Background gradient matching app style
                 LinearGradient(
                     colors: [
-                        Color.blue.opacity(0.05),
+                        Color.irPrimaryAccent.opacity(0.05),
                         Color(.systemBackground)
                     ],
                     startPoint: .top,
@@ -34,7 +34,7 @@ struct HistoricalIndexationSheet: View {
                 .ignoresSafeArea()
 
                 // Main content based on state
-                VStack(spacing: 32) {
+                VStack(spacing: Spacing.xxl) {
                     Spacer()
 
                     switch manager.state {
@@ -122,7 +122,7 @@ struct HistoricalIndexationSheet: View {
     // MARK: - Loading State View
 
     private var loadingStateView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Spacing.xl) {
             // Animated icon
             ZStack {
                 Circle()
@@ -131,10 +131,10 @@ struct HistoricalIndexationSheet: View {
                     .shadow(color: Color.irShadowStrong, radius: 10, y: 5)
 
                 Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 40))
+                    .font(IRFont.numLG)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -144,33 +144,33 @@ struct HistoricalIndexationSheet: View {
 
             // Title
             Text(String(localized: "Analyzing workouts...", comment: "Loading title during indexation"))
-                .font(.title3)
+                .font(IRFont.title3)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.irTextPrimary)
 
             // Progress bar
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 ProgressView(value: manager.progress)
                     .progressViewStyle(.linear)
-                    .tint(.blue)
+                    .tint(Color.irPrimaryAccent)
                     .scaleEffect(x: 1, y: 2, anchor: .center)
 
                 // Progress text
                 HStack {
                     Text(statusText)
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
 
                     Spacer()
 
                     if case .loading = manager.state, manager.totalBatches > 0 {
                         Text("\(manager.currentBatch) / \(manager.totalBatches)")
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, Spacing.xxl)
 
             // Cancel button
             Button(action: {
@@ -178,49 +178,49 @@ struct HistoricalIndexationSheet: View {
                 manager.cancel()
             }) {
                 Text(String(localized: "Cancel", comment: "Cancel button during indexation"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.medium)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.irTextPrimary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, Spacing.dash)
                     .background(
                         Color.irError.opacity(0.9)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
-            .padding(.horizontal, 32)
-            .padding(.top, 8)
+            .padding(.horizontal, Spacing.xxl)
+            .padding(.top, Spacing.sm)
         }
     }
 
     // MARK: - Success State View
 
     private var successStateView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Spacing.xl) {
             // Success icon with animation
             ZStack {
                 Circle()
-                    .fill(.green.opacity(0.15))
+                    .fill(Color.irSuccess.opacity(0.15))
                     .frame(width: 120, height: 120)
 
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.green.gradient)
+                    .font(IRFont.numLG)
+                    .foregroundStyle(Color.irSuccess.gradient)
                     .symbolEffect(.bounce)
             }
 
             // Success message
-            VStack(spacing: 8) {
+            VStack(spacing: Spacing.sm) {
                 Text(String(localized: "Profile Updated!", comment: "Success title after indexation"))
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "Your athletic profile has been successfully updated with your latest workouts.", comment: "Success message after indexation"))
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, Spacing.xxl)
             }
 
             // Continue button
@@ -228,53 +228,53 @@ struct HistoricalIndexationSheet: View {
                 dismiss()
             }) {
                 Text(String(localized: "Continue", comment: "Continue button after successful indexation"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.irTextPrimary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, Spacing.dash)
                     .background(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
-            .padding(.horizontal, 32)
-            .padding(.top, 8)
+            .padding(.horizontal, Spacing.xxl)
+            .padding(.top, Spacing.sm)
         }
     }
 
     // MARK: - Error State View
 
     private var errorStateView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Spacing.xl) {
             // Error icon
             ZStack {
                 Circle()
-                    .fill(.orange.opacity(0.15))
+                    .fill(Color.irWarning.opacity(0.15))
                     .frame(width: 100, height: 100)
 
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 50))
-                    .foregroundStyle(.orange.gradient)
+                    .font(IRFont.numLG)
+                    .foregroundStyle(Color.irWarning.gradient)
             }
 
             // Error message
-            VStack(spacing: 8) {
+            VStack(spacing: Spacing.sm) {
                 Text(String(localized: "Update Failed", comment: "Error title when indexation fails"))
-                    .font(.title3)
+                    .font(IRFont.title3)
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.irTextPrimary)
 
                 if case .failed(let errorMessage) = manager.state {
                     Text(errorMessage)
-                        .font(.body)
+                        .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+                        .padding(.horizontal, Spacing.xxl)
                 }
             }
 
@@ -285,19 +285,19 @@ struct HistoricalIndexationSheet: View {
                         UIApplication.shared.open(url)
                     }
                 }) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: Spacing.xs) {
                         Image(systemName: "gear")
                         Text(String(localized: "Open Settings", comment: "Button to open app settings for HealthKit access"))
                     }
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.medium)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.irPrimaryAccent)
                 }
-                .padding(.top, 4)
+                .padding(.top, Spacing.xxs)
             }
 
             // Action buttons
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 // Retry button
                 Button(action: {
                     // Track retry tapped
@@ -322,23 +322,23 @@ struct HistoricalIndexationSheet: View {
                         }
                     }
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: Spacing.sm) {
                         Image(systemName: "arrow.clockwise")
                         Text(String(localized: "Retry", comment: "Retry button after indexation failure"))
                     }
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.irTextPrimary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, Spacing.dash)
                     .background(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     .opacity(manager.retryDisabled ? 0.5 : 1.0)
                 }
                 .disabled(manager.retryDisabled)
@@ -346,15 +346,15 @@ struct HistoricalIndexationSheet: View {
                 // Retry info (backoff or max retries)
                 if manager.retryDisabled && manager.retryCount >= BatchIndexationManager.maxRetries {
                     Text(String(localized: "Too many attempts. Please try again later.", comment: "Max retry info"))
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                 } else if manager.retryDisabled {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xxs) {
                         ProgressView()
                             .controlSize(.mini)
                         Text(String(localized: "Waiting before retry...", comment: "Retry backoff info"))
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -366,17 +366,17 @@ struct HistoricalIndexationSheet: View {
                     Text(manager.retryCount >= BatchIndexationManager.maxRetries
                         ? String(localized: "Close", comment: "Close button after max indexation retries")
                         : String(localized: "Cancel", comment: "Cancel button after indexation failure"))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.medium)
                         .foregroundStyle(Color.irTextSecondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, Spacing.dash)
                         .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }
             }
-            .padding(.horizontal, 32)
-            .padding(.top, 8)
+            .padding(.horizontal, Spacing.xxl)
+            .padding(.top, Spacing.sm)
         }
     }
 

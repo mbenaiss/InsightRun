@@ -19,11 +19,11 @@ enum DeviationStatus {
 
     var color: Color {
         switch self {
-        case .normal: return .green
-        case .aboveNormal: return .orange
-        case .belowNormal: return .orange
-        case .excellent: return .green
-        case .poor: return .red
+        case .normal: return Color.irSuccess
+        case .aboveNormal: return Color.irWarning
+        case .belowNormal: return Color.irWarning
+        case .excellent: return Color.irSuccess
+        case .poor: return Color.irError
         }
     }
 
@@ -131,29 +131,29 @@ struct MetricTrendCard: View {
         Button {
             showingDetail = true
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 // Left side: Icon, Title, Value, Status
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     // Header with icon and title
-                    HStack(spacing: 8) {
+                    HStack(spacing: Spacing.sm) {
                         Image(systemName: icon)
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(iconColor.opacity(0.8))
 
                         Text(title)
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                     }
 
                     // Value with unit
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
                         Text(String(format: "%.1f", value))
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(IRFont.numMD)
                             .foregroundStyle(Color.irTextPrimary)
 
                         if !unit.isEmpty {
                             Text(unit)
-                                .font(.subheadline)
+                                .font(IRFont.body)
                                 .fontWeight(.medium)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
@@ -161,13 +161,13 @@ struct MetricTrendCard: View {
 
                     // Deviation status indicator
                     if let status = deviationStatus {
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xxs) {
                             Image(systemName: status.icon)
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(status.color)
 
                             Text(status.localizedDescription(for: metricType))
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .fontWeight(.medium)
                                 .foregroundStyle(status.color)
                         }
@@ -184,13 +184,13 @@ struct MetricTrendCard: View {
 
                 // Arrow indicator for navigation
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.4))
             }
-            .padding(16)
+            .padding(Spacing.base)
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showingDetail) {
@@ -279,7 +279,7 @@ struct CircularProgressView: View {
         ZStack {
             // Background circle
             Circle()
-                .stroke(Color.gray.opacity(0.2), lineWidth: lineWidth)
+                .stroke(Color.irTextTertiary.opacity(0.5), lineWidth: lineWidth)
 
             // Progress arc
             Circle()
@@ -297,17 +297,17 @@ struct CircularProgressView: View {
                 .animation(.easeInOut(duration: 1), value: progress)
 
             // Score text
-            VStack(spacing: 4) {
+            VStack(spacing: Spacing.xxs) {
                 Text("\(score)")
-                    .font(.system(size: size * 0.28, weight: .bold, design: .rounded))
+                    .font(IRFont.numeric(size: size * 0.28, weight: .bold))
                     .foregroundStyle(Color.irTextPrimary)
 
                 Text("%")
-                    .font(.system(size: size * 0.1, weight: .medium))
+                    .font(IRFont.text(size: size * 0.1, weight: .medium))
                     .foregroundStyle(Color.irTextSecondary)
 
                 Text(String(localized: "Recovered", comment: "Recovery score label"))
-                    .font(.system(size: size * 0.08))
+                    .font(IRFont.text(size: size * 0.08))
                     .foregroundStyle(Color.irTextSecondary)
             }
         }
@@ -317,13 +317,13 @@ struct CircularProgressView: View {
     private var gradientColors: [Color] {
         switch score {
         case 80...100:
-            return [.green.opacity(0.7), .green]
+            return [Color.irSuccess.opacity(0.7), Color.irSuccess]
         case 60..<80:
-            return [.yellow.opacity(0.7), .yellow]
+            return [Color.irWarning.opacity(0.7), Color.irWarning]
         case 40..<60:
-            return [.orange.opacity(0.7), .orange]
+            return [Color.irWarning.opacity(0.7), Color.irWarning]
         default:
-            return [.red.opacity(0.7), .red]
+            return [Color.irError.opacity(0.7), Color.irError]
         }
     }
 }
@@ -339,13 +339,13 @@ struct CircularProgressView: View {
     }
 
     return ScrollView {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.base) {
             CircularProgressView(score: 65)
                 .padding()
 
             MetricTrendCard(
                 icon: "waveform.path.ecg",
-                iconColor: .blue,
+                iconColor: Color.irPrimaryAccent,
                 title: "HRV at rest",
                 value: 76.2,
                 unit: "ms",
@@ -356,7 +356,7 @@ struct CircularProgressView: View {
 
             MetricTrendCard(
                 icon: "heart.fill",
-                iconColor: .red,
+                iconColor: Color.irError,
                 title: "Resting HR",
                 value: 64.9,
                 unit: "bpm",
@@ -367,7 +367,7 @@ struct CircularProgressView: View {
 
             MetricTrendCard(
                 icon: "lungs.fill",
-                iconColor: .teal,
+                iconColor: Color.irPrimaryAccent,
                 title: "Respiratory rate",
                 value: 14.5,
                 unit: "rpm",
@@ -378,7 +378,7 @@ struct CircularProgressView: View {
 
             MetricTrendCard(
                 icon: "drop.fill",
-                iconColor: .cyan,
+                iconColor: Color.irPrimaryAccent,
                 title: "Oxygen saturation",
                 value: 97.4,
                 unit: "%",

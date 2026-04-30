@@ -105,15 +105,15 @@ struct RecoveryDashboardView: View {
         Button {
             showingCalendar = true
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xxs) {
                 Text(viewModel.formattedSelectedDateLong)
-                    .font(.headline)
-                    .foregroundStyle(Color.primary)
+                    .font(IRFont.headline)
+                    .foregroundStyle(Color.irTextPrimary)
 
                 Image(systemName: "chevron.down")
-                    .font(.caption2)
+                    .font(IRFont.microLabel)
                     .fontWeight(.bold)
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(Color.irTextSecondary)
             }
         }
         .buttonStyle(.plain)
@@ -168,7 +168,7 @@ struct RecoveryDayView: View {
     
     @ViewBuilder
     private func recoveryContent(_ recovery: RecoveryMetrics) -> some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             // Circular Recovery Score
             circularRecoveryScore(recovery)
 
@@ -195,16 +195,16 @@ struct RecoveryDayView: View {
             medicalSourcesSection
                 .padding(.horizontal)
         }
-        .padding(.top, 20)
+        .padding(.top, Spacing.lg)
         .padding(.bottom, 100)
     }
 
     private var loadingView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             ProgressView()
                 .scaleEffect(1.5)
             Text(String(localized: "Loading...", comment: "Loading indicator text"))
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -212,21 +212,21 @@ struct RecoveryDayView: View {
     }
 
     private func errorView(_ message: String) -> some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Spacing.xl) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.orange.gradient)
+                .font(IRFont.numXL)
+                .foregroundStyle(Color.irWarning.gradient)
 
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 Text(String(localized: "Error", comment: "Error state title"))
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .fontWeight(.semibold)
 
                 Text(message)
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, Spacing.xxl)
             }
             
             Button(String(localized: "Retry", comment: "Button to retry loading data")) {
@@ -239,46 +239,46 @@ struct RecoveryDayView: View {
     // MARK: - Shared Components
     
     private func circularRecoveryScore(_ recovery: RecoveryMetrics) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.base) {
             CircularProgressView(score: recovery.recoveryScore, size: 200, lineWidth: 14)
 
             Text(recovery.recoveryStatus.description)
-                .font(.title3)
+                .font(IRFont.title3)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.irTextPrimary)
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, Spacing.lg)
     }
 
     private func recommendationCard(_ recovery: RecoveryMetrics) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             Label(String(localized: "Coaching", comment: "Section header for recovery recommendation"), systemImage: "text.bubble.fill")
-                .font(.headline)
-                .foregroundStyle(.orange.gradient)
+                .font(IRFont.headline)
+                .foregroundStyle(Color.irWarning.gradient)
 
             Text(recovery.recoveryStatus.recommendation)
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
                 .multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.base)
         .background(Color.irWarning.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
     }
 
     private func trendsSection(_ recovery: RecoveryMetrics) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             Text(String(localized: "Trends", comment: "Section header for trends"))
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
 
-            VStack(spacing: 8) {
+            VStack(spacing: Spacing.sm) {
                 // HRV Card
                 if let hrv = recovery.hrvAverage {
                     MetricTrendCard(
                         icon: "waveform.path.ecg",
-                        iconColor: .blue,
+                        iconColor: Color.irPrimaryAccent,
                         title: String(localized: "HRV at rest", comment: "HRV metric title"),
                         value: hrv,
                         unit: "ms",
@@ -293,7 +293,7 @@ struct RecoveryDayView: View {
                 if let rhr = recovery.restingHeartRate {
                     MetricTrendCard(
                         icon: "heart.fill",
-                        iconColor: .red,
+                        iconColor: Color.irError,
                         title: String(localized: "Resting HR", comment: "Resting heart rate metric title"),
                         value: rhr,
                         unit: "bpm",
@@ -308,7 +308,7 @@ struct RecoveryDayView: View {
                 if let respRate = recovery.respiratoryRate {
                     MetricTrendCard(
                         icon: "lungs.fill",
-                        iconColor: .teal,
+                        iconColor: Color.irPrimaryAccent,
                         title: String(localized: "Respiratory rate", comment: "Respiratory rate metric title"),
                         value: respRate,
                         unit: "rpm",
@@ -323,7 +323,7 @@ struct RecoveryDayView: View {
                 if let spo2 = recovery.oxygenSaturation {
                     MetricTrendCard(
                         icon: "drop.fill",
-                        iconColor: .cyan,
+                        iconColor: Color.irPrimaryAccent,
                         title: String(localized: "Oxygen saturation", comment: "SpO2 metric title"),
                         value: spo2,
                         unit: "%",
@@ -338,21 +338,21 @@ struct RecoveryDayView: View {
     }
 
     private func sleepDetailsSection(_ sleep: SleepData) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Spacing.base) {
             Text(String(localized: "Sleep", comment: "Section header for sleep metrics"))
-                .font(.headline)
+                .font(IRFont.headline)
 
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 HealthMetricRow(
                     icon: "moon.fill",
-                    iconColor: .indigo,
+                    iconColor: Color.irPurple,
                     title: String(localized: "Sleep session", comment: "Label for time of sleep session"),
                     value: sleep.formattedSleepTime
                 )
 
                 HealthMetricRow(
                     icon: "bed.double.fill",
-                    iconColor: .blue,
+                    iconColor: Color.irPrimaryAccent,
                     title: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
                     value: sleep.formattedTotalSleep
                 )
@@ -360,7 +360,7 @@ struct RecoveryDayView: View {
                 if let napDuration = sleep.formattedNapDuration {
                     HealthMetricRow(
                         icon: "powersleep",
-                        iconColor: .orange,
+                        iconColor: Color.irWarning,
                         title: String(localized: "Naps", comment: "Label for nap duration"),
                         value: napDuration
                     )
@@ -368,7 +368,7 @@ struct RecoveryDayView: View {
 
                 HealthMetricRow(
                     icon: "chart.bar.fill",
-                    iconColor: .teal,
+                    iconColor: Color.irPrimaryAccent,
                     title: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
                     value: String(format: "%.0f%%", sleep.sleepEfficiency)
                 )
@@ -379,52 +379,52 @@ struct RecoveryDayView: View {
                let core = sleep.coreSleepDuration,
                let rem = sleep.remSleepDuration {
                 Divider()
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Spacing.xxs)
 
                 Text(String(localized: "Sleep stages", comment: "Section header for sleep stages breakdown"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
 
-                VStack(spacing: 8) {
-                    SleepStageRow(stage: String(localized: "Deep", comment: "Deep sleep stage label"), duration: deep, color: .blue)
-                    SleepStageRow(stage: String(localized: "Light", comment: "Light sleep stage label"), duration: core, color: .cyan)
-                    SleepStageRow(stage: String(localized: "REM", comment: "REM sleep stage label"), duration: rem, color: .indigo)
+                VStack(spacing: Spacing.sm) {
+                    SleepStageRow(stage: String(localized: "Deep", comment: "Deep sleep stage label"), duration: deep, color: Color.irPrimaryAccent)
+                    SleepStageRow(stage: String(localized: "Light", comment: "Light sleep stage label"), duration: core, color: Color.irPrimaryAccent)
+                    SleepStageRow(stage: String(localized: "REM", comment: "REM sleep stage label"), duration: rem, color: Color.irPurple)
                 }
             }
         }
-        .padding(20)
+        .padding(Spacing.lg)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
     private var medicalSourcesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
                 Image(systemName: "book.closed.fill")
                     .foregroundStyle(Color.irPrimaryAccent.gradient)
-                    .font(.title3)
+                    .font(IRFont.title3)
 
                 Text(String(localized: "Medical Information", comment: "Medical sources section title"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
             }
 
             Text(String(localized: "Recovery recommendations are based on published scientific research. Tap below to view all medical sources.", comment: "Medical sources disclaimer text"))
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
             
         }
-        .padding(20)
+        .padding(Spacing.lg)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .shadow(color: Color.irShadow, radius: 10, y: 5)
     }
 
-    
+
     private func getHRVDeviationStatus(_ hrv: Double, baseline: PersonalBaseline?) -> DeviationStatus {
         guard let baseline = baseline, let avg = baseline.hrvAverage else { return hrv >= 50 ? .normal : .belowNormal }
         let std = baseline.hrvStdDev ?? (avg * 0.15)
@@ -474,20 +474,20 @@ struct HealthMetricRow: View {
     let value: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(IRFont.title3)
                 .foregroundStyle(iconColor.gradient)
                 .frame(width: 32)
 
             Text(title)
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
             Text(value)
-                .font(.body)
+                .font(IRFont.body)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.irTextSecondary)
         }
@@ -514,13 +514,13 @@ struct SleepStageRow: View {
                 .frame(width: 12, height: 12)
 
             Text(stage)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
             Text(formattedDuration)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .fontWeight(.medium)
                 .foregroundStyle(Color.irTextSecondary)
         }
@@ -534,15 +534,15 @@ struct CoachingSection: View {
     @StateObject private var readinessVM = DailyReadinessViewModel()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             // Header with coaching icon and readiness score badge
             HStack {
                 Label(
                     String(localized: "Coaching", comment: "Section header for recovery recommendation"),
                     systemImage: "text.bubble.fill"
                 )
-                .font(.headline)
-                .foregroundStyle(.orange.gradient)
+                .font(IRFont.headline)
+                .foregroundStyle(Color.irWarning.gradient)
 
                 Spacer()
 
@@ -550,16 +550,16 @@ struct CoachingSection: View {
                     ProgressView()
                         .scaleEffect(0.8)
                 } else if let score = readinessVM.readinessScore {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xxs) {
                         Text(readinessVM.status.emoji)
-                            .font(.caption)
+                            .font(IRFont.caption)
                         Text("\(score)/100")
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .fontWeight(.bold)
                             .foregroundStyle(readinessVM.status.color)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xxs)
                     .background(readinessVM.status.color.opacity(0.15))
                     .clipShape(Capsule())
                 }
@@ -568,12 +568,12 @@ struct CoachingSection: View {
             // Recommendation text (AI or fallback)
             if readinessVM.readinessScore != nil, !readinessVM.recommendation.isEmpty {
                 Text(readinessVM.recommendation)
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextPrimary)
                     .multilineTextAlignment(.leading)
             } else {
                 Text(fallbackRecommendation)
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextPrimary)
                     .multilineTextAlignment(.leading)
             }
@@ -582,17 +582,17 @@ struct CoachingSection: View {
             if readinessVM.readinessScore != nil {
                 Divider()
 
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     Image(systemName: readinessVM.suggestedWorkoutType.icon)
-                        .font(.title3)
+                        .font(IRFont.title3)
                         .foregroundStyle(readinessVM.status.color)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(String(localized: "Suggested Workout", comment: "Suggested workout section title"))
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                         Text(readinessVM.suggestedWorkoutType.title)
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .fontWeight(.medium)
                             .foregroundStyle(Color.irTextPrimary)
                     }
@@ -602,9 +602,9 @@ struct CoachingSection: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.base)
         .background(Color.irWarning.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .task {
             await readinessVM.fetchDailyReadiness()
         }

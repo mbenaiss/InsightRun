@@ -36,9 +36,9 @@ struct SecondaryScoreCard: View {
             .padding(Spacing.base - 2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: Radius.lg)
+                RoundedRectangle(cornerRadius: Radius.md)
                     .strokeBorder(Color.irBorder, lineWidth: 0.5)
             )
         }
@@ -48,14 +48,14 @@ struct SecondaryScoreCard: View {
     private var header: some View {
         HStack {
             Text(title.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(IRFont.microLabel.weight(.bold))
                 .tracking(1.6)
                 .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 9, weight: .bold))
+                .font(IRFont.eyebrow.weight(.bold))
                 .foregroundStyle(Color.irTextSecondary.opacity(0.6))
         }
     }
@@ -64,21 +64,21 @@ struct SecondaryScoreCard: View {
         HStack(alignment: .lastTextBaseline) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text("\(score)")
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
+                    .font(IRFont.title1.weight(.heavy))
                     .kerning(-1)
                     .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
                 Text("/100")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(IRFont.eyebrow.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary.opacity(0.6))
             }
 
             Spacer()
 
             Text("\(delta >= 0 ? "+" : "")\(delta)")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .font(IRFont.monoSM.weight(.bold))
                 .foregroundStyle(delta >= 0 ? Color.irSuccess : Color.irError)
         }
     }
@@ -91,14 +91,14 @@ struct SecondaryScoreCard: View {
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(0.06))
+                    .fill(Color.irBorder)
 
                 Capsule()
                     .fill(accent)
                     .frame(width: progress * width)
 
                 Rectangle()
-                    .fill(Color.white.opacity(0.4))
+                    .fill(Color.irTextPrimary.opacity(0.4))
                     .frame(width: 1, height: 8)
                     .offset(x: baselineX, y: 0)
             }
@@ -183,7 +183,7 @@ struct MicroSparkline: View {
 }
 
 #Preview {
-    HStack(spacing: 8) {
+    HStack(spacing: Spacing.sm) {
         SecondaryScoreCard(
             title: "Effort",
             score: 39,

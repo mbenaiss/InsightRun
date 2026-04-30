@@ -34,7 +34,7 @@ struct WorkoutComparisonView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: Spacing.base) {
                     // Reference workout header
                     referenceHeader
 
@@ -101,46 +101,43 @@ struct WorkoutComparisonView: View {
     // MARK: - Reference Header
 
     private var referenceHeader: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Spacing.md) {
             HStack {
                 Image(systemName: "flag.fill")
                     .foregroundStyle(Color.irPrimaryAccent.gradient)
 
                 Text(String(localized: "Reference Workout", comment: "Reference workout header title"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
             }
 
-            HStack(spacing: 24) {
-                VStack(spacing: 4) {
+            HStack(spacing: Spacing.xl) {
+                VStack(spacing: Spacing.xxs) {
                     Text(viewModel.referenceDate)
-                        .font(.subheadline)
-                        .fontWeight(.bold)
+                        .font(IRFont.body.weight(.bold))
                         .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Date", comment: "Date label in reference header"))
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
-                VStack(spacing: 4) {
+                VStack(spacing: Spacing.xxs) {
                     Text(viewModel.referenceDistance)
-                        .font(.subheadline)
-                        .fontWeight(.bold)
+                        .font(IRFont.body.weight(.bold))
                         .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Distance", comment: "Distance label in reference header"))
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
-                VStack(spacing: 4) {
+                VStack(spacing: Spacing.xxs) {
                     Text(viewModel.referencePace)
-                        .font(.subheadline)
-                        .fontWeight(.bold)
+                        .font(IRFont.body.weight(.bold))
                         .foregroundStyle(Color.irPrimaryAccent)
                     Text(String(localized: "Pace", comment: "Pace label in reference header"))
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
@@ -149,10 +146,10 @@ struct WorkoutComparisonView: View {
         }
         .padding()
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.irPrimaryAccent.opacity(0.4), lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: Radius.md)
+                .strokeBorder(Color.irPrimaryAccent.opacity(0.4), lineWidth: 1.5)
         )
         .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
@@ -191,20 +188,20 @@ struct WorkoutComparisonView: View {
     }
 
     private var aiComparisonSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Image(systemName: "sparkles")
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .font(.title3)
+                    .font(IRFont.title3)
 
                 Text(String(localized: "AI Comparison", comment: "AI comparison analysis section title"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
             }
 
@@ -224,7 +221,7 @@ struct WorkoutComparisonView: View {
                         String(localized: "Regenerate", comment: "Regenerate AI analysis button"),
                         systemImage: "arrow.clockwise"
                     )
-                    .font(.caption)
+                    .font(IRFont.caption)
                 }
                 .buttonStyle(.borderless)
                 .tint(Color.irPrimaryAccent)
@@ -239,15 +236,15 @@ struct WorkoutComparisonView: View {
                         ProgressView()
                             .controlSize(.small)
                         Text(String(localized: "Analyzing...", comment: "AI analysis loading indicator"))
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, Spacing.md)
                 }
             } else if let error = aiService.error {
                 Text(error)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irError)
             } else {
                 Button {
@@ -259,18 +256,17 @@ struct WorkoutComparisonView: View {
                         String(localized: "Analyze comparison", comment: "Button to generate AI comparison analysis"),
                         systemImage: "sparkles"
                     )
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(IRFont.body.weight(.medium))
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.irPrimaryAccent)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
+                .padding(.vertical, Spacing.xxs)
             }
         }
         .padding()
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .shadow(color: Color.irShadow, radius: 8, y: 4)
     }
 
@@ -311,23 +307,22 @@ struct WorkoutComparisonView: View {
         Button {
             selectedWorkout = comparison.workout
         } label: {
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 // Card header
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(comparison.workout.startDate.formatted(date: .abbreviated, time: .omitted))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                            .font(IRFont.body.weight(.semibold))
                             .foregroundStyle(Color.irTextPrimary)
                         Text(comparison.workout.distanceFormatted)
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
@@ -340,7 +335,7 @@ struct WorkoutComparisonView: View {
             }
             .padding()
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             .shadow(color: Color.irShadow, radius: 8, y: 4)
         }
         .buttonStyle(.plain)
@@ -349,36 +344,34 @@ struct WorkoutComparisonView: View {
     // MARK: - Delta Row
 
     private func deltaRow(_ delta: WorkoutComparisonViewModel.MetricDelta) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: delta.icon)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
                 .frame(width: 20)
 
             Text(delta.label)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
                 .frame(width: 60, alignment: .leading)
 
             Spacer()
 
             Text(delta.referenceValue)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
                 .frame(width: 70, alignment: .trailing)
 
             Text(delta.comparedValue)
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(IRFont.body.weight(.medium))
                 .foregroundStyle(Color.irTextPrimary)
                 .frame(width: 70, alignment: .trailing)
 
             HStack(spacing: 2) {
                 Text(deltaArrow(delta.direction))
-                    .font(.caption2)
+                    .font(IRFont.microLabel)
                 Text(delta.deltaText)
-                    .font(.caption2)
-                    .fontWeight(.medium)
+                    .font(IRFont.microLabel.weight(.medium))
             }
             .foregroundStyle(deltaColor(delta.direction))
             .frame(width: 80, alignment: .trailing)

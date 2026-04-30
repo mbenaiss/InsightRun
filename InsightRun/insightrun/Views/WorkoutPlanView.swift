@@ -608,7 +608,7 @@ struct WorkoutPlanView: View {
                 Color.irBackgroundApp.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 24) {
+                    VStack(spacing: Spacing.xl) {
                         if !revenueCatManager.hasAIAccess {
                             subscriptionCTAView
                         } else {
@@ -662,7 +662,7 @@ struct WorkoutPlanView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
                     .accessibilityIdentifier("sheet-close")
                 }
@@ -718,7 +718,7 @@ struct WorkoutPlanView: View {
     // MARK: - Subscription CTA View
 
     private var subscriptionCTAView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             Spacer()
 
             // Icon with gradient
@@ -729,39 +729,39 @@ struct WorkoutPlanView: View {
                     .shadow(color: Color.irShadowStrong, radius: 20, y: 10)
 
                 Image(systemName: "sparkles")
-                    .font(.system(size: 44))
+                    .font(IRFont.numLG)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: [Color.irPrimaryAccent, Color.irPurple],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
             }
-            .padding(.top, 8)
+            .padding(.top, Spacing.sm)
 
             // Title & Description
-            VStack(spacing: 8) {
+            VStack(spacing: Spacing.sm) {
                 Text(String(localized: "AI Workout Generator", comment: "Subscription CTA title"))
-                    .font(.title3)
+                    .font(IRFont.title3)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
 
                 Text(String(localized: "Subscribe to unlock AI-powered workout generation, personalized training plans, and smart suggestions based on your training history.", comment: "Subscription CTA description"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, Spacing.xxl)
             }
 
             // Features list
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
                 WorkoutFeatureRow(icon: "sparkles", text: String(localized: "AI-powered workout generation", comment: "Feature"))
                 WorkoutFeatureRow(icon: "brain.head.profile", text: String(localized: "Smart suggestions based on your history", comment: "Feature"))
                 WorkoutFeatureRow(icon: "pencil", text: String(localized: "Editable workout plans", comment: "Feature"))
                 WorkoutFeatureRow(icon: "applewatch", text: String(localized: "Export to Apple Fitness", comment: "Feature"))
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, Spacing.xxl)
 
             Spacer()
 
@@ -773,21 +773,21 @@ struct WorkoutPlanView: View {
                     Image(systemName: "sparkles")
                     Text(String(localized: "Subscribe Now", comment: "Subscribe button"))
                 }
-                .font(.subheadline)
+                .font(IRFont.body)
                 .fontWeight(.semibold)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.irCardBackground)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, Spacing.md)
                 .background(
                     LinearGradient(
-                        colors: [.blue, .cyan],
+                        colors: [Color.irPrimaryAccent, Color.irPurple],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, Spacing.xxl)
 
             // Restore purchases
             Button(action: {
@@ -800,10 +800,10 @@ struct WorkoutPlanView: View {
                 }
             }) {
                 Text(String(localized: "Restore Purchases", comment: "Restore button"))
-                    .font(.subheadline)
-                    .foregroundStyle(.blue)
+                    .font(IRFont.body)
+                    .foregroundStyle(Color.irPrimaryAccent)
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, Spacing.base)
         }
     }
 
@@ -891,7 +891,7 @@ struct WorkoutPlanView: View {
     // MARK: - Generation View
 
     private var generationView: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: Spacing.cardPadding) {
             heroTitle
 
             coachContextCard
@@ -911,16 +911,16 @@ struct WorkoutPlanView: View {
                     viewModel.cancelSmartSuggestion()
                 } label: {
                     Text(String(localized: "Cancel", comment: "Cancel smart suggestion button"))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.medium)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.irError)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, Spacing.md)
                         .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: Radius.sm)
+                                .stroke(Color.irError.opacity(0.3), lineWidth: 1)
                         )
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -931,7 +931,7 @@ struct WorkoutPlanView: View {
     // MARK: - Hero title
 
     private var heroTitle: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             (Text(String(localized: "Which workout", comment: "Plan generator hero title prefix"))
                 .foregroundStyle(Color.irTextPrimary)
              + Text("\n")
@@ -941,12 +941,12 @@ struct WorkoutPlanView: View {
                 .foregroundStyle(Color.irAIAccent)
              + Text(String(localized: " ?", comment: "Plan generator hero title suffix"))
                 .foregroundStyle(Color.irTextPrimary))
-                .font(.system(size: 34, weight: .heavy))
+                .font(IRFont.title1)
                 .kerning(-0.8)
                 .lineSpacing(-2)
 
             Text(String(localized: "Describe your intent, or let Coach suggest one based on today's readiness.", comment: "Plan generator subtitle"))
-                .font(.system(size: 14))
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(2)
         }
@@ -959,10 +959,10 @@ struct WorkoutPlanView: View {
         let score = DailyMetricsCache.shared.getHistoricalReadinessScore(for: Date())
         let readiness = ReadinessLabel(score: score)
 
-        return HStack(spacing: 12) {
+        return HStack(spacing: Spacing.md) {
             ZStack {
                 Circle()
-                    .stroke(Color.white.opacity(0.06), lineWidth: 5)
+                    .stroke(Color.irBorder, lineWidth: 5)
 
                 Circle()
                     .trim(from: 0, to: CGFloat(readiness.progress))
@@ -970,14 +970,14 @@ struct WorkoutPlanView: View {
                     .rotationEffect(.degrees(-90))
 
                 Text(readiness.scoreLabel)
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(IRFont.numSM.weight(.heavy))
                     .foregroundStyle(Color.irTextPrimary)
             }
             .frame(width: 56, height: 56)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(localized: "TODAY'S FORM", comment: "Plan generator readiness label"))
-                    .font(.system(size: 11, weight: .bold))
+                    .font(IRFont.eyebrow)
                     .tracking(1.6)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.6))
 
@@ -987,13 +987,13 @@ struct WorkoutPlanView: View {
                     .foregroundStyle(readiness.color)
                  + Text(String(localized: " — aim for low-to-moderate load.", comment: "Plan generator readiness sentence suffix"))
                     .foregroundStyle(Color.irTextPrimary))
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(IRFont.bodyEmphasized)
                     .lineSpacing(2)
             }
 
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(Spacing.dash)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             LinearGradient(
@@ -1021,9 +1021,9 @@ struct WorkoutPlanView: View {
             .lineLimit(3...6)
             .submitLabel(.done)
             .onSubmit { isTextFieldFocused = false }
-            .font(.system(size: 15))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .font(IRFont.bodyEmphasized)
+            .padding(.horizontal, Spacing.base)
+            .padding(.vertical, Spacing.dash)
 
             Divider().background(Color.irBorder)
 
@@ -1033,27 +1033,27 @@ struct WorkoutPlanView: View {
                 Button {
                     Task { await viewModel.generateWorkout() }
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: Spacing.xs) {
                         if viewModel.isGenerating {
                             ProgressView()
                                 .controlSize(.small)
                                 .tint(viewModel.promptText.isEmpty ? Color.irTextSecondary : .black)
                         } else {
                             Image(systemName: "sparkles")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(IRFont.caption.weight(.bold))
                         }
 
                         Text(viewModel.isGenerating
                              ? String(localized: "Generating...", comment: "Generating button text")
                              : String(localized: "Generate", comment: "Generate workout button"))
-                            .font(.system(size: 12, weight: .bold))
+                            .font(IRFont.caption.weight(.bold))
                     }
                     .foregroundStyle(viewModel.promptText.isEmpty ? Color.irTextSecondary : .black)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, Spacing.dash)
+                    .padding(.vertical, Spacing.sm)
                     .background(
                         Capsule()
-                            .fill(viewModel.promptText.isEmpty ? Color.white.opacity(0.06) : Color.irAIAccent)
+                            .fill(viewModel.promptText.isEmpty ? Color.irBorder : Color.irAIAccent)
                     )
                     .shadow(color: viewModel.promptText.isEmpty
                             ? .clear
@@ -1062,12 +1062,12 @@ struct WorkoutPlanView: View {
                 }
                 .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
             }
-            .padding(10)
+            .padding(Spacing.md)
         }
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(
                     viewModel.promptText.isEmpty ? Color.irBorder : Color.irAIAccent,
                     lineWidth: 0.5
@@ -1084,20 +1084,20 @@ struct WorkoutPlanView: View {
             Button {
                 Task { await viewModel.generateSmartSuggestion() }
             } label: {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
                     HStack {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.xs) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(Color.irAIAccent)
                                 Image(systemName: "sparkles")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(Color.black)
+                                    .font(IRFont.microLabel)
+                                    .foregroundStyle(Color.irCardBackground)
                             }
                             .frame(width: 18, height: 18)
 
                             Text(String(localized: "COACH RECOMMENDATION", comment: "Plan generator suggestion header"))
-                                .font(.system(size: 11, weight: .bold))
+                                .font(IRFont.eyebrow)
                                 .tracking(1.4)
                                 .foregroundStyle(Color.irAIAccent)
                         }
@@ -1110,36 +1110,36 @@ struct WorkoutPlanView: View {
                                 .tint(Color.irAIAccent)
                         } else {
                             Image(systemName: "arrow.up.right")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(IRFont.eyebrow)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
                     }
 
                     Text(String(localized: "Suggest a workout based on my history", comment: "AI suggestion prompt"))
-                        .font(.system(size: 17, weight: .bold))
+                        .font(IRFont.headline)
                         .lineSpacing(1)
                         .foregroundStyle(Color.irTextPrimary)
                         .multilineTextAlignment(.leading)
 
                     Text(String(localized: "Coach reads your training load, recovery and recent sessions to pick a session that fits today.", comment: "Plan generator suggestion description"))
-                        .font(.system(size: 12))
+                        .font(IRFont.caption)
                         .lineSpacing(2)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.leading)
 
                     if let error = viewModel.smartSuggestionError {
                         Divider().background(Color.irBorder)
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.xs) {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irWarning)
                             Text(error)
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
                     }
                 }
-                .padding(18)
+                .padding(Spacing.cardPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     LinearGradient(
@@ -1151,9 +1151,9 @@ struct WorkoutPlanView: View {
                         endPoint: .bottom
                     )
                 )
-                .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                 .overlay(
-                    RoundedRectangle(cornerRadius: Radius.xl)
+                    RoundedRectangle(cornerRadius: Radius.md)
                         .strokeBorder(Color.irAIAccent.opacity(0.6), lineWidth: 0.5)
                 )
             }
@@ -1190,21 +1190,21 @@ struct WorkoutPlanView: View {
     private func workoutPreviewView(workout: AIGeneratedWorkout) -> some View {
         VStack(spacing: 0) {
             // Workout Header (pinned to top)
-            VStack(spacing: 8) {
+            VStack(spacing: Spacing.sm) {
                 // Conditional workout name (editable in edit mode)
                 if isEditing {
                     TextField(String(localized: "Workout name", comment: "Workout name placeholder"), text: $editedWorkoutName)
-                        .font(.title3)
+                        .font(IRFont.title3)
                         .fontWeight(.bold)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .padding(.horizontal)
-                        .padding(8)
+                        .padding(Spacing.sm)
                         .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
                 } else {
                     Text(workout.name)
-                        .font(.title3)
+                        .font(IRFont.title3)
                         .fontWeight(.bold)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -1212,13 +1212,13 @@ struct WorkoutPlanView: View {
                 }
 
                 Text(workout.description)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
 
                 // Stats
-                HStack(spacing: 12) {
+                HStack(spacing: Spacing.md) {
                     if let distance = workout.totalDistanceFormatted {
                         StatBadge(icon: "figure.run", value: distance)
                     }
@@ -1227,20 +1227,20 @@ struct WorkoutPlanView: View {
                     }
                     StatBadge(icon: "list.bullet", value: "\(workout.steps.count) \(String(localized: "steps", comment: "Steps count unit"))")
                 }
-                .padding(.top, 4)
+                .padding(.top, Spacing.xxs)
             }
             .padding()
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .padding(.bottom, 16)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            .padding(.bottom, Spacing.base)
 
             // Scrollable Steps List
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: Spacing.base) {
                     // Steps List
                     Text(String(localized: "Workout Steps", comment: "Steps section title"))
-                        .font(.headline)
-                        .padding(.top, 8)
+                        .font(IRFont.headline)
+                        .padding(.top, Spacing.sm)
 
                     ForEach(Array(workout.steps.enumerated()), id: \.element.id) { index, step in
                         EditableWorkoutStepRow(
@@ -1274,28 +1274,28 @@ struct WorkoutPlanView: View {
                         HStack {
                             if WorkoutKitManager.shared.isExporting {
                                 ProgressView()
-                                    .tint(.white)
+                                    .tint(Color.irTextPrimary)
                                 Text(String(localized: "Exporting...", comment: "Exporting button text"))
                             } else {
                                 Image(systemName: "applewatch")
                                 Text(String(localized: "Export to Fitness App", comment: "Export button text"))
                             }
                         }
-                        .font(.headline)
-                        .foregroundStyle(.white)
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irTextPrimary)
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(
-                            LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [Color.irPrimaryAccent, Color.irPurple], startPoint: .leading, endPoint: .trailing)
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                        .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 8, y: 4)
                     }
                     .disabled(WorkoutKitManager.shared.isExporting || isEditing || viewModel.exportCooldown || viewModel.consecutiveExportFailures >= 3 || viewModel.exportAuthDenied)
                     .opacity(viewModel.exportAuthDenied ? 0.5 : 1.0)
-                    .padding(.top, 8)
+                    .padding(.top, Spacing.sm)
                 }
-                .padding(.bottom, 16)
+                .padding(.bottom, Spacing.base)
             }
         }
     }
@@ -1303,12 +1303,12 @@ struct WorkoutPlanView: View {
     // MARK: - Error View
 
     private func errorView(_ error: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(Color.irError)
                 Text(error)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
                 Spacer()
             }
@@ -1325,13 +1325,13 @@ struct WorkoutPlanView: View {
                             await viewModel.exportToFitness()
                         }
                     }) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xxs) {
                             Image(systemName: "arrow.clockwise")
                             Text(String(localized: "Retry", comment: "Retry export authorization button"))
                         }
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .fontWeight(.medium)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.irPrimaryAccent)
                     }
                 }
                 // After second denial, exportAuthDenied=true, no retry button, export button is grayed out
@@ -1339,7 +1339,7 @@ struct WorkoutPlanView: View {
         }
         .padding()
         .background(Color.irError.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
     }
 }
 
@@ -1374,7 +1374,7 @@ private struct ReadinessLabel {
             scoreLabel = "—"
             progress = 0
             statusWord = String(localized: "unknown", comment: "Readiness status word - unknown")
-            color = .gray
+            color = Color.irTextTertiary
         }
     }
 }
@@ -1419,7 +1419,7 @@ struct WorkoutPreset: Identifiable {
             durationLabel: "50 min",
             intensityLabel: "Z3-4",
             load: 4,
-            color: .purple,
+            color: Color.irPurple,
             promptSeed: String(localized: "Pyramid workout (400-800-1200-800-400) with active recovery", comment: "Preset prompt - pyramid")
         ),
         WorkoutPreset(
@@ -1439,7 +1439,7 @@ struct WorkoutPreset: Identifiable {
             durationLabel: "40 min",
             intensityLabel: "Z2-4",
             load: 3,
-            color: .cyan,
+            color: Color.irPrimaryAccent,
             promptSeed: String(localized: "40 min fartlek with free-form pace variations", comment: "Preset prompt - fartlek")
         )
     ]
@@ -1449,10 +1449,10 @@ private struct WorkoutPresetCard: View {
     let preset: WorkoutPreset
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Image(systemName: "waveform.path.ecg")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(IRFont.eyebrow)
                     .foregroundStyle(preset.color)
                     .frame(width: 22, height: 22)
                     .background(
@@ -1462,10 +1462,10 @@ private struct WorkoutPresetCard: View {
 
                 Spacer()
 
-                HStack(spacing: 4) {
+                HStack(spacing: Spacing.xxs) {
                     ForEach(1...5, id: \.self) { idx in
                         RoundedRectangle(cornerRadius: 1)
-                            .fill(idx <= preset.load ? preset.color : Color.white.opacity(0.08))
+                            .fill(idx <= preset.load ? preset.color : Color.irBorder)
                             .frame(width: 4, height: 9)
                     }
                 }
@@ -1473,12 +1473,12 @@ private struct WorkoutPresetCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(preset.title)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(IRFont.footnote.weight(.bold))
                     .kerning(-0.1)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Text(preset.subtitle)
-                    .font(.system(size: 11))
+                    .font(IRFont.eyebrow)
                     .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(1)
             }
@@ -1487,15 +1487,15 @@ private struct WorkoutPresetCard: View {
 
             HStack {
                 Text(preset.durationLabel)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(IRFont.monoSM)
                     .foregroundStyle(Color.irTextSecondary)
 
                 Spacer()
 
                 Text(preset.intensityLabel)
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(IRFont.monoSM.weight(.bold))
                     .foregroundStyle(preset.color)
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, 2)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
@@ -1503,12 +1503,12 @@ private struct WorkoutPresetCard: View {
                     )
             }
         }
-        .padding(14)
+        .padding(Spacing.dash)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.lg)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -1521,17 +1521,17 @@ struct StatBadge: View {
     let value: String
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Spacing.xxs) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(IRFont.caption)
             Text(value)
-                .font(.caption)
+                .font(IRFont.caption)
                 .fontWeight(.medium)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xxs)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
     }
 }
 
@@ -1539,9 +1539,9 @@ struct WorkoutVisualization: View {
     let workout: AIGeneratedWorkout
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(String(localized: "Workout Structure", comment: "Visualization title"))
-                .font(.headline)
+                .font(IRFont.headline)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
@@ -1552,30 +1552,30 @@ struct WorkoutVisualization: View {
                             .overlay(
                                 VStack(spacing: 2) {
                                     Image(systemName: iconForStepType(step.type))
-                                        .font(.caption2)
+                                        .font(IRFont.microLabel)
                                     Text(step.displayName)
-                                        .font(.system(size: 8))
+                                        .font(IRFont.microLabel)
                                         .lineLimit(1)
                                 }
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.irTextPrimary)
                             )
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
             }
         }
         .padding()
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
     }
 
     private func colorForStepType(_ type: WorkoutStep.StepType) -> Color {
         switch type {
-        case .warmup: return .blue
-        case .work: return .red
-        case .recovery: return .green
-        case .cooldown: return .purple
-        case .interval: return .orange
+        case .warmup: return Color.irPrimaryAccent
+        case .work: return Color.irError
+        case .recovery: return Color.irSuccess
+        case .cooldown: return Color.irPurple
+        case .interval: return Color.irWarning
         }
     }
 
@@ -1600,27 +1600,27 @@ struct WorkoutStepRow: View {
     let index: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 // Index badge
                 Text("\(index)")
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.irTextPrimary)
                     .frame(width: 24, height: 24)
                     .background(colorForStepType(step.type))
                     .clipShape(Circle())
 
                 // Step type
                 Text(step.displayName)
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.semibold)
 
                 Spacer()
 
                 // Goal
                 Text(goalText(step.goal))
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
             }
 
@@ -1635,23 +1635,23 @@ struct WorkoutStepRow: View {
 
             if let instructions = step.instructions {
                 Text(instructions)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
                     .italic()
             }
         }
         .padding()
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
     }
 
     private func colorForStepType(_ type: WorkoutStep.StepType) -> Color {
         switch type {
-        case .warmup: return .blue
-        case .work: return .red
-        case .recovery: return .green
-        case .cooldown: return .purple
-        case .interval: return .orange
+        case .warmup: return Color.irPrimaryAccent
+        case .work: return Color.irError
+        case .recovery: return Color.irSuccess
+        case .cooldown: return Color.irPurple
+        case .interval: return Color.irWarning
         }
     }
 
@@ -1678,12 +1678,12 @@ struct DetailRow: View {
     let text: String
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Spacing.xxs) {
             Image(systemName: icon)
-                .font(.caption2)
+                .font(IRFont.microLabel)
                 .foregroundStyle(Color.irTextSecondary)
             Text(text)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
         }
     }
@@ -1739,20 +1739,20 @@ struct EditableWorkoutStepRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 // Index badge
                 Text("\(index)")
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.irTextPrimary)
                     .frame(width: 24, height: 24)
                     .background(colorForStepType(step.type))
                     .clipShape(Circle())
 
                 // Step type
                 Text(step.displayName)
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .fontWeight(.semibold)
 
                 Spacer()
@@ -1764,30 +1764,30 @@ struct EditableWorkoutStepRow: View {
                     }) {
                         HStack(spacing: 2) {
                             Text("\(durationMinutes):\(String(format: "%02d", durationSeconds))")
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irTextPrimary)
                             Image(systemName: "chevron.right")
-                                .font(.caption2)
+                                .font(IRFont.microLabel)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xxs)
                         .background(Color.irCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                 } else {
                     Text(goalText(step.goal))
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
 
             // Pace, Distance, and Heart Rate Zone
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 // Pace (editable in edit mode)
-                HStack(spacing: 4) {
+                HStack(spacing: Spacing.xxs) {
                     Image(systemName: "speedometer")
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
 
                     if isEditing {
@@ -1796,47 +1796,47 @@ struct EditableWorkoutStepRow: View {
                         }) {
                             HStack(spacing: 2) {
                                 Text("\(paceMinutes):\(String(format: "%02d", paceSeconds))")
-                                    .font(.subheadline)
+                                    .font(IRFont.body)
                                     .foregroundStyle(Color.irTextPrimary)
                                 Text(String(localized: "/km", comment: "Pace unit suffix"))
-                                    .font(.subheadline)
+                                    .font(IRFont.body)
                                     .foregroundStyle(Color.irTextSecondary)
                                 Image(systemName: "chevron.right")
-                                    .font(.caption)
+                                    .font(IRFont.caption)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xxs)
                             .background(Color.irCardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                     } else {
                         Text(step.paceFormatted ?? "-")
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
 
                 // Distance (calculated from duration + pace, or direct distance goal)
                 if let distance = step.distanceFormatted {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xxs) {
                         Image(systemName: "figure.run")
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                         Text(distance)
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
 
                 // Heart Rate Zone (read-only)
                 if let hrZone = step.targetHeartRateZone {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xxs) {
                         Image(systemName: "heart.fill")
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                         Text("\(String(localized: "Zone", comment: "Heart rate zone prefix")) \(hrZone)")
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -1845,7 +1845,7 @@ struct EditableWorkoutStepRow: View {
             // Instructions
             if let instructions = step.instructions {
                 Text(instructions)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
                     .italic()
             }
@@ -1858,7 +1858,7 @@ struct EditableWorkoutStepRow: View {
                 Color.clear.background(Color.irCardBackground)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
         .sheet(isPresented: $showPacePicker) {
             PacePickerView(
                 minutes: $paceMinutes,
@@ -1887,11 +1887,11 @@ struct EditableWorkoutStepRow: View {
 
     private func colorForStepType(_ type: WorkoutStep.StepType) -> Color {
         switch type {
-        case .warmup: return .blue
-        case .work: return .red
-        case .recovery: return .green
-        case .cooldown: return .purple
-        case .interval: return .orange
+        case .warmup: return Color.irPrimaryAccent
+        case .work: return Color.irError
+        case .recovery: return Color.irSuccess
+        case .cooldown: return Color.irPurple
+        case .interval: return Color.irWarning
         }
     }
 
@@ -1968,7 +1968,7 @@ struct PacePickerView: View {
                     .frame(maxWidth: .infinity)
 
                     Text(":")
-                        .font(.title)
+                        .font(IRFont.title2)
                         .fontWeight(.semibold)
 
                     // Seconds picker
@@ -1982,9 +1982,9 @@ struct PacePickerView: View {
                     .frame(maxWidth: .infinity)
 
                     Text(String(localized: "/km", comment: "Pace unit suffix"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(Color.irTextSecondary)
-                        .padding(.leading, 8)
+                        .padding(.leading, Spacing.sm)
                 }
                 .padding()
             }
@@ -2023,7 +2023,7 @@ struct DurationPickerView: View {
                     .frame(maxWidth: .infinity)
 
                     Text(String(localized: "min", comment: "Minutes abbreviation"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(Color.irTextSecondary)
 
                     // Seconds picker
@@ -2037,9 +2037,9 @@ struct DurationPickerView: View {
                     .frame(maxWidth: .infinity)
 
                     Text(String(localized: "sec", comment: "Seconds abbreviation"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(Color.irTextSecondary)
-                        .padding(.trailing, 8)
+                        .padding(.trailing, Spacing.sm)
                 }
                 .padding()
             }
@@ -2063,12 +2063,12 @@ struct WorkoutFeatureRow: View {
     let text: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(IRFont.title3)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [.blue, .cyan],
+                        colors: [Color.irPrimaryAccent, Color.irPurple],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -2076,7 +2076,7 @@ struct WorkoutFeatureRow: View {
                 .frame(width: 30)
 
             Text(text)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
@@ -2094,7 +2094,7 @@ struct WorkoutExportSuccessView: View {
             // Background gradient matching app style
             LinearGradient(
                 colors: [
-                    Color.blue.opacity(0.05),
+                    Color.irPrimaryAccent.opacity(0.05),
                     Color(.systemBackground)
                 ],
                 startPoint: .top,
@@ -2102,33 +2102,33 @@ struct WorkoutExportSuccessView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 32) {
+            VStack(spacing: Spacing.xxl) {
                 Spacer()
 
                 // Success icon with animation
                 ZStack {
                     Circle()
-                        .fill(.green.opacity(0.15))
+                        .fill(Color.irSuccess.opacity(0.15))
                         .frame(width: 120, height: 120)
 
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.green.gradient)
+                        .font(IRFont.numXL)
+                        .foregroundStyle(Color.irSuccess.gradient)
                         .symbolEffect(.bounce)
                 }
 
                 // Success message
-                VStack(spacing: 8) {
+                VStack(spacing: Spacing.sm) {
                     Text(String(localized: "Export Successful!", comment: "Success title after workout export"))
-                        .font(.title2)
+                        .font(IRFont.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(Color.irTextPrimary)
 
                     Text(String(localized: "Your workout has been exported successfully. Open the Fitness app to see it.", comment: "Success message after workout export"))
-                        .font(.body)
+                        .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+                        .padding(.horizontal, Spacing.xxl)
                 }
 
                 Spacer()
@@ -2138,23 +2138,23 @@ struct WorkoutExportSuccessView: View {
                     dismiss()
                 }) {
                     Text(String(localized: "Continue", comment: "Continue button after successful export"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .fontWeight(.semibold)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.irCardBackground)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, Spacing.base)
                         .background(
                             LinearGradient(
-                                colors: [.blue, .cyan],
+                                colors: [Color.irPrimaryAccent, Color.irPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .blue.opacity(0.4), radius: 8, y: 4)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                        .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 8, y: 4)
                 }
-                .padding(.horizontal, 32)
-                .padding(.bottom, 32)
+                .padding(.horizontal, Spacing.xxl)
+                .padding(.bottom, Spacing.xxl)
             }
         }
         .onAppear {

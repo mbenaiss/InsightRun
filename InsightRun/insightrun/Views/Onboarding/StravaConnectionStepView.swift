@@ -19,7 +19,7 @@ struct StravaConnectionStepView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: Spacing.xl) {
                     illustration
 
                     OnboardingEditorialHeader(
@@ -33,7 +33,7 @@ struct StravaConnectionStepView: View {
                     )
 
                     if !stravaAuth.isAuthenticated {
-                        VStack(spacing: 8) {
+                        VStack(spacing: Spacing.sm) {
                             OnboardingFeatureCard(
                                 icon: "clock.arrow.circlepath",
                                 iconTint: .irWarning,
@@ -55,14 +55,14 @@ struct StravaConnectionStepView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 24)
-                .padding(.bottom, 24)
+                .padding(.horizontal, Spacing.cardPadding)
+                .padding(.top, Spacing.xl)
+                .padding(.bottom, Spacing.xl)
                 .opacity(contentOpacity)
             }
             .scrollIndicators(.hidden)
 
-            VStack(spacing: 4) {
+            VStack(spacing: Spacing.xxs) {
                 if stravaAuth.isAuthenticated {
                     OnboardingPrimaryButton(
                         title: String(localized: "Continue", comment: "Continue button"),
@@ -85,9 +85,9 @@ struct StravaConnectionStepView: View {
                     )
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            .padding(.horizontal, Spacing.cardPadding)
+            .padding(.top, Spacing.md)
+            .padding(.bottom, Spacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.irBackgroundApp)
@@ -118,8 +118,9 @@ struct StravaConnectionStepView: View {
                     )
                     .frame(width: 96, height: 96)
                 Image(systemName: "checkmark")
-                    .font(.system(size: 40, weight: .heavy))
-                    .foregroundStyle(.white)
+                    .font(IRFont.numMD)
+                    .fontWeight(.heavy)
+                    .foregroundStyle(Color.irTextPrimary)
             }
             .frame(maxWidth: .infinity)
         } else {

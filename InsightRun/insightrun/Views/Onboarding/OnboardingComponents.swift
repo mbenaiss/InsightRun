@@ -26,14 +26,16 @@ struct OnboardingEditorialHeader: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(eyebrow.uppercased())
-                .font(.system(size: 11, weight: .bold))
+                .font(IRFont.eyebrow)
+                .fontWeight(.bold)
                 .tracking(1.4)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.7))
 
             Text(title)
-                .font(.system(size: 34, weight: .heavy))
+                .font(IRFont.title1)
+                .fontWeight(.heavy)
                 .kerning(-1)
                 .foregroundStyle(Color.irTextPrimary)
                 .minimumScaleFactor(0.7)
@@ -42,7 +44,7 @@ struct OnboardingEditorialHeader: View {
 
             if let bodyText, !bodyText.isEmpty {
                 Text(bodyText)
-                    .font(.system(size: 14))
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -83,22 +85,24 @@ struct OnboardingFeatureCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: Radius.xs)
                     .fill(iconTint.opacity(0.14))
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(IRFont.body)
+                    .fontWeight(.semibold)
                     .foregroundStyle(iconTint)
             }
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(IRFont.body)
+                    .fontWeight(.semibold)
                     .foregroundStyle(Color.irTextPrimary)
                 Text(description)
-                    .font(.system(size: 12))
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -110,20 +114,22 @@ struct OnboardingFeatureCard: View {
                 EmptyView()
             case .checkmark:
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(IRFont.body)
+                    .fontWeight(.semibold)
                     .foregroundStyle(Color.irSuccess)
             case .chevron:
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(IRFont.eyebrow)
+                    .fontWeight(.bold)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.55))
             }
         }
-        .padding(14)
+        .padding(Spacing.dash)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Radius.sm)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -150,14 +156,15 @@ struct OnboardingPrimaryButton: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .black))
                 } else {
                     Text(title)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Color.black)
+                        .font(IRFont.body)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.irCardBackground)
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 50)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: Radius.sm)
                     .fill(Color.irPrimaryAccent)
             )
         }
@@ -175,10 +182,11 @@ struct OnboardingSecondaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(IRFont.footnote)
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.irTextSecondary)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .padding(.vertical, Spacing.md)
         }
         .buttonStyle(.plain)
     }
@@ -214,21 +222,21 @@ struct OnboardingScaffold<Content: View>: View {
         VStack(spacing: 0) {
             ScrollView {
                 content
-                    .padding(.horizontal, 18)
-                    .padding(.top, 24)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, Spacing.cardPadding)
+                    .padding(.top, Spacing.xl)
+                    .padding(.bottom, Spacing.xl)
             }
             .scrollIndicators(.hidden)
 
-            VStack(spacing: 4) {
+            VStack(spacing: Spacing.xxs) {
                 OnboardingPrimaryButton(title: primaryTitle, isLoading: isPrimaryLoading, action: primaryAction)
                 if let secondaryTitle, let secondaryAction {
                     OnboardingSecondaryButton(title: secondaryTitle, action: secondaryAction)
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            .padding(.horizontal, Spacing.cardPadding)
+            .padding(.top, Spacing.md)
+            .padding(.bottom, Spacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.irBackgroundApp)

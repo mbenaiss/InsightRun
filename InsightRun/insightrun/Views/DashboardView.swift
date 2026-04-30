@@ -455,9 +455,9 @@ struct DashboardView: View {
     // MARK: - Subscription CTA Card
 
     private var subscriptionCTACard: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.base) {
             Image(systemName: "sparkles")
-                .font(.system(size: 40))
+                .font(IRFont.numLG)
                 .foregroundStyle(
                     LinearGradient(
                         colors: [Color.irAIAccent, Color.irAIAccentSecondary],
@@ -466,13 +466,12 @@ struct DashboardView: View {
                     )
                 )
 
-            VStack(spacing: 8) {
+            VStack(spacing: Spacing.sm) {
                 Text(String(localized: "Unlock AI Coaching", comment: "Subscription CTA title"))
-                    .font(.headline)
-                    .fontWeight(.bold)
+                    .font(IRFont.headline.weight(.bold))
 
                 Text(String(localized: "Get personalized insights and coaching powered by AI", comment: "Subscription CTA description"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
@@ -484,11 +483,10 @@ struct DashboardView: View {
                     Image(systemName: "sparkles")
                     Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
                 }
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.black)
+                .font(IRFont.body.weight(.semibold))
+                .foregroundStyle(Color.irCardBackground)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, Spacing.md)
                 .background(
                     LinearGradient(
                         colors: [Color.irAIAccent, Color.irAIAccentSecondary],
@@ -496,14 +494,14 @@ struct DashboardView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
         }
         .padding()
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -566,7 +564,7 @@ struct DashboardView: View {
                 let status = spo2DeviationStatus(spo2)
                 SignalCard(
                     icon: "drop.fill",
-                    color: .cyan,
+                    color: .irPrimaryAccent,
                     label: String(localized: "Oxygen saturation", comment: "SpO2 metric title"),
                     value: String(format: "%.0f", spo2),
                     unit: "%",
@@ -608,12 +606,12 @@ struct DashboardView: View {
             let activeLabel = String(localized: "active", comment: "Active calories label")
             SignalCard(
                 icon: "flame.fill",
-                color: .orange,
+                color: .irWarning,
                 label: String(localized: "Calories", comment: "Calories metric title"),
                 value: String(format: "%.0f", activity.totalCalories),
                 unit: "kcal",
                 status: "\(activeKcal) " + activeLabel,
-                statusColor: .orange,
+                statusColor: .irWarning,
                 trend: caloriesTotalTrend.suffix(7).map(\.value),
                 onTap: {
                     selectedMetricSheet = MetricSheetItem(
@@ -658,12 +656,12 @@ struct DashboardView: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 Text(formattedDateTitle)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(IRFont.title2.weight(.bold))
                     .kerning(-0.3)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(IRFont.caption.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary.opacity(0.7))
 
                 Spacer()

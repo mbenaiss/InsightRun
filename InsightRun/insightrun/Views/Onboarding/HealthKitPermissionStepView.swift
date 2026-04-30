@@ -24,7 +24,7 @@ struct HealthKitPermissionStepView: View {
             secondaryTitle: String(localized: "Skip for now", comment: "Onboarding HealthKit skip button"),
             secondaryAction: skipHealthKit
         ) {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.xl) {
                 AnimatedOnboardingIllustration(type: .healthKit)
 
                 OnboardingEditorialHeader(
@@ -35,7 +35,7 @@ struct HealthKitPermissionStepView: View {
 
                 HealthKitPreviewCard()
 
-                VStack(spacing: 8) {
+                VStack(spacing: Spacing.sm) {
                     OnboardingFeatureCard(
                         icon: "figure.run",
                         title: String(localized: "Workouts and activities", comment: "Onboarding HealthKit: workouts"),
@@ -94,27 +94,29 @@ struct HealthKitPermissionStepView: View {
     }
 
     private var privacyNote: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.md) {
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 14, weight: .semibold))
+                .font(IRFont.body)
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.irSuccess)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(localized: "Your data is private", comment: "Onboarding privacy note title"))
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(IRFont.caption)
+                    .fontWeight(.semibold)
                     .foregroundStyle(Color.irTextPrimary)
                 Text(String(localized: "All data stays on your device", comment: "Onboarding privacy note description"))
-                    .font(.system(size: 11))
+                    .font(IRFont.eyebrow)
                     .foregroundStyle(Color.irTextSecondary)
             }
             Spacer()
         }
-        .padding(12)
+        .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irSuccess.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: Radius.sm)
                 .strokeBorder(Color.irSuccess.opacity(0.30), lineWidth: 0.5)
         )
     }
@@ -156,29 +158,30 @@ struct HealthKitPermissionStepView: View {
 
 struct HealthKitPreviewCard: View {
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
                 PreviewMetricBadge(icon: "figure.run", value: "5:32", unit: "/km", color: .irPrimaryAccent)
                 PreviewMetricBadge(icon: "heart.fill", value: "142", unit: "bpm", color: .irError)
                 PreviewMetricBadge(icon: "bed.double.fill", value: "85%", unit: "recovery", color: .irSuccess)
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(IRFont.eyebrow)
+                    .fontWeight(.semibold)
                     .foregroundStyle(Color.irAIAccent)
                 Text(String(localized: "AI Coach: Great pace consistency! Try adding intervals next week.", comment: "Onboarding HealthKit preview AI hint"))
-                    .font(.system(size: 11))
+                    .font(IRFont.eyebrow)
                     .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(2)
             }
         }
-        .padding(14)
+        .padding(Spacing.dash)
         .frame(maxWidth: .infinity)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Radius.sm)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -193,20 +196,23 @@ struct PreviewMetricBadge: View {
     var body: some View {
         VStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
+                .font(IRFont.eyebrow)
+                .fontWeight(.semibold)
                 .foregroundStyle(color)
             Text(value)
-                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .font(IRFont.numSM)
+                .fontWeight(.heavy)
                 .foregroundStyle(Color.irTextPrimary)
             Text(unit)
-                .font(.system(size: 9, weight: .semibold))
+                .font(IRFont.eyebrow)
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.vertical, Spacing.sm)
         .background(color.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
     }
 }
 

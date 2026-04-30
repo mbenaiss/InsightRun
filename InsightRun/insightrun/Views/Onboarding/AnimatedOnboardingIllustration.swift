@@ -78,7 +78,8 @@ private struct WelcomeIllustration: View {
             // Motion trail (staggered copies behind the runner)
             ForEach(0..<3, id: \.self) { index in
                 Image(systemName: "figure.run")
-                    .font(.system(size: 60, weight: .medium))
+                    .font(IRFont.display)
+                    .fontWeight(.medium)
                     .foregroundStyle(Color.irPrimaryAccent.opacity(0.15 - Double(index) * 0.05))
                     .offset(x: -CGFloat(index + 1) * 12, y: CGFloat(index) * 2)
                     .opacity(trailOpacity)
@@ -86,7 +87,8 @@ private struct WelcomeIllustration: View {
 
             // Main runner figure
             Image(systemName: "figure.run")
-                .font(.system(size: 60, weight: .medium))
+                .font(IRFont.display)
+                .fontWeight(.medium)
                 .foregroundStyle(Color.irPrimaryAccent.gradient)
                 .offset(y: runnerOffset)
         }
@@ -152,7 +154,7 @@ private struct HeartbeatIllustration: View {
 
             // Heart icon
             Image(systemName: "heart.fill")
-                .font(.system(size: 64))
+                .font(IRFont.numXL)
                 .foregroundStyle(Color.irError.gradient)
                 .scaleEffect(heartScale)
         }
@@ -209,7 +211,7 @@ private struct BellRingIllustration: View {
 
             // Bell icon
             Image(systemName: "bell.fill")
-                .font(.system(size: 64))
+                .font(IRFont.numXL)
                 .foregroundStyle(Color.irPrimaryAccent.gradient)
                 .rotationEffect(.degrees(bellRotation), anchor: .top)
 
@@ -277,17 +279,17 @@ private struct StravaChevronIllustration: View {
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.orange, Color.red],
+                        colors: [Color(hex: "FC5200"), Color(hex: "FC5200")],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 120, height: 120)
-                .shadow(color: .orange.opacity(glowOpacity * 0.4), radius: 20, y: 8)
+                .shadow(color: Color(hex: "FC5200").opacity(glowOpacity * 0.4), radius: 20, y: 8)
 
             // Strava double-chevron logo
             StravaLogoShape()
-                .fill(Color.white)
+                .fill(Color.irTextPrimary)
                 .frame(width: 50, height: 60)
                 .opacity(drawProgress)
         }
@@ -372,18 +374,18 @@ private struct CrownShimmerIllustration: View {
             // Crown icon with shimmer overlay
             ZStack {
                 Image(systemName: "crown.fill")
-                    .font(.system(size: 64))
+                    .font(IRFont.numXL)
                     .foregroundStyle(Color.irWarning.gradient)
 
                 // Shimmer sweep
                 Image(systemName: "crown.fill")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .font(IRFont.numXL)
+                    .foregroundStyle(Color.irTextPrimary.opacity(0.3))
                     .mask(
                         Rectangle()
                             .fill(
                                 LinearGradient(
-                                    colors: [.clear, .white, .clear],
+                                    colors: [.clear, Color.irTextPrimary, .clear],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -450,7 +452,7 @@ private struct SparkleParticle: View {
 
     var body: some View {
         Image(systemName: "sparkle")
-            .font(.system(size: 14))
+            .font(IRFont.body)
             .foregroundStyle(Color.irWarning)
             .scaleEffect(scale)
             .opacity(Double(scale))

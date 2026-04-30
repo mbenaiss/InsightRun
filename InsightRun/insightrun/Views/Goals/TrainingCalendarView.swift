@@ -79,26 +79,26 @@ struct TrainingCalendarView: View {
                 HStack(spacing: Spacing.md) {
                     // Phase Indicator with Label
                     VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xxs) {
                             Circle()
                                 .fill(week.phase.themeColor.gradient)
                                 .frame(width: 8, height: 8)
                             Text(String(localized: "goals.calendar.week", defaultValue: "Week", comment: "Training calendar - week label") + " \(week.weekNumber)")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(IRFont.body.weight(.bold))
                                 .foregroundStyle(Color.irTextPrimary)
                         }
                         
                         Text(week.phase.displayName)
-                            .font(.system(size: 10, weight: .bold))
+                            .font(IRFont.microLabel)
                             .foregroundStyle(week.phase.themeColor)
                             .textCase(.uppercase)
                     }
 
                     if isCurrentWeek {
                         Text(String(localized: "goals.calendar.current", defaultValue: "Current", comment: "Training calendar - current week"))
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
+                            .font(IRFont.microLabel)
+                            .foregroundStyle(Color.irCardBackground)
+                            .padding(.horizontal, Spacing.xs)
                             .padding(.vertical, 2)
                             .background(Color.irPrimaryAccent.gradient)
                             .clipShape(Capsule())
@@ -114,10 +114,10 @@ struct TrainingCalendarView: View {
                                 .frame(width: 6, height: 6)
                         }
                     }
-                    .padding(.trailing, 4)
+                    .padding(.trailing, Spacing.xxs)
 
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(IRFont.caption.weight(.bold))
                         .foregroundStyle(Color.irTextSecondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
@@ -131,11 +131,11 @@ struct TrainingCalendarView: View {
                 VStack(spacing: Spacing.xs) {
                     if let notes = week.notes, !notes.isEmpty {
                         Text(notes)
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .italic()
                             .foregroundStyle(Color.irTextSecondary)
                             .padding(.horizontal, Spacing.md)
-                            .padding(.bottom, 4)
+                            .padding(.bottom, Spacing.xxs)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -151,7 +151,7 @@ struct TrainingCalendarView: View {
                 .padding(.horizontal, Spacing.md)
         }
         .background(isCurrentWeek ? Color.irPrimaryAccent.opacity(0.04) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
     }
 
     // MARK: - Day Row
@@ -160,7 +160,7 @@ struct TrainingCalendarView: View {
         HStack(spacing: Spacing.md) {
             // Day Label
             Text(day.dayOfWeek.shortName)
-                .font(.system(size: 12, weight: .bold))
+                .font(IRFont.caption.weight(.bold))
                 .foregroundStyle(Color.irTextSecondary)
                 .frame(width: 30, alignment: .leading)
 
@@ -177,9 +177,9 @@ struct TrainingCalendarView: View {
                             .clipShape(Capsule())
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
+                            HStack(spacing: Spacing.xxs) {
                                 Text(workout.name)
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(IRFont.footnote)
                                     .foregroundStyle(Color.irTextPrimary)
                                     .lineLimit(1)
 
@@ -188,13 +188,13 @@ struct TrainingCalendarView: View {
                                         override.formatted(date: .abbreviated, time: .omitted),
                                         systemImage: "arrow.right.circle.fill"
                                     )
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(.blue)
+                                    .font(IRFont.microLabel)
+                                    .foregroundStyle(Color.irPrimaryAccent)
                                     .labelStyle(CompactLabelStyle())
                                 }
                             }
 
-                            HStack(spacing: 6) {
+                            HStack(spacing: Spacing.xs) {
                                 if !workout.formattedDistance.isEmpty {
                                     Label(workout.formattedDistance, systemImage: "ruler")
                                 } else if !workout.formattedDuration.isEmpty {
@@ -206,7 +206,7 @@ struct TrainingCalendarView: View {
                                     Text(pace)
                                 }
                             }
-                            .font(.system(size: 10, weight: .medium))
+                            .font(IRFont.microLabel.weight(.medium))
                             .foregroundStyle(Color.irTextSecondary)
                             .labelStyle(CompactLabelStyle())
                         }
@@ -219,34 +219,34 @@ struct TrainingCalendarView: View {
                                 onToggleCompletion(weekIndex, dayIndex)
                             } label: {
                                 Image(systemName: day.isCompleted ? "checkmark.circle.fill" : "circle")
-                                    .font(.title3)
+                                    .font(IRFont.title3)
                                     .foregroundStyle(day.isCompleted ? Color.irSuccess : Color.irBorder)
                             }
 
                             if day.completedWorkoutId != nil {
                                 Text(String(localized: "goals.detail.autoTracked", defaultValue: "Auto", comment: "Auto-tracked label"))
-                                    .font(.system(size: 8, weight: .bold))
+                                    .font(IRFont.microLabel)
                                     .foregroundStyle(Color.irPrimaryAccent)
                             }
                         }
                     }
                     .padding(Spacing.sm)
-                    .background(Color.irSurface.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+                    .background(Color.irCard2.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
                 }
                 .buttonStyle(.plain)
             } else {
                 // Rest Day
                 HStack {
                     Image(systemName: "zzz")
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.5))
                     Text(String(localized: "goals.calendar.rest", defaultValue: "Rest Day", comment: "Training calendar - rest day"))
-                        .font(.system(size: 12, weight: .medium))
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.5))
                     Spacer()
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, Spacing.sm)
             }
         }
         .padding(.horizontal, Spacing.md)
@@ -266,7 +266,7 @@ struct CompactLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 2) {
             configuration.icon
-                .font(.system(size: 8))
+                .font(IRFont.microLabel)
             configuration.title
         }
     }

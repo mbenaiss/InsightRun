@@ -19,24 +19,24 @@ struct RecommendedSessionRow: View {
         Button {
             onTap?()
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: Spacing.dash) {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(IRFont.bodyEmphasized.weight(.semibold))
                     .foregroundStyle(iconColor)
                     .frame(width: 36, height: 36)
                     .background(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: Radius.xs)
                             .fill(iconColor.opacity(0.18))
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(IRFont.body.weight(.semibold))
                         .foregroundStyle(Color.irTextPrimary)
                         .lineLimit(1)
 
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(IRFont.eyebrow)
                         .foregroundStyle(Color.irTextSecondary)
                         .lineLimit(1)
                 }
@@ -44,14 +44,14 @@ struct RecommendedSessionRow: View {
                 Spacer(minLength: 8)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(IRFont.eyebrow.weight(.bold))
                     .foregroundStyle(Color.irTextSecondary.opacity(0.6))
             }
             .padding(Spacing.base)
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: Radius.lg)
+                RoundedRectangle(cornerRadius: Radius.md)
                     .strokeBorder(Color.irBorder, lineWidth: 0.5)
             )
         }

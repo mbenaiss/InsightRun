@@ -20,19 +20,19 @@ struct SplashScreenView: View {
             Color.irBackgroundApp
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.xl) {
                 // App icon
                 Image("AppLogo")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 120, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
                     .scaleEffect(iconScale * pulseScale)
                     .opacity(iconOpacity)
 
                 // App name
                 Text("Insight Run")
-                    .font(.largeTitle)
+                    .font(IRFont.title1)
                     .fontWeight(.bold)
                     .foregroundStyle(Color.irTextPrimary)
                     .offset(y: textOffset)

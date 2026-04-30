@@ -97,6 +97,21 @@ class CachedUnifiedWorkout {
             // Use originalSourceName to preserve the device name (e.g., "Apple Watch")
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
             let displaySourceName = originalSourceName ?? "Apple Watch"
+            var metadata: [String: Any]? = nil
+
+            if !name.isEmpty {
+                metadata = [
+                    "display_name": name,
+                    "name": name
+                ]
+                if source == "merged" || stravaActivityId != nil {
+                    metadata?["strava_name"] = name
+                    if let stravaActivityId {
+                        metadata?["strava_id"] = String(stravaActivityId)
+                    }
+                }
+            }
+
             let fallbackWorkout = WorkoutModel(
                 id: workoutId,
                 workoutType: .running,
@@ -107,7 +122,7 @@ class CachedUnifiedWorkout {
                 totalEnergyBurned: totalEnergyBurned,
                 sourceName: displaySourceName,
                 sourceVersion: "Cached",
-                metadata: nil,
+                metadata: metadata,
                 averageHeartRate: averageHeartRate,
                 maxHeartRate: maxHeartRate,
                 elevationGain: totalElevationGain,

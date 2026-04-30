@@ -19,14 +19,14 @@ struct DetailTrendCard: View {
     var yMax: Double = 100
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Spacing.dash) {
             HStack {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(IRFont.footnote.weight(.semibold))
                     .foregroundStyle(Color.irTextPrimary)
                 Spacer()
                 Text("\(values.count) " + String(localized: "days", comment: "Days suffix in trend chart"))
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(IRFont.monoSM)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.6))
             }
 
@@ -37,19 +37,19 @@ struct DetailTrendCard: View {
                 emptyState
             }
         }
-        .padding(18)
+        .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
 
     private var emptyState: some View {
         Text(String(localized: "Not enough data yet.", comment: "Trend chart empty state"))
-            .font(.system(size: 12))
+            .font(IRFont.caption)
             .foregroundStyle(Color.irTextSecondary)
             .frame(maxWidth: .infinity, minHeight: 80, alignment: .center)
     }
@@ -91,7 +91,7 @@ struct DetailTrendCard: View {
 
                     if let last = points.last {
                         Circle()
-                            .stroke(Color.black, lineWidth: 1.5)
+                            .stroke(Color.irTextPrimary, lineWidth: 1.5)
                             .background(Circle().fill(accent))
                             .frame(width: 7, height: 7)
                             .position(last)
@@ -117,7 +117,7 @@ struct DetailTrendCard: View {
                     p.addLine(to: CGPoint(x: pad.leading + plotWidth, y: y))
                 }
                 .stroke(
-                    Color.white.opacity(level == 0 || level == 100 ? 0.10 : 0.05),
+                    level == 0 || level == 100 ? Color.irBorder : Color.irBorder.opacity(0.5),
                     style: StrokeStyle(
                         lineWidth: 1,
                         dash: level == 0 || level == 100 ? [] : [2, 3]
@@ -125,7 +125,7 @@ struct DetailTrendCard: View {
                 )
 
                 Text("\(Int(level))")
-                    .font(.system(size: 9, design: .monospaced))
+                    .font(IRFont.monoSM)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.6))
                     .position(x: pad.leading - 12, y: y)
             }
@@ -136,7 +136,7 @@ struct DetailTrendCard: View {
         ZStack {
             ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
                 Text(label)
-                    .font(.system(size: 9, design: .monospaced))
+                    .font(IRFont.monoSM)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.6))
                     .position(
                         x: pad.leading + CGFloat(index) * stepX,

@@ -50,19 +50,25 @@ class StatisticsViewModel: ObservableObject {
     private var progressionTask: Task<Void, Never>?
 
     enum TimePeriod: Equatable, CaseIterable {
+        case thisWeek
         case thisMonth
         case sixMonths
         case oneYear
+        case allTime
         case specificYear
 
         var localizedTitle: String {
             switch self {
+            case .thisWeek:
+                return String(localized: "statistics.period.thisWeek", defaultValue: "Week", comment: "This week period filter")
             case .thisMonth:
                 return String(localized: "statistics.period.thisMonth", defaultValue: "This month", comment: "This month period filter")
             case .sixMonths:
                 return String(localized: "statistics.period.6months", defaultValue: "6 months", comment: "6 months period filter")
             case .oneYear:
                 return String(localized: "statistics.period.1year", defaultValue: "1 year", comment: "1 year period filter")
+            case .allTime:
+                return String(localized: "statistics.period.all", defaultValue: "All", comment: "All-time period filter")
             case .specificYear:
                 return String(localized: "statistics.period.year", defaultValue: "Year", comment: "Specific year period filter")
             }
@@ -70,15 +76,17 @@ class StatisticsViewModel: ObservableObject {
 
         var days: Int? {
             switch self {
+            case .thisWeek: return nil
             case .thisMonth: return nil
             case .sixMonths: return 180
             case .oneYear: return 365
+            case .allTime: return nil
             case .specificYear: return nil
             }
         }
 
         static var allCases: [TimePeriod] {
-            [.thisMonth, .sixMonths, .oneYear, .specificYear]
+            [.thisWeek, .thisMonth, .sixMonths, .oneYear, .allTime, .specificYear]
         }
     }
 
@@ -135,9 +143,18 @@ class StatisticsViewModel: ObservableObject {
     struct PaceDistribution: Identifiable {
         let id = UUID()
         let range: String
+        let zoneLabel: String
         let count: Int
         let percentage: Double
         let color: Color
+
+        init(range: String, count: Int, percentage: Double, color: Color, zoneLabel: String = "") {
+            self.range = range
+            self.zoneLabel = zoneLabel
+            self.count = count
+            self.percentage = percentage
+            self.color = color
+        }
     }
 
     struct DistanceDistribution: Identifiable {
@@ -145,6 +162,16 @@ class StatisticsViewModel: ObservableObject {
         let category: String
         let count: Int
         let percentage: Double
+        let totalKm: Double
+        let isMarathon: Bool
+
+        init(category: String, count: Int, percentage: Double, totalKm: Double = 0, isMarathon: Bool = false) {
+            self.category = category
+            self.count = count
+            self.percentage = percentage
+            self.totalKm = totalKm
+            self.isMarathon = isMarathon
+        }
     }
 
     struct YearlyComparison {
@@ -201,6 +228,12 @@ class StatisticsViewModel: ObservableObject {
         let calendar = Calendar.current
 
         switch selectedPeriod {
+        case .thisWeek:
+            guard let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())) else {
+                return workouts
+            }
+            return workouts.filter { $0.startDate >= startOfWeek }
+
         case .thisMonth:
             guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: Date())) else {
                 return workouts
@@ -212,6 +245,9 @@ class StatisticsViewModel: ObservableObject {
             let cutoffDate = calendar.date(byAdding: .day, value: -days, to: Date()) ?? Date()
             return workouts.filter { $0.startDate >= cutoffDate }
 
+        case .allTime:
+            return workouts
+
         case .specificYear:
             guard let startOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 1, day: 1)) else {
                 return workouts
@@ -221,6 +257,72 @@ class StatisticsViewModel: ObservableObject {
             }
             return workouts.filter { $0.startDate >= startOfYear && $0.startDate <= endOfYear }
         }
+    }
+
+    // MARK: - KPI Hero Sparklines
+
+    /// Returns the sorted period buckets used for KPI hero sparklines.
+    private var sparklineBuckets: [PeriodData] {
+        periodDistanceData.sorted { $0.date < $1.date }
+    }
+
+    /// Workouts per period bucket for the "Sessions" sparkline.
+    var sparklineWorkouts: [Double] {
+        sparklineBuckets.map { Double($0.workoutCount) }
+    }
+
+    /// Distance in km per bucket for the "Distance" sparkline.
+    var sparklineDistance: [Double] {
+        sparklineBuckets.map { $0.distance / 1000.0 }
+    }
+
+    /// Duration in hours per bucket for the "Time" sparkline.
+    var sparklineDuration: [Double] {
+        sparklineBuckets.map { bucket in
+            let workoutsInBucket = filteredWorkouts.filter { workout in
+                Calendar.current.isDate(workout.startDate, equalTo: bucket.date, toGranularity: chartGranularity == .week ? .weekOfYear : .month)
+            }
+            let total = workoutsInBucket.map { $0.duration }.reduce(0, +)
+            return total / 3600.0
+        }
+    }
+
+    /// Average pace per bucket for the "Avg pace" sparkline.
+    var sparklinePace: [Double] {
+        sparklineBuckets.compactMap { bucket in
+            bucket.averagePace
+        }
+    }
+
+    // MARK: - Header Subtitle (editorial)
+
+    /// Editorial header subtitle: "{Period name} · {N} séances · {Total km}".
+    /// Falls back to the selected period's localized title when there is no data.
+    var headerSubtitle: String {
+        let count = totalWorkouts
+        let kmText = formatDistance(totalDistance)
+        let periodName: String = {
+            switch selectedPeriod {
+            case .thisWeek:
+                return String(localized: "statistics.header.thisWeek", defaultValue: "This week", comment: "Header subtitle period: this week")
+            case .thisMonth:
+                let f = DateFormatter()
+                f.locale = Locale.current
+                f.dateFormat = "LLLL yyyy"
+                return f.string(from: Date()).capitalized
+            case .sixMonths:
+                return String(localized: "statistics.header.6months", defaultValue: "Last 6 months", comment: "Header subtitle period: last 6 months")
+            case .oneYear:
+                return String(localized: "statistics.header.1year", defaultValue: "Last 12 months", comment: "Header subtitle period: last 12 months")
+            case .allTime:
+                return String(localized: "statistics.header.all", defaultValue: "All time", comment: "Header subtitle period: all time")
+            case .specificYear:
+                return "\(selectedYear)"
+            }
+        }()
+
+        let sessions = String(format: String(localized: "statistics.header.sessionsCount", defaultValue: "%lld sessions", comment: "Header subtitle: number of sessions"), count)
+        return "\(periodName) · \(sessions) · \(kmText)"
     }
 
     // MARK: - Available Years
@@ -622,29 +724,41 @@ class StatisticsViewModel: ObservableObject {
 
         let total = Double(paces.count)
 
-        // Define pace zones (min/km)
-        let zones = [
-            (range: "< 5:00", min: 0.0, max: 5.0, color: Color.irSuccess),
-            (range: "5:00-6:00", min: 5.0, max: 6.0, color: Color.irPrimaryAccent),
-            (range: "6:00-7:00", min: 6.0, max: 7.0, color: Color.irWarning),
-            (range: "> 7:00", min: 7.0, max: 100.0, color: Color.irError)
+        struct Zone {
+            let range: String
+            let label: String
+            let min: Double
+            let max: Double
+            let color: Color
+        }
+
+        // Order matches design v4-stats.jsx (Tempo first, Endurance, Récup, Intervalles last)
+        let zones: [Zone] = [
+            Zone(range: "5'00–6'00",
+                 label: String(localized: "statistics.pace.zone.tempo", defaultValue: "Tempo · threshold", comment: "Pace zone: tempo"),
+                 min: 5.0, max: 6.0, color: .irSuccess),
+            Zone(range: "6'00–7'00",
+                 label: String(localized: "statistics.pace.zone.endurance", defaultValue: "Endurance", comment: "Pace zone: endurance"),
+                 min: 6.0, max: 7.0, color: .irPrimaryAccent),
+            Zone(range: "> 7'00",
+                 label: String(localized: "statistics.pace.zone.recovery", defaultValue: "Recovery · long", comment: "Pace zone: recovery"),
+                 min: 7.0, max: 100.0, color: .irWarning),
+            Zone(range: "< 5'00",
+                 label: String(localized: "statistics.pace.zone.intervals", defaultValue: "Intervals · VMA", comment: "Pace zone: intervals"),
+                 min: 0.0, max: 5.0, color: .irError)
         ]
 
-        var distribution: [PaceDistribution] = []
-
-        for zone in zones {
+        return zones.map { zone in
             let count = paces.filter { $0 >= zone.min && $0 < zone.max }.count
             let percentage = (Double(count) / total) * 100
-
-            distribution.append(PaceDistribution(
+            return PaceDistribution(
                 range: zone.range,
                 count: count,
                 percentage: percentage,
-                color: zone.color
-            ))
+                color: zone.color,
+                zoneLabel: zone.label
+            )
         }
-
-        return distribution.filter { $0.count > 0 }
     }
 
     var distanceDistributionData: [DistanceDistribution] {
@@ -652,48 +766,42 @@ class StatisticsViewModel: ObservableObject {
 
         let total = Double(filteredWorkouts.count)
 
-        // Define distance categories
-        let categories = [
-            (nameKey: "statistics.distance.short", min: 0.0, max: 5000.0),
-            (nameKey: "statistics.distance.medium", min: 5000.0, max: 10000.0),
-            (nameKey: "statistics.distance.long", min: 10000.0, max: 15000.0),
-            (nameKey: "statistics.distance.veryLong", min: 15000.0, max: Double.infinity)
-        ]
-
-        var distribution: [DistanceDistribution] = []
-
-        for category in categories {
-            let count = filteredWorkouts.filter { workout in
-                guard let distance = workout.distance else { return false }
-                return distance >= category.min && distance < category.max
-            }.count
-
-            let percentage = (Double(count) / total) * 100
-
-            if count > 0 {
-                let localizedName: String
-                switch category.nameKey {
-                case "statistics.distance.short":
-                    localizedName = String(localized: "statistics.distance.short", defaultValue: "Short (< 5 km)", comment: "Short distance category")
-                case "statistics.distance.medium":
-                    localizedName = String(localized: "statistics.distance.medium", defaultValue: "Medium (5-10 km)", comment: "Medium distance category")
-                case "statistics.distance.long":
-                    localizedName = String(localized: "statistics.distance.long", defaultValue: "Long (10-15 km)", comment: "Long distance category")
-                case "statistics.distance.veryLong":
-                    localizedName = String(localized: "statistics.distance.veryLong", defaultValue: "Very long (> 15 km)", comment: "Very long distance category")
-                default:
-                    localizedName = ""
-                }
-
-                distribution.append(DistanceDistribution(
-                    category: localizedName,
-                    count: count,
-                    percentage: percentage
-                ))
-            }
+        struct Bucket {
+            let label: String
+            let min: Double
+            let max: Double
+            let isMarathon: Bool
         }
 
-        return distribution
+        let buckets: [Bucket] = [
+            Bucket(label: String(localized: "statistics.distance.bucket.under5", defaultValue: "< 5 km", comment: "Distance bucket below 5 km"),
+                   min: 0.0, max: 5000.0, isMarathon: false),
+            Bucket(label: String(localized: "statistics.distance.bucket.5to10", defaultValue: "5–10 km", comment: "Distance bucket 5 to 10 km"),
+                   min: 5000.0, max: 10000.0, isMarathon: false),
+            Bucket(label: String(localized: "statistics.distance.bucket.10to15", defaultValue: "10–15 km", comment: "Distance bucket 10 to 15 km"),
+                   min: 10000.0, max: 15000.0, isMarathon: false),
+            Bucket(label: String(localized: "statistics.distance.bucket.15to20", defaultValue: "15–20 km", comment: "Distance bucket 15 to 20 km"),
+                   min: 15000.0, max: 20000.0, isMarathon: false),
+            Bucket(label: String(localized: "statistics.distance.bucket.over20", defaultValue: "> 20 km", comment: "Distance bucket above 20 km"),
+                   min: 20000.0, max: Double.infinity, isMarathon: true)
+        ]
+
+        return buckets.map { bucket in
+            let matched = filteredWorkouts.filter { workout in
+                guard let distance = workout.distance else { return false }
+                return distance >= bucket.min && distance < bucket.max
+            }
+            let count = matched.count
+            let percentage = (Double(count) / total) * 100
+            let totalKm = matched.compactMap { $0.distance }.reduce(0, +) / 1000.0
+            return DistanceDistribution(
+                category: bucket.label,
+                count: count,
+                percentage: percentage,
+                totalKm: totalKm,
+                isMarathon: bucket.isMarathon
+            )
+        }
     }
 
     var yearlyComparisonData: YearlyComparison {
@@ -834,6 +942,15 @@ class StatisticsViewModel: ObservableObject {
         let data = progressionData
         var series: [MetricSeries] = []
 
+        // VO2 Max first — most predictive marker of aerobic fitness.
+        let vo2 = data.compactMap { p in p.vo2Max.map { (p.date, $0) } }
+        if vo2.count >= 2 {
+            series.append(MetricSeries(
+                id: "vo2max", name: "VO2 Max",
+                icon: "lungs.fill", color: .red, unit: String(localized: "progression.unit.vo2", defaultValue: "ml/kg/min", comment: "VO2 Max unit"), lowerIsBetter: false, metricInfoKey: "metric.vo2_max", points: vo2
+            ))
+        }
+
         let bestPace = data.compactMap { p in p.minPace.map { (p.date, $0) } }
         if bestPace.count >= 2 {
             series.append(MetricSeries(
@@ -874,14 +991,6 @@ class StatisticsViewModel: ObservableObject {
             ))
         }
 
-        let vo2 = data.compactMap { p in p.vo2Max.map { (p.date, $0) } }
-        if vo2.count >= 2 {
-            series.append(MetricSeries(
-                id: "vo2max", name: "VO2 Max",
-                icon: "lungs.fill", color: .red, unit: String(localized: "progression.unit.vo2", defaultValue: "ml/kg/min", comment: "VO2 Max unit"), lowerIsBetter: false, metricInfoKey: "metric.vo2_max", points: vo2
-            ))
-        }
-
         return series
     }
 
@@ -918,22 +1027,6 @@ class StatisticsViewModel: ObservableObject {
             series.append(MetricSeries(
                 id: "doubleSupport", name: String(localized: "progression.metric.doubleSupport", defaultValue: "Double support", comment: "Double support metric"),
                 icon: "figure.2.arms.open", color: .blue, unit: "%", lowerIsBetter: false, metricInfoKey: "metric.double_support", points: ds
-            ))
-        }
-
-        let ws = data.compactMap { p in p.walkingSpeed.map { (p.date, $0) } }
-        if ws.count >= 2 {
-            series.append(MetricSeries(
-                id: "walkSpeed", name: String(localized: "progression.metric.walkingSpeed", defaultValue: "Walking speed", comment: "Walking speed metric"),
-                icon: "figure.walk.circle", color: .cyan, unit: String(localized: "progression.unit.kmh", defaultValue: "km/h", comment: "Speed unit"), lowerIsBetter: false, metricInfoKey: "metric.walking_speed", points: ws
-            ))
-        }
-
-        let sds = data.compactMap { p in p.stairDescentSpeed.map { (p.date, $0) } }
-        if sds.count >= 2 {
-            series.append(MetricSeries(
-                id: "stairDescent", name: String(localized: "progression.metric.stairDescentSpeed", defaultValue: "Stair descent", comment: "Stair descent speed metric"),
-                icon: "figure.stairs", color: .indigo, unit: String(localized: "progression.unit.kmh", defaultValue: "km/h", comment: "Speed unit"), lowerIsBetter: false, metricInfoKey: "metric.stair_descent_speed", points: sds
             ))
         }
 

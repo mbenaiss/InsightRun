@@ -71,7 +71,7 @@ function analyzeSplits(splits: Array<{ kilometer: number; pace: string; time: st
     const lastTwoAvg = lastTwo.reduce((a, b) => a + b, 0) / 2
     const fadeAmount = lastTwoAvg - avgPaceSec
     if (fadeAmount > 8) {
-      analysis += `- ⚠️ Late fade detected: last 2 km avg ${fadeAmount.toFixed(0)}s/km slower than overall → Possible energy depletion or pacing issue\n`
+      analysis += `- Late fade detected: last 2 km avg ${fadeAmount.toFixed(0)}s/km slower than overall → Possible energy depletion or pacing issue\n`
     }
   }
 
@@ -109,7 +109,7 @@ function estimateIntensity(workout: WorkoutData): string {
 
 // Build workout context from data
 function buildWorkoutContext(workout: WorkoutData): string {
-  let context = `# 🏃 Single Workout Analysis\n\n`
+  let context = `# Single Workout Analysis\n\n`
   context += `**Date:** ${workout.date}\n`
   context += `**Duration:** ${formatDuration(workout.duration)}\n`
   context += `**Distance:** ${formatDistance(workout.distance)}\n`
@@ -205,7 +205,7 @@ function buildWorkoutContext(workout: WorkoutData): string {
 
 // Build recovery context from data
 function buildRecoveryContext(recovery: RecoveryData): string {
-  let context = `# 🏃 Recovery Status\n\n`
+  let context = `# Recovery Status\n\n`
 
   if (recovery.restingHeartRate) {
     context += `- Resting HR: ${Math.round(recovery.restingHeartRate)} bpm\n`
@@ -250,7 +250,7 @@ function classifyWorkoutIntensity(w: WorkoutData): string {
 
 // Build recent workouts context
 function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
-  let context = `# 📅 Recent Training History (Last ${recent.workouts.length} runs)\n\n`
+  let context = `# Recent Training History (Last ${recent.workouts.length} runs)\n\n`
 
   context += `**Weekly Summary:**\n`
   context += `- Total Volume: ${(recent.totalDistance / 1000).toFixed(1)} km\n`
@@ -260,16 +260,16 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
 
   if (recent.weeklyVolumeChange !== undefined) {
     if (recent.weeklyVolumeChange > 10) {
-      context += `- ⚠️ **Training Load Alert**: Volume increased by ${recent.weeklyVolumeChange.toFixed(1)}% - high injury risk!\n`
+      context += `- **Training Load Alert**: Volume increased by ${recent.weeklyVolumeChange.toFixed(1)}% — high injury risk\n`
     } else if (recent.weeklyVolumeChange > 0) {
-      context += `- ✅ Volume change: +${recent.weeklyVolumeChange.toFixed(1)}% (safe progression)\n`
+      context += `- Volume change: +${recent.weeklyVolumeChange.toFixed(1)}% (safe progression)\n`
     }
   }
 
   if (recent.daysSinceLastWorkout !== undefined) {
     context += `- Time Since Last Run: ${recent.daysSinceLastWorkout} day(s) ago`
     if (recent.daysSinceLastWorkout > 3) {
-      context += ` ⚠️ (extended break)`
+      context += ` (extended break)`
     }
     context += `\n`
   }
@@ -295,7 +295,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
         const easyCount = counts.Easy || 0
         const hardCount = (counts.Tempo || 0) + (counts.Hard || 0)
         if (intensities.length >= 3 && hardCount > easyCount) {
-          context += `  ⚠️ More hard sessions than easy → Risk of overtraining\n`
+          context += `  More hard sessions than easy → Risk of overtraining\n`
         }
       }
     }
@@ -309,7 +309,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
       const lastAvg = lastThird.reduce((a, b) => a + b, 0) / lastThird.length
       const diff = lastAvg - firstAvg
       if (Math.abs(diff) > 0.05) {
-        context += `- Pace Trend: ${diff < 0 ? '📈 Improving' : '📉 Slowing'} (${Math.abs(diff * 60).toFixed(0)}s/km shift)\n`
+        context += `- Pace Trend: ${diff < 0 ? 'Improving' : 'Slowing'} (${Math.abs(diff * 60).toFixed(0)}s/km shift)\n`
       } else {
         context += `- Pace Trend: Stable\n`
       }
@@ -325,7 +325,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
         const lastRatio = hrPaceRatios[hrPaceRatios.length - 1]
         const ratioDiff = lastRatio - firstRatio
         if (Math.abs(ratioDiff) > 1) {
-          context += `- HR Efficiency: ${ratioDiff < 0 ? '📈 Improving (lower HR at same pace)' : '📉 Declining (higher HR at same pace)'}\n`
+          context += `- HR Efficiency: ${ratioDiff < 0 ? 'Improving (lower HR at same pace)' : 'Declining (higher HR at same pace)'}\n`
         }
       }
     }
@@ -431,7 +431,7 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
 
 // Build health profile context
 function buildHealthProfileContext(profile: HealthProfileData): string {
-  let context = `# 👤 Health Profile\n\n`
+  let context = `# Health Profile\n\n`
 
   if (profile.age) {
     context += `- Age: ${profile.age} years\n`
@@ -464,7 +464,7 @@ function buildHealthProfileContext(profile: HealthProfileData): string {
   }
 
   if (!hasCrossTraining) {
-    context += `\n💡 No complementary sport detected (cycling, swimming) - suggest adding for balanced fitness\n`
+    context += `\nNo complementary sport detected (cycling, swimming) — suggest adding for balanced fitness\n`
   }
 
   return context
@@ -472,9 +472,9 @@ function buildHealthProfileContext(profile: HealthProfileData): string {
 
 // Build personal baseline context for comparison
 function buildBaselineContext(baseline: PersonalBaselineData): string {
-  let context = `# 📈 Personal Baseline (Your Normal Values)\n\n`
+  let context = `# Personal Baseline (Your Normal Values)\n\n`
 
-  context += `**Data Quality:** ${baseline.isReliable ? `✅ Reliable (${baseline.dataPointCount} days)` : `⚠️ Building (${baseline.dataPointCount}/7 days needed)`}\n\n`
+  context += `**Data Quality:** ${baseline.isReliable ? `Reliable (${baseline.dataPointCount} days)` : `Building (${baseline.dataPointCount}/7 days needed)`}\n\n`
 
   if (baseline.restingHeartRateAverage) {
     context += `- Your Normal Resting HR: ${Math.round(baseline.restingHeartRateAverage)} bpm`
@@ -516,7 +516,7 @@ function buildBaselineContext(baseline: PersonalBaselineData): string {
 
 // Build training plan context for the AI (active race goal + full plan structure)
 function buildTrainingPlanContext(plan: TrainingPlanData): string {
-  let context = `# 🎯 Active Race Goal & Training Plan\n\n`
+  let context = `# Active Race Goal & Training Plan\n\n`
 
   context += `## Race\n`
   context += `- **Event:** ${plan.raceName} (${plan.raceType}, ${plan.raceDistanceKm.toFixed(1)} km)\n`
@@ -580,7 +580,7 @@ function buildTrainingPlanContext(plan: TrainingPlanData): string {
 
 function formatTrainingWeek(week: TrainingWeekData, currentWeekNumber?: number | null): string {
   const isCurrent = currentWeekNumber === week.weekNumber
-  const marker = isCurrent ? ' 👈 current' : ''
+  const marker = isCurrent ? ' [current]' : ''
   let out = `\n### Week ${week.weekNumber} — ${week.phase}${week.volumeKm != null ? ` · ${week.volumeKm.toFixed(1)} km planned` : ''}${marker}\n`
   if (week.notes) {
     out += `> ${week.notes}\n`
@@ -598,9 +598,9 @@ function formatTrainingDay(day: TrainingDayData): string {
   }
   const status = day.isCompleted
     ? day.autoMatched
-      ? '✅ completed (auto-matched)'
-      : '✅ completed (manual)'
-    : '⏳ pending'
+      ? 'completed (auto-matched)'
+      : 'completed (manual)'
+    : 'pending'
   if (!day.workout) {
     return `- **${dayLabel}** — ${status}\n`
   }
@@ -640,7 +640,7 @@ function formatPlannedWorkoutInline(w: PlannedWorkoutData): string {
 export function buildWorkoutCoachPrompt(data: ChatDataPayload, language: string): string {
   const langName = getLanguageName(language)
 
-  let systemPrompt = `You are a friendly, accessible running coach who makes data understandable for ALL levels — especially beginners.
+  let systemPrompt = `You are a professional running coach who turns training data into precise, actionable guidance — clear enough for beginners, rigorous enough for experienced runners. Default tone: neutral, factual, no emojis, no exclamations, no empty superlatives.
 
 **LANGUAGE — ZERO TOLERANCE FOR ENGLISH IN NON-ENGLISH RESPONSES:**
 You MUST respond entirely in ${langName}. Every single word must be in ${langName} — no exceptions.

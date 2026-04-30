@@ -138,6 +138,16 @@ class HealthKitManager: ObservableObject {
             HKObjectType.quantityType(forIdentifier: .bodyTemperature)!,
         ]
 
+        // Workout Effort score (iOS 18+) — user-rated and Apple-estimated RPE 1–10
+        if #available(iOS 18.0, *) {
+            if let userScore = HKObjectType.quantityType(forIdentifier: .workoutEffortScore) {
+                typesToRead.insert(userScore)
+            }
+            if let estimated = HKObjectType.quantityType(forIdentifier: .estimatedWorkoutEffortScore) {
+                typesToRead.insert(estimated)
+            }
+        }
+
         // Add characteristic types (age, biological sex, etc.)
         let characteristicTypes: Set<HKObjectType> = [
             HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!,
@@ -221,7 +231,7 @@ class HealthKitManager: ObservableObject {
         let workoutType = HKObjectType.workoutType()
         let runningPredicate = HKQuery.predicateForWorkouts(with: .running)
 
-        return try await withCheckedThrowingContinuation { continuation in
+        let hkWorkouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
             let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
 
             let query = HKSampleQuery(
@@ -234,17 +244,94 @@ class HealthKitManager: ObservableObject {
                     continuation.resume(throwing: HealthKitError.queryFailed(error))
                     return
                 }
-
-                guard let workouts = samples as? [HKWorkout] else {
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                let workoutModels = workouts.map { WorkoutModel(from: $0) }
-                continuation.resume(returning: workoutModels)
+                continuation.resume(returning: (samples as? [HKWorkout]) ?? [])
             }
 
             healthStore.execute(query)
+        }
+
+        var models = hkWorkouts.map { WorkoutModel(from: $0) }
+        if #available(iOS 18.0, *) {
+            models = await enrichWithEffortScores(workouts: hkWorkouts, models: models)
+        }
+        return models
+    }
+
+    // MARK: - Workout Effort Scores (iOS 18+)
+
+    /// Migrates existing users to grant access to the new Apple Workout Effort
+    /// Score types (added in iOS 18). One-shot: stores a flag in UserDefaults
+    /// so the prompt only appears once after the upgrade.
+    @available(iOS 18.0, *)
+    func requestEffortAuthorizationIfNeeded() async {
+        let key = "hasRequestedWorkoutEffortAuth"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+
+        var read: Set<HKObjectType> = []
+        if let user = HKObjectType.quantityType(forIdentifier: .workoutEffortScore) {
+            read.insert(user)
+        }
+        if let estimated = HKObjectType.quantityType(forIdentifier: .estimatedWorkoutEffortScore) {
+            read.insert(estimated)
+        }
+        guard !read.isEmpty else { return }
+
+        do {
+            try await healthStore.requestAuthorization(toShare: [], read: read)
+            UserDefaults.standard.set(true, forKey: key)
+        } catch {
+            // Silent — re-tried on next launch
+        }
+    }
+
+    @available(iOS 18.0, *)
+    private func enrichWithEffortScores(workouts: [HKWorkout], models: [WorkoutModel]) async -> [WorkoutModel] {
+        await withTaskGroup(of: (Int, Double?, Bool).self) { group in
+            for (idx, workout) in workouts.enumerated() {
+                group.addTask {
+                    if let user = await self.queryEffortScore(for: workout, type: .workoutEffortScore) {
+                        return (idx, user, false)
+                    }
+                    if let estimated = await self.queryEffortScore(for: workout, type: .estimatedWorkoutEffortScore) {
+                        return (idx, estimated, true)
+                    }
+                    return (idx, nil, false)
+                }
+            }
+
+            var enriched = models
+            for await (idx, score, isEstimated) in group {
+                guard idx < enriched.count else { continue }
+                if let score {
+                    enriched[idx].effortScore = score
+                    enriched[idx].effortIsEstimated = isEstimated
+                }
+            }
+            return enriched
+        }
+    }
+
+    @available(iOS 18.0, *)
+    private func queryEffortScore(for workout: HKWorkout, type id: HKQuantityTypeIdentifier) async -> Double? {
+        guard let quantityType = HKQuantityType.quantityType(forIdentifier: id) else { return nil }
+        let predicate = HKQuery.predicateForWorkoutEffortSamplesRelated(workout: workout, activity: nil)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: quantityType,
+                predicate: predicate,
+                limit: 1,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+            ) { _, samples, _ in
+                guard let sample = samples?.first as? HKQuantitySample else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let value = sample.quantity.doubleValue(for: HKUnit.appleEffortScore())
+                continuation.resume(returning: value)
+            }
+            self.healthStore.execute(query)
         }
     }
 

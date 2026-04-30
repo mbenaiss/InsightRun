@@ -37,6 +37,9 @@ final class DailyMetricsCache {
         let score: Int
         let status: String
         let recommendation: String
+        /// Short coaching TL;DR. Optional for backward compatibility with cache entries
+        /// written by older app versions that didn't yet split summary/detail.
+        let summary: String?
         let suggestedWorkoutType: String
         let effortScore: Int?
         let cardiacLoadScore: Int?
@@ -61,6 +64,7 @@ final class DailyMetricsCache {
         score: Int,
         status: String,
         recommendation: String,
+        summary: String? = nil,
         workoutType: String,
         effortScore: Int = 0,
         cardiacLoadScore: Int? = nil
@@ -71,6 +75,7 @@ final class DailyMetricsCache {
             score: score,
             status: status,
             recommendation: recommendation,
+            summary: summary,
             suggestedWorkoutType: workoutType,
             effortScore: effortScore,
             cardiacLoadScore: cardiacLoadScore

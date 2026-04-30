@@ -220,8 +220,15 @@ struct ScoreExplanationSheet: View {
     // MARK: - Score Body (Effort, Sleep, Readiness)
 
     private func scoreBody(_ scoreType: ScoreType) -> some View {
-        VStack(spacing: 24) {
+        // Order: Hero → AI analysis → Trend → Components → Calculation → References.
+        VStack(spacing: 14) {
             scoreValueCard(scoreType)
+
+            aiInsightCard
+
+            if let data = trendData, !data.isEmpty {
+                scoreTrendChart(data, scoreType: scoreType)
+            }
 
             if scoreType == .effort, let activity = activityData {
                 effortActivityCard(activity)
@@ -235,13 +242,6 @@ struct ScoreExplanationSheet: View {
                 readinessMetricsCard(metrics)
             }
 
-            aiInsightCard
-
-            if let data = trendData, !data.isEmpty {
-                scoreTrendChart(data, scoreType: scoreType)
-            }
-
-            scoreExplanationCard(scoreType)
             calculationSection(scoreType)
             scoreReferencesSection(scoreType)
         }
@@ -251,8 +251,9 @@ struct ScoreExplanationSheet: View {
     // MARK: - Cardiac Load Body
 
     private var cardiacLoadBody: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 14) {
             cardiacLoadValueCard
+
             aiInsightCard
 
             if let data = trendData, !data.isEmpty {
@@ -269,12 +270,8 @@ struct ScoreExplanationSheet: View {
     // MARK: - Metric Body (HRV, RHR, SpO2, Respiratory)
 
     private var metricBody: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 14) {
             metricValueCard
-
-            if case .metric(.totalCalories) = mode, let activity = activityData {
-                caloriesBreakdownCard(activity)
-            }
 
             aiInsightCard
 
@@ -284,6 +281,10 @@ struct ScoreExplanationSheet: View {
                 caloriesStackedHistoryChart(breakdown)
             } else {
                 metricHistoryChart
+            }
+
+            if case .metric(.totalCalories) = mode, let activity = activityData {
+                caloriesBreakdownCard(activity)
             }
 
             if let baseline = baseline {
@@ -299,468 +300,323 @@ struct ScoreExplanationSheet: View {
     // MARK: - Calories Breakdown Card
 
     private func caloriesBreakdownCard(_ activity: DailyActivityData) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Image(systemName: "flame.fill")
-                    .foregroundStyle(Color.orange.gradient)
-
-                Text(String(localized: "Calories breakdown", comment: "Calories breakdown card header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
-            }
-
-            HStack(spacing: 16) {
-                caloriesBreakdownTile(
+        DetailComponentsCard(
+            title: String(localized: "Calories breakdown", comment: "Calories breakdown card header"),
+            rows: [
+                DetailComponentRow(
                     label: String(localized: "Resting", comment: "Basal/resting calories label"),
-                    value: activity.basalCalories,
-                    iconName: "moon.zzz.fill",
-                    tint: .indigo
-                )
-                caloriesBreakdownTile(
+                    value: String(format: "%.0f", activity.basalCalories),
+                    unit: "kcal"
+                ),
+                DetailComponentRow(
                     label: String(localized: "Active", comment: "Active calories label"),
-                    value: activity.activeCalories,
-                    iconName: "figure.run",
-                    tint: .orange
+                    value: String(format: "%.0f", activity.activeCalories),
+                    unit: "kcal"
+                ),
+                DetailComponentRow(
+                    label: String(localized: "Total calories", comment: "Total calories metric title"),
+                    value: String(format: "%.0f", activity.totalCalories),
+                    unit: "kcal"
                 )
-            }
-        }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func caloriesBreakdownTile(label: String, value: Double, iconName: String, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: iconName)
-                    .font(.caption)
-                    .foregroundStyle(tint)
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(Color.irTextSecondary)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(String(format: "%.0f", value))
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.irTextPrimary)
-                Text("kcal")
-                    .font(.caption)
-                    .foregroundStyle(Color.irTextSecondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+            ]
+        )
     }
 
     // MARK: - Effort Activity Card
 
     private func effortActivityCard(_ activity: DailyActivityData) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Image(systemName: "figure.run")
-                    .foregroundStyle(Color.orange.gradient)
-
-                Text(String(localized: "Today's Activity", comment: "Effort activity card header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
-            }
-
-            HealthMetricRow(
-                icon: "figure.walk",
-                iconColor: .green,
-                title: String(localized: "Steps", comment: "Steps metric label"),
-                value: String(format: "%.0f", activity.steps)
-            )
-
-            HealthMetricRow(
-                icon: "flame.fill",
-                iconColor: .orange,
-                title: String(localized: "Active Calories", comment: "Active calories metric label"),
-                value: String(format: "%.0f kcal", activity.activeCalories)
-            )
-
-            HealthMetricRow(
-                icon: "timer",
-                iconColor: .red,
-                title: String(localized: "Exercise Minutes", comment: "Exercise minutes metric label"),
-                value: String(format: "%.0f min", activity.exerciseMinutes)
-            )
-        }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        DetailComponentsCard(
+            title: String(localized: "Today's Activity", comment: "Effort activity card header"),
+            rows: [
+                DetailComponentRow(
+                    label: String(localized: "Steps", comment: "Steps metric label"),
+                    value: String(format: "%.0f", activity.steps)
+                ),
+                DetailComponentRow(
+                    label: String(localized: "Active Calories", comment: "Active calories metric label"),
+                    value: String(format: "%.0f", activity.activeCalories),
+                    unit: "kcal"
+                ),
+                DetailComponentRow(
+                    label: String(localized: "Exercise Minutes", comment: "Exercise minutes metric label"),
+                    value: String(format: "%.0f", activity.exerciseMinutes),
+                    unit: "min"
+                )
+            ]
+        )
     }
 
     // MARK: - Sleep Data Card
 
     private func sleepDataCard(_ sleep: SleepData) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Image(systemName: "moon.fill")
-                    .foregroundStyle(Color.indigo.gradient)
+        DetailComponentsCard(
+            title: String(localized: "Sleep Details", comment: "Sleep data card header"),
+            rows: sleepRows(for: sleep)
+        )
+    }
 
-                Text(String(localized: "Sleep Details", comment: "Sleep data card header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
-            }
-
-            HealthMetricRow(
-                icon: "moon.fill",
-                iconColor: .indigo,
-                title: String(localized: "Sleep session", comment: "Label for time of sleep session"),
+    private func sleepRows(for sleep: SleepData) -> [DetailComponentRow] {
+        var rows: [DetailComponentRow] = [
+            DetailComponentRow(
+                label: String(localized: "Sleep session", comment: "Label for time of sleep session"),
                 value: sleep.formattedSleepTime
-            )
-
-            HealthMetricRow(
-                icon: "bed.double.fill",
-                iconColor: .blue,
-                title: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
+            ),
+            DetailComponentRow(
+                label: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
                 value: sleep.formattedTotalSleep
             )
+        ]
 
-            if let napDuration = sleep.formattedNapDuration {
-                HealthMetricRow(
-                    icon: "powersleep",
-                    iconColor: .orange,
-                    title: String(localized: "Naps", comment: "Label for nap duration"),
-                    value: napDuration
-                )
-            }
-
-            HealthMetricRow(
-                icon: "chart.bar.fill",
-                iconColor: .teal,
-                title: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
-                value: String(format: "%.0f%%", sleep.sleepEfficiency)
-            )
-
-            if let deep = sleep.deepSleepDuration,
-               let core = sleep.coreSleepDuration,
-               let rem = sleep.remSleepDuration {
-                Divider()
-                    .padding(.vertical, Spacing.xxs)
-
-                Text(String(localized: "Sleep stages", comment: "Section header for sleep stages breakdown"))
-                    .font(.subheadline)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                SleepStageRow(
-                    stage: String(localized: "Deep", comment: "Deep sleep stage label"),
-                    duration: deep,
-                    color: .blue
-                )
-                SleepStageRow(
-                    stage: String(localized: "Light", comment: "Light sleep stage label"),
-                    duration: core,
-                    color: .cyan
-                )
-                SleepStageRow(
-                    stage: String(localized: "REM", comment: "REM sleep stage label"),
-                    duration: rem,
-                    color: .indigo
-                )
-            }
+        if let napDuration = sleep.formattedNapDuration {
+            rows.append(DetailComponentRow(
+                label: String(localized: "Naps", comment: "Label for nap duration"),
+                value: napDuration
+            ))
         }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+
+        rows.append(DetailComponentRow(
+            label: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
+            value: String(format: "%.0f", sleep.sleepEfficiency),
+            unit: "%"
+        ))
+
+        if let deep = sleep.deepSleepDuration {
+            rows.append(DetailComponentRow(
+                label: String(localized: "Deep", comment: "Deep sleep stage label"),
+                value: formatSleepStageDuration(deep)
+            ))
+        }
+        if let core = sleep.coreSleepDuration {
+            rows.append(DetailComponentRow(
+                label: String(localized: "Light", comment: "Light sleep stage label"),
+                value: formatSleepStageDuration(core)
+            ))
+        }
+        if let rem = sleep.remSleepDuration {
+            rows.append(DetailComponentRow(
+                label: String(localized: "REM", comment: "REM sleep stage label"),
+                value: formatSleepStageDuration(rem)
+            ))
+        }
+        return rows
+    }
+
+    private func formatSleepStageDuration(_ seconds: TimeInterval) -> String {
+        let minutes = Int(seconds / 60)
+        let h = minutes / 60
+        let m = minutes % 60
+        if h > 0 {
+            return "\(h)h\(String(format: "%02d", m))"
+        }
+        return "\(m) min"
     }
 
     // MARK: - Readiness Metrics Card
 
     private func readinessMetricsCard(_ metrics: RecoveryMetrics) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Image(systemName: "heart.text.clipboard")
-                    .foregroundStyle(Color.purple.gradient)
+        DetailComponentsCard(
+            title: String(localized: "Today's Metrics", comment: "Readiness metrics card header"),
+            rows: readinessRows(for: metrics)
+        )
+    }
 
-                Text(String(localized: "Today's Metrics", comment: "Readiness metrics card header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
-            }
-
-            if let hrv = metrics.hrvAverage {
-                HealthMetricRow(
-                    icon: "waveform.path.ecg",
-                    iconColor: .blue,
-                    title: String(localized: "HRV", comment: "HRV metric label"),
-                    value: String(format: "%.0f ms", hrv)
-                )
-            }
-
-            if let rhr = metrics.restingHeartRate {
-                HealthMetricRow(
-                    icon: "heart.fill",
-                    iconColor: .red,
-                    title: String(localized: "Resting HR", comment: "Resting heart rate label"),
-                    value: String(format: "%.0f bpm", rhr)
-                )
-            }
-
-            if let respRate = metrics.respiratoryRate {
-                HealthMetricRow(
-                    icon: "lungs.fill",
-                    iconColor: .teal,
-                    title: String(localized: "Respiratory Rate", comment: "Respiratory rate label"),
-                    value: String(format: "%.1f rpm", respRate)
-                )
-            }
-
-            if let spo2 = metrics.oxygenSaturation {
-                HealthMetricRow(
-                    icon: "drop.fill",
-                    iconColor: .cyan,
-                    title: String(localized: "SpO2", comment: "Oxygen saturation label"),
-                    value: String(format: "%.0f%%", spo2)
-                )
-            }
-
-            if let sleep = metrics.sleepData {
-                Divider()
-
-                HealthMetricRow(
-                    icon: "bed.double.fill",
-                    iconColor: .indigo,
-                    title: String(localized: "Sleep", comment: "Sleep metric label"),
-                    value: sleep.formattedTotalSleep
-                )
-
-                HealthMetricRow(
-                    icon: "chart.bar.fill",
-                    iconColor: .green,
-                    title: String(localized: "Sleep Efficiency", comment: "Sleep efficiency label"),
-                    value: String(format: "%.0f%%", sleep.sleepEfficiency)
-                )
-            }
+    private func readinessRows(for metrics: RecoveryMetrics) -> [DetailComponentRow] {
+        var rows: [DetailComponentRow] = []
+        if let hrv = metrics.hrvAverage {
+            rows.append(DetailComponentRow(
+                label: String(localized: "HRV", comment: "HRV metric label"),
+                value: String(format: "%.0f", hrv),
+                unit: "ms"
+            ))
         }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        if let rhr = metrics.restingHeartRate {
+            rows.append(DetailComponentRow(
+                label: String(localized: "Resting HR", comment: "Resting heart rate label"),
+                value: String(format: "%.0f", rhr),
+                unit: "bpm"
+            ))
+        }
+        if let respRate = metrics.respiratoryRate {
+            rows.append(DetailComponentRow(
+                label: String(localized: "Respiratory Rate", comment: "Respiratory rate label"),
+                value: String(format: "%.1f", respRate),
+                unit: "rpm"
+            ))
+        }
+        if let spo2 = metrics.oxygenSaturation {
+            rows.append(DetailComponentRow(
+                label: String(localized: "SpO2", comment: "Oxygen saturation label"),
+                value: String(format: "%.0f", spo2),
+                unit: "%"
+            ))
+        }
+        if let sleep = metrics.sleepData {
+            rows.append(DetailComponentRow(
+                label: String(localized: "Sleep", comment: "Sleep metric label"),
+                value: sleep.formattedTotalSleep
+            ))
+            rows.append(DetailComponentRow(
+                label: String(localized: "Sleep Efficiency", comment: "Sleep efficiency label"),
+                value: String(format: "%.0f", sleep.sleepEfficiency),
+                unit: "%"
+            ))
+        }
+        return rows
     }
 
     // MARK: - Shared AI Insight Card
 
     private var aiInsightCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .font(.title3)
+            aiInsightHeader
 
-                Text(String(localized: "AI Analysis", comment: "AI analysis section title"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-            }
-
-            if !revenueCatManager.hasAIAccess {
-                VStack(spacing: 16) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 40))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-
-                    Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
-                        .multilineTextAlignment(.center)
-
-                    Button {
-                        showSubscriptionPaywall = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "sparkles")
-                            Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
-                        }
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-
-            } else if analysisVM.isLoading {
-                HStack {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text(String(localized: "Analyzing...", comment: "AI analysis loading"))
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 12)
-
-            } else if let analysis = analysisVM.analysisText, !analysis.isEmpty {
-                Text(analysis)
-                    .font(.body)
-                    .foregroundStyle(Color.irTextSecondary)
-                    .lineSpacing(4)
-                    .onAppear {
-                        if lastTrackedAnalysis != analysis {
-                            ReviewManager.shared.recordAIEngagement()
-                            lastTrackedAnalysis = analysis
-                        }
-                    }
-
-            } else if let error = analysisVM.error {
-                VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.title2)
-                        .foregroundStyle(Color.irWarning)
-
-                    Text(error)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-
-            } else {
-                HStack {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text(String(localized: "Loading analysis...", comment: "AI analysis loading"))
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 12)
-            }
+            aiInsightBody
         }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .detailCard()
         .sheet(isPresented: $showSubscriptionPaywall) {
             SubscriptionPaywallView(isInitialFlow: false)
                 .environmentObject(revenueCatManager)
         }
     }
 
+    private var aiInsightHeader: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.black)
+            }
+            .frame(width: 22, height: 22)
+
+            Text(String(localized: "Coach", comment: "Detail sheet AI analysis label").uppercased())
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.5)
+                .foregroundStyle(Color.irTextSecondary)
+
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var aiInsightBody: some View {
+        if !revenueCatManager.hasAIAccess {
+            aiInsightPaywallContent
+        } else if analysisVM.isLoading {
+            aiInsightLoading(label: String(localized: "Analyzing...", comment: "AI analysis loading"))
+        } else if let analysis = analysisVM.analysisText, !analysis.isEmpty {
+            Text(analysis)
+                .font(.system(size: 14))
+                .lineSpacing(3)
+                .foregroundStyle(Color.irTextPrimary)
+                .onAppear {
+                    if lastTrackedAnalysis != analysis {
+                        ReviewManager.shared.recordAIEngagement()
+                        lastTrackedAnalysis = analysis
+                    }
+                }
+        } else if let error = analysisVM.error {
+            VStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.title2)
+                    .foregroundStyle(Color.irWarning)
+
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.irTextSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        } else {
+            aiInsightLoading(label: String(localized: "Loading analysis...", comment: "AI analysis loading"))
+        }
+    }
+
+    private var aiInsightPaywallContent: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 32))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
+                .font(.subheadline)
+                .foregroundStyle(Color.irTextSecondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                showSubscriptionPaywall = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                    Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
+                }
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Color.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(
+                        colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+    }
+
+    private func aiInsightLoading(label: String) -> some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(Color.irTextSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.vertical, 12)
+    }
+
     // MARK: - Score Value Cards
 
     private func scoreValueCard(_ scoreType: ScoreType) -> some View {
-        let accent = scoreAccentColor
-        let icon: String = switch scoreType {
-        case .effort: "flame.fill"
-        case .sleep: "moon.fill"
-        case .readiness, .cardiacLoad: "bolt.heart.fill"
-        }
-
-        return VStack(spacing: 16) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(accent.gradient)
-
-                Text(String(localized: "Current Score", comment: "Current score header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                Spacer()
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(score)")
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Text("%")
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    Image(systemName: scoreStatusIcon)
-                        .font(.title2)
-                        .foregroundStyle(accent)
-
-                    Text(scoreLabel)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(accent)
-                }
-            }
-        }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        DetailHeroCard(
+            valueLabel: "\(score)",
+            unitLabel: "/100",
+            statusLabel: scoreLabel,
+            accent: scoreAccentColor,
+            progress: Double(score) / 100.0
+        )
     }
 
     private var cardiacLoadValueCard: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "bolt.heart.fill")
-                    .font(.title2)
-                    .foregroundStyle((cardiacLoadStatus?.color ?? .purple).gradient)
-
-                Text(String(localized: "Current Load", comment: "Current cardiac load header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                Spacer()
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(score)")
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Text("/20")
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                Spacer()
-
-                if let status = cardiacLoadStatus {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Image(systemName: status.icon)
-                            .font(.title2)
-                            .foregroundStyle(status.color)
-
-                        Text(status.title)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(status.color)
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        DetailHeroCard(
+            valueLabel: "\(score)",
+            unitLabel: "/20",
+            statusLabel: cardiacLoadStatus?.title ?? "—",
+            accent: cardiacLoadStatus?.color ?? .purple,
+            progress: Double(score) / 20.0
+        )
     }
 
     // MARK: - Metric Value Card
@@ -768,48 +624,29 @@ struct ScoreExplanationSheet: View {
     private var metricValueCard: some View {
         guard case .metric(let metricType) = mode else { return AnyView(EmptyView()) }
 
-        return AnyView(VStack(spacing: 16) {
-            HStack {
-                Image(systemName: metricIcon(metricType))
-                    .font(.title2)
-                    .foregroundStyle(metricColor(metricType).gradient)
+        let accent = metricColor(metricType)
+        let statusText = deviationStatus?.localizedDescription(for: metricType) ?? metricUnit
+        // Most physiological metrics don't use a 0–100 scale — render the raw value
+        // without a gauge unless we get a meaningful baseline-relative progress.
+        let progress: Double? = nil
 
-                Text(String(localized: "Current Value", comment: "Current metric value header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                Spacer()
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(String(format: "%.1f", metricValue))
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Text(metricUnit)
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                Spacer()
-
-                if let status = deviationStatus, case .metric(let mt) = mode {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Image(systemName: status.icon)
-                            .font(.title2)
-                            .foregroundStyle(status.color)
-
-                        Text(status.localizedDescription(for: mt))
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(status.color)
-                    }
-                }
-            }
+        let formatted: String
+        switch metricType {
+        case .respiratoryRate:
+            formatted = String(format: "%.1f", metricValue)
+        case .totalCalories, .hrv, .restingHeartRate, .oxygenSaturation, .sleepDuration, .sleepEfficiency, .recoveryScore:
+            formatted = String(format: "%.0f", metricValue)
         }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20)))
+
+        return AnyView(
+            DetailHeroCard(
+                valueLabel: formatted,
+                unitLabel: metricUnit.isEmpty ? nil : metricUnit,
+                statusLabel: statusText,
+                accent: accent,
+                progress: progress
+            )
+        )
     }
 
     // MARK: - Score Charts
@@ -846,8 +683,7 @@ struct ScoreExplanationSheet: View {
             chartLegend(color: accent, label: String(localized: "Daily score", comment: "Chart legend - daily score"))
         }
         .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .detailCard()
     }
 
     private func cardiacLoadChartCard(_ data: [TrendDataPoint]) -> some View {
@@ -916,8 +752,7 @@ struct ScoreExplanationSheet: View {
             chartLegend(color: accent, label: String(localized: "Daily load", comment: "Chart legend - daily load"))
         }
         .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .detailCard()
     }
 
     // MARK: - Metric Chart
@@ -1022,8 +857,7 @@ struct ScoreExplanationSheet: View {
             }
         }
         .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20)))
+        .detailCard())
     }
 
     // MARK: - Calories Stacked Bar Chart
@@ -1118,8 +952,7 @@ struct ScoreExplanationSheet: View {
             }
         }
         .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .detailCard()
     }
 
     private func breakdownLegendItem(color: Color, label: String, value: Double) -> some View {
@@ -1214,142 +1047,194 @@ struct ScoreExplanationSheet: View {
                 .lineSpacing(4)
         }
         .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .detailCard()
     }
 
     // MARK: - Metric Explanation Card
 
+    @ViewBuilder
     private var metricExplanationCard: some View {
-        guard case .metric(let metricType) = mode else { return AnyView(EmptyView()) }
-
-        return AnyView(VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "info.circle.fill")
-                    .foregroundStyle(Color.blue.gradient)
-
-                Text(String(localized: "What does this mean?", comment: "Explanation header"))
-                    .font(.headline)
+        if case .metric(let metricType) = mode {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(metricExplanationText(metricType))
+                    .font(.system(size: 14))
+                    .lineSpacing(3)
                     .foregroundStyle(Color.irTextPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
-            }
+                if let status = deviationStatus {
+                    Divider().background(Color.irBorder)
 
-            Text(metricExplanationText(metricType))
-                .font(.body)
-                .foregroundStyle(Color.irTextSecondary)
-                .lineSpacing(4)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(String(localized: "Recommendation", comment: "Recommendation header").uppercased())
+                            .font(.system(size: 11, weight: .bold))
+                            .tracking(1.4)
+                            .foregroundStyle(Color.irTextSecondary)
 
-            if let status = deviationStatus {
-                Divider()
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Label {
-                        Text(String(localized: "Recommendation", comment: "Recommendation header"))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                    } icon: {
-                        Image(systemName: "lightbulb.fill")
-                            .foregroundStyle(.orange)
+                        Text(metricRecommendation(metricType, status: status))
+                            .font(.system(size: 13))
+                            .lineSpacing(2)
+                            .foregroundStyle(Color.irTextSecondary)
                     }
-
-                    Text(metricRecommendation(metricType, status: status))
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .detailCard()
         }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20)))
     }
 
     // MARK: - Baseline Comparison Card
 
+    @ViewBuilder
     private func baselineComparisonCard(_ baseline: PersonalBaseline) -> some View {
-        guard case .metric(let metricType) = mode else { return AnyView(EmptyView()) }
+        if case .metric(let metricType) = mode, let avg = getBaselineAverage(metricType) {
+            VStack(alignment: .leading, spacing: 0) {
+                baselineRow(
+                    label: String(localized: "Your average", comment: "Average label"),
+                    value: String(format: "%.1f", avg),
+                    unit: metricUnit,
+                    color: Color.irTextPrimary
+                )
 
-        return AnyView(VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "person.badge.clock.fill")
-                    .foregroundStyle(Color.blue.gradient)
+                Divider().background(Color.irBorder)
 
-                Text(String(localized: "Personal Baseline", comment: "Personal baseline header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
+                deviationRow(metricType: metricType, average: avg)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .detailCard()
+        }
+    }
 
-            if let avg = getBaselineAverage(metricType) {
-                VStack(spacing: 12) {
-                    HStack {
-                        Text(String(localized: "Your average", comment: "Average label"))
-                            .foregroundStyle(Color.irTextSecondary)
-                        Spacer()
-                        Text(String(format: "%.1f %@", avg, metricUnit))
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.irTextPrimary)
-                    }
+    private func baselineRow(label: String, value: String, unit: String, color: Color) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.irTextPrimary)
 
-                    HStack {
-                        Text(String(localized: "Current deviation", comment: "Deviation label"))
-                            .foregroundStyle(Color.irTextSecondary)
-                        Spacer()
+            Spacer()
 
-                        let deviation = metricValue - avg
-                        let deviationPercent = (deviation / avg) * 100
-                        let isPositive = deviation >= 0
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(color)
 
-                        let isGood: Bool = {
-                            switch metricType {
-                            case .hrv, .oxygenSaturation: return isPositive
-                            case .restingHeartRate, .respiratoryRate: return !isPositive
-                            default: return true
-                            }
-                        }()
-
-                        HStack(spacing: 4) {
-                            Image(systemName: isPositive ? "arrow.up" : "arrow.down")
-                                .font(.caption)
-                            Text(String(format: "%.1f%%", abs(deviationPercent)))
-                        }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(isGood ? Color.green : Color.orange)
-                    }
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
         }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20)))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+    }
+
+    private func deviationRow(metricType: MetricType, average: Double) -> some View {
+        let deviation = metricValue - average
+        let deviationPercent = average == 0 ? 0 : (deviation / average) * 100
+        let isPositive = deviation >= 0
+
+        let isGood: Bool = {
+            switch metricType {
+            case .hrv, .oxygenSaturation: return isPositive
+            case .restingHeartRate, .respiratoryRate: return !isPositive
+            default: return true
+            }
+        }()
+
+        let accent: Color = isGood ? .irSuccess : .irWarning
+        let arrow = isPositive ? "arrow.up" : "arrow.down"
+
+        return HStack {
+            Text(String(localized: "Current deviation", comment: "Deviation label"))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.irTextPrimary)
+
+            Spacer()
+
+            HStack(spacing: 4) {
+                Image(systemName: arrow)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(accent)
+
+                Text(String(format: "%.1f", abs(deviationPercent)))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(accent)
+
+                Text("%")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
     }
 
     // MARK: - Score Calculation Section
 
+    @ViewBuilder
     private func calculationSection(_ scoreType: ScoreType) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "function")
-                    .foregroundStyle(Color.purple.gradient)
+        switch scoreType {
+        case .effort, .sleep, .readiness:
+            DetailFormulaCard(
+                slices: formulaSlices(for: scoreType),
+                explanation: scoreCalculationExplanation(scoreType)
+            )
+        case .cardiacLoad:
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text(String(localized: "How it's calculated", comment: "Calculation section header"))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.irTextPrimary)
+                    Spacer()
+                }
 
-                Text(String(localized: "How it's calculated", comment: "Calculation section header"))
-                    .font(.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
+                cardiacLoadCalculationContent
             }
-
-            switch scoreType {
-            case .effort: effortCalculationContent
-            case .sleep: sleepCalculationContent
-            case .readiness: readinessCalculationContent
-            case .cardiacLoad: cardiacLoadCalculationContent
-            }
+            .padding(18)
+            .detailCard()
         }
-        .padding(20)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func formulaSlices(for scoreType: ScoreType) -> [DetailFormulaSlice] {
+        switch scoreType {
+        case .effort:
+            return [
+                DetailFormulaSlice(label: String(localized: "Steps", comment: "Effort steps label"), weight: 30, color: .green),
+                DetailFormulaSlice(label: String(localized: "Active Calories", comment: "Effort calories label"), weight: 35, color: .orange),
+                DetailFormulaSlice(label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), weight: 35, color: .red)
+            ]
+        case .sleep:
+            return [
+                DetailFormulaSlice(label: String(localized: "Duration", comment: "Sleep duration label"), weight: 30, color: .indigo),
+                DetailFormulaSlice(label: String(localized: "Efficiency", comment: "Sleep efficiency label"), weight: 30, color: .green),
+                DetailFormulaSlice(label: String(localized: "Stages", comment: "Sleep stages label"), weight: 40, color: .purple)
+            ]
+        case .readiness:
+            return [
+                DetailFormulaSlice(label: String(localized: "Sleep", comment: "Sleep weight label"), weight: 40, color: .indigo),
+                DetailFormulaSlice(label: String(localized: "HRV", comment: "HRV weight label"), weight: 25, color: .blue),
+                DetailFormulaSlice(label: String(localized: "Resting HR", comment: "RHR weight label"), weight: 15, color: .red),
+                DetailFormulaSlice(label: String(localized: "SpO2", comment: "SpO2 weight label"), weight: 10, color: .cyan),
+                DetailFormulaSlice(label: String(localized: "Respiratory Rate", comment: "Resp weight label"), weight: 10, color: .teal)
+            ]
+        case .cardiacLoad:
+            return []
+        }
+    }
+
+    private func scoreCalculationExplanation(_ scoreType: ScoreType) -> String {
+        switch scoreType {
+        case .effort:
+            return String(localized: "Daily score measuring your progress towards your personal activity goals. Calorie and exercise targets come from your Apple Activity Rings when available; defaults to 400 kcal and 30 min (WHO, 2020). Step target is 10,000/day (Tudor-Locke, 2004). Each component is capped at 100%.", comment: "Effort calculation explanation")
+        case .sleep:
+            return String(localized: "Score combining sleep duration (~30%), efficiency (~30%) and balance of sleep stages (~40%). Optimal range: 7\u{2013}9h with at least 85% efficiency and 15\u{2013}20% deep sleep + 20\u{2013}25% REM (Hirshkowitz et al., 2015).", comment: "Sleep calculation explanation")
+        case .readiness:
+            return String(localized: "Composite score weighting recovery signals from your autonomic nervous system, sleep quality and recent training load. Uses personal baseline deviation (z-score) when enough data is available; a normal day at your baseline scores around 50%.", comment: "Readiness calculation explanation")
+        case .cardiacLoad:
+            return ""
+        }
     }
 
     private var effortCalculationContent: some View {
@@ -1360,13 +1245,13 @@ struct ScoreExplanationSheet: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(localized: "Steps × 30% + Calories × 35% + Exercise × 35%", comment: "Effort score formula"))
-                        .font(.subheadline).foregroundStyle(Color.irPrimaryAccent)
+                        .font(.subheadline).foregroundStyle(Color.irAIAccent)
                     Text(String(localized: "Each component = actual / personal goal, capped at 100%", comment: "Effort score formula detail"))
                         .font(.caption).foregroundStyle(Color.irTextSecondary)
                 }
                 .padding(Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.irPrimaryAccent.opacity(0.1))
+                .background(Color.irAIAccent.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
 
@@ -1520,38 +1405,18 @@ struct ScoreExplanationSheet: View {
     // MARK: - References
 
     private func scoreReferencesSection(_ scoreType: ScoreType) -> some View {
-        AccordionSection(
-            title: String(localized: "Scientific References", comment: "Scientific references section header"),
-            icon: "book.closed.fill",
-            iconColor: .purple
-        ) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(scoreReferenceText(scoreType))
-                    .font(.caption)
-                    .foregroundStyle(Color.irTextSecondary)
-                    .lineSpacing(4)
-
-                allSourcesButton
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            DetailReferencesCard(sources: scoreReferenceSources(scoreType))
+            allSourcesButton
         }
     }
 
     @ViewBuilder
     private var metricReferenceCard: some View {
         if case .metric(let metricType) = mode {
-            AccordionSection(
-                title: String(localized: "Scientific References", comment: "Scientific references section header"),
-                icon: "book.closed.fill",
-                iconColor: .purple
-            ) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(metricReferenceText(metricType))
-                        .font(.caption)
-                        .foregroundStyle(Color.irTextSecondary)
-                        .lineSpacing(4)
-
-                    allSourcesButton
-                }
+            VStack(alignment: .leading, spacing: 12) {
+                DetailReferencesCard(sources: metricReferenceSources(metricType))
+                allSourcesButton
             }
         }
     }
@@ -1567,10 +1432,10 @@ struct ScoreExplanationSheet: View {
                     .font(.caption)
                     .fontWeight(.medium)
             }
-            .foregroundStyle(Color.irPrimaryAccent)
+            .foregroundStyle(Color.irAIAccent)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Color.irPrimaryAccent.opacity(0.1))
+            .background(Color.irAIAccent.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
@@ -1622,15 +1487,41 @@ struct ScoreExplanationSheet: View {
     }
 
     private func scoreReferenceText(_ scoreType: ScoreType) -> String {
+        scoreReferenceSources(scoreType).joined(separator: " ")
+    }
+
+    private func scoreReferenceSources(_ scoreType: ScoreType) -> [String] {
         switch scoreType {
         case .effort:
-            return String(localized: "Steps target based on Tudor-Locke C, Bassett DR, Sports Medicine (2004). Default calorie target from Ainsworth BE et al., Compendium of Physical Activities, MSSE (2011). Exercise minutes from WHO Guidelines on Physical Activity (2020), 150 min/week \u{2248} 30 min/day. Personal targets from Apple Activity Rings when available.", comment: "Effort reference")
+            return [
+                String(localized: "Tudor-Locke C, Bassett DR \u{00B7} Sports Medicine 2004", comment: "Effort source 1"),
+                String(localized: "Ainsworth BE et al. \u{00B7} Compendium of Physical Activities, MSSE 2011", comment: "Effort source 2"),
+                String(localized: "WHO \u{00B7} Guidelines on Physical Activity 2020", comment: "Effort source 3"),
+                String(localized: "Personal targets from Apple Activity Rings when available", comment: "Effort source 4")
+            ]
         case .sleep:
-            return String(localized: "Based on National Sleep Foundation's sleep duration recommendations (Hirshkowitz et al., Sleep Health, 2015) recommending 7\u{2013}9 hours for adults, and sleep quality indicators from Ohayon M et al., Sleep Health (2017) defining \u{2265}85% efficiency as good sleep quality.", comment: "Sleep reference")
+            return [
+                String(localized: "Hirshkowitz M et al. \u{00B7} Sleep Health 2015", comment: "Sleep source 1"),
+                String(localized: "Ohayon M et al. \u{00B7} Sleep Health 2017", comment: "Sleep source 2")
+            ]
         case .readiness:
-            return String(localized: "Based on research from Plews et al. (IJSPP, 2013) on HRV-guided recovery monitoring, Buchheit (IJSPP, 2014) on HR measures for training status, Flatt & Esco (JSCR, 2016) on nocturnal HRV, and Bouzat et al. (BJSM, 2018) on pulse oximetry.", comment: "Readiness reference")
+            return [
+                String(localized: "Plews DJ et al. \u{00B7} IJSPP 2013", comment: "Readiness source 1"),
+                String(localized: "Buchheit M \u{00B7} IJSPP 2014", comment: "Readiness source 2"),
+                String(localized: "Flatt AA, Esco MR \u{00B7} JSCR 2016", comment: "Readiness source 3"),
+                String(localized: "Bouzat P et al. \u{00B7} BJSM 2018", comment: "Readiness source 4")
+            ]
         case .cardiacLoad:
-            return String(localized: "Based on Banister's impulse-response model (1975, 1991) for TRIMP, Lucia et al. (MSSE, 2003) on HR-based TRIMP validation, Williams et al. (BJSM, 2017) on EWMA-based ACWR, Hulin et al. (BJSM, 2016) on ACWR injury prediction, Gabbett (BJSM, 2016) on the training-injury prevention paradox, Impellizzeri et al. (IJSPP, 2019) on individualized load monitoring via CTL, Windt & Gabbett (BJSM, 2017) on CTL-based personal normalization, and Coggan & Allen's ATL/CTL framework.", comment: "Cardiac load reference")
+            return [
+                String(localized: "Banister EW \u{00B7} Impulse-response model 1975, 1991", comment: "Cardiac source 1"),
+                String(localized: "Lucia A et al. \u{00B7} MSSE 2003", comment: "Cardiac source 2"),
+                String(localized: "Williams S et al. \u{00B7} BJSM 2017", comment: "Cardiac source 3"),
+                String(localized: "Hulin BT et al. \u{00B7} BJSM 2016", comment: "Cardiac source 4"),
+                String(localized: "Gabbett TJ \u{00B7} BJSM 2016", comment: "Cardiac source 5"),
+                String(localized: "Impellizzeri FM et al. \u{00B7} IJSPP 2019", comment: "Cardiac source 6"),
+                String(localized: "Windt J, Gabbett TJ \u{00B7} BJSM 2017", comment: "Cardiac source 7"),
+                String(localized: "Coggan AR, Allen H \u{00B7} ATL/CTL framework", comment: "Cardiac source 8")
+            ]
         }
     }
 
@@ -1703,17 +1594,37 @@ struct ScoreExplanationSheet: View {
     }
 
     private func metricReferenceText(_ type: MetricType) -> String {
+        metricReferenceSources(type).joined(separator: " ")
+    }
+
+    private func metricReferenceSources(_ type: MetricType) -> [String] {
         switch type {
         case .hrv:
-            return String(localized: "HRV reference values are based on studies published in Frontiers in Physiology (2019) and the European Journal of Applied Physiology. Individual baseline is more important than population averages.", comment: "HRV reference")
+            return [
+                String(localized: "Frontiers in Physiology \u{00B7} 2019", comment: "HRV source 1"),
+                String(localized: "European Journal of Applied Physiology", comment: "HRV source 2"),
+                String(localized: "Individual baseline is more important than population averages.", comment: "HRV source 3")
+            ]
         case .restingHeartRate:
-            return String(localized: "Resting heart rate guidelines are based on American Heart Association recommendations. Athletes typically have lower RHR (40-60 bpm) due to cardiovascular adaptations.", comment: "RHR reference")
+            return [
+                String(localized: "American Heart Association \u{00B7} Resting HR guidelines", comment: "RHR source 1"),
+                String(localized: "Athletes typically have lower RHR (40\u{2013}60 bpm) due to cardiovascular adaptations.", comment: "RHR source 2")
+            ]
         case .respiratoryRate:
-            return String(localized: "Normal respiratory rate ranges are defined by Johns Hopkins Medicine and the American Lung Association. 12-20 breaths/min is considered normal for adults at rest.", comment: "Respiratory reference")
+            return [
+                String(localized: "Johns Hopkins Medicine \u{00B7} Respiratory rate ranges", comment: "Resp source 1"),
+                String(localized: "American Lung Association \u{00B7} 12\u{2013}20 breaths/min normal range for adults at rest", comment: "Resp source 2")
+            ]
         case .oxygenSaturation:
-            return String(localized: "SpO2 guidelines are based on WHO recommendations. Normal range is 95-100%. Values below 94% may warrant medical attention.", comment: "SpO2 reference")
+            return [
+                String(localized: "WHO \u{00B7} Pulse oximetry guidelines", comment: "SpO2 source 1"),
+                String(localized: "Normal range 95\u{2013}100%; values below 94% may warrant medical attention.", comment: "SpO2 source 2")
+            ]
         default:
-            return String(localized: "Sleep recommendations are based on National Sleep Foundation guidelines (2015). 7-9 hours is recommended for adults aged 18-64.", comment: "Sleep reference")
+            return [
+                String(localized: "Hirshkowitz M et al. \u{00B7} Sleep Health 2015", comment: "Sleep source default 1"),
+                String(localized: "National Sleep Foundation \u{00B7} 7\u{2013}9 hours recommended for adults 18\u{2013}64", comment: "Sleep source default 2")
+            ]
         }
     }
 

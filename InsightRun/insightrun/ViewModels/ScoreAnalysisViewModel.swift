@@ -77,13 +77,32 @@ class ScoreAnalysisViewModel: ObservableObject {
     }
 
     private static func cachedAnalysis(for identifier: String, value: String) -> String? {
-        Self.defaults.string(forKey: cacheKey(for: identifier, value: value))
+        let key = cacheKey(for: identifier, value: value)
+        guard let cached = Self.defaults.string(forKey: key) else { return nil }
+        // Defensive: discard caches written by older builds that may have stored a
+        // truncated chunk (e.g. interrupted streaming). Re-fetch a fresh analysis instead.
+        if !isCompleteAnalysis(cached) {
+            Self.defaults.removeObject(forKey: key)
+            return nil
+        }
+        return cached
     }
 
     private static func saveAnalysis(_ text: String, for identifier: String, value: String) {
+        guard isCompleteAnalysis(text) else { return }
         let key = cacheKey(for: identifier, value: value)
         Self.defaults.set(text, forKey: key)
         cleanOldCache(currentKey: key, identifier: identifier)
+    }
+
+    /// A streamed analysis is considered complete when it has substantive content
+    /// AND ends with terminal punctuation. A bare prefix like "Votre score d'eff"
+    /// or a single sentence cut mid-word fails this check.
+    static func isCompleteAnalysis(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 40 else { return false }
+        let lastChar = trimmed.last
+        return lastChar == "." || lastChar == "!" || lastChar == "?" || lastChar == "\u{2026}"
     }
 
     private static func cleanOldCache(currentKey: String, identifier: String) {
@@ -151,9 +170,13 @@ class ScoreAnalysisViewModel: ObservableObject {
             return
         }
 
-        if let text = analysisText, !text.isEmpty {
+        if let text = analysisText, Self.isCompleteAnalysis(text) {
             Self.saveAnalysis(text, for: identifier, value: valueKey)
         } else if error == nil {
+            // Stream finished without throwing but produced a truncated/empty payload —
+            // surface as an error and clear the partial text so the sheet doesn't display
+            // a half-sentence to the user.
+            analysisText = nil
             error = String(localized: "Unable to generate analysis", comment: "Score analysis error")
         }
     }
@@ -216,9 +239,10 @@ class ScoreAnalysisViewModel: ObservableObject {
             return
         }
 
-        if let text = analysisText, !text.isEmpty {
+        if let text = analysisText, Self.isCompleteAnalysis(text) {
             Self.saveAnalysis(text, for: identifier, value: valueKey)
         } else if error == nil {
+            analysisText = nil
             error = String(localized: "Unable to generate analysis", comment: "Score analysis error")
         }
     }

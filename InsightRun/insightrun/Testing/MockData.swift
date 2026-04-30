@@ -331,6 +331,14 @@ enum MockData {
     - Viser 8h+ de sommeil ce soir et bien s'hydrater (objectif 2.5L aujourd'hui).
     """
 
+    // MARK: - Sample Monthly Coach Insight (Demo Mode)
+
+    static var sampleMonthlyInsight: String {
+        AppLanguage.current == "fr"
+            ? "Volume en baisse de −21 % vs mars, mais qualité préservée : ton allure moyenne s'est améliorée de 5\"/km. Tu cours moins, mais mieux."
+            : "Volume down −21% vs March, but quality preserved: average pace improved by 5\"/km. You ran less, but better."
+    }
+
     // MARK: - Sample Score Analysis (Demo Mode)
 
     static func sampleScoreAnalysis(for scoreType: ScoreType) -> String {

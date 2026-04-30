@@ -82,11 +82,10 @@ class WorkoutListViewModel: ObservableObject {
         let isFirstSync = !UserDefaults.standard.bool(forKey: "hasCompletedFirstWorkoutSync")
 
         do {
-            // LAZY LOADING: Only fetch first page (100 workouts)
-            // This is much faster than loading ALL workouts (which could be 1000+)
-            let result = try await healthKitManager.fetchRunningWorkouts(limit: pageSize)
-            workouts = result.workouts
-            hasMoreWorkouts = result.hasMore
+            // EAGER LOADING: fetch all running workouts so the year filter and
+            // grouping reflect the full history without requiring scroll.
+            workouts = try await healthKitManager.fetchRunningWorkouts()
+            hasMoreWorkouts = false
 
             // Update widget data
             WidgetDataProvider.shared.updateWeeklyStats(workouts: workouts)
@@ -97,14 +96,11 @@ class WorkoutListViewModel: ObservableObject {
             if workouts.isEmpty {
                 errorMessage = String(localized: "No running workouts found.")
             } else if isFirstSync {
-                // Track first workout sync only once
                 AnalyticsService.shared.trackFirstWorkoutSynced(
                     workoutsCount: workouts.count,
                     syncSuccess: true
                 )
                 UserDefaults.standard.set(true, forKey: "hasCompletedFirstWorkoutSync")
-
-                print("✅ Lazy Loading: Loaded \(workouts.count) workouts (hasMore: \(hasMoreWorkouts))")
             }
         } catch {
             errorMessage = String(localized: "Unable to load workouts: \(error.localizedDescription)")

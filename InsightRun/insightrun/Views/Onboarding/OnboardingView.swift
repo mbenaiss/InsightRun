@@ -32,6 +32,7 @@ struct OnboardingView: View {
             // Progress Indicator
             OnboardingProgressView(currentStep: currentStep, totalSteps: totalSteps)
                 .padding(.top, 16)
+                .padding(.bottom, 8)
 
             // Steps
             TabView(selection: $currentStep) {
@@ -92,6 +93,8 @@ struct OnboardingView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut, value: currentStep)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.irBackgroundApp)
         .interactiveDismissDisabled() // Prevent swipe to dismiss
         .onAppear {
             AnalyticsService.shared.trackOnboardingStarted()
@@ -108,20 +111,21 @@ struct OnboardingProgressView: View {
     let totalSteps: Int
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(spacing: 6) {
+            HStack(spacing: 4) {
                 ForEach(0..<totalSteps, id: \.self) { step in
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(step <= currentStep ? Color.irPrimaryAccent : Color.irBorder.opacity(0.5))
-                        .frame(height: 4)
+                    Capsule()
+                        .fill(step <= currentStep ? Color.irPrimaryAccent : Color.irBorder)
+                        .frame(height: 3)
                         .animation(.easeInOut, value: currentStep)
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 18)
 
             Text(String(localized: "Step \(currentStep + 1) of \(totalSteps)", comment: "Onboarding progress text"))
-                .font(.caption)
-                .foregroundStyle(Color.irTextSecondary)
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.6)
+                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
         }
     }
 }

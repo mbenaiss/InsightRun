@@ -15,38 +15,47 @@ struct FloatingAIButton: View {
     @State private var isLoading = false
 
     var body: some View {
-        // Only show if user has AI access (subscriber or TestFlight)
         if revenueCatManager.hasAIAccess {
-            Button(action: {
-                Task {
-                    await loadContextAndShowAssistant()
+            Button {
+                Task { await loadContextAndShowAssistant() }
+            } label: {
+                HStack(spacing: 6) {
+                    if isLoading || contextProvider.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.black)
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 13, weight: .bold))
+                    }
+
+                    Text(String(localized: "AI Coach", comment: "Floating AI button label"))
+                        .font(.system(size: 13, weight: .bold))
+                        .kerning(-0.1)
                 }
-            }) {
-                ZStack {
-                    Circle()
+                .foregroundStyle(.black)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [Color.irPrimaryAccent, .cyan],
+                                colors: [Color.irAIAccent, Color.irAIAccentSecondary],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 60, height: 60)
-                        .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 12, y: 6)
-
-                    if isLoading || contextProvider.isLoading {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                }
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
+                )
+                .shadow(color: Color.irAIAccent.opacity(0.45), radius: 14, y: 6)
             }
+            .buttonStyle(.plain)
             .disabled(isLoading || contextProvider.isLoading)
             .accessibilityIdentifier("floating-ai-button")
-            .padding(.trailing, 20)
+            .padding(.trailing, 18)
             .padding(.bottom, 100)
         }
     }

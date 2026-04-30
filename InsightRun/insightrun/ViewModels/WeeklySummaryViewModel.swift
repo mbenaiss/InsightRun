@@ -29,6 +29,13 @@ class WeeklySummaryViewModel: ObservableObject {
     /// Source: WHO Guidelines on Physical Activity (2020) - 150 min moderate OR 75 min vigorous
     @Published var whoAdjustedMinutes: Double = 0
 
+    /// Distance run on each day of the current week (Mon → Sun, kilometers).
+    /// Always 7 entries, 0 for days without a recorded run.
+    @Published var dailyRunDistancesKm: [Double] = Array(repeating: 0, count: 7)
+
+    /// Index (0–6) of today inside `dailyRunDistancesKm`, ordered by `Calendar.firstWeekday`.
+    @Published var todayIndexInWeek: Int = 0
+
     // Sleep
     @Published var averageSleepDuration: TimeInterval = 0
     @Published var averageSleepEfficiency: Double = 0
@@ -179,6 +186,29 @@ class WeeklySummaryViewModel: ObservableObject {
             let isVigorous = paceMinPerKm.isFinite && paceMinPerKm < 6.0
             return total + (isVigorous ? minutes * 2.0 : minutes)
         }
+
+        let bucketed = bucketRunsByDayOfWeek(workouts)
+        dailyRunDistancesKm = bucketed
+        todayIndexInWeek = dayIndexInWeek(for: Date())
+    }
+
+    /// Returns 7 distances (km) ordered Mon→Sun (or per `calendar.firstWeekday`),
+    /// summing all running workouts that started on each weekday.
+    private func bucketRunsByDayOfWeek(_ workouts: [WorkoutModel]) -> [Double] {
+        var buckets = Array(repeating: 0.0, count: 7)
+        for workout in workouts {
+            guard let distance = workout.distance else { continue }
+            let idx = dayIndexInWeek(for: workout.startDate)
+            buckets[idx] += distance / 1000.0
+        }
+        return buckets
+    }
+
+    private func dayIndexInWeek(for date: Date) -> Int {
+        let weekday = calendar.component(.weekday, from: date)
+        // weekday: 1 = Sunday, 2 = Monday, ..., 7 = Saturday.
+        // Map so position 0 corresponds to `calendar.firstWeekday`.
+        return (weekday - calendar.firstWeekday + 7) % 7
     }
 
     private func computeRunningComparison(previous: [WorkoutModel]) {

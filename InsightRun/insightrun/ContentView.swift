@@ -32,7 +32,7 @@ struct ContentView: View {
             // Dashboard Tab
             DashboardView()
                 .tabItem {
-                    Label(String(localized: "tab.dashboard", defaultValue: "Dashboard"), systemImage: "house.fill")
+                    Label(String(localized: "tab.dashboard", defaultValue: "Dashboard"), image: "TabHouse")
                 }
                 .tag(0)
                 .accessibilityIdentifier("tab-dashboard")
@@ -40,7 +40,7 @@ struct ContentView: View {
             // Workouts Tab
             WorkoutListView()
                 .tabItem {
-                    Label(String(localized: "tab.workouts"), systemImage: "figure.run")
+                    Label(String(localized: "tab.workouts"), image: "TabRunner")
                 }
                 .tag(1)
                 .accessibilityIdentifier("tab-workouts")
@@ -48,7 +48,7 @@ struct ContentView: View {
             // Statistics Tab
             StatisticsView()
                 .tabItem {
-                    Label(String(localized: "tab.statistics"), systemImage: "chart.bar.fill")
+                    Label(String(localized: "tab.statistics"), image: "TabStats")
                 }
                 .tag(2)
                 .accessibilityIdentifier("tab-statistics")
@@ -56,7 +56,7 @@ struct ContentView: View {
             // Goals Tab
             GoalsTabView()
                 .tabItem {
-                    Label(String(localized: "tab.goals", defaultValue: "Goals"), systemImage: "target")
+                    Label(String(localized: "tab.goals", defaultValue: "Goals"), image: "TabTarget")
                 }
                 .tag(3)
                 .accessibilityIdentifier("tab-goals")

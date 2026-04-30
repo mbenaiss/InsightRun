@@ -40,7 +40,7 @@ struct FloatingAIButton: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -50,7 +50,7 @@ struct FloatingAIButton: View {
                     Capsule()
                         .strokeBorder(Color.irBorderStrong, lineWidth: 0.5)
                 )
-                .shadow(color: Color.irAIAccent.opacity(0.45), radius: 14, y: 6)
+                .shadow(color: Color.irPrimaryAccent.opacity(0.45), radius: 14, y: 6)
             }
             .buttonStyle(.plain)
             .disabled(isLoading || contextProvider.isLoading)

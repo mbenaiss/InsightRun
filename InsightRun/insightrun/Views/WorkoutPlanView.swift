@@ -732,7 +732,7 @@ struct WorkoutPlanView: View {
                     .font(IRFont.numLG)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -780,7 +780,7 @@ struct WorkoutPlanView: View {
                 .padding(.vertical, Spacing.md)
                 .background(
                     LinearGradient(
-                        colors: [Color.irPrimaryAccent, Color.irPurple],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -938,7 +938,7 @@ struct WorkoutPlanView: View {
              + Text(String(localized: "for ", comment: "Plan generator hero title middle"))
                 .foregroundStyle(Color.irTextPrimary)
              + Text(String(localized: "today", comment: "Plan generator hero title accent word"))
-                .foregroundStyle(Color.irAIAccent)
+                .foregroundStyle(Color.irPrimaryAccent)
              + Text(String(localized: " ?", comment: "Plan generator hero title suffix"))
                 .foregroundStyle(Color.irTextPrimary))
                 .font(IRFont.title1)
@@ -1053,11 +1053,11 @@ struct WorkoutPlanView: View {
                     .padding(.vertical, Spacing.sm)
                     .background(
                         Capsule()
-                            .fill(viewModel.promptText.isEmpty ? Color.irBorder : Color.irAIAccent)
+                            .fill(viewModel.promptText.isEmpty ? Color.irBorder : Color.irPrimaryAccent)
                     )
                     .shadow(color: viewModel.promptText.isEmpty
                             ? .clear
-                            : Color.irAIAccent.opacity(0.4),
+                            : Color.irPrimaryAccent.opacity(0.4),
                             radius: 12, y: 4)
                 }
                 .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
@@ -1069,7 +1069,7 @@ struct WorkoutPlanView: View {
         .overlay(
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(
-                    viewModel.promptText.isEmpty ? Color.irBorder : Color.irAIAccent,
+                    viewModel.promptText.isEmpty ? Color.irBorder : Color.irPrimaryAccent,
                     lineWidth: 0.5
                 )
         )
@@ -1089,7 +1089,7 @@ struct WorkoutPlanView: View {
                         HStack(spacing: Spacing.xs) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.irAIAccent)
+                                    .fill(Color.irPrimaryAccent)
                                 Image(systemName: "sparkles")
                                     .font(IRFont.microLabel)
                                     .foregroundStyle(Color.irCardBackground)
@@ -1099,7 +1099,7 @@ struct WorkoutPlanView: View {
                             Text(String(localized: "COACH RECOMMENDATION", comment: "Plan generator suggestion header"))
                                 .font(IRFont.eyebrow)
                                 .tracking(1.4)
-                                .foregroundStyle(Color.irAIAccent)
+                                .foregroundStyle(Color.irPrimaryAccent)
                         }
 
                         Spacer()
@@ -1107,7 +1107,7 @@ struct WorkoutPlanView: View {
                         if viewModel.isGeneratingSmartSuggestion {
                             ProgressView()
                                 .controlSize(.small)
-                                .tint(Color.irAIAccent)
+                                .tint(Color.irPrimaryAccent)
                         } else {
                             Image(systemName: "arrow.up.right")
                                 .font(IRFont.eyebrow)
@@ -1144,7 +1144,7 @@ struct WorkoutPlanView: View {
                 .background(
                     LinearGradient(
                         colors: [
-                            Color.irAIAccent.opacity(0.10),
+                            Color.irPrimaryAccent.opacity(0.10),
                             Color.irCardBackground
                         ],
                         startPoint: .top,
@@ -1154,7 +1154,7 @@ struct WorkoutPlanView: View {
                 .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                 .overlay(
                     RoundedRectangle(cornerRadius: Radius.md)
-                        .strokeBorder(Color.irAIAccent.opacity(0.6), lineWidth: 0.5)
+                        .strokeBorder(Color.irPrimaryAccent.opacity(0.6), lineWidth: 0.5)
                 )
             }
             .buttonStyle(.plain)
@@ -1286,7 +1286,7 @@ struct WorkoutPlanView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(
-                            LinearGradient(colors: [Color.irPrimaryAccent, Color.irPurple], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent], startPoint: .leading, endPoint: .trailing)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                         .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 8, y: 4)
@@ -1419,7 +1419,7 @@ struct WorkoutPreset: Identifiable {
             durationLabel: "50 min",
             intensityLabel: "Z3-4",
             load: 4,
-            color: Color.irPurple,
+            color: Color.irPrimaryAccent,
             promptSeed: String(localized: "Pyramid workout (400-800-1200-800-400) with active recovery", comment: "Preset prompt - pyramid")
         ),
         WorkoutPreset(
@@ -1574,7 +1574,7 @@ struct WorkoutVisualization: View {
         case .warmup: return Color.irPrimaryAccent
         case .work: return Color.irError
         case .recovery: return Color.irSuccess
-        case .cooldown: return Color.irPurple
+        case .cooldown: return Color.irPrimaryAccent
         case .interval: return Color.irWarning
         }
     }
@@ -1650,7 +1650,7 @@ struct WorkoutStepRow: View {
         case .warmup: return Color.irPrimaryAccent
         case .work: return Color.irError
         case .recovery: return Color.irSuccess
-        case .cooldown: return Color.irPurple
+        case .cooldown: return Color.irPrimaryAccent
         case .interval: return Color.irWarning
         }
     }
@@ -1890,7 +1890,7 @@ struct EditableWorkoutStepRow: View {
         case .warmup: return Color.irPrimaryAccent
         case .work: return Color.irError
         case .recovery: return Color.irSuccess
-        case .cooldown: return Color.irPurple
+        case .cooldown: return Color.irPrimaryAccent
         case .interval: return Color.irWarning
         }
     }
@@ -2068,7 +2068,7 @@ struct WorkoutFeatureRow: View {
                 .font(IRFont.title3)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.irPrimaryAccent, Color.irPurple],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -2145,7 +2145,7 @@ struct WorkoutExportSuccessView: View {
                         .padding(.vertical, Spacing.base)
                         .background(
                             LinearGradient(
-                                colors: [Color.irPrimaryAccent, Color.irPurple],
+                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )

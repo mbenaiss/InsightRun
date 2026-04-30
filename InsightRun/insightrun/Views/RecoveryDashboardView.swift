@@ -345,7 +345,7 @@ struct RecoveryDayView: View {
             VStack(spacing: Spacing.md) {
                 HealthMetricRow(
                     icon: "moon.fill",
-                    iconColor: Color.irPurple,
+                    iconColor: Color.irPrimaryAccent,
                     title: String(localized: "Sleep session", comment: "Label for time of sleep session"),
                     value: sleep.formattedSleepTime
                 )
@@ -388,7 +388,7 @@ struct RecoveryDayView: View {
                 VStack(spacing: Spacing.sm) {
                     SleepStageRow(stage: String(localized: "Deep", comment: "Deep sleep stage label"), duration: deep, color: Color.irPrimaryAccent)
                     SleepStageRow(stage: String(localized: "Light", comment: "Light sleep stage label"), duration: core, color: Color.irPrimaryAccent)
-                    SleepStageRow(stage: String(localized: "REM", comment: "REM sleep stage label"), duration: rem, color: Color.irPurple)
+                    SleepStageRow(stage: String(localized: "REM", comment: "REM sleep stage label"), duration: rem, color: Color.irPrimaryAccent)
                 }
             }
         }

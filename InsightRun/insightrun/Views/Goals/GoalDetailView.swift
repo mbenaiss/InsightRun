@@ -416,7 +416,7 @@ struct GoalDetailView: View {
                 RoundedRectangle(cornerRadius: 7)
                     .fill(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irAIAccentSecondary],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -1061,7 +1061,7 @@ struct GoalDetailView: View {
         case .build: return Color.irWarning
         case .peak: return Color.irError
         case .taper: return Color.irSuccess
-        case .recovery: return Color.irPurple
+        case .recovery: return Color.irPrimaryAccent
         }
     }
 
@@ -1076,7 +1076,7 @@ struct GoalDetailView: View {
         case .longRun:
             return Color.irPrimaryAccent
         case .crossTraining:
-            return Color.irPurple
+            return Color.irPrimaryAccent
         }
     }
 }

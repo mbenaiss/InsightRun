@@ -193,7 +193,7 @@ struct WorkoutComparisonView: View {
                 Image(systemName: "sparkles")
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )

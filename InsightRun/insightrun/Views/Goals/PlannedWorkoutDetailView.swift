@@ -206,11 +206,11 @@ struct PlannedWorkoutDetailView: View {
             HStack(spacing: Spacing.sm) {
                 ZStack {
                     Circle()
-                        .fill(Color.irPurple.opacity(0.1))
+                        .fill(Color.irPrimaryAccent.opacity(0.1))
                         .frame(width: 36, height: 36)
                     Image(systemName: "sparkles")
                         .font(IRFont.headline)
-                        .foregroundStyle(Color.irPurple.gradient)
+                        .foregroundStyle(Color.irPrimaryAccent.gradient)
                 }
 
                 Text(String(localized: "goals.workout.aiExplanation", defaultValue: "Coach's Briefing", comment: "Workout detail - AI explanation title"))
@@ -242,7 +242,7 @@ struct PlannedWorkoutDetailView: View {
         .cardStyle(padding: Spacing.lg)
         .overlay(
             RoundedRectangle(cornerRadius: Radius.md)
-                .stroke(Color.irPurple.opacity(0.1), lineWidth: 1)
+                .stroke(Color.irPrimaryAccent.opacity(0.1), lineWidth: 1)
         )
     }
 

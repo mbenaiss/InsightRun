@@ -258,7 +258,7 @@ struct WeeklySummaryView: View {
                 HStack(spacing: 2) {
                     stageSegment(
                         width: geometry.size.width * viewModel.averageDeepPercent / 100,
-                        color: Color.irPurple,
+                        color: Color.irPrimaryAccent,
                         label: String(localized: "Deep", comment: "Deep sleep stage label")
                     )
                     stageSegment(
@@ -277,7 +277,7 @@ struct WeeklySummaryView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
 
             HStack(spacing: Spacing.base) {
-                stageLegend(color: Color.irPurple, label: "\(String(localized: "Deep", comment: "Deep sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageDeepPercent))")
+                stageLegend(color: Color.irPrimaryAccent, label: "\(String(localized: "Deep", comment: "Deep sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageDeepPercent))")
                 stageLegend(color: Color.irPrimaryAccent, label: "\(String(localized: "Core", comment: "Core sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageCorePercent))")
                 stageLegend(color: Color.irPrimaryAccent, label: "\(String(localized: "REM", comment: "REM sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageRemPercent))")
             }
@@ -317,7 +317,7 @@ struct WeeklySummaryView: View {
                     if let hrv = viewModel.averageHRV {
                         recoveryMetricRow(
                             icon: "waveform.path.ecg",
-                            color: Color.irPurple,
+                            color: Color.irPrimaryAccent,
                             label: String(localized: "HRV", comment: "Label for heart rate variability"),
                             value: String(format: "%.0f %@", hrv, String(localized: "ms", comment: "Unit abbreviation for milliseconds"))
                         )

@@ -829,7 +829,7 @@ struct WorkoutDetailView: View {
                 icon: "figure.stairs",
                 label: String(localized: "Stair Ascent Speed", comment: "Stair ascent speed advanced metric"),
                 value: viewModel.formatSpeed(ascentSpeed),
-                color: Color.irPurple,
+                color: Color.irPrimaryAccent,
                 metricInfoKey: "metric.stair_ascent_speed",
                 currentValue: ascentSpeed
             ))
@@ -860,7 +860,7 @@ struct WorkoutDetailView: View {
                     RoundedRectangle(cornerRadius: 7)
                         .fill(
                             LinearGradient(
-                                colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -937,7 +937,7 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(Color.irCardBackground)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.md)
-                        .background(Color.irAIAccent)
+                        .background(Color.irPrimaryAccent)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
                     .buttonStyle(.plain)
@@ -1079,7 +1079,7 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(Color.irCardBackground)
                         .padding(.horizontal, Spacing.base)
                         .padding(.vertical, Spacing.md)
-                        .background(Color.irAIAccent)
+                        .background(Color.irPrimaryAccent)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
                     .buttonStyle(.plain)
@@ -1112,11 +1112,11 @@ struct WorkoutDetailView: View {
             HStack(spacing: Spacing.md) {
                 ZStack {
                     RoundedRectangle(cornerRadius: Radius.xs)
-                        .fill(Color.irAIAccent.opacity(0.16))
+                        .fill(Color.irPrimaryAccent.opacity(0.16))
                         .frame(width: 32, height: 32)
                     Image(systemName: "chart.bar.doc.horizontal")
                         .font(IRFont.bodyEmphasized.weight(.semibold))
-                        .foregroundStyle(Color.irAIAccent)
+                        .foregroundStyle(Color.irPrimaryAccent)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1306,11 +1306,11 @@ struct MetricInfoSheet: View {
                         HStack(spacing: Spacing.md) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: Radius.xs)
-                                    .fill(Color.irAIAccent.opacity(0.16))
+                                    .fill(Color.irPrimaryAccent.opacity(0.16))
                                     .frame(width: 32, height: 32)
                                 Image(systemName: "doc.text.fill")
                                     .font(IRFont.footnote.weight(.semibold))
-                                    .foregroundStyle(Color.irAIAccent)
+                                    .foregroundStyle(Color.irPrimaryAccent)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(String(localized: "View Medical Sources", comment: "Button to view medical sources from metric sheet"))

@@ -12,7 +12,7 @@ import UIKit
 
 extension LinearGradient {
     static let irAccent = LinearGradient(
-        colors: [Color.irPrimaryAccent, Color.irPurple],
+        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
@@ -456,7 +456,7 @@ struct WorkoutAIAssistantView: View {
     private var headerView: some View {
         HStack {
             Image(systemName: "sparkles")
-                .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPurple], startPoint: .leading, endPoint: .trailing))
+                .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent], startPoint: .leading, endPoint: .trailing))
                 .font(IRFont.title3)
                 .symbolEffect(.pulse, isActive: aiService.isStreaming)
 
@@ -576,7 +576,7 @@ struct WorkoutAIAssistantView: View {
     private func sampleQuestionMeta(for index: Int) -> (icon: String, color: Color) {
         let metas: [(String, Color)] = [
             ("bolt.fill", Color.irWarning),
-            ("heart.fill", Color.irPurple),
+            ("heart.fill", Color.irPrimaryAccent),
             ("chart.bar.fill", Color.irSuccess),
             ("figure.run", Color.irPrimaryAccent)
         ]
@@ -683,7 +683,7 @@ struct WorkoutAIAssistantView: View {
                             HStack(spacing: Spacing.xs) {
                                 Image(systemName: sampleQuestionIcon(for: index))
                                     .font(IRFont.microLabel)
-                                    .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPurple], startPoint: .leading, endPoint: .trailing))
+                                    .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent], startPoint: .leading, endPoint: .trailing))
                                 Text(suggestion)
                                     .font(IRFont.body)
                                     .foregroundStyle(Color.irTextPrimary)
@@ -1096,7 +1096,7 @@ struct MessageBubble: View {
                         .shadow(color: Color.irShadow, radius: 4, y: 2)
                     Image(systemName: "sparkles")
                         .font(IRFont.caption)
-                        .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPurple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
                 .offset(y: -16)
             }

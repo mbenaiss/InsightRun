@@ -48,7 +48,7 @@ struct StravaConnectionStepView: View {
                             )
                             OnboardingFeatureCard(
                                 icon: "chart.line.uptrend.xyaxis",
-                                iconTint: .irAIAccent,
+                                iconTint: .irPrimaryAccent,
                                 title: String(localized: "Advanced Analytics", comment: "Strava feature title"),
                                 description: String(localized: "AI insights based on your complete training history", comment: "Strava feature description")
                             )

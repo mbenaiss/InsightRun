@@ -134,7 +134,7 @@ struct HistoricalIndexationSheet: View {
                     .font(IRFont.numLG)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -235,7 +235,7 @@ struct HistoricalIndexationSheet: View {
                     .padding(.vertical, Spacing.dash)
                     .background(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -333,7 +333,7 @@ struct HistoricalIndexationSheet: View {
                     .padding(.vertical, Spacing.dash)
                     .background(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .leading,
                             endPoint: .trailing
                         )

@@ -92,7 +92,7 @@ struct SignalCard: View {
     LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
         SignalCard(
             icon: "waveform.path.ecg",
-            color: Color.irAIAccent,
+            color: Color.irPrimaryAccent,
             label: "VFC repos",
             value: "109",
             unit: "ms",

@@ -353,7 +353,7 @@ struct HealthProfileView: View {
                 if let flights = profile.flightsClimbed {
                     MetricCard(
                         icon: "figure.stairs",
-                        iconColor: Color.irPurple,
+                        iconColor: Color.irPrimaryAccent,
                         title: String(localized: "Floors", comment: "Label for flights of stairs climbed"),
                         value: "\(flights)"
                     )

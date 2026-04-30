@@ -51,14 +51,14 @@ struct HealthKitPermissionStepView: View {
                     )
                     OnboardingFeatureCard(
                         icon: "moon.fill",
-                        iconTint: .irAIAccentSecondary,
+                        iconTint: .irPrimaryAccent,
                         title: String(localized: "Sleep data", comment: "Onboarding HealthKit: sleep"),
                         description: String(localized: "Recovery and readiness analysis", comment: "Onboarding HealthKit: sleep description"),
                         trailing: .checkmark
                     )
                     OnboardingFeatureCard(
                         icon: "waveform.path.ecg",
-                        iconTint: .irAIAccent,
+                        iconTint: .irPrimaryAccent,
                         title: String(localized: "Advanced metrics (onboarding)", comment: "Onboarding HealthKit: advanced"),
                         description: String(localized: "VO2 Max, HRV, and more", comment: "Onboarding HealthKit: advanced description"),
                         trailing: .checkmark
@@ -169,7 +169,7 @@ struct HealthKitPreviewCard: View {
                 Image(systemName: "sparkles")
                     .font(IRFont.eyebrow)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.irAIAccent)
+                    .foregroundStyle(Color.irPrimaryAccent)
                 Text(String(localized: "AI Coach: Great pace consistency! Try adding intervals next week.", comment: "Onboarding HealthKit preview AI hint"))
                     .font(IRFont.eyebrow)
                     .foregroundStyle(Color.irTextSecondary)

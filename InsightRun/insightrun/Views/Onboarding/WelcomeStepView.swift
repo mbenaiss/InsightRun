@@ -35,7 +35,7 @@ struct WelcomeStepView: View {
                     )
                     OnboardingFeatureCard(
                         icon: "sparkles",
-                        iconTint: .irAIAccent,
+                        iconTint: .irPrimaryAccent,
                         title: String(localized: "AI Coach", comment: "Onboarding feature: AI"),
                         description: String(localized: "Personalized advice and analysis", comment: "Onboarding feature: AI description")
                     )

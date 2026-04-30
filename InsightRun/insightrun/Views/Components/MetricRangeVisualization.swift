@@ -148,7 +148,7 @@ struct MetricRanges {
             .init(label: String(localized: "Very Low", comment: "VO2 Max range: Very Low"), minValue: 15, maxValue: 30, color: Color.irTextTertiary),
             .init(label: String(localized: "Low", comment: "VO2 Max range: Low"), minValue: 30, maxValue: 38, color: Color.irTextSecondary),
             .init(label: String(localized: "Average", comment: "VO2 Max range: Average"), minValue: 38, maxValue: 44, color: Color.irPrimaryAccent),
-            .init(label: String(localized: "Good", comment: "VO2 Max range: Good"), minValue: 44, maxValue: 52, color: Color.irPurple),
+            .init(label: String(localized: "Good", comment: "VO2 Max range: Good"), minValue: 44, maxValue: 52, color: Color.irPrimaryAccent),
             .init(label: String(localized: "Excellent", comment: "VO2 Max range: Excellent"), minValue: 52, maxValue: 70, color: Color.irError)
         ],
         unit: "ml/kg/min"
@@ -161,7 +161,7 @@ struct MetricRanges {
             .init(label: String(localized: "Low", comment: "Cadence range: Low"), minValue: 120, maxValue: 160, color: Color.irWarning),
             .init(label: String(localized: "Good", comment: "Cadence range: Good"), minValue: 160, maxValue: 170, color: Color.irPrimaryAccent),
             .init(label: String(localized: "Optimal", comment: "Cadence range: Optimal"), minValue: 170, maxValue: 180, color: Color.irSuccess),
-            .init(label: String(localized: "High", comment: "Cadence range: High"), minValue: 180, maxValue: 200, color: Color.irPurple)
+            .init(label: String(localized: "High", comment: "Cadence range: High"), minValue: 180, maxValue: 200, color: Color.irPrimaryAccent)
         ],
         unit: "spm"
     )
@@ -210,7 +210,7 @@ struct MetricRanges {
             .init(label: String(localized: "Low", comment: "HRV range: Low"), minValue: 10, maxValue: 30, color: Color.irError),
             .init(label: String(localized: "Below Average", comment: "HRV range: Below Average"), minValue: 30, maxValue: 50, color: Color.irWarning),
             .init(label: String(localized: "Average", comment: "HRV range: Average"), minValue: 50, maxValue: 80, color: Color.irPrimaryAccent),
-            .init(label: String(localized: "Good", comment: "HRV range: Good"), minValue: 80, maxValue: 120, color: Color.irPurple),
+            .init(label: String(localized: "Good", comment: "HRV range: Good"), minValue: 80, maxValue: 120, color: Color.irPrimaryAccent),
             .init(label: String(localized: "Excellent", comment: "HRV range: Excellent"), minValue: 120, maxValue: 200, color: Color.irSuccess)
         ],
         unit: "ms"
@@ -221,7 +221,7 @@ struct MetricRanges {
         ranges: [
             .init(label: String(localized: "Low", comment: "Power range: Low"), minValue: 100, maxValue: 200, color: Color.irTextTertiary),
             .init(label: String(localized: "Moderate", comment: "Power range: Moderate"), minValue: 200, maxValue: 250, color: Color.irPrimaryAccent),
-            .init(label: String(localized: "Good", comment: "Power range: Good"), minValue: 250, maxValue: 300, color: Color.irPurple),
+            .init(label: String(localized: "Good", comment: "Power range: Good"), minValue: 250, maxValue: 300, color: Color.irPrimaryAccent),
             .init(label: String(localized: "High", comment: "Power range: High"), minValue: 300, maxValue: 400, color: Color.irWarning)
         ],
         unit: "W"
@@ -329,7 +329,7 @@ struct MetricRanges {
             .init(label: String(localized: "Slow", comment: "Walking speed: Slow"), minValue: 2, maxValue: 4.8, color: Color.irTextTertiary),
             .init(label: String(localized: "Average", comment: "Walking speed: Average"), minValue: 4.8, maxValue: 6.4, color: Color.irPrimaryAccent),
             .init(label: String(localized: "Brisk", comment: "Walking speed: Brisk"), minValue: 6.4, maxValue: 8.0, color: Color.irSuccess),
-            .init(label: String(localized: "Very Brisk", comment: "Walking speed: Very Brisk"), minValue: 8.0, maxValue: 12, color: Color.irPurple)
+            .init(label: String(localized: "Very Brisk", comment: "Walking speed: Very Brisk"), minValue: 8.0, maxValue: 12, color: Color.irPrimaryAccent)
         ],
         unit: "km/h"
     )
@@ -340,7 +340,7 @@ struct MetricRanges {
             .init(label: String(localized: "Reduced", comment: "Ascent speed: Reduced"), minValue: 0.2, maxValue: 0.5, color: Color.irError),
             .init(label: String(localized: "Average", comment: "Ascent speed: Average"), minValue: 0.5, maxValue: 0.7, color: Color.irPrimaryAccent),
             .init(label: String(localized: "Good", comment: "Ascent speed: Good"), minValue: 0.7, maxValue: 1.0, color: Color.irSuccess),
-            .init(label: String(localized: "Athlete", comment: "Ascent speed: Athlete"), minValue: 1.0, maxValue: 1.5, color: Color.irPurple)
+            .init(label: String(localized: "Athlete", comment: "Ascent speed: Athlete"), minValue: 1.0, maxValue: 1.5, color: Color.irPrimaryAccent)
         ],
         unit: "m/s"
     )
@@ -351,7 +351,7 @@ struct MetricRanges {
             .init(label: String(localized: "Reduced", comment: "Descent speed: Reduced"), minValue: 0.3, maxValue: 0.6, color: Color.irError),
             .init(label: String(localized: "Average", comment: "Descent speed: Average"), minValue: 0.6, maxValue: 0.8, color: Color.irPrimaryAccent),
             .init(label: String(localized: "Good", comment: "Descent speed: Good"), minValue: 0.8, maxValue: 1.0, color: Color.irSuccess),
-            .init(label: String(localized: "Fast", comment: "Descent speed: Fast"), minValue: 1.0, maxValue: 1.5, color: Color.irPurple)
+            .init(label: String(localized: "Fast", comment: "Descent speed: Fast"), minValue: 1.0, maxValue: 1.5, color: Color.irPrimaryAccent)
         ],
         unit: "m/s"
     )

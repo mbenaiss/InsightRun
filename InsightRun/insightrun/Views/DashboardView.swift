@@ -460,7 +460,7 @@ struct DashboardView: View {
                 .font(IRFont.numLG)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -489,7 +489,7 @@ struct DashboardView: View {
                 .padding(.vertical, Spacing.md)
                 .background(
                     LinearGradient(
-                        colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -519,7 +519,7 @@ struct DashboardView: View {
                 let status = hrvDeviationStatus(hrv, baseline: recovery?.baseline)
                 SignalCard(
                     icon: "waveform.path.ecg",
-                    color: Color.irAIAccent,
+                    color: Color.irPrimaryAccent,
                     label: String(localized: "HRV at rest", comment: "HRV metric title"),
                     value: String(format: "%.0f", hrv),
                     unit: "ms",

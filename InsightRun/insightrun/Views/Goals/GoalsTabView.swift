@@ -453,12 +453,12 @@ struct RaceHistoryCard: View {
         HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: Radius.xs)
-                    .fill(Color.irPurple.opacity(0.18))
+                    .fill(Color.irPrimaryAccent.opacity(0.18))
                     .frame(width: 40, height: 40)
 
                 Image(systemName: "trophy")
                     .font(IRFont.title3.weight(.semibold))
-                    .foregroundStyle(Color.irPurple)
+                    .foregroundStyle(Color.irPrimaryAccent)
             }
 
             VStack(alignment: .leading, spacing: 2) {

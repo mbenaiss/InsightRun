@@ -754,9 +754,9 @@ struct WorkoutListView: View {
                 VStack(spacing: Spacing.xxs) {
                     Text(String(format: "%.0f", week.kilometers))
                         .font(IRFont.eyebrow.weight(.semibold))
-                        .foregroundStyle(isCurrent ? Color.irAIAccent : Color.irTextSecondary.opacity(0.7))
+                        .foregroundStyle(isCurrent ? Color.irPrimaryAccent : Color.irTextSecondary.opacity(0.7))
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(isCurrent ? Color.irAIAccent : Color.irTextPrimary.opacity(0.18))
+                        .fill(isCurrent ? Color.irPrimaryAccent : Color.irTextPrimary.opacity(0.18))
                         .frame(width: 12, height: h)
                     Text("S\(week.weekNumber)")
                         .font(IRFont.monoSM)
@@ -838,7 +838,7 @@ struct WorkoutListView: View {
                     RoundedRectangle(cornerRadius: 7)
                         .fill(
                             LinearGradient(
-                                colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -874,7 +874,7 @@ struct WorkoutListView: View {
                 .foregroundStyle(Color.irCardBackground)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(Color.irAIAccent)
+                .background(Color.irPrimaryAccent)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
             .buttonStyle(.plain)

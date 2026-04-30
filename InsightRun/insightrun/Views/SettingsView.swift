@@ -228,7 +228,7 @@ struct SettingsView: View {
                 rowDivider
                 settingsToggleRow(
                     icon: "calendar",
-                    iconColor: Color.irPurple,
+                    iconColor: Color.irPrimaryAccent,
                     title: String(localized: "Weekly Summary", comment: "Weekly summary notification toggle"),
                     subtitle: notificationManager.isWeeklySummaryEnabled ? String(localized: "Sunday at 6:00 PM", comment: "Weekly summary schedule") : nil,
                     isOn: Binding(
@@ -556,7 +556,7 @@ struct SettingsView: View {
                 revenueCatManager.hasSeenInitialPaywall = false
             }
             rowDivider
-            settingsButtonRow(icon: "arrow.uturn.backward.circle.badge.ellipsis", iconColor: Color.irPurple, title: String(localized: "Réinitialiser l'onboarding")) {
+            settingsButtonRow(icon: "arrow.uturn.backward.circle.badge.ellipsis", iconColor: Color.irPrimaryAccent, title: String(localized: "Réinitialiser l'onboarding")) {
                 OnboardingManager.shared.resetOnboarding()
             }
             rowDivider

@@ -368,7 +368,7 @@ struct StatisticsView: View {
                 value: viewModel.formatDistance(d).replacingOccurrences(of: " km", with: ""),
                 unit: "km",
                 date: r.startDate,
-                color: Color.irPurple,
+                color: Color.irPrimaryAccent,
                 icon: "trophy",
                 mono: false,
                 recent: isRecent(r.startDate)
@@ -440,7 +440,7 @@ struct StatisticsView: View {
                 value: viewModel.formatDuration(r.duration),
                 unit: nil,
                 date: r.startDate,
-                color: Color.irPurple,
+                color: Color.irPrimaryAccent,
                 icon: "42K",
                 mono: true,
                 recent: isRecent(r.startDate)
@@ -1188,7 +1188,7 @@ struct DistanceBucketRow: View {
     let distribution: StatisticsViewModel.DistanceDistribution
 
     private var isEmpty: Bool { distribution.count == 0 }
-    private var fillColor: Color { distribution.isMarathon ? Color.irPurple : .irPrimaryAccent }
+    private var fillColor: Color { distribution.isMarathon ? Color.irPrimaryAccent : .irPrimaryAccent }
 
     var body: some View {
         HStack(spacing: Spacing.md) {
@@ -1244,7 +1244,7 @@ struct MonthlyCoachInsightCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             LinearGradient(
-                colors: [Color.irAIAccent.opacity(0.08), Color.irCardBackground],
+                colors: [Color.irPrimaryAccent.opacity(0.08), Color.irCardBackground],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -1252,7 +1252,7 @@ struct MonthlyCoachInsightCard: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irAIAccent.opacity(0.30), lineWidth: 0.5)
+                .strokeBorder(Color.irPrimaryAccent.opacity(0.30), lineWidth: 0.5)
         )
     }
 
@@ -1264,7 +1264,7 @@ struct MonthlyCoachInsightCard: View {
                 RoundedRectangle(cornerRadius: Radius.xs)
                     .fill(
                         LinearGradient(
-                            colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -1278,7 +1278,7 @@ struct MonthlyCoachInsightCard: View {
             Text(String(localized: "statistics.coach.eyebrow", defaultValue: "Read of the month", comment: "Coach insight eyebrow").uppercased())
                 .font(IRFont.eyebrow.weight(.bold))
                 .tracking(1.4)
-                .foregroundStyle(Color.irAIAccent)
+                .foregroundStyle(Color.irPrimaryAccent)
 
             Spacer()
 
@@ -1345,7 +1345,7 @@ struct MonthlyCoachInsightCard: View {
                 .foregroundStyle(Color.irCardBackground)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(Color.irAIAccent)
+                .background(Color.irPrimaryAccent)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
             }
             .buttonStyle(.plain)
@@ -1362,7 +1362,7 @@ struct MonthlyCoachInsightCard: View {
             Button(action: onConsentTap) {
                 Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
                     .font(IRFont.footnote.weight(.semibold))
-                    .foregroundStyle(Color.irAIAccent)
+                    .foregroundStyle(Color.irPrimaryAccent)
             }
             .buttonStyle(.plain)
         }
@@ -1386,7 +1386,7 @@ struct MonthlyCoachInsightCard: View {
             Button(action: onGenerateTap) {
                 Label(String(localized: "Retry", comment: "Retry button"), systemImage: "arrow.clockwise")
                     .font(IRFont.caption.weight(.semibold))
-                    .foregroundStyle(Color.irAIAccent)
+                    .foregroundStyle(Color.irPrimaryAccent)
             }
             .buttonStyle(.plain)
         }
@@ -1428,7 +1428,7 @@ struct MonthlyCoachInsightCard: View {
                 .foregroundStyle(Color.irCardBackground)
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.sm)
-                .background(Color.irAIAccent)
+                .background(Color.irPrimaryAccent)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
             }
             .buttonStyle(.plain)

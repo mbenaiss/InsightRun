@@ -77,7 +77,7 @@ enum WorkoutSessionType {
         case .interval: return .irError
         case .tempo:    return .irWarning
         case .easy:     return .irSuccess
-        case .long:     return Color.irPurple
+        case .long:     return Color.irPrimaryAccent
         }
     }
 

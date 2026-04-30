@@ -90,7 +90,7 @@ struct BarChartRow: View {
                 ForEach(Array(values.enumerated()), id: \.offset) { idx, v in
                     let h = max(2, CGFloat(v / maxValue) * height)
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(idx == highlighted ? Color.irAIAccent : Color.irBorderStrong)
+                        .fill(idx == highlighted ? Color.irPrimaryAccent : Color.irBorderStrong)
                         .frame(width: barWidth, height: h)
                 }
             }

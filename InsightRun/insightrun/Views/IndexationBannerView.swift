@@ -24,7 +24,7 @@ struct IndexationBannerView: View {
                     .font(IRFont.title1)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -79,7 +79,7 @@ struct IndexationBannerView: View {
                     .padding(.vertical, Spacing.md)
                     .background(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .leading,
                             endPoint: .trailing
                         )

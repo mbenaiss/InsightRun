@@ -590,7 +590,7 @@ struct AddGoalSheet: View {
     private var step2TargetTimeField: some View {
         wizardField(
             icon: "clock",
-            iconColor: Color.irPurple,
+            iconColor: Color.irPrimaryAccent,
             title: String(localized: "goals.wizard.targetTime", defaultValue: "Target Time", comment: "Wizard - target time"),
             subtitle: String(localized: "goals.wizard.targetTimeHint", defaultValue: "Optional — helps the AI set your paces", comment: "Wizard - target time hint")
         ) {
@@ -819,7 +819,7 @@ struct AddGoalSheet: View {
                 icon: "clock",
                 label: String(localized: "goals.recap.remaining", defaultValue: "Remaining", comment: "Recap - remaining"),
                 value: "\(daysUntilRace) " + String(localized: "goals.card.days", defaultValue: "days", comment: ""),
-                color: Color.irPurple,
+                color: Color.irPrimaryAccent,
                 monospaced: true
             )
             recapCell(
@@ -907,11 +907,11 @@ struct AddGoalSheet: View {
         HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: Radius.xs)
-                    .fill(Color.irPurple.opacity(0.18))
+                    .fill(Color.irPrimaryAccent.opacity(0.18))
                     .frame(width: 32, height: 32)
                 Image(systemName: "stopwatch")
                     .font(IRFont.bodyEmphasized)
-                    .foregroundStyle(Color.irPurple)
+                    .foregroundStyle(Color.irPrimaryAccent)
             }
 
             VStack(alignment: .leading, spacing: 2) {

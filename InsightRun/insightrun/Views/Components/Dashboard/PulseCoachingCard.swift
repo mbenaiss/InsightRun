@@ -77,7 +77,7 @@ struct PulseCoachingCard: View {
                 RoundedRectangle(cornerRadius: 7)
                     .fill(
                         LinearGradient(
-                            colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -105,8 +105,8 @@ struct PulseCoachingCard: View {
             return AnyView(
                 (Text(tldr[tldr.startIndex..<range.lowerBound])
                     + Text(tldr[range])
-                        .foregroundStyle(Color.irAIAccent)
-                        .underline(true, color: Color.irAIAccent.opacity(0.6))
+                        .foregroundStyle(Color.irPrimaryAccent)
+                        .underline(true, color: Color.irPrimaryAccent.opacity(0.6))
                     + Text(tldr[range.upperBound..<tldr.endIndex]))
                 .font(IRFont.headline.weight(.semibold))
                 .lineSpacing(2)
@@ -181,7 +181,7 @@ struct PulseCoachingCard: View {
             .foregroundStyle(Color.irCardBackground)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.md)
-            .background(Color.irAIAccent)
+            .background(Color.irPrimaryAccent)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("create-training-plan")

@@ -202,7 +202,7 @@ struct DetailAnalysisCard: View {
                     RoundedRectangle(cornerRadius: 7)
                         .fill(
                             LinearGradient(
-                                colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )

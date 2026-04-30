@@ -20,7 +20,7 @@ struct WorkoutCardView: View {
                 Image(systemName: workoutIcon)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -43,7 +43,7 @@ struct WorkoutCardView: View {
                     .font(IRFont.title2)
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPurple],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -145,7 +145,7 @@ struct WorkoutCardView: View {
         case "warmup": return Color.irWarning
         case "cooldown": return Color.irPrimaryAccent
         case "intervals": return Color.irError
-        case "tempo": return Color.irPurple
+        case "tempo": return Color.irPrimaryAccent
         default: return Color.irSuccess
         }
     }
@@ -164,7 +164,7 @@ struct TrendAnalysisCardView: View {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.irPurple, Color.irPrimaryAccent],
+                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )

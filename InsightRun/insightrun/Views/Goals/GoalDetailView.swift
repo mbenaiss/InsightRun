@@ -16,6 +16,7 @@ struct GoalDetailView: View {
     @State private var renameText = ""
     @State private var selectedPlanTab = 0 // 0 = current week, 1 = full plan
     @State private var showSubscriptionPaywall = false
+    @State private var expandedWeeks: Set<UUID> = []
     @Environment(\.dismiss) private var dismiss
 
     private var currentGoal: RaceGoal {
@@ -982,55 +983,97 @@ struct GoalDetailView: View {
         let isCurrent = plan.currentWeekIndex == weekIndex
         let totalWorkouts = week.workoutCount
         let doneWorkouts = week.days.filter { $0.workout != nil && $0.isCompleted }.count
+        let isExpanded = expandedWeeks.contains(week.id)
 
-        return HStack(spacing: Spacing.md) {
-            Circle()
-                .fill(phaseColor)
-                .frame(width: 7, height: 7)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: Spacing.sm) {
-                    Text(String(localized: "goals.calendar.week", defaultValue: "Week", comment: "") + " \(week.weekNumber)")
-                        .font(IRFont.body.weight(.bold))
-                        .foregroundStyle(Color.irTextPrimary)
-
-                    if isCurrent {
-                        Text(String(localized: "goals.plan.current", defaultValue: "IN PROGRESS", comment: "Plan - current week badge"))
-                            .font(IRFont.eyebrow.weight(.heavy))
-                            .tracking(0.36) // 0.04em on 9pt
-                            .foregroundStyle(Color.irPrimaryAccent)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule().fill(Color.irPrimaryAccent.opacity(0.18))
-                            )
+        return VStack(spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if isExpanded {
+                        expandedWeeks.remove(week.id)
+                    } else {
+                        expandedWeeks.insert(week.id)
                     }
                 }
+            } label: {
+                HStack(spacing: Spacing.md) {
+                    Circle()
+                        .fill(phaseColor)
+                        .frame(width: 7, height: 7)
 
-                Text(week.phase.displayName.uppercased())
-                    .font(IRFont.microLabel.weight(.heavy))
-                    .tracking(1.2) // 0.12em on 10pt
-                    .foregroundStyle(phaseColor)
-            }
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: Spacing.sm) {
+                            Text(String(localized: "goals.calendar.week", defaultValue: "Week", comment: "") + " \(week.weekNumber)")
+                                .font(IRFont.body.weight(.bold))
+                                .foregroundStyle(Color.irTextPrimary)
 
-            Spacer(minLength: 8)
+                            if isCurrent {
+                                Text(String(localized: "goals.plan.current", defaultValue: "IN PROGRESS", comment: "Plan - current week badge"))
+                                    .font(IRFont.eyebrow.weight(.heavy))
+                                    .tracking(0.36) // 0.04em on 9pt
+                                    .foregroundStyle(Color.irPrimaryAccent)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Capsule().fill(Color.irPrimaryAccent.opacity(0.18))
+                                    )
+                            }
+                        }
 
-            if totalWorkouts > 0 {
-                HStack(spacing: 3) {
-                    ForEach(0..<totalWorkouts, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(i < doneWorkouts ? phaseColor : Color.irBorder)
-                            .frame(width: 6, height: 6)
+                        Text(week.phase.displayName.uppercased())
+                            .font(IRFont.microLabel.weight(.heavy))
+                            .tracking(1.2) // 0.12em on 10pt
+                            .foregroundStyle(phaseColor)
                     }
-                }
-            }
 
-            Image(systemName: "chevron.right")
-                .font(IRFont.eyebrow.weight(.semibold))
-                .foregroundStyle(Color.irTextSecondary.opacity(0.6))
+                    Spacer(minLength: 8)
+
+                    if totalWorkouts > 0 {
+                        HStack(spacing: 3) {
+                            ForEach(0..<totalWorkouts, id: \.self) { i in
+                                RoundedRectangle(cornerRadius: 1.5)
+                                    .fill(i < doneWorkouts ? phaseColor : Color.irBorder)
+                                    .frame(width: 6, height: 6)
+                            }
+                        }
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(IRFont.eyebrow.weight(.semibold))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.6))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .padding(.horizontal, Spacing.base)
+                .padding(.vertical, Spacing.dash)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Rectangle()
+                        .fill(Color.irBorder)
+                        .frame(height: 0.5)
+
+                    if let notes = week.notes, !notes.isEmpty {
+                        Text(notes)
+                            .font(IRFont.caption)
+                            .italic()
+                            .foregroundStyle(Color.irTextSecondary)
+                            .lineSpacing(2)
+                            .padding(.top, Spacing.xxs)
+                    }
+
+                    VStack(spacing: Spacing.sm) {
+                        ForEach(Array(week.days.enumerated()), id: \.element.id) { dayIndex, day in
+                            dayRow(day: day, weekIndex: weekIndex, dayIndex: dayIndex)
+                        }
+                    }
+                    .padding(.top, Spacing.xxs)
+                }
+                .padding(.horizontal, Spacing.base)
+                .padding(.bottom, Spacing.dash)
+            }
         }
-        .padding(.horizontal, Spacing.base)
-        .padding(.vertical, Spacing.dash)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(

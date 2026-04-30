@@ -36,7 +36,16 @@ interface DailyReadinessRequest {
 interface ReadinessResponse {
   score: number // 0-100
   status: 'excellent' | 'good' | 'fair' | 'poor'
+  /**
+   * Legacy field — kept populated with the full coaching text for
+   * backward compatibility with older app builds that only know this key.
+   * New clients should prefer `summary` + `detail`.
+   */
   recommendation: string
+  /** One-sentence TL;DR shown collapsed in the dashboard coach card. */
+  summary?: string
+  /** Full multi-sentence explanation revealed when the user expands the card. */
+  detail?: string
   suggestedWorkoutType: 'intense' | 'moderate' | 'easy' | 'rest'
   insights: ReadinessInsight[]
 }
@@ -734,7 +743,26 @@ function buildReadinessContext(
   return ctx
 }
 
-// Generate an AI-powered coaching recommendation using OpenRouter
+interface CoachingText {
+  summary: string
+  detail: string
+}
+
+// Split a long recommendation into a one-sentence TL;DR + the rest as detail.
+// Used as a fallback when the AI returns plain text instead of structured JSON.
+function deriveCoachingText(full: string): CoachingText {
+  const trimmed = full.trim()
+  // Match end-of-sentence punctuation followed by whitespace + remainder.
+  const match = trimmed.match(/^([^.!?]+[.!?])\s+(\S.*)$/s)
+  if (match?.[1] && match[2]) {
+    return { summary: match[1].trim(), detail: trimmed }
+  }
+  return { summary: trimmed, detail: trimmed }
+}
+
+// Generate an AI-powered coaching recommendation using OpenRouter.
+// Returns a structured {summary, detail} pair so clients can show a TL;DR
+// upfront and reveal the full explanation on demand.
 async function generateAIRecommendation(
   apiKey: string,
   model: string,
@@ -746,7 +774,7 @@ async function generateAIRecommendation(
   activity?: DailyActivityData,
   cardiacLoad?: CardiacLoadData,
   recentWorkouts?: ReadinessWorkoutData[]
-): Promise<string> {
+): Promise<CoachingText> {
   const langName = getLanguageName(language)
   const readinessContext = buildReadinessContext(
     score,
@@ -759,7 +787,9 @@ async function generateAIRecommendation(
   )
 
   const systemPrompt = `You are an expert running coach analyzing daily readiness data.
-Your job is to produce a concise, actionable coaching recommendation (2-3 sentences max) based on the runner's metrics.
+Produce two pieces of coaching text based on the runner's metrics:
+- "summary": one short sentence (max 90 characters) — the actionable TL;DR.
+- "detail": 2-3 sentences with specific metric values and reasoning.
 
 Rules:
 - If cardiac load status is "overreaching", you MUST recommend rest or very light active recovery.
@@ -769,10 +799,12 @@ Rules:
   * Hard effort (>=${EffortThresholds.hard.distanceKm} km, >=${EffortThresholds.hard.durationHours}h, or avg HR >=${EffortThresholds.hard.avgHeartRate} bpm) in the last ${EffortThresholds.hard.recencyHours}h: push towards easier training or rest.
 - Always factor the cardiac load trend into your recommendation.
 - Respond in ${langName}. No markdown, no bullet points — plain text only.
-- Be specific: reference actual metric values when relevant (e.g., sleep duration, HRV, recent workout distance).
-- Keep it warm, motivating, and actionable.`
+- Be specific in the detail: reference actual metric values (e.g., sleep duration, HRV, recent workout distance).
+- Keep it warm, motivating, and actionable.
 
-  const userPrompt = `Here is the runner's readiness data for today:\n\n${readinessContext}\n\nGive your coaching recommendation.`
+Return strictly a JSON object with exactly these two string fields: {"summary": "...", "detail": "..."}. No prose, no code fences.`
+
+  const userPrompt = `Here is the runner's readiness data for today:\n\n${readinessContext}\n\nReturn the JSON object now.`
 
   const requestBody = {
     model,
@@ -783,6 +815,7 @@ Rules:
     max_tokens: READINESS_MAX_TOKENS,
     temperature: READINESS_TEMPERATURE,
     stream: false,
+    response_format: { type: 'json_object' as const },
   }
 
   const response = await fetch(OPENROUTER_API_URL, {
@@ -810,7 +843,37 @@ Rules:
     throw new Error('Empty response from AI model')
   }
 
-  return content
+  return parseCoachingJSON(content)
+}
+
+// Parse the model's structured response, with graceful fallback to plain-text splitting.
+// Some models occasionally wrap JSON in code fences or add prose; the regex extraction
+// handles those cases without crashing the request.
+function parseCoachingJSON(content: string): CoachingText {
+  const tryParse = (raw: string): CoachingText | null => {
+    try {
+      const obj = JSON.parse(raw) as { summary?: unknown; detail?: unknown }
+      if (typeof obj.summary === 'string' && typeof obj.detail === 'string') {
+        const summary = obj.summary.trim()
+        const detail = obj.detail.trim()
+        if (summary && detail) return { summary, detail }
+      }
+    } catch {
+      // Fall through to other strategies.
+    }
+    return null
+  }
+
+  const direct = tryParse(content)
+  if (direct) return direct
+
+  const match = content.match(/\{[\s\S]*\}/)
+  if (match) {
+    const fromMatch = tryParse(match[0])
+    if (fromMatch) return fromMatch
+  }
+
+  return deriveCoachingText(content)
 }
 
 // POST /api/daily-readiness
@@ -925,7 +988,7 @@ app.post('/', async (c) => {
     const suggestedWorkoutType = getWorkoutType(status, body.cardiacLoad, body.dailyActivity)
 
     // Generate AI recommendation with fallback to static one
-    let recommendation: string
+    let coachingText: CoachingText
     try {
       const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
       const { modelId } = await selectModelFromRequest(
@@ -936,7 +999,7 @@ app.post('/', async (c) => {
         RequestType.SIMPLE
       )
 
-      recommendation = await generateAIRecommendation(
+      coachingText = await generateAIRecommendation(
         c.env.OPENROUTER_API_KEY,
         modelId,
         score,
@@ -950,13 +1013,17 @@ app.post('/', async (c) => {
       )
     } catch (aiError) {
       console.warn('AI recommendation failed, falling back to static:', aiError)
-      recommendation = getRecommendation(status, language, body.dailyActivity, body.cardiacLoad)
+      const staticText = getRecommendation(status, language, body.dailyActivity, body.cardiacLoad)
+      coachingText = deriveCoachingText(staticText)
     }
 
     const response: ReadinessResponse = {
       score,
       status,
-      recommendation,
+      // Legacy field: keep populated with the long form so older app builds keep working.
+      recommendation: coachingText.detail,
+      summary: coachingText.summary,
+      detail: coachingText.detail,
       suggestedWorkoutType,
       insights,
     }

@@ -27,6 +27,14 @@ extension Color {
     /// Light: #007AFF (iOS blue) | Dark: #64B0FF (lighter blue for better visibility)
     static let irPrimaryAccent = Color("PrimaryAccent", bundle: nil)
 
+    /// AI accent color — lime green used for any AI-powered UI element
+    /// (Coach IA pill, coaching glyph, AI CTA buttons). #96FF70.
+    static let irAIAccent = Color("AIAccent", bundle: nil)
+
+    /// AI accent secondary color — lavender used as the gradient end-stop
+    /// when pairing with `irAIAccent`. #B48DFF.
+    static let irAIAccentSecondary = Color("AIAccentSecondary", bundle: nil)
+
     // MARK: - Text Colors
 
     /// Primary text color - main readable text

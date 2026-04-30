@@ -224,9 +224,9 @@ class UnifiedWorkoutViewModel: ObservableObject {
     // MARK: - Private Methods
 
     private func loadHealthKitWorkouts() async throws -> [WorkoutModel] {
-        // Load from HealthKit (lazy loading - first 100)
-        let result = try await healthKitManager.fetchRunningWorkouts(limit: 100)
-        return result.workouts
+        // Eager load: fetch all running workouts so the year filter and full
+        // history are available without pagination.
+        try await healthKitManager.fetchRunningWorkouts()
     }
 
     private func loadStravaActivities() async throws -> [StravaActivity] {

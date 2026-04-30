@@ -107,72 +107,45 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         if languageCode == "fr" {
             return """
-            Analyse ce workout en profondeur et fournis une réponse CONCISE (max 250 mots) en markdown avec cette structure exacte:
+            Analyse cette séance et rédige une réponse professionnelle et concise (140 mots maximum) en markdown, avec cette structure exacte :
 
-            ## 🎯 Points Clés
-            - [2-3 insights sur la performance globale]
+            ## Synthèse
+            1 à 2 phrases qui qualifient la séance en s'appuyant sur les métriques clés disponibles (intensité, allure, fréquence cardiaque, technique).
 
-            ## ✅ Métriques Optimales
-            - [Liste UNIQUEMENT les métriques qui sont dans les normes optimales, groupées en UNE ligne]
-            - Exemple: "Cadence (178 spm), Asymétrie (2.5%), Vitesse marche (5.2 km/h) ✅"
-            - Si AUCUNE métrique n'est optimale, omets cette section
+            ## À optimiser
+            Lister uniquement les métriques hors des normes attendues pour le niveau du coureur. Une ligne par métrique :
+            - **Métrique** : valeur actuelle → cible (impact concret, puis levier d'amélioration actionnable)
 
-            ## ⚠️ À Optimiser
-            - [Liste UNIQUEMENT les métriques problématiques avec leurs valeurs et cibles]
-            - Format: "Métrique actuelle → Cible optimale + Impact/Conseil"
-            - Exemple: "Temps contact sol: 285 ms → 200-250 ms (perte efficacité ~8%)"
-            - Si TOUT est optimal, omets cette section et mentionne-le dans Points Clés
+            Omets entièrement cette section si toutes les métriques sont dans les normes.
 
-            ## 💡 Actions Concrètes
-            - [1-2 exercices spécifiques SEULEMENT s'il y a des métriques à améliorer]
-            - Sinon omets cette section
+            ## Récupération
+            Une phrase : durée de repos recommandée avant la prochaine séance intense, et le levier prioritaire (sommeil, hydratation ou nutrition) adapté à l'effort.
 
-            ## 🔄 Récupération
-            - [1 conseil personnalisé basé sur l'intensité et la durée du workout]
-            - Mentionne le temps de repos recommandé avant le prochain entraînement intense
-            - Exemple: "48h de repos recommandé. Privilégie sommeil 8h+ et hydratation."
-
-            RÈGLES STRICTES:
-            - N'analyse QUE les métriques DISPONIBLES dans les données (ne mentionne JAMAIS "données non disponibles")
-            - Groupe les métriques optimales, détaille seulement celles à améliorer
-            - Sois concis: 1 ligne par métrique problématique max
-            - Si tout est optimal, dis-le clairement et félicite l'athlète
-            - Section Récupération TOUJOURS présente avec conseil adapté à l'effort
+            Règles strictes :
+            - Ton neutre, précis, factuel. Pas d'emojis, pas d'exclamations, pas de superlatifs creux.
+            - N'utilise que les métriques effectivement présentes dans les données. Ne signale jamais une donnée manquante.
+            - Chaque conseil doit être directement applicable lors des prochaines séances.
             """
         } else {
-            // English version
             return """
-            Analyze this workout in depth and provide a CONCISE response (max 250 words) in markdown with this exact structure:
+            Analyze this workout and produce a professional, concise response (140 words maximum) in markdown, using this exact structure:
 
-            ## 🎯 Key Points
-            - [2-3 insights on overall performance]
+            ## Summary
+            1 to 2 sentences characterizing the session based on the available key metrics (intensity, pace, heart rate, form).
 
-            ## ✅ Optimal Metrics
-            - [List ONLY metrics that are within optimal ranges, grouped in ONE line]
-            - Example: "Cadence (178 spm), Asymmetry (2.5%), Walking speed (5.2 km/h) ✅"
-            - If NO metrics are optimal, omit this section
+            ## To optimize
+            List only metrics outside the expected ranges for the runner's level. One line per metric:
+            - **Metric**: current value → target (concrete impact, then actionable lever for improvement)
 
-            ## ⚠️ To Optimize
-            - [List ONLY problematic metrics with their values and targets]
-            - Format: "Current metric → Optimal target + Impact/Advice"
-            - Example: "Ground contact time: 285 ms → 200-250 ms (~8% efficiency loss)"
-            - If EVERYTHING is optimal, omit this section and mention it in Key Points
+            Omit this section entirely if all metrics are within expected ranges.
 
-            ## 💡 Concrete Actions
-            - [1-2 specific exercises ONLY if there are metrics to improve]
-            - Otherwise omit this section
+            ## Recovery
+            One sentence: recommended rest duration before the next intense session, and the priority lever (sleep, hydration, or nutrition) adapted to the effort.
 
-            ## 🔄 Recovery
-            - [1 personalized advice based on workout intensity and duration]
-            - Mention recommended rest time before next intense training
-            - Example: "48h rest recommended. Focus on 8h+ sleep and hydration."
-
-            STRICT RULES:
-            - Analyze ONLY AVAILABLE metrics in the data (NEVER mention "data not available")
-            - Group optimal metrics, detail only those to improve
-            - Be concise: max 1 line per problematic metric
-            - If everything is optimal, say it clearly and congratulate the athlete
-            - Recovery section ALWAYS present with advice adapted to the effort
+            Strict rules:
+            - Neutral, precise, factual tone. No emojis, no exclamations, no empty superlatives.
+            - Only use metrics actually present in the data. Never flag missing data.
+            - Every piece of advice must be directly applicable in upcoming sessions.
             """
         }
     }

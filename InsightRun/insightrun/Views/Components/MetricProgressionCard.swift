@@ -23,23 +23,22 @@ struct MetricProgressionCard: View {
             header
             chartView
         }
-        .padding()
+        .padding(16)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.irShadow, radius: 8, y: 4)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .strokeBorder(Color.irBorder, lineWidth: 0.5)
+        )
     }
 
     // MARK: - Header
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(systemName: series.icon)
-                .font(.subheadline)
-                .foregroundStyle(series.color.opacity(0.8))
-
             Text(series.name)
-                .font(.subheadline)
-                .foregroundStyle(Color.irTextSecondary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
@@ -52,8 +51,8 @@ struct MetricProgressionCard: View {
                     showingInfo = true
                 } label: {
                     Image(systemName: "info.circle")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.irTextSecondary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
                 .buttonStyle(.plain)
                 .sheet(isPresented: $showingInfo) {

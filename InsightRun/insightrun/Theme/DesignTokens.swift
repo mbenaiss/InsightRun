@@ -52,4 +52,16 @@ extension View {
     ) -> some View {
         modifier(CardStyle(padding: padding, cornerRadius: cornerRadius))
     }
+
+    /// Container style for the metric detail sheet — matches the pulse-ring design
+    /// (deep card background + 0.5pt border + xl radius). Apply on already-padded
+    /// content; this modifier does not add internal padding.
+    func detailCard() -> some View {
+        background(Color.irCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.xl)
+                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
+            )
+    }
 }

@@ -27,6 +27,13 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
     let hasRoute: Bool
     let isIndoor: Bool
 
+    /// Apple Workout Effort score on the 1–10 RPE scale.
+    /// Source: `HKQuantityTypeIdentifier.workoutEffortScore` (user-rated) or
+    /// `estimatedWorkoutEffortScore` (Apple-estimated) — populated lazily after
+    /// the workout is fetched (HK relationship query). `nil` means unrated.
+    var effortScore: Double? = nil
+    var effortIsEstimated: Bool = false
+
     static func == (lhs: WorkoutModel, rhs: WorkoutModel) -> Bool {
         lhs.id == rhs.id
     }
@@ -40,7 +47,7 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         case id, workoutType, startDate, endDate, duration
         case distance, totalEnergyBurned, sourceName, sourceVersion
         case averageHeartRate, maxHeartRate, elevationGain, hasRoute, isIndoor
-        case metadataJSON
+        case metadataJSON, effortScore, effortIsEstimated
     }
 
     func encode(to encoder: Encoder) throws {
@@ -59,6 +66,8 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         try container.encode(elevationGain, forKey: .elevationGain)
         try container.encode(hasRoute, forKey: .hasRoute)
         try container.encode(isIndoor, forKey: .isIndoor)
+        try container.encodeIfPresent(effortScore, forKey: .effortScore)
+        try container.encode(effortIsEstimated, forKey: .effortIsEstimated)
 
         // Encode metadata as JSON string (simplified, only stores string values)
         if let metadata = metadata {
@@ -86,6 +95,8 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         elevationGain = try container.decodeIfPresent(Double.self, forKey: .elevationGain)
         hasRoute = try container.decode(Bool.self, forKey: .hasRoute)
         isIndoor = try container.decodeIfPresent(Bool.self, forKey: .isIndoor) ?? false
+        effortScore = try container.decodeIfPresent(Double.self, forKey: .effortScore)
+        effortIsEstimated = try container.decodeIfPresent(Bool.self, forKey: .effortIsEstimated) ?? false
 
         // Decode metadata from JSON string
         if let metadataStrings = try container.decodeIfPresent([String: String].self, forKey: .metadataJSON) {
@@ -189,8 +200,16 @@ extension WorkoutModel {
         self.averageHeartRate = workout.statistics(for: HKQuantityType(.heartRate))?.averageQuantity()?.doubleValue(for: .count().unitDivided(by: .minute()))
         self.maxHeartRate = workout.statistics(for: HKQuantityType(.heartRate))?.maximumQuantity()?.doubleValue(for: .count().unitDivided(by: .minute()))
 
-        // Elevation
-        self.elevationGain = workout.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()?.doubleValue(for: .meter())
+        // Elevation gain — read from workout metadata. The HK statistic for
+        // `distanceWalkingRunning` returns total distance in meters, which is
+        // not what we want.
+        if let quantity = workout.metadata?[HKMetadataKeyElevationAscended] as? HKQuantity {
+            self.elevationGain = quantity.doubleValue(for: .meter())
+        } else if let meters = workout.metadata?["HKElevationAscended"] as? Double {
+            self.elevationGain = meters
+        } else {
+            self.elevationGain = nil
+        }
 
         // Route availability - Note: Routes must be queried separately from HealthStore
         // For now, assume no route data available directly from HKWorkout

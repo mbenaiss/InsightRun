@@ -605,31 +605,16 @@ struct WorkoutPlanView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Liquid Glass Background
-                LinearGradient(
-                    colors: [
-                        Color(.systemBackground),
-                        Color.blue.opacity(0.02),
-                        Color.blue.opacity(0.01)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                Color.irBackgroundApp.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Check if user has AI access (subscription or TestFlight)
                         if !revenueCatManager.hasAIAccess {
-                            // Show subscription CTA if no access
                             subscriptionCTAView
                         } else {
-                            // Show normal UI if has access
                             if !viewModel.showPreview {
-                                // Generation Screen
                                 generationView
                             } else if let workout = viewModel.generatedWorkout {
-                                // Preview Screen
                                 workoutPreviewView(workout: workout)
                             }
                         }
@@ -638,12 +623,11 @@ struct WorkoutPlanView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onTapGesture {
-                    // Dismiss keyboard when tapping outside
                     isTextFieldFocused = false
                 }
             }
             .navigationTitle(String(localized: "Workout Plan", comment: "Workout plan screen title"))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 viewModel.loadDemoDataIfNeeded()
             }
@@ -907,212 +891,25 @@ struct WorkoutPlanView: View {
     // MARK: - Generation View
 
     private var generationView: some View {
-        VStack(spacing: 24) {
-            // Header Icon
-            ZStack {
-                Circle()
-                    .fill(Color.irCardBackground)
-                    .frame(width: 100, height: 100)
-                    .shadow(color: Color.irShadowStrong, radius: 20, y: 10)
+        VStack(alignment: .leading, spacing: 18) {
+            heroTitle
 
-                Image(systemName: "figure.run")
-                    .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            .padding(.top, 20)
+            coachContextCard
 
-            // Title
-            VStack(spacing: 8) {
-                Text(String(localized: "AI Workout Generator", comment: "Workout generator title"))
-                    .font(.title2)
-                    .fontWeight(.bold)
+            composer
 
-                Text(String(localized: "Describe your workout and let AI create a personalized plan", comment: "Workout generator subtitle"))
-                    .font(.subheadline)
-                    .foregroundStyle(Color.irTextSecondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            // Input Area
-            VStack(alignment: .leading, spacing: 12) {
-                Text(String(localized: "What workout do you want?", comment: "Prompt input label"))
-                    .font(.headline)
-
-                TextField(String(localized: "E.g., '10x400m speed intervals'", comment: "Prompt placeholder"), text: $viewModel.promptText, axis: .vertical)
-                    .focused($isTextFieldFocused)
-                    .submitLabel(.done)
-                    .onSubmit {
-                        isTextFieldFocused = false
-                    }
-                    .padding()
-                    .background(Color.irCardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .lineLimit(3...6)
-            }
-
-            // Sample Prompts (only shown when input is empty)
-            if viewModel.promptText.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(String(localized: "Or try these", comment: "Sample prompts label"))
-                        .font(.caption)
-                        .foregroundStyle(Color.irTextSecondary)
-                        .textCase(.uppercase)
-
-                    // AI-Powered Smart Suggestion (NEW)
-                    Button(action: {
-                        Task {
-                            await viewModel.generateSmartSuggestion()
-                        }
-                    }) {
-                        HStack {
-                            // Sparkles icon with gradient
-                            Image(systemName: "sparkles")
-                                .font(.caption)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.blue, .cyan],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-
-                            if viewModel.isGeneratingSmartSuggestion {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                Text(String(localized: "Generating suggestion...", comment: "AI suggestion loading"))
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.irTextPrimary)
-                            } else {
-                                Text(String(localized: "Suggest a workout based on my history", comment: "AI suggestion prompt"))
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.irTextPrimary)
-                            }
-
-                            Spacer()
-
-                            if !viewModel.isGeneratingSmartSuggestion {
-                                Image(systemName: "arrow.up.right")
-                                    .font(.caption)
-                                    .foregroundStyle(Color.irTextSecondary)
-                            }
-                        }
-                        .padding(12)
-                        .background(
-                            // Gradient background to differentiate
-                            LinearGradient(
-                                colors: [
-                                    Color.blue.opacity(0.08),
-                                    Color.cyan.opacity(0.08)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            .overlay(Color.irCardBackground)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [.blue.opacity(0.3), .cyan.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(viewModel.isGeneratingSmartSuggestion)
-
-                    // Error display for smart suggestion
-                    if let error = viewModel.smartSuggestionError {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(Color.irWarning)
-                                .font(.caption)
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(Color.irTextSecondary)
-                        }
-                        .padding(.horizontal, 12)
-                    }
-
-                    // Regular sample prompts
-                    ForEach(viewModel.samplePrompts, id: \.self) { sample in
-                        Button(action: {
-                            viewModel.promptText = sample
-                            isTextFieldFocused = false
-                        }) {
-                            HStack {
-                                Image(systemName: "lightbulb.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(Color.irWarning)
-                                Text(sample)
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.irTextPrimary)
-                                Spacer()
-                                Image(systemName: "arrow.up.right")
-                                    .font(.caption)
-                                    .foregroundStyle(Color.irTextSecondary)
-                            }
-                            .padding(12)
-                            .background(Color.irCardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
-            }
-
-            // Error Display
             if let error = viewModel.error {
                 errorView(error)
             }
 
-            Spacer()
+            suggestionHero
 
-            // Generate Button
-            Button(action: {
-                Task {
-                    await viewModel.generateWorkout()
-                }
-            }) {
-                HStack {
-                    if viewModel.isGenerating {
-                        ProgressView()
-                            .tint(.white)
-                        Text(String(localized: "Generating...", comment: "Generating button text"))
-                    } else {
-                        Image(systemName: "sparkles")
-                        Text(String(localized: "Generate Workout", comment: "Generate button text"))
-                    }
-                }
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    viewModel.promptText.isEmpty || viewModel.isGenerating ?
-                    LinearGradient(colors: [.gray, .gray], startPoint: .leading, endPoint: .trailing) :
-                    LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: viewModel.promptText.isEmpty ? .clear : .blue.opacity(0.4), radius: 8, y: 4)
-            }
-            .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
+            presetsGrid
 
-            // Cancel Button (only visible during smart suggestion generation)
             if viewModel.isGeneratingSmartSuggestion {
-                Button(action: {
+                Button {
                     viewModel.cancelSmartSuggestion()
-                }) {
+                } label: {
                     Text(String(localized: "Cancel", comment: "Cancel smart suggestion button"))
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -1127,6 +924,263 @@ struct WorkoutPlanView: View {
                         )
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    // MARK: - Hero title
+
+    private var heroTitle: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            (Text(String(localized: "Which workout", comment: "Plan generator hero title prefix"))
+                .foregroundStyle(Color.irTextPrimary)
+             + Text("\n")
+             + Text(String(localized: "for ", comment: "Plan generator hero title middle"))
+                .foregroundStyle(Color.irTextPrimary)
+             + Text(String(localized: "today", comment: "Plan generator hero title accent word"))
+                .foregroundStyle(Color.irAIAccent)
+             + Text(String(localized: " ?", comment: "Plan generator hero title suffix"))
+                .foregroundStyle(Color.irTextPrimary))
+                .font(.system(size: 34, weight: .heavy))
+                .kerning(-0.8)
+                .lineSpacing(-2)
+
+            Text(String(localized: "Describe your intent, or let Coach suggest one based on today's readiness.", comment: "Plan generator subtitle"))
+                .font(.system(size: 14))
+                .foregroundStyle(Color.irTextSecondary)
+                .lineSpacing(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Coach context card
+
+    private var coachContextCard: some View {
+        let score = DailyMetricsCache.shared.getHistoricalReadinessScore(for: Date())
+        let readiness = ReadinessLabel(score: score)
+
+        return HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.06), lineWidth: 5)
+
+                Circle()
+                    .trim(from: 0, to: CGFloat(readiness.progress))
+                    .stroke(readiness.color, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+
+                Text(readiness.scoreLabel)
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color.irTextPrimary)
+            }
+            .frame(width: 56, height: 56)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "TODAY'S FORM", comment: "Plan generator readiness label"))
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(1.6)
+                    .foregroundStyle(Color.irTextSecondary.opacity(0.6))
+
+                (Text(String(localized: "Availability ", comment: "Plan generator readiness sentence prefix"))
+                    .foregroundStyle(Color.irTextPrimary)
+                 + Text(readiness.statusWord)
+                    .foregroundStyle(readiness.color)
+                 + Text(String(localized: " — aim for low-to-moderate load.", comment: "Plan generator readiness sentence suffix"))
+                    .foregroundStyle(Color.irTextPrimary))
+                    .font(.system(size: 14, weight: .semibold))
+                    .lineSpacing(2)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [
+                    readiness.color.opacity(0.10),
+                    Color.irCardBackground
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .detailCard()
+    }
+
+    // MARK: - Composer
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            TextField(
+                String(localized: "E.g., '10x400m speed intervals with 1 min recovery'", comment: "Prompt placeholder"),
+                text: $viewModel.promptText,
+                axis: .vertical
+            )
+            .focused($isTextFieldFocused)
+            .lineLimit(3...6)
+            .submitLabel(.done)
+            .onSubmit { isTextFieldFocused = false }
+            .font(.system(size: 15))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+
+            Divider().background(Color.irBorder)
+
+            HStack {
+                Spacer()
+
+                Button {
+                    Task { await viewModel.generateWorkout() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if viewModel.isGenerating {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(viewModel.promptText.isEmpty ? Color.irTextSecondary : .black)
+                        } else {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+
+                        Text(viewModel.isGenerating
+                             ? String(localized: "Generating...", comment: "Generating button text")
+                             : String(localized: "Generate", comment: "Generate workout button"))
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .foregroundStyle(viewModel.promptText.isEmpty ? Color.irTextSecondary : .black)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(viewModel.promptText.isEmpty ? Color.white.opacity(0.06) : Color.irAIAccent)
+                    )
+                    .shadow(color: viewModel.promptText.isEmpty
+                            ? .clear
+                            : Color.irAIAccent.opacity(0.4),
+                            radius: 12, y: 4)
+                }
+                .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
+            }
+            .padding(10)
+        }
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.xl)
+                .strokeBorder(
+                    viewModel.promptText.isEmpty ? Color.irBorder : Color.irAIAccent,
+                    lineWidth: 0.5
+                )
+        )
+    }
+
+    // MARK: - Suggestion hero (smart suggestion)
+
+    private var suggestionHero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            DashboardEyebrow(title: String(localized: "Suggested for you", comment: "Plan generator suggestion eyebrow"))
+
+            Button {
+                Task { await viewModel.generateSmartSuggestion() }
+            } label: {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        HStack(spacing: 6) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.irAIAccent)
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(Color.black)
+                            }
+                            .frame(width: 18, height: 18)
+
+                            Text(String(localized: "COACH RECOMMENDATION", comment: "Plan generator suggestion header"))
+                                .font(.system(size: 11, weight: .bold))
+                                .tracking(1.4)
+                                .foregroundStyle(Color.irAIAccent)
+                        }
+
+                        Spacer()
+
+                        if viewModel.isGeneratingSmartSuggestion {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(Color.irAIAccent)
+                        } else {
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+
+                    Text(String(localized: "Suggest a workout based on my history", comment: "AI suggestion prompt"))
+                        .font(.system(size: 17, weight: .bold))
+                        .lineSpacing(1)
+                        .foregroundStyle(Color.irTextPrimary)
+                        .multilineTextAlignment(.leading)
+
+                    Text(String(localized: "Coach reads your training load, recovery and recent sessions to pick a session that fits today.", comment: "Plan generator suggestion description"))
+                        .font(.system(size: 12))
+                        .lineSpacing(2)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .multilineTextAlignment(.leading)
+
+                    if let error = viewModel.smartSuggestionError {
+                        Divider().background(Color.irBorder)
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(Color.irWarning)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(Color.irTextSecondary)
+                        }
+                    }
+                }
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color.irAIAccent.opacity(0.10),
+                            Color.irCardBackground
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.xl)
+                        .strokeBorder(Color.irAIAccent.opacity(0.6), lineWidth: 0.5)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isGeneratingSmartSuggestion)
+        }
+    }
+
+    // MARK: - Presets grid
+
+    private var presetsGrid: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            DashboardEyebrow(title: String(localized: "Templates", comment: "Plan generator presets eyebrow"))
+
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                spacing: 8
+            ) {
+                ForEach(WorkoutPreset.all) { preset in
+                    Button {
+                        viewModel.promptText = preset.promptSeed
+                        isTextFieldFocused = false
+                    } label: {
+                        WorkoutPresetCard(preset: preset)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
@@ -1286,6 +1340,177 @@ struct WorkoutPlanView: View {
         .padding()
         .background(Color.irError.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+
+// MARK: - Readiness label helper
+
+private struct ReadinessLabel {
+    let scoreLabel: String
+    let statusWord: String
+    let color: Color
+    let progress: Double
+
+    init(score: Int?) {
+        if let score {
+            scoreLabel = "\(score)"
+            progress = max(0, min(1, Double(score) / 100.0))
+            switch score {
+            case 80...100:
+                statusWord = String(localized: "excellent", comment: "Readiness status word - excellent")
+                color = .irSuccess
+            case 60..<80:
+                statusWord = String(localized: "good", comment: "Readiness status word - good")
+                color = .irSuccess
+            case 40..<60:
+                statusWord = String(localized: "fair", comment: "Readiness status word - fair")
+                color = .irWarning
+            default:
+                statusWord = String(localized: "low", comment: "Readiness status word - low")
+                color = .irError
+            }
+        } else {
+            scoreLabel = "—"
+            progress = 0
+            statusWord = String(localized: "unknown", comment: "Readiness status word - unknown")
+            color = .gray
+        }
+    }
+}
+
+// MARK: - Workout preset model
+
+struct WorkoutPreset: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let durationLabel: String
+    let intensityLabel: String
+    let load: Int
+    let color: Color
+    let promptSeed: String
+
+    static let all: [WorkoutPreset] = [
+        WorkoutPreset(
+            id: "intervals",
+            title: String(localized: "Intervals", comment: "Workout preset - intervals"),
+            subtitle: String(localized: "10 × 400 m", comment: "Workout preset subtitle - intervals"),
+            durationLabel: "55 min",
+            intensityLabel: "Z4",
+            load: 4,
+            color: .irError,
+            promptSeed: String(localized: "10x400m speed intervals with 1 min recovery", comment: "Preset prompt - intervals")
+        ),
+        WorkoutPreset(
+            id: "tempo",
+            title: String(localized: "Tempo run", comment: "Workout preset - tempo"),
+            subtitle: String(localized: "5 km at threshold pace", comment: "Workout preset subtitle - tempo"),
+            durationLabel: "35 min",
+            intensityLabel: "Z3",
+            load: 3,
+            color: .irWarning,
+            promptSeed: String(localized: "5km tempo run at threshold pace", comment: "Preset prompt - tempo")
+        ),
+        WorkoutPreset(
+            id: "pyramid",
+            title: String(localized: "Pyramid", comment: "Workout preset - pyramid"),
+            subtitle: String(localized: "400-800-1200-800-400", comment: "Workout preset subtitle - pyramid"),
+            durationLabel: "50 min",
+            intensityLabel: "Z3-4",
+            load: 4,
+            color: .purple,
+            promptSeed: String(localized: "Pyramid workout (400-800-1200-800-400) with active recovery", comment: "Preset prompt - pyramid")
+        ),
+        WorkoutPreset(
+            id: "long",
+            title: String(localized: "Long run", comment: "Workout preset - long run"),
+            subtitle: String(localized: "12-15 km endurance", comment: "Workout preset subtitle - long run"),
+            durationLabel: "1h25",
+            intensityLabel: "Z2",
+            load: 3,
+            color: .irSuccess,
+            promptSeed: String(localized: "Easy 12-15km endurance run at conversational pace", comment: "Preset prompt - long run")
+        ),
+        WorkoutPreset(
+            id: "fartlek",
+            title: String(localized: "Fartlek", comment: "Workout preset - fartlek"),
+            subtitle: String(localized: "Free-form pace play", comment: "Workout preset subtitle - fartlek"),
+            durationLabel: "40 min",
+            intensityLabel: "Z2-4",
+            load: 3,
+            color: .cyan,
+            promptSeed: String(localized: "40 min fartlek with free-form pace variations", comment: "Preset prompt - fartlek")
+        )
+    ]
+}
+
+private struct WorkoutPresetCard: View {
+    let preset: WorkoutPreset
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "waveform.path.ecg")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(preset.color)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(preset.color.opacity(0.18))
+                    )
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    ForEach(1...5, id: \.self) { idx in
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(idx <= preset.load ? preset.color : Color.white.opacity(0.08))
+                            .frame(width: 4, height: 9)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preset.title)
+                    .font(.system(size: 13, weight: .bold))
+                    .kerning(-0.1)
+                    .foregroundStyle(Color.irTextPrimary)
+
+                Text(preset.subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.irTextSecondary)
+                    .lineLimit(1)
+            }
+
+            Divider().background(Color.irBorder)
+
+            HStack {
+                Text(preset.durationLabel)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Color.irTextSecondary)
+
+                Spacer()
+
+                Text(preset.intensityLabel)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(preset.color)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(preset.color.opacity(0.14))
+                    )
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.lg)
+                .strokeBorder(Color.irBorder, lineWidth: 0.5)
+        )
     }
 }
 

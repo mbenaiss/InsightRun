@@ -2,7 +2,7 @@
 //  HealthKitPermissionStepView.swift
 //  InsightRun
 //
-//  Onboarding Step 2: HealthKit permissions request
+//  Onboarding Step 2: HealthKit permissions request (Pulse-Ring layout).
 //
 
 import SwiftUI
@@ -14,136 +14,64 @@ struct HealthKitPermissionStepView: View {
     @State private var isRequesting = false
     @State private var showError = false
     @State private var errorMessage = ""
-    @State private var titleOpacity: Double = 0
     @State private var contentOpacity: Double = 0
-    @State private var previewOpacity: Double = 0
 
     var body: some View {
-        ScrollView {
+        OnboardingScaffold(
+            primaryTitle: String(localized: "Continue", comment: "Onboarding HealthKit authorize button"),
+            primaryAction: requestHealthKitAuthorization,
+            isPrimaryLoading: isRequesting,
+            secondaryTitle: String(localized: "Skip for now", comment: "Onboarding HealthKit skip button"),
+            secondaryAction: skipHealthKit
+        ) {
             VStack(spacing: 24) {
-                Spacer(minLength: 16)
-
-                // Animated illustration
                 AnimatedOnboardingIllustration(type: .healthKit)
 
-                // Icon & Title — benefit-driven copy
-                VStack(spacing: 16) {
-                    Text(String(localized: "See what your body is telling you", comment: "Onboarding HealthKit title"))
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .foregroundStyle(Color.irTextPrimary)
+                OnboardingEditorialHeader(
+                    eyebrow: String(localized: "onboarding.healthkit.eyebrow", defaultValue: "Health data", comment: "Onboarding HealthKit eyebrow"),
+                    title: String(localized: "See what your body is telling you", comment: "Onboarding HealthKit title"),
+                    body: String(localized: "Get AI coaching, recovery insights, and performance tracking — all from data your watch already collects", comment: "Onboarding HealthKit description")
+                )
 
-                    Text(String(localized: "Get AI coaching, recovery insights, and performance tracking — all from data your watch already collects", comment: "Onboarding HealthKit description"))
-                        .font(.body)
-                        .foregroundStyle(Color.irTextSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
-                .opacity(titleOpacity)
-
-                // Mini dashboard preview
                 HealthKitPreviewCard()
-                    .padding(.horizontal, 24)
-                    .opacity(previewOpacity)
 
-                // Data Access List
-                VStack(spacing: 16) {
-                    DataAccessRow(
+                VStack(spacing: 8) {
+                    OnboardingFeatureCard(
                         icon: "figure.run",
                         title: String(localized: "Workouts and activities", comment: "Onboarding HealthKit: workouts"),
-                        description: String(localized: "Running sessions and metrics", comment: "Onboarding HealthKit: workouts description")
+                        description: String(localized: "Running sessions and metrics", comment: "Onboarding HealthKit: workouts description"),
+                        trailing: .checkmark
                     )
-
-                    DataAccessRow(
+                    OnboardingFeatureCard(
                         icon: "heart.fill",
+                        iconTint: .irError,
                         title: String(localized: "Heart rate (onboarding)", comment: "Onboarding HealthKit: heart rate"),
-                        description: String(localized: "Training intensity and recovery", comment: "Onboarding HealthKit: heart rate description")
+                        description: String(localized: "Training intensity and recovery", comment: "Onboarding HealthKit: heart rate description"),
+                        trailing: .checkmark
                     )
-
-                    DataAccessRow(
+                    OnboardingFeatureCard(
                         icon: "moon.fill",
+                        iconTint: .irAIAccentSecondary,
                         title: String(localized: "Sleep data", comment: "Onboarding HealthKit: sleep"),
-                        description: String(localized: "Recovery and readiness analysis", comment: "Onboarding HealthKit: sleep description")
+                        description: String(localized: "Recovery and readiness analysis", comment: "Onboarding HealthKit: sleep description"),
+                        trailing: .checkmark
                     )
-
-                    DataAccessRow(
+                    OnboardingFeatureCard(
                         icon: "waveform.path.ecg",
+                        iconTint: .irAIAccent,
                         title: String(localized: "Advanced metrics (onboarding)", comment: "Onboarding HealthKit: advanced"),
-                        description: String(localized: "VO2 Max, HRV, and more", comment: "Onboarding HealthKit: advanced description")
+                        description: String(localized: "VO2 Max, HRV, and more", comment: "Onboarding HealthKit: advanced description"),
+                        trailing: .checkmark
                     )
                 }
-                .padding(.horizontal, 24)
-                .opacity(contentOpacity)
 
-                // Privacy Note
-                HStack(spacing: 12) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.title3)
-                        .foregroundStyle(Color.irSuccess)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(String(localized: "Your data is private", comment: "Onboarding privacy note title"))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.irTextPrimary)
-                        Text(String(localized: "All data stays on your device", comment: "Onboarding privacy note description"))
-                            .font(.caption)
-                            .foregroundStyle(Color.irTextSecondary)
-                    }
-
-                    Spacer()
-                }
-                .padding()
-                .background(Color.irSuccess.opacity(0.1))
-                .cornerRadius(12)
-                .padding(.horizontal, 24)
-
-                Spacer(minLength: 16)
-
-                // Authorize Button + Skip
-                VStack(spacing: 12) {
-                    Button(action: requestHealthKitAuthorization) {
-                        if isRequesting {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                        } else {
-                            Text(String(localized: "Continue", comment: "Onboarding HealthKit authorize button"))
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                        }
-                    }
-                    .background(Color.irPrimaryAccent.gradient)
-                    .cornerRadius(16)
-                    .disabled(isRequesting)
-
-                    // Skip for now
-                    Button(action: skipHealthKit) {
-                        Text(String(localized: "Skip for now", comment: "Onboarding HealthKit skip button"))
-                            .font(.subheadline)
-                            .foregroundStyle(Color.irTextSecondary)
-                    }
-                    .disabled(isRequesting)
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
+                privacyNote
             }
+            .opacity(contentOpacity)
         }
-        .scrollIndicators(.hidden)
         .onAppear {
             AnalyticsService.shared.trackOnboardingStepViewed(step: 2, stepName: "healthkit_permission")
-            withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
-                titleOpacity = 1
-            }
-            withAnimation(.easeOut(duration: 0.5).delay(0.5)) {
-                previewOpacity = 1
-            }
-            withAnimation(.easeOut(duration: 0.5).delay(0.6)) {
+            withAnimation(.easeOut(duration: 0.4).delay(0.25)) {
                 contentOpacity = 1
             }
         }
@@ -165,6 +93,32 @@ struct HealthKitPermissionStepView: View {
         }
     }
 
+    private var privacyNote: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.irSuccess)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "Your data is private", comment: "Onboarding privacy note title"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.irTextPrimary)
+                Text(String(localized: "All data stays on your device", comment: "Onboarding privacy note description"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.irSuccess.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.irSuccess.opacity(0.30), lineWidth: 0.5)
+        )
+    }
+
     private func skipHealthKit() {
         AnalyticsService.shared.track(.healthKitPermissionSkipped)
         onSkip()
@@ -180,7 +134,6 @@ struct HealthKitPermissionStepView: View {
 
                 await MainActor.run {
                     isRequesting = false
-
                     if hasAccess {
                         onContinue()
                     } else {
@@ -203,29 +156,30 @@ struct HealthKitPermissionStepView: View {
 
 struct HealthKitPreviewCard: View {
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                PreviewMetricBadge(icon: "figure.run", value: "5:32", unit: "/km", color: .blue)
-                PreviewMetricBadge(icon: "heart.fill", value: "142", unit: "bpm", color: .red)
-                PreviewMetricBadge(icon: "bed.double.fill", value: "85%", unit: "recovery", color: .green)
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                PreviewMetricBadge(icon: "figure.run", value: "5:32", unit: "/km", color: .irPrimaryAccent)
+                PreviewMetricBadge(icon: "heart.fill", value: "142", unit: "bpm", color: .irError)
+                PreviewMetricBadge(icon: "bed.double.fill", value: "85%", unit: "recovery", color: .irSuccess)
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "sparkles")
-                    .font(.caption)
-                    .foregroundStyle(.cyan)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.irAIAccent)
                 Text(String(localized: "AI Coach: Great pace consistency! Try adding intervals next week.", comment: "Onboarding HealthKit preview AI hint"))
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(2)
             }
-            .padding(.horizontal, 8)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.irCardBackground)
-                .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
+        .padding(14)
+        .frame(maxWidth: .infinity)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
 }
@@ -237,53 +191,22 @@ struct PreviewMetricBadge: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(color)
             Text(value)
-                .font(.subheadline)
-                .fontWeight(.bold)
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
                 .foregroundStyle(Color.irTextPrimary)
             Text(unit)
-                .font(.caption2)
-                .foregroundStyle(Color.irTextSecondary)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(color.opacity(0.08))
-        .cornerRadius(10)
-    }
-}
-
-struct DataAccessRow: View {
-    let icon: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 24))
-                .foregroundStyle(Color.irPrimaryAccent)
-                .frame(width: 40, height: 40)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.irTextPrimary)
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(Color.irTextSecondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
-                .foregroundStyle(Color.irSuccess)
-        }
+        .background(color.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

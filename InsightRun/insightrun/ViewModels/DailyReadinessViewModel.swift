@@ -14,7 +14,11 @@ class DailyReadinessViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var readinessScore: Int?
     @Published var status: ReadinessStatus = .unknown
+    /// Full coaching text. Kept for legacy callers (RecoveryDashboardView, etc.).
     @Published var recommendation: String = ""
+    /// Short TL;DR shown collapsed in the dashboard coach card.
+    /// Falls back to `recommendation` when the backend doesn't provide a separate summary.
+    @Published var recommendationSummary: String = ""
     @Published var suggestedWorkoutType: SuggestedWorkoutType = .rest
     @Published var insights: [ReadinessInsight] = []
     @Published var needsConsent = false
@@ -45,6 +49,7 @@ class DailyReadinessViewModel: ObservableObject {
             readinessScore = 82
             status = .good
             recommendation = String(localized: "Good recovery. You can do a moderate to intense workout.", comment: "Demo readiness recommendation")
+            recommendationSummary = recommendation
             suggestedWorkoutType = .moderate
             insights = []
             isLoading = false
@@ -80,6 +85,7 @@ class DailyReadinessViewModel: ObservableObject {
             readinessScore = cached.score
             status = ReadinessStatus(from: cached.status)
             recommendation = cached.recommendation
+            recommendationSummary = cached.summary?.nilIfEmpty ?? cached.recommendation
             suggestedWorkoutType = SuggestedWorkoutType(from: cached.suggestedWorkoutType)
             return
         }
@@ -121,14 +127,19 @@ class DailyReadinessViewModel: ObservableObject {
 
             readinessScore = response.score
             status = ReadinessStatus(from: response.status)
-            recommendation = response.recommendation
+            // Long form goes to the legacy `recommendation` (so older readers keep working);
+            // collapsed dashboard view reads `recommendationSummary` and falls back gracefully.
+            let detailText = response.detail?.nilIfEmpty ?? response.recommendation
+            recommendation = detailText
+            recommendationSummary = response.summary?.nilIfEmpty ?? detailText
             suggestedWorkoutType = SuggestedWorkoutType(from: response.suggestedWorkoutType)
             insights = response.insights.map { ReadinessInsight(from: $0) }
 
             dailyCache.cacheReadiness(
                 score: response.score,
                 status: response.status,
-                recommendation: response.recommendation,
+                recommendation: detailText,
+                summary: response.summary,
                 workoutType: response.suggestedWorkoutType,
                 effortScore: effortScore,
                 cardiacLoadScore: cardiacLoadScore
@@ -227,7 +238,12 @@ struct ReadinessWorkoutData: Encodable {
 struct DailyReadinessResponse: Decodable {
     let score: Int
     let status: String
+    /// Legacy field — older backends only populate this. New backends keep it filled with the full coaching text.
     let recommendation: String
+    /// One-sentence TL;DR (new backend only). Falls back to `recommendation` for old backends.
+    let summary: String?
+    /// Full coaching explanation (new backend only). Falls back to `recommendation` for old backends.
+    let detail: String?
     let suggestedWorkoutType: String
     let insights: [DailyReadinessInsightResponse]
 }

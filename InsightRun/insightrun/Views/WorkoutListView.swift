@@ -2,11 +2,17 @@
 //  WorkoutListView.swift
 //  InsightRun
 //
-//  Main screen displaying list of running workouts
-//  Featuring iOS 26 Liquid Glass design
+//  Pulse-Ring redesign: editorial hero, month summary card with mini bar
+//  chart, type filter chips, dense session cards.
 //
 
 import SwiftUI
+
+private extension Calendar {
+    func startOfMonth(for date: Date) -> Date {
+        self.date(from: dateComponents([.year, .month], from: date)) ?? date
+    }
+}
 
 struct WorkoutListView: View {
     @StateObject private var healthKitViewModel = WorkoutListViewModel()
@@ -15,6 +21,10 @@ struct WorkoutListView: View {
     @State private var showInitialPaywall = false
     @State private var showIndexationBanner = false
     @State private var showIndexationSheet = false
+    @State private var selectedMonth: Date = Calendar.current.startOfMonth(for: Date())
+    @State private var isSearching: Bool = false
+    @State private var searchText: String = ""
+    @FocusState private var searchFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
@@ -22,23 +32,19 @@ struct WorkoutListView: View {
     @ObservedObject private var notificationRouter = NotificationRouter.shared
     @State private var navigationPath = NavigationPath()
 
-    // Use unified workouts if Strava is enabled and available (HealthKit + Strava), fallback to HealthKit only
     private var viewModel: WorkoutListViewModel { healthKitViewModel }
 
-    // Check if Strava-only mode is available (Strava enabled + authenticated, but HealthKit not authorized)
     private var isStravaOnlyMode: Bool {
         remoteConfig.isFeatureEnabled(.strava) &&
         stravaAuth.isAuthenticated &&
         viewModel.authorizationStatus != .authorized
     }
 
-    // Check if we can show workouts (either HealthKit authorized OR Strava-only mode)
     private var canShowWorkouts: Bool {
         viewModel.authorizationStatus == .authorized || isStravaOnlyMode
     }
 
     private var displayWorkouts: [WorkoutModel] {
-        // Use unified workouts if available (includes Strava and/or Suunto merge)
         if !unifiedViewModel.unifiedWorkouts.isEmpty {
             return unifiedViewModel.unifiedWorkouts.map { $0.toWorkoutModel() }
         } else {
@@ -46,10 +52,8 @@ struct WorkoutListView: View {
         }
     }
 
-    // Grouped workouts for display (unified includes Strava and Suunto merge)
     private var displayGroupedWorkouts: [(String, [WorkoutModel])] {
         if !unifiedViewModel.unifiedWorkouts.isEmpty {
-            // Convert unified grouped workouts to WorkoutModel
             return unifiedViewModel.groupedWorkouts.map { (title, unifiedWorkouts) in
                 (title, unifiedWorkouts.map { $0.toWorkoutModel() })
             }
@@ -93,8 +97,9 @@ struct WorkoutListView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             mainContent
-                .navigationTitle(String(localized: "Workouts", comment: "Main list screen title"))
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.hidden, for: .navigationBar)
+                .background(Color.irBackgroundApp)
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         viewModel.refreshAuthorizationStatus()
@@ -121,8 +126,15 @@ struct WorkoutListView: View {
                     if !isLoading { updateContextProvider() }
                 }
                 .task(id: viewModel.authorizationStatus) {
-                    if viewModel.authorizationStatus == .authorized && viewModel.workouts.isEmpty {
-                        await viewModel.loadWorkouts()
+                    if viewModel.authorizationStatus == .authorized {
+                        // One-shot prompt for the new iOS 18 effort score types,
+                        // for users who authorized before the migration.
+                        if #available(iOS 18.0, *) {
+                            await HealthKitManager.shared.requestEffortAuthorizationIfNeeded()
+                        }
+                        if viewModel.workouts.isEmpty {
+                            await viewModel.loadWorkouts()
+                        }
                     }
                 }
                 .task(id: viewModel.authorizationStatus) {
@@ -134,8 +146,6 @@ struct WorkoutListView: View {
                     if canShowWorkouts {
                         AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
                         if revenueCatManager.hasAIAccess && HealthKitManager.shared.isHealthKitAuthorized {
-                            // Show banner only for refresh (summary exists but is old)
-                            // First-time indexation is now handled by AI feature gates
                             if let summary = HistoricalSummaryStorage.shared.load() {
                                 showIndexationBanner = summary.needsRefresh && HistoricalSummaryStorage.shared.shouldShowBanner()
                             } else {
@@ -170,7 +180,6 @@ struct WorkoutListView: View {
     // MARK: - Helper Functions
 
     private func updateContextProvider() {
-        // Get last 10 workouts for AI context
         let last10 = Array(displayWorkouts.prefix(10))
         contextProvider.recentWorkouts = last10
     }
@@ -184,13 +193,74 @@ struct WorkoutListView: View {
         navigationPath.append(workout)
     }
 
+    private func filterWorkouts(_ workouts: [WorkoutModel]) -> [WorkoutModel] {
+        let q = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if isSearching && !q.isEmpty {
+            // Search bypasses the month filter and looks across all workouts
+            let f = DateFormatter()
+            f.locale = Locale.current
+            f.dateFormat = "EEE d MMMM yyyy"
+            return workouts.filter { w in
+                let dateStr = f.string(from: w.startDate).lowercased()
+                let context = w.isIndoor ? "tapis indoor" : "plein air outdoor"
+                return dateStr.contains(q)
+                    || w.sourceName.lowercased().contains(q)
+                    || context.contains(q)
+            }
+        }
+
+        let cal = Calendar.current
+        return workouts.filter {
+            cal.isDate($0.startDate, equalTo: selectedMonth, toGranularity: .month)
+        }
+    }
+
+    private var monthLabel: String {
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.dateFormat = "MMMM yyyy"
+        return f.string(from: selectedMonth).capitalized
+    }
+
+    private func adjustMonth(by delta: Int) {
+        let cal = Calendar.current
+        if let next = cal.date(byAdding: .month, value: delta, to: selectedMonth) {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedMonth = cal.startOfMonth(for: next)
+            }
+        }
+    }
+
+    private var canGoForward: Bool {
+        let cal = Calendar.current
+        let today = cal.startOfMonth(for: Date())
+        return selectedMonth < today
+    }
+
+    private var availableYears: [Int] {
+        let cal = Calendar.current
+        let years = Set(displayWorkouts.map { cal.component(.year, from: $0.startDate) })
+        return years.sorted(by: >)
+    }
+
+    private func selectYear(_ year: Int) {
+        let cal = Calendar.current
+        var components = cal.dateComponents([.year, .month], from: selectedMonth)
+        components.year = year
+        guard let date = cal.date(from: components) else { return }
+        let today = cal.startOfMonth(for: Date())
+        withAnimation(.easeInOut(duration: 0.15)) {
+            selectedMonth = min(cal.startOfMonth(for: date), today)
+        }
+    }
+
     // MARK: - Authorization View
 
     private var authorizationView: some View {
         VStack(spacing: 32) {
             Spacer()
 
-            // Icon with Liquid Glass effect
             ZStack {
                 Circle()
                     .fill(Color.irCardBackground)
@@ -215,7 +285,6 @@ struct WorkoutListView: View {
             }
 
             VStack(spacing: 16) {
-                // HealthKit button (red with HealthKit icon)
                 Button {
                     Task {
                         await viewModel.requestAuthorization()
@@ -234,7 +303,6 @@ struct WorkoutListView: View {
                     .shadow(color: Color.red.opacity(0.3), radius: 10, y: 5)
                 }
 
-                // Strava button (only if feature enabled)
                 if remoteConfig.isFeatureEnabled(.strava) {
                     Button {
                         Task {
@@ -261,79 +329,6 @@ struct WorkoutListView: View {
             Spacer()
         }
         .padding()
-    }
-
-    // MARK: - Locked Workouts Preview (Non-Subscribers)
-
-    private var lockedWorkoutsPreview: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Premium unlock CTA
-                VStack(spacing: 16) {
-                    // Premium icon
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 50))
-                        .foregroundStyle(.yellow.gradient)
-
-                    VStack(spacing: 8) {
-                        Text(String(localized: "Unlock Your Full Training History", comment: "Locked workouts preview title"))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .multilineTextAlignment(.center)
-
-                        Text(String(localized: "Subscribe to access all your workouts, AI coaching, and advanced analytics", comment: "Locked workouts preview description"))
-                            .font(.body)
-                            .foregroundStyle(Color.irTextSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 16)
-                    }
-
-                    // CTA Button
-                    Button {
-                        showInitialPaywall = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "crown.fill")
-                            Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
-                        }
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.irPrimaryAccent.gradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 10, y: 5)
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.top, 8)
-
-                    // Restore purchases link
-                    Button {
-                        Task {
-                            do {
-                                try await revenueCatManager.restorePurchases()
-                            } catch {
-                                print("Error restoring purchases: \(error.localizedDescription)")
-                            }
-                        }
-                    } label: {
-                        Text(String(localized: "Restore Purchases", comment: "Restore purchases button"))
-                            .font(.subheadline)
-                            .foregroundStyle(Color.irPrimaryAccent)
-                    }
-                }
-                .padding()
-                .background(Color.irCardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: Color.irShadow, radius: 10, y: 5)
-                .padding(.horizontal)
-                .padding(.top, 16)
-            }
-            .padding(.bottom, 20)
-        }
-        .refreshable {
-            await viewModel.refresh()
-        }
     }
 
     // MARK: - Denied View
@@ -389,6 +384,8 @@ struct WorkoutListView: View {
                 .font(.subheadline)
                 .foregroundStyle(Color.irTextSecondary)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.irBackgroundApp)
     }
 
     // MARK: - Empty View
@@ -415,14 +412,16 @@ struct WorkoutListView: View {
             Spacer()
         }
         .padding()
+        .background(Color.irBackgroundApp)
     }
 
-    // MARK: - Workout List
+    // MARK: - Workout List (Pulse-Ring layout)
 
     private var workoutList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
-                // Indexation banner for premium users who need to refresh their profile
+            VStack(alignment: .leading, spacing: 14) {
+                heroSection
+
                 if showIndexationBanner && revenueCatManager.hasAIAccess {
                     IndexationBannerView(
                         onSyncTapped: {
@@ -436,31 +435,23 @@ struct WorkoutListView: View {
                             showIndexationBanner = false
                         }
                     )
-                    .padding(.horizontal)
-                    .padding(.top, 8)
                     .onAppear {
-                        // Track banner shown (only once when it appears)
                         AnalyticsService.shared.trackIndexationBannerShown()
                     }
                 }
 
-                // Subscription CTA for non-subscribers (hide for TestFlight and subscribers)
                 if !revenueCatManager.hasAIAccess {
                     subscriptionCTACard
-                        .padding(.horizontal)
-                        .padding(.top, 8)
                 }
 
-                // Grouped workout list by month
-                ForEach(displayGroupedWorkouts, id: \.0) { groupTitle, groupWorkouts in
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Month header with stats
-                        monthHeaderView(title: groupTitle, workouts: groupWorkouts)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
+                let visibleWorkouts = filterWorkouts(displayWorkouts)
+                if !visibleWorkouts.isEmpty {
+                    if !isSearching {
+                        monthSummaryCard(workouts: visibleWorkouts)
+                    }
 
-                        // Workouts in this month
-                        ForEach(Array(groupWorkouts.enumerated()), id: \.element.id) { index, workout in
+                    VStack(spacing: 8) {
+                        ForEach(Array(visibleWorkouts.enumerated()), id: \.element.id) { index, workout in
                             NavigationLink(value: workout) {
                                 WorkoutRowView(workout: workout)
                             }
@@ -468,180 +459,441 @@ struct WorkoutListView: View {
                             .accessibilityElement(children: .combine)
                             .accessibilityAddTraits(.isButton)
                             .accessibilityIdentifier("workout-row-\(index)")
-                            .onAppear {
-                                // INFINITE SCROLL: Load more when user reaches near the end
-                                // Only for HealthKit workouts (unified workouts load all at once)
-                                if !remoteConfig.isFeatureEnabled(.strava) || unifiedViewModel.unifiedWorkouts.isEmpty {
-                                    if workout.id == viewModel.workouts.dropLast(10).last?.id {
-                                        Task {
-                                            await viewModel.loadMoreWorkouts()
-                                        }
-                                    }
-                                }
-                            }
                         }
-                        .padding(.horizontal)
                     }
-                }
-
-                // Loading indicator for pagination
-                if viewModel.isLoadingMore {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            ProgressView()
-                            Text(String(localized: "Loading more workouts...", comment: "Pagination loading indicator"))
-                                .font(.caption)
-                                .foregroundStyle(Color.irTextSecondary)
-                        }
-                        Spacer()
+                } else {
+                    if isSearching && !searchText.isEmpty {
+                        searchEmptyState
+                    } else {
+                        monthEmptyState
                     }
-                    .padding()
-                }
-
-                // End of list indicator
-                if !viewModel.hasMoreWorkouts && !displayWorkouts.isEmpty {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(.green)
-                            Text(String(localized: "All workouts loaded", comment: "End of list indicator"))
-                                .font(.caption)
-                                .foregroundStyle(Color.irTextSecondary)
-                        }
-                        Spacer()
-                    }
-                    .padding()
                 }
             }
+            .padding(.horizontal, 18)
+            .padding(.top, 12)
             .padding(.bottom, 20)
         }
+        .background(Color.irBackgroundApp)
         .accessibilityIdentifier("workout-list")
         .refreshable {
             await viewModel.refresh()
-            // Also refresh unified workouts when Strava is enabled
             if remoteConfig.isFeatureEnabled(.strava) {
                 await unifiedViewModel.refresh()
             }
         }
     }
 
+    // MARK: - Hero
+
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "Workouts", comment: "Workout list large title"))
+                .font(.system(size: 34, weight: .heavy))
+                .kerning(-0.5)
+                .foregroundStyle(Color.irTextPrimary)
+
+            if isSearching {
+                searchBar
+            } else {
+                HStack(spacing: 8) {
+                    monthPicker
+                    Text("·")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.5))
+                    Text(String(format: String(localized: "%lld sessions", comment: "Workout list session count"), filterWorkouts(displayWorkouts).count))
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.irTextSecondary)
+                    Spacer()
+                    searchToggleButton
+                }
+            }
+        }
+    }
+
+    private var searchToggleButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isSearching = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                searchFocused = true
+            }
+        } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.irTextSecondary)
+                .frame(width: 28, height: 28)
+                .background(Capsule().fill(Color.irCardBackground))
+                .overlay(Capsule().strokeBorder(Color.irBorder, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("workout-list-search")
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                TextField(
+                    String(localized: "Search by date or source", comment: "Workout list search placeholder"),
+                    text: $searchText
+                )
+                .font(.system(size: 13))
+                .foregroundStyle(Color.irTextPrimary)
+                .focused($searchFocused)
+                .submitLabel(.search)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.irTextSecondary.opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Capsule().fill(Color.irCardBackground))
+            .overlay(Capsule().strokeBorder(Color.irBorder, lineWidth: 0.5))
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isSearching = false
+                    searchText = ""
+                    searchFocused = false
+                }
+            } label: {
+                Text(String(localized: "Cancel", comment: "Cancel search button"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var monthPicker: some View {
+        HStack(spacing: 8) {
+            Button {
+                adjustMonth(by: -1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.irTextSecondary)
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(.plain)
+
+            Menu {
+                ForEach(availableYears, id: \.self) { year in
+                    Button {
+                        selectYear(year)
+                    } label: {
+                        if Calendar.current.component(.year, from: selectedMonth) == year {
+                            Label(String(year), systemImage: "checkmark")
+                        } else {
+                            Text(String(year))
+                        }
+                    }
+                }
+            } label: {
+                Text(monthLabel)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.irTextPrimary)
+                    .frame(minWidth: 88)
+                    .contentShape(Rectangle())
+            }
+
+            Button {
+                adjustMonth(by: 1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(canGoForward ? Color.irTextSecondary : Color.irTextSecondary.opacity(0.3))
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canGoForward)
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
+        .background(
+            Capsule().fill(Color.irCardBackground)
+        )
+        .overlay(
+            Capsule().strokeBorder(Color.irBorder, lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - Filter chips
+
+    // MARK: - Month summary card
+
+    private struct WeekVolume {
+        let weekNumber: Int
+        let kilometers: Double
+    }
+
+    private func monthSummaryCard(workouts: [WorkoutModel]) -> some View {
+        let totalDistance = workouts.compactMap { $0.distance }.reduce(0, +)
+        let totalDuration = workouts.map { $0.duration }.reduce(0, +)
+        let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
+        let totalElevation = workouts.compactMap { $0.elevationGain }.reduce(0, +)
+        let paces = workouts.compactMap { $0.averagePace }
+        let avgPace = paces.isEmpty ? nil : paces.reduce(0, +) / Double(paces.count)
+        let weeks = weeklyVolumes(in: workouts)
+        let lastIndex = max(0, weeks.count - 1)
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "Volume", comment: "Month volume label"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.irTextSecondary)
+                    HStack(alignment: .lastTextBaseline, spacing: 4) {
+                        Text(formattedKilometers(totalDistance))
+                            .font(.system(size: 36, weight: .heavy, design: .rounded))
+                            .kerning(-0.5)
+                            .foregroundStyle(Color.irTextPrimary)
+                        Text("km")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                }
+                Spacer()
+                weeklyMiniBars(weeks: weeks, lastIndex: lastIndex)
+            }
+
+            Divider().background(Color.irBorder)
+
+            HStack(spacing: 0) {
+                summaryStat(
+                    label: String(localized: "Time", comment: "Weekly time label"),
+                    value: formatHoursMinutes(totalDuration)
+                )
+                summaryStat(
+                    label: String(localized: "Avg Pace", comment: "Average pace stat label"),
+                    value: formatPaceShort(avgPace),
+                    showsLeftBorder: true
+                )
+                summaryStat(
+                    label: "D+",
+                    value: formatElevation(totalElevation),
+                    showsLeftBorder: true
+                )
+                summaryStat(
+                    label: String(localized: "Calories", comment: "Calories stat label"),
+                    value: formatCalories(totalCalories),
+                    showsLeftBorder: true
+                )
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.irCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.xl)
+                .strokeBorder(Color.irBorder, lineWidth: 0.5)
+        )
+    }
+
+    private var monthEmptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "figure.run.circle")
+                .font(.system(size: 32))
+                .foregroundStyle(Color.irTextSecondary.opacity(0.5))
+            Text(String(localized: "No sessions this month", comment: "Empty state when selected month has no workouts"))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.irTextSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
+
+    private var searchEmptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 28))
+                .foregroundStyle(Color.irTextSecondary.opacity(0.5))
+            Text(String(localized: "No results", comment: "Empty state when search returns no workouts"))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.irTextSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
+
+    private func summaryStat(label: String, value: String, showsLeftBorder: Bool = false) -> some View {
+        HStack(spacing: 0) {
+            if showsLeftBorder {
+                Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 28)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.irTextPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(label.uppercased())
+                    .font(.system(size: 9, weight: .semibold))
+                    .tracking(0.8)
+                    .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+            }
+            .padding(.leading, showsLeftBorder ? 8 : 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func weeklyMiniBars(weeks: [WeekVolume], lastIndex: Int) -> some View {
+        let peak = max(weeks.map { $0.kilometers }.max() ?? 1, 1)
+        return HStack(alignment: .bottom, spacing: 6) {
+            ForEach(Array(weeks.enumerated()), id: \.offset) { idx, week in
+                let h = max(CGFloat(week.kilometers / peak) * 36, 2)
+                let isCurrent = idx == lastIndex
+                VStack(spacing: 4) {
+                    Text(String(format: "%.0f", week.kilometers))
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(isCurrent ? Color.irAIAccent : Color.irTextSecondary.opacity(0.7))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(isCurrent ? Color.irAIAccent : Color.white.opacity(0.18))
+                        .frame(width: 12, height: h)
+                    Text("S\(week.weekNumber)")
+                        .font(.system(size: 8, design: .monospaced))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.55))
+                }
+            }
+        }
+        .frame(height: 64, alignment: .bottom)
+    }
+
+    private func weeklyVolumes(in workouts: [WorkoutModel]) -> [WeekVolume] {
+        let calendar = Calendar.current
+        var byWeek: [Int: Double] = [:]
+
+        for w in workouts {
+            guard let km = w.distance.map({ $0 / 1000.0 }) else { continue }
+            let week = calendar.component(.weekOfYear, from: w.startDate)
+            byWeek[week, default: 0] += km
+        }
+
+        // Compute the 4-5 weeks of the selected month so we always show a chart
+        let monthStart = calendar.startOfMonth(for: selectedMonth)
+        guard let range = calendar.range(of: .weekOfYear, in: .month, for: monthStart) else {
+            return byWeek.keys.sorted().map { WeekVolume(weekNumber: $0, kilometers: byWeek[$0] ?? 0) }
+        }
+
+        let firstWeek = calendar.component(.weekOfYear, from: monthStart)
+        let weekCount = range.count
+        return (0..<weekCount).map { offset in
+            let w = firstWeek + offset
+            return WeekVolume(weekNumber: w, kilometers: byWeek[w] ?? 0)
+        }
+    }
+
+    private func formattedKilometers(_ meters: Double) -> String {
+        let km = meters / 1000.0
+        if km < 10 {
+            return String(format: "%.1f", km)
+        } else {
+            return String(format: "%.0f", km)
+        }
+    }
+
+    private func formatHoursMinutes(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        if h > 0 { return String(format: "%dh %02d", h, m) }
+        return String(format: "%dm", m)
+    }
+
+    private func formatPaceShort(_ pace: Double?) -> String {
+        guard let pace, pace > 0 else { return "—" }
+        let m = Int(pace)
+        let s = Int((pace - Double(m)) * 60)
+        return String(format: "%d'%02d\"", m, s)
+    }
+
+    private func formatElevation(_ meters: Double) -> String {
+        if meters >= 1000 {
+            return String(format: "%.1fk", meters / 1000.0)
+        }
+        return String(format: "%.0fm", meters)
+    }
+
+    private func formatCalories(_ kcal: Double) -> String {
+        if kcal >= 1000 {
+            return String(format: "%.1fk", kcal / 1000.0)
+        }
+        return String(format: "%.0f", kcal)
+    }
+
     // MARK: - Subscription CTA Card
 
     private var subscriptionCTACard: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 40))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.blue, .cyan],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+        VStack(spacing: 14) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.irAIAccent, Color.irAIAccentSecondary],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.black)
+                }
+                .frame(width: 22, height: 22)
 
-            VStack(spacing: 8) {
-                Text(String(localized: "Unlock AI Coaching", comment: "Subscription CTA title"))
-                    .font(.headline)
-                    .fontWeight(.bold)
-
-                Text(String(localized: "Get personalized insights and coaching powered by AI", comment: "Subscription CTA description"))
-                    .font(.subheadline)
-                    .foregroundStyle(Color.irTextSecondary)
-                    .multilineTextAlignment(.center)
+                Text(String(localized: "AI COACH", comment: "Subscription CTA eyebrow on workout list"))
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(1.0)
+                    .foregroundStyle(Color.irTextPrimary)
+                Spacer()
             }
+
+            Text(String(localized: "Unlock personalized insights and coaching powered by AI.", comment: "Subscription CTA description"))
+                .font(.system(size: 14))
+                .lineSpacing(2)
+                .foregroundStyle(Color.irTextSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
                 showInitialPaywall = true
             } label: {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "sparkles")
+                        .font(.system(size: 13, weight: .bold))
                     Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
+                        .font(.system(size: 14, weight: .bold))
                 }
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(
-                    LinearGradient(
-                        colors: [Color.irPrimaryAccent, .cyan],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .background(Color.irAIAccent)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             }
+            .buttonStyle(.plain)
         }
-        .padding()
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.irShadow, radius: 10, y: 5)
-    }
-
-    // MARK: - Month Header View
-
-    private func monthHeaderView(title: String, workouts: [WorkoutModel]) -> some View {
-        let stats = viewModel.stats(for: workouts)
-
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-                Text(String(format: String(localized: "%lld workouts", comment: "Month header workout count"), stats.count))
-                    .font(.caption)
-                    .foregroundStyle(Color.irTextSecondary)
-            }
-
-            HStack(spacing: 0) {
-                VStack(alignment: .center, spacing: 4) {
-                    Text(viewModel.formatDistance(stats.totalDistance))
-                        .font(.headline)
-                        .foregroundStyle(Color.irPrimaryAccent)
-                    Text(String(localized: "Distance", comment: "Distance stat label"))
-                        .font(.caption2)
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-                .frame(maxWidth: .infinity)
-
-                Divider()
-                    .frame(height: 30)
-
-                VStack(alignment: .center, spacing: 4) {
-                    Text(viewModel.formatDuration(stats.totalDuration))
-                        .font(.headline)
-                        .foregroundStyle(Color.irSuccess)
-                    Text(String(localized: "Time", comment: "Time stat label"))
-                        .font(.caption2)
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-                .frame(maxWidth: .infinity)
-
-                Divider()
-                    .frame(height: 30)
-
-                VStack(alignment: .center, spacing: 4) {
-                    Text(viewModel.formatPace(stats.averagePace))
-                        .font(.headline)
-                        .foregroundStyle(Color.irWarning)
-                    Text(String(localized: "Avg Pace", comment: "Average pace stat label"))
-                        .font(.caption2)
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .padding()
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.xl)
+                .strokeBorder(Color.irBorder, lineWidth: 0.5)
+        )
     }
 }
 
-// MARK: - Stat Item Component
+// MARK: - Stat Item Component (kept for compatibility)
 
 struct StatItem: View {
     let icon: String
@@ -665,8 +917,6 @@ struct StatItem: View {
         .frame(maxWidth: .infinity)
     }
 }
-
-// MARK: - Stats Row Component
 
 struct StatsRow: View {
     let icon: String

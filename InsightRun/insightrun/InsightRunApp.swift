@@ -44,6 +44,10 @@ struct InsightRunApp: App {
                 CachedRaceGoal.self
             ])
 
+            let monthlyStatsSchema = Schema([
+                MonthlyStatsAnalysis.self
+            ])
+
             // Original store for existing models
             let existingConfig = ModelConfiguration(
                 "ExistingData",
@@ -65,17 +69,25 @@ struct InsightRunApp: App {
                 isStoredInMemoryOnly: false
             )
 
+            // Separate store for monthly stats coach insights (LLM-generated)
+            let monthlyStatsConfig = ModelConfiguration(
+                "MonthlyStatsCache",
+                schema: monthlyStatsSchema,
+                isStoredInMemoryOnly: false
+            )
+
             // Combined schema for the container
             let fullSchema = Schema([
                 WorkoutAnalysis.self,
                 CachedStravaActivity.self,
                 CachedUnifiedWorkout.self,
-                CachedRaceGoal.self
+                CachedRaceGoal.self,
+                MonthlyStatsAnalysis.self
             ])
 
             sharedModelContainer = try ModelContainer(
                 for: fullSchema,
-                configurations: [existingConfig, unifiedCacheConfig, goalsConfig]
+                configurations: [existingConfig, unifiedCacheConfig, goalsConfig, monthlyStatsConfig]
             )
 
             // Make container accessible statically for views that need it in init

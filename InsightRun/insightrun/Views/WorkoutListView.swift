@@ -258,7 +258,7 @@ struct WorkoutListView: View {
     // MARK: - Authorization View
 
     private var authorizationView: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: Spacing.xxl) {
             Spacer()
 
             ZStack {
@@ -268,23 +268,22 @@ struct WorkoutListView: View {
                     .shadow(color: Color.irShadowStrong, radius: 20, y: 10)
 
                 Image(systemName: "figure.run.circle.fill")
-                    .font(.system(size: 50))
-                    .foregroundStyle(.blue.gradient)
+                    .font(IRFont.display)
+                    .foregroundStyle(Color.irPrimaryAccent.gradient)
             }
 
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 Text(String(localized: "Connect Your Data", comment: "Data source connection title"))
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(IRFont.title2.weight(.semibold))
 
                 Text(String(localized: "Connect at least one data source to see your running workouts.", comment: "Data source connection description"))
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, Spacing.xxl)
             }
 
-            VStack(spacing: 16) {
+            VStack(spacing: Spacing.base) {
                 Button {
                     Task {
                         await viewModel.requestAuthorization()
@@ -294,12 +293,12 @@ struct WorkoutListView: View {
                         Image(systemName: "heart.text.square.fill")
                         Text(String(localized: "Connect HealthKit", comment: "HealthKit permission button"))
                     }
-                    .font(.headline)
-                    .foregroundStyle(.white)
+                    .font(IRFont.headline)
+                    .foregroundStyle(Color.irCardBackground)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(Color.red.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                     .shadow(color: Color.red.opacity(0.3), radius: 10, y: 5)
                 }
 
@@ -313,18 +312,18 @@ struct WorkoutListView: View {
                             StravaIconView(size: 20, color: .white)
                             Text(String(localized: "Connect Strava", comment: "Strava connection button"))
                         }
-                        .font(.headline)
-                        .foregroundStyle(.white)
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irCardBackground)
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color(hex: "FC5200").gradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                         .shadow(color: Color(hex: "FC5200").opacity(0.3), radius: 10, y: 5)
                     }
                 }
             }
-            .padding(.horizontal, 32)
-            .padding(.top, 16)
+            .padding(.horizontal, Spacing.xxl)
+            .padding(.top, Spacing.base)
 
             Spacer()
         }
@@ -334,23 +333,22 @@ struct WorkoutListView: View {
     // MARK: - Denied View
 
     private var deniedView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Spacing.xl) {
             Spacer()
 
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.orange.gradient)
+                .font(IRFont.numXL)
+                .foregroundStyle(Color.irWarning.gradient)
 
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 Text(String(localized: "Access Denied", comment: "HealthKit access denied title"))
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(IRFont.title2.weight(.semibold))
 
                 Text(String(localized: "Please enable access in Settings → Privacy → Health → Insight Run", comment: "HealthKit access denied instructions"))
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, Spacing.xxl)
             }
 
             Button {
@@ -359,14 +357,14 @@ struct WorkoutListView: View {
                 }
             } label: {
                 Text(String(localized: "Open Settings", comment: "Settings button"))
-                    .font(.headline)
-                    .foregroundStyle(.white)
+                    .font(IRFont.headline)
+                    .foregroundStyle(Color.irTextPrimary)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(Color.irWarning.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, Spacing.xxl)
 
             Spacer()
         }
@@ -376,12 +374,12 @@ struct WorkoutListView: View {
     // MARK: - Loading View
 
     private var loadingView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             ProgressView()
                 .scaleEffect(1.5)
 
             Text(String(localized: "Loading...", comment: "Loading indicator"))
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -391,20 +389,19 @@ struct WorkoutListView: View {
     // MARK: - Empty View
 
     private var emptyView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Spacing.xl) {
             Spacer()
 
             Image(systemName: "figure.run.circle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.blue.gradient)
+                .font(IRFont.numLG)
+                .foregroundStyle(Color.irPrimaryAccent.gradient)
 
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 Text(String(localized: "No Workouts", comment: "Empty state title"))
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(IRFont.title2.weight(.semibold))
 
                 Text(String(localized: "No running workouts found.\nStart running to see your stats here!", comment: "Empty state description"))
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
@@ -419,7 +416,7 @@ struct WorkoutListView: View {
 
     private var workoutList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: Spacing.dash) {
                 heroSection
 
                 if showIndexationBanner && revenueCatManager.hasAIAccess {
@@ -450,7 +447,7 @@ struct WorkoutListView: View {
                         monthSummaryCard(workouts: visibleWorkouts)
                     }
 
-                    VStack(spacing: 8) {
+                    VStack(spacing: Spacing.sm) {
                         ForEach(Array(visibleWorkouts.enumerated()), id: \.element.id) { index, workout in
                             NavigationLink(value: workout) {
                                 WorkoutRowView(workout: workout)
@@ -469,9 +466,9 @@ struct WorkoutListView: View {
                     }
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 12)
-            .padding(.bottom, 20)
+            .padding(.horizontal, Spacing.cardPadding)
+            .padding(.top, Spacing.md)
+            .padding(.bottom, Spacing.lg)
         }
         .background(Color.irBackgroundApp)
         .accessibilityIdentifier("workout-list")
@@ -486,22 +483,22 @@ struct WorkoutListView: View {
     // MARK: - Hero
 
     private var heroSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(String(localized: "Workouts", comment: "Workout list large title"))
-                .font(.system(size: 34, weight: .heavy))
+                .font(IRFont.title1.weight(.heavy))
                 .kerning(-0.5)
                 .foregroundStyle(Color.irTextPrimary)
 
             if isSearching {
                 searchBar
             } else {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     monthPicker
                     Text("·")
-                        .font(.system(size: 13))
+                        .font(IRFont.footnote)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.5))
                     Text(String(format: String(localized: "%lld sessions", comment: "Workout list session count"), filterWorkouts(displayWorkouts).count))
-                        .font(.system(size: 13))
+                        .font(IRFont.footnote)
                         .foregroundStyle(Color.irTextSecondary)
                     Spacer()
                     searchToggleButton
@@ -520,7 +517,7 @@ struct WorkoutListView: View {
             }
         } label: {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 12, weight: .semibold))
+                .font(IRFont.caption.weight(.semibold))
                 .foregroundStyle(Color.irTextSecondary)
                 .frame(width: 28, height: 28)
                 .background(Capsule().fill(Color.irCardBackground))
@@ -531,16 +528,16 @@ struct WorkoutListView: View {
     }
 
     private var searchBar: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
+            HStack(spacing: Spacing.sm) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(IRFont.caption.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 TextField(
                     String(localized: "Search by date or source", comment: "Workout list search placeholder"),
                     text: $searchText
                 )
-                .font(.system(size: 13))
+                .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextPrimary)
                 .focused($searchFocused)
                 .submitLabel(.search)
@@ -549,14 +546,14 @@ struct WorkoutListView: View {
                         searchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 13))
+                            .font(IRFont.footnote)
                             .foregroundStyle(Color.irTextSecondary.opacity(0.6))
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
             .background(Capsule().fill(Color.irCardBackground))
             .overlay(Capsule().strokeBorder(Color.irBorder, lineWidth: 0.5))
 
@@ -568,7 +565,7 @@ struct WorkoutListView: View {
                 }
             } label: {
                 Text(String(localized: "Cancel", comment: "Cancel search button"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(IRFont.footnote.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary)
             }
             .buttonStyle(.plain)
@@ -576,12 +573,12 @@ struct WorkoutListView: View {
     }
 
     private var monthPicker: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             Button {
                 adjustMonth(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(IRFont.microLabel.weight(.bold))
                     .foregroundStyle(Color.irTextSecondary)
                     .frame(width: 18, height: 18)
             }
@@ -601,7 +598,7 @@ struct WorkoutListView: View {
                 }
             } label: {
                 Text(monthLabel)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(IRFont.caption.weight(.semibold))
                     .foregroundStyle(Color.irTextPrimary)
                     .frame(minWidth: 88)
                     .contentShape(Rectangle())
@@ -611,15 +608,15 @@ struct WorkoutListView: View {
                 adjustMonth(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(IRFont.microLabel.weight(.bold))
                     .foregroundStyle(canGoForward ? Color.irTextSecondary : Color.irTextSecondary.opacity(0.3))
                     .frame(width: 18, height: 18)
             }
             .buttonStyle(.plain)
             .disabled(!canGoForward)
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 4)
+        .padding(.horizontal, Spacing.xxs)
+        .padding(.vertical, Spacing.xxs)
         .background(
             Capsule().fill(Color.irCardBackground)
         )
@@ -647,19 +644,19 @@ struct WorkoutListView: View {
         let weeks = weeklyVolumes(in: workouts)
         let lastIndex = max(0, weeks.count - 1)
 
-        return VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: Spacing.dash) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(String(localized: "Volume", comment: "Month volume label"))
-                        .font(.system(size: 11))
+                        .font(IRFont.eyebrow)
                         .foregroundStyle(Color.irTextSecondary)
-                    HStack(alignment: .lastTextBaseline, spacing: 4) {
+                    HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                         Text(formattedKilometers(totalDistance))
-                            .font(.system(size: 36, weight: .heavy, design: .rounded))
+                            .font(IRFont.numMD.weight(.heavy))
                             .kerning(-0.5)
                             .foregroundStyle(Color.irTextPrimary)
                         Text("km")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(IRFont.footnote.weight(.semibold))
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -691,23 +688,23 @@ struct WorkoutListView: View {
                 )
             }
         }
-        .padding(18)
+        .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
 
     private var monthEmptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Spacing.sm) {
             Image(systemName: "figure.run.circle")
-                .font(.system(size: 32))
+                .font(IRFont.title3)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.5))
             Text(String(localized: "No sessions this month", comment: "Empty state when selected month has no workouts"))
-                .font(.system(size: 13))
+                .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -715,12 +712,12 @@ struct WorkoutListView: View {
     }
 
     private var searchEmptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 28))
+                .font(IRFont.title3)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.5))
             Text(String(localized: "No results", comment: "Empty state when search returns no workouts"))
-                .font(.system(size: 13))
+                .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -734,12 +731,12 @@ struct WorkoutListView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(IRFont.body.weight(.bold))
                     .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 Text(label.uppercased())
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(IRFont.eyebrow.weight(.semibold))
                     .tracking(0.8)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.7))
             }
@@ -750,19 +747,19 @@ struct WorkoutListView: View {
 
     private func weeklyMiniBars(weeks: [WeekVolume], lastIndex: Int) -> some View {
         let peak = max(weeks.map { $0.kilometers }.max() ?? 1, 1)
-        return HStack(alignment: .bottom, spacing: 6) {
+        return HStack(alignment: .bottom, spacing: Spacing.xs) {
             ForEach(Array(weeks.enumerated()), id: \.offset) { idx, week in
                 let h = max(CGFloat(week.kilometers / peak) * 36, 2)
                 let isCurrent = idx == lastIndex
-                VStack(spacing: 4) {
+                VStack(spacing: Spacing.xxs) {
                     Text(String(format: "%.0f", week.kilometers))
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(IRFont.eyebrow.weight(.semibold))
                         .foregroundStyle(isCurrent ? Color.irAIAccent : Color.irTextSecondary.opacity(0.7))
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(isCurrent ? Color.irAIAccent : Color.white.opacity(0.18))
+                        .fill(isCurrent ? Color.irAIAccent : Color.irTextPrimary.opacity(0.18))
                         .frame(width: 12, height: h)
                     Text("S\(week.weekNumber)")
-                        .font(.system(size: 8, design: .monospaced))
+                        .font(IRFont.monoSM)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.55))
                 }
             }
@@ -835,8 +832,8 @@ struct WorkoutListView: View {
     // MARK: - Subscription CTA Card
 
     private var subscriptionCTACard: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 10) {
+        VStack(spacing: Spacing.dash) {
+            HStack(spacing: Spacing.md) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 7)
                         .fill(
@@ -847,20 +844,20 @@ struct WorkoutListView: View {
                             )
                         )
                     Image(systemName: "sparkles")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color.black)
+                        .font(IRFont.eyebrow.weight(.bold))
+                        .foregroundStyle(Color.irCardBackground)
                 }
                 .frame(width: 22, height: 22)
 
                 Text(String(localized: "AI COACH", comment: "Subscription CTA eyebrow on workout list"))
-                    .font(.system(size: 11, weight: .bold))
+                    .font(IRFont.eyebrow.weight(.bold))
                     .tracking(1.0)
                     .foregroundStyle(Color.irTextPrimary)
                 Spacer()
             }
 
             Text(String(localized: "Unlock personalized insights and coaching powered by AI.", comment: "Subscription CTA description"))
-                .font(.system(size: 14))
+                .font(IRFont.body)
                 .lineSpacing(2)
                 .foregroundStyle(Color.irTextSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -868,26 +865,26 @@ struct WorkoutListView: View {
             Button {
                 showInitialPaywall = true
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(IRFont.footnote.weight(.bold))
                     Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
-                        .font(.system(size: 14, weight: .bold))
+                        .font(IRFont.body.weight(.bold))
                 }
-                .foregroundStyle(Color.black)
+                .foregroundStyle(Color.irCardBackground)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, Spacing.md)
                 .background(Color.irAIAccent)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
             .buttonStyle(.plain)
         }
-        .padding(18)
+        .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -901,17 +898,16 @@ struct StatItem: View {
     let label: String
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Spacing.sm) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(IRFont.title3)
                 .foregroundStyle(Color.irPrimaryAccent.gradient)
 
             Text(value)
-                .font(.title3)
-                .fontWeight(.semibold)
+                .font(IRFont.title3.weight(.semibold))
 
             Text(label)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -930,14 +926,13 @@ struct StatsRow: View {
                 .frame(width: 24)
 
             Text(label)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
 
             Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .font(IRFont.body.weight(.semibold))
         }
     }
 }

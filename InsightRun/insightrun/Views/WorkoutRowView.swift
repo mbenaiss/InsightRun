@@ -77,7 +77,7 @@ enum WorkoutSessionType {
         case .interval: return .irError
         case .tempo:    return .irWarning
         case .easy:     return .irSuccess
-        case .long:     return Color(hex: "BF5AF2")
+        case .long:     return Color.irPurple
         }
     }
 
@@ -120,7 +120,7 @@ private enum RowWorkoutSource {
         case .polar: return Color(hex: "D32F2F")
         case .coros: return Color(hex: "FF6B00")
         case .imported: return Color(hex: "FF9500")
-        case .other: return .blue
+        case .other: return Color.irPrimaryAccent
         }
     }
 
@@ -247,7 +247,7 @@ struct WorkoutRowView: View {
             HStack(alignment: .top, spacing: Spacing.md) {
                 leftBadgeColumn
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     metaLine
                     titleLine
                     chipsRow
@@ -255,24 +255,24 @@ struct WorkoutRowView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(alignment: .trailing, spacing: 8) {
+                VStack(alignment: .trailing, spacing: Spacing.sm) {
                     traceShape
                         .frame(width: 46, height: 26)
                         .opacity(0.7)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(IRFont.eyebrow.weight(.bold))
                         .foregroundStyle(Color.irTextSecondary.opacity(0.55))
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-            .padding(.bottom, 12)
+            .padding(.horizontal, Spacing.dash)
+            .padding(.top, Spacing.dash)
+            .padding(.bottom, Spacing.md)
 
             // bottom load bar
             ZStack(alignment: .leading) {
                 Rectangle()
-                    .fill(Color.white.opacity(0.04))
+                    .fill(Color.irBorder)
                     .frame(height: 3)
                 GeometryReader { geo in
                     Rectangle()
@@ -284,9 +284,9 @@ struct WorkoutRowView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.lg)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -294,17 +294,17 @@ struct WorkoutRowView: View {
     // MARK: - Subviews
 
     private var leftBadgeColumn: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Spacing.xs) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: Radius.xs)
                     .fill(sessionType.color.opacity(0.18))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: Radius.xs)
                             .strokeBorder(sessionType.color.opacity(0.35), lineWidth: 0.5)
                     )
 
                 Image(systemName: typeGlyph)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(IRFont.body.weight(.semibold))
                     .foregroundStyle(sessionType.color)
             }
             .frame(width: 36, height: 36)
@@ -313,16 +313,16 @@ struct WorkoutRowView: View {
                     .offset(x: 4, y: 4)
             }
 
-            VStack(spacing: 4) {
+            VStack(spacing: Spacing.xxs) {
                 Text(String(localized: "EFFORT", comment: "Workout intensity dots label"))
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .font(IRFont.monoSM.weight(.bold))
                     .tracking(0.5)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.7))
 
                 HStack(spacing: 3) {
                     ForEach(1...5, id: \.self) { i in
                         RoundedRectangle(cornerRadius: 1)
-                            .fill(i <= rpeLevel ? sessionType.color : Color.white.opacity(0.1))
+                            .fill(i <= rpeLevel ? sessionType.color : Color.irBorder)
                             .frame(width: 3, height: 8)
                     }
                 }
@@ -349,19 +349,19 @@ struct WorkoutRowView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 9, height: 9)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.irTextPrimary)
                 )
             case .imported:
                 return AnyView(
                     Text("I")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(IRFont.monoSM.weight(.bold))
+                        .foregroundStyle(Color.irTextPrimary)
                 )
             default:
                 return AnyView(
                     Text(String(workout.sourceName.prefix(1)).uppercased())
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(IRFont.monoSM.weight(.bold))
+                        .foregroundStyle(Color.irTextPrimary)
                 )
             }
         }()
@@ -377,7 +377,7 @@ struct WorkoutRowView: View {
 
     private var metaLine: some View {
         Text("\(dayLabel) \(dateLabel) · \(timeLabel)")
-            .font(.system(size: 10, weight: .bold, design: .monospaced))
+            .font(IRFont.microLabel.weight(.bold))
             .tracking(0.8)
             .foregroundStyle(Color.irTextSecondary.opacity(0.7))
             .lineLimit(1)
@@ -385,7 +385,7 @@ struct WorkoutRowView: View {
 
     private var titleLine: some View {
         Text(titleText)
-            .font(.system(size: 15, weight: .bold))
+            .font(IRFont.bodyEmphasized.weight(.bold))
             .foregroundStyle(Color.irTextPrimary)
             .lineLimit(1)
     }
@@ -400,22 +400,22 @@ struct WorkoutRowView: View {
     @ViewBuilder
     private var chipsRow: some View {
         if workout.isIndoor {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xxs) {
                 Text(String(localized: "Indoor", comment: "Workout chip: indoor"))
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(IRFont.eyebrow.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary)
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, 2)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.white.opacity(0.05))
+                            .fill(Color.irBorder)
                     )
             }
         }
     }
 
     private var statsRow: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             stat(icon: "ruler", value: distanceText, unit: "km", mono: false)
             stat(icon: "clock", value: durationCompact, unit: nil, mono: true)
             if let pace = paceText {
@@ -428,18 +428,18 @@ struct WorkoutRowView: View {
     }
 
     private func stat(icon: String, value: String, unit: String?, mono: Bool, tint: Color = .irTextSecondary) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
             Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
+                .font(IRFont.microLabel.weight(.semibold))
                 .foregroundStyle(tint)
 
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.system(size: 12, weight: .bold, design: mono ? .monospaced : .rounded))
+                    .font(mono ? IRFont.monoSM.weight(.bold) : IRFont.caption.weight(.bold))
                     .foregroundStyle(Color.irTextPrimary)
                 if let unit {
                     Text(unit)
-                        .font(.system(size: 8, weight: .medium))
+                        .font(IRFont.monoSM.weight(.medium))
                         .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
             }
@@ -463,7 +463,7 @@ struct WorkoutRowView: View {
 }
 
 #Preview {
-    VStack(spacing: 8) {
+    VStack(spacing: Spacing.sm) {
         WorkoutRowView(
             workout: WorkoutModel(
                 id: UUID(),

@@ -19,23 +19,23 @@ struct FloatingAIButton: View {
             Button {
                 Task { await loadContextAndShowAssistant() }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xs) {
                     if isLoading || contextProvider.isLoading {
                         ProgressView()
                             .controlSize(.small)
                             .tint(.black)
                     } else {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(IRFont.footnote.weight(.bold))
                     }
 
                     Text(String(localized: "AI Coach", comment: "Floating AI button label"))
-                        .font(.system(size: 13, weight: .bold))
+                        .font(IRFont.footnote.weight(.bold))
                         .kerning(-0.1)
                 }
-                .foregroundStyle(.black)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
+                .foregroundStyle(Color.irCardBackground)
+                .padding(.horizontal, Spacing.dash)
+                .padding(.vertical, Spacing.md)
                 .background(
                     Capsule()
                         .fill(
@@ -48,14 +48,14 @@ struct FloatingAIButton: View {
                 )
                 .overlay(
                     Capsule()
-                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
+                        .strokeBorder(Color.irBorderStrong, lineWidth: 0.5)
                 )
                 .shadow(color: Color.irAIAccent.opacity(0.45), radius: 14, y: 6)
             }
             .buttonStyle(.plain)
             .disabled(isLoading || contextProvider.isLoading)
             .accessibilityIdentifier("floating-ai-button")
-            .padding(.trailing, 18)
+            .padding(.trailing, Spacing.cardPadding)
             .padding(.bottom, 100)
         }
     }
@@ -75,7 +75,7 @@ struct FloatingAIButton: View {
 
 #Preview {
     ZStack(alignment: .bottomTrailing) {
-        Color.gray.opacity(0.2)
+        Color.irTextTertiary.opacity(0.5)
             .ignoresSafeArea()
 
         FloatingAIButton(showingAIAssistant: .constant(false))

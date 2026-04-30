@@ -21,7 +21,7 @@ struct NotificationPermissionStepView: View {
             secondaryTitle: String(localized: "Skip for now", comment: "Onboarding notification skip button"),
             secondaryAction: skip
         ) {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.xl) {
                 AnimatedOnboardingIllustration(type: .notifications)
 
                 OnboardingEditorialHeader(
@@ -30,7 +30,7 @@ struct NotificationPermissionStepView: View {
                     body: String(localized: "Notifications help you stay consistent with daily readiness scores, coaching alerts, and weekly summaries", comment: "Onboarding notification description")
                 )
 
-                VStack(spacing: 8) {
+                VStack(spacing: Spacing.sm) {
                     OnboardingFeatureCard(
                         icon: "sunrise.fill",
                         iconTint: .irWarning,
@@ -64,21 +64,21 @@ struct NotificationPermissionStepView: View {
     }
 
     private var settingsHint: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.md) {
             Image(systemName: "gearshape.fill")
-                .font(.system(size: 13))
+                .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextSecondary)
             Text(String(localized: "You can enable notifications later in Settings", comment: "Onboarding notification optional note"))
-                .font(.system(size: 11))
+                .font(IRFont.eyebrow)
                 .foregroundStyle(Color.irTextSecondary)
             Spacer()
         }
-        .padding(12)
+        .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: Radius.sm)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }

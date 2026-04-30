@@ -67,6 +67,27 @@ struct UnifiedWorkout: Identifiable {
     let name: String
     let notes: String?
 
+    private static func metadataWorkoutName(_ metadata: [String: Any]?) -> String? {
+        let keys = [
+            "display_name",
+            "strava_name",
+            "title",
+            "workout_name",
+            "activity_name",
+            "name"
+        ]
+
+        for key in keys {
+            guard let rawValue = metadata?[key] else { continue }
+            let value = String(describing: rawValue).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty {
+                return value
+            }
+        }
+
+        return nil
+    }
+
     // MARK: - Computed Properties
 
     var distanceKm: Double {
@@ -165,7 +186,7 @@ struct UnifiedWorkout: Identifiable {
         self.totalElevationGain = healthKitWorkout.elevationGain
         self.hasRoute = healthKitWorkout.hasRoute
         self.routePolyline = nil // HealthKit doesn't provide polylines
-        self.name = healthKitWorkout.workoutType.name
+        self.name = Self.metadataWorkoutName(healthKitWorkout.metadata) ?? healthKitWorkout.workoutType.name
         self.notes = healthKitWorkout.metadata?["notes"] as? String
     }
 
@@ -381,9 +402,32 @@ extension UnifiedWorkout {
     func toWorkoutModel() -> WorkoutModel {
         // Use HealthKit workout if available, otherwise create from Strava data
         if let hkWorkout = healthKitWorkout {
+            var metadata = hkWorkout.metadata ?? [:]
+            var hasMetadataUpdates = false
+
+            if !name.isEmpty, name != hkWorkout.workoutType.name {
+                metadata["display_name"] = name
+                metadata["name"] = name
+                hasMetadataUpdates = true
+            }
+
+            if let stravaActivity {
+                metadata["display_name"] = stravaActivity.name
+                metadata["strava_id"] = String(stravaActivity.id)
+                metadata["strava_name"] = stravaActivity.name
+                metadata["name"] = stravaActivity.name
+                hasMetadataUpdates = true
+
+                if let maxSpeed {
+                    metadata["max_speed"] = maxSpeed
+                }
+                if let averageSpeed {
+                    metadata["average_speed"] = averageSpeed
+                }
+            }
+
             // If we have Suunto data, enrich the WorkoutModel with it
             if let suunto = suuntoActivity {
-                var metadata = hkWorkout.metadata ?? [:]
                 metadata["suunto_device"] = suunto.deviceName
                 metadata["suunto_avg_hr"] = suunto.averageHeartRate
                 metadata["suunto_max_hr"] = suunto.maxHeartRate
@@ -431,6 +475,27 @@ extension UnifiedWorkout {
                     isIndoor: hkWorkout.isIndoor
                 )
             }
+
+            if hasMetadataUpdates {
+                return WorkoutModel(
+                    id: hkWorkout.id,
+                    workoutType: hkWorkout.workoutType,
+                    startDate: hkWorkout.startDate,
+                    endDate: hkWorkout.endDate,
+                    duration: hkWorkout.duration,
+                    distance: hkWorkout.distance,
+                    totalEnergyBurned: hkWorkout.totalEnergyBurned,
+                    sourceName: hkWorkout.sourceName,
+                    sourceVersion: hkWorkout.sourceVersion,
+                    metadata: metadata,
+                    averageHeartRate: hkWorkout.averageHeartRate,
+                    maxHeartRate: hkWorkout.maxHeartRate,
+                    elevationGain: hkWorkout.elevationGain,
+                    hasRoute: hkWorkout.hasRoute,
+                    isIndoor: hkWorkout.isIndoor
+                )
+            }
+
             return hkWorkout
         } else if let stravaActivity = stravaActivity {
             // Create a stable UUID from Strava ID using namespace UUID
@@ -438,7 +503,9 @@ extension UnifiedWorkout {
 
             // Create a WorkoutModel from Strava activity with all available metrics
             var metadata: [String: Any] = [
+                "display_name": stravaActivity.name,
                 "strava_id": String(stravaActivity.id),
+                "name": stravaActivity.name,
                 "strava_name": stravaActivity.name
             ]
             if let maxSpeed = maxSpeed {

@@ -35,7 +35,7 @@ struct WeeklySummaryView: View {
             ProgressView()
                 .scaleEffect(1.5)
             Text(String(localized: "Loading...", comment: "Loading indicator text"))
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -47,10 +47,10 @@ struct WeeklySummaryView: View {
     private func errorView(_ message: String) -> some View {
         VStack(spacing: Spacing.base) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 50))
+                .font(IRFont.display)
                 .foregroundStyle(Color.irWarning.gradient)
             Text(message)
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Spacing.xxl)
@@ -90,17 +90,16 @@ struct WeeklySummaryView: View {
         HStack {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(viewModel.formattedWeekRange)
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(IRFont.title2.weight(.bold))
                     .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "\(viewModel.runCount) runs this week", comment: "Number of runs this week"))
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
             }
             Spacer()
             Image(systemName: "calendar")
-                .font(.title3)
+                .font(IRFont.title3)
                 .foregroundStyle(Color.irPrimaryAccent.gradient)
         }
         .cardStyle()
@@ -111,7 +110,7 @@ struct WeeklySummaryView: View {
     private var runningHighlights: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Label(String(localized: "Running", comment: "Section header for running metrics"), systemImage: "figure.run")
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
 
             HStack(spacing: Spacing.lg) {
@@ -137,12 +136,11 @@ struct WeeklySummaryView: View {
     private func highlightColumn(value: String, label: String) -> some View {
         VStack(spacing: Spacing.xxs) {
             Text(value)
-                .font(.system(.title3, design: .rounded))
-                .fontWeight(.bold)
+                .font(IRFont.title3.weight(.bold))
                 .foregroundStyle(Color.irTextPrimary)
 
             Text(label)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -154,14 +152,14 @@ struct WeeklySummaryView: View {
         VStack(spacing: Spacing.sm) {
             metricRow(
                 icon: "figure.run",
-                iconColor: .blue,
+                iconColor: Color.irPrimaryAccent,
                 title: String(localized: "Runs", comment: "Label for number of runs"),
                 value: "\(viewModel.runCount)"
             )
 
             metricRow(
                 icon: "flame.fill",
-                iconColor: .red,
+                iconColor: Color.irError,
                 title: String(localized: "Calories", comment: "Label for total calories"),
                 value: String(format: "%.0f %@", viewModel.totalCalories, String(localized: "kcal", comment: "Unit abbreviation for kilocalories"))
             )
@@ -169,7 +167,7 @@ struct WeeklySummaryView: View {
             if viewModel.longestRunDistance > 0 {
                 metricRow(
                     icon: "trophy.fill",
-                    iconColor: .orange,
+                    iconColor: Color.irWarning,
                     title: String(localized: "Longest Run", comment: "Label for longest run distance"),
                     value: viewModel.formattedLongestRun
                 )
@@ -178,7 +176,7 @@ struct WeeklySummaryView: View {
             if viewModel.bestPace != nil {
                 metricRow(
                     icon: "bolt.fill",
-                    iconColor: .green,
+                    iconColor: Color.irSuccess,
                     title: String(localized: "Best Pace", comment: "Label for best pace"),
                     value: viewModel.formattedBestPace
                 )
@@ -187,7 +185,7 @@ struct WeeklySummaryView: View {
             if let maxHR = viewModel.maxHeartRate {
                 metricRow(
                     icon: "heart.fill",
-                    iconColor: .pink,
+                    iconColor: Color.irError,
                     title: String(localized: "Max HR", comment: "Label for max heart rate"),
                     value: String(format: "%.0f %@", maxHR, String(localized: "bpm", comment: "Unit abbreviation for beats per minute"))
                 )
@@ -199,19 +197,18 @@ struct WeeklySummaryView: View {
     private func metricRow(icon: String, iconColor: Color, title: String, value: String) -> some View {
         HStack(spacing: Spacing.md) {
             Image(systemName: icon)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(iconColor.opacity(0.8))
                 .frame(width: 24)
 
             Text(title)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
             Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .font(IRFont.body.weight(.semibold))
                 .foregroundStyle(Color.irTextSecondary)
         }
         .padding(.vertical, Spacing.xxs)
@@ -222,7 +219,7 @@ struct WeeklySummaryView: View {
     private var sleepSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Label(String(localized: "Sleep", comment: "Section header for sleep metrics"), systemImage: "moon.fill")
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
 
             HStack(spacing: Spacing.lg) {
@@ -254,24 +251,24 @@ struct WeeklySummaryView: View {
     private var sleepStagesBar: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(String(localized: "Avg Sleep Stages", comment: "Label for average sleep stages breakdown"))
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
 
             GeometryReader { geometry in
                 HStack(spacing: 2) {
                     stageSegment(
                         width: geometry.size.width * viewModel.averageDeepPercent / 100,
-                        color: .indigo,
+                        color: Color.irPurple,
                         label: String(localized: "Deep", comment: "Deep sleep stage label")
                     )
                     stageSegment(
                         width: geometry.size.width * viewModel.averageCorePercent / 100,
-                        color: .blue,
+                        color: Color.irPrimaryAccent,
                         label: String(localized: "Core", comment: "Core sleep stage label")
                     )
                     stageSegment(
                         width: geometry.size.width * viewModel.averageRemPercent / 100,
-                        color: .cyan,
+                        color: Color.irPrimaryAccent,
                         label: String(localized: "REM", comment: "REM sleep stage label")
                     )
                 }
@@ -280,11 +277,11 @@ struct WeeklySummaryView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
 
             HStack(spacing: Spacing.base) {
-                stageLegend(color: .indigo, label: "\(String(localized: "Deep", comment: "Deep sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageDeepPercent))")
-                stageLegend(color: .blue, label: "\(String(localized: "Core", comment: "Core sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageCorePercent))")
-                stageLegend(color: .cyan, label: "\(String(localized: "REM", comment: "REM sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageRemPercent))")
+                stageLegend(color: Color.irPurple, label: "\(String(localized: "Deep", comment: "Deep sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageDeepPercent))")
+                stageLegend(color: Color.irPrimaryAccent, label: "\(String(localized: "Core", comment: "Core sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageCorePercent))")
+                stageLegend(color: Color.irPrimaryAccent, label: "\(String(localized: "REM", comment: "REM sleep stage legend")) \(String(format: "%.0f%%", viewModel.averageRemPercent))")
             }
-            .font(.caption2)
+            .font(IRFont.microLabel)
         }
     }
 
@@ -310,7 +307,7 @@ struct WeeklySummaryView: View {
     private var recoverySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Label(String(localized: "Recovery", comment: "Section header for recovery metrics"), systemImage: "heart.text.square.fill")
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
 
             HStack(spacing: Spacing.lg) {
@@ -320,7 +317,7 @@ struct WeeklySummaryView: View {
                     if let hrv = viewModel.averageHRV {
                         recoveryMetricRow(
                             icon: "waveform.path.ecg",
-                            color: .purple,
+                            color: Color.irPurple,
                             label: String(localized: "HRV", comment: "Label for heart rate variability"),
                             value: String(format: "%.0f %@", hrv, String(localized: "ms", comment: "Unit abbreviation for milliseconds"))
                         )
@@ -329,7 +326,7 @@ struct WeeklySummaryView: View {
                     if let rhr = viewModel.averageRestingHR {
                         recoveryMetricRow(
                             icon: "heart.fill",
-                            color: .red,
+                            color: Color.irError,
                             label: String(localized: "Resting HR", comment: "Label for resting heart rate"),
                             value: String(format: "%.0f %@", rhr, String(localized: "bpm", comment: "Unit abbreviation for beats per minute"))
                         )
@@ -338,7 +335,7 @@ struct WeeklySummaryView: View {
                     if let spo2 = viewModel.averageSpO2 {
                         recoveryMetricRow(
                             icon: "drop.fill",
-                            color: .blue,
+                            color: Color.irPrimaryAccent,
                             label: String(localized: "SpO2", comment: "Label for blood oxygen saturation"),
                             value: String(format: "%.1f%%", spo2)
                         )
@@ -353,19 +350,18 @@ struct WeeklySummaryView: View {
     private func recoveryMetricRow(icon: String, color: Color, label: String, value: String) -> some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(color.gradient)
                 .frame(width: 16)
 
             Text(label)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
 
             Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .font(IRFont.body.weight(.semibold))
                 .foregroundStyle(Color.irTextPrimary)
         }
     }
@@ -379,7 +375,7 @@ struct WeeklySummaryView: View {
         if hasComparison {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Label(String(localized: "vs Previous Week", comment: "Section header for comparison with previous week"), systemImage: "arrow.left.arrow.right")
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 VStack(spacing: Spacing.sm) {
@@ -415,23 +411,21 @@ struct WeeklySummaryView: View {
     private func comparisonRow(label: String, change: Double, isPercent: Bool) -> some View {
         HStack {
             Text(label)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
             HStack(spacing: Spacing.xxs) {
                 Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                    .font(.caption2)
+                    .font(IRFont.microLabel)
 
                 if isPercent {
                     Text(String(format: "%+.1f%%", change))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(IRFont.body.weight(.semibold))
                 } else {
                     Text(String(format: "%+.0f %@", change, String(localized: "pts", comment: "Unit abbreviation for points")))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(IRFont.body.weight(.semibold))
                 }
             }
             .foregroundStyle(change >= 0 ? Color.irSuccess : Color.irError)

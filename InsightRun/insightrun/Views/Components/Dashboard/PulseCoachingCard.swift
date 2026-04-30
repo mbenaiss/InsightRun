@@ -46,9 +46,9 @@ struct PulseCoachingCard: View {
             }
         }
         .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: Radius.xl)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
     }
@@ -63,7 +63,7 @@ struct PulseCoachingCard: View {
 
         if !detail.isEmpty && detail != tldr {
             Text(detail)
-                .font(.system(size: 14))
+                .font(IRFont.body)
                 .lineSpacing(3)
                 .foregroundStyle(Color.irTextSecondary)
                 .padding(.horizontal, Spacing.base + 2)
@@ -72,7 +72,7 @@ struct PulseCoachingCard: View {
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: 7)
                     .fill(
@@ -84,13 +84,13 @@ struct PulseCoachingCard: View {
                     )
 
                 Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.black)
+                    .font(IRFont.eyebrow.weight(.bold))
+                    .foregroundStyle(Color.irCardBackground)
             }
             .frame(width: 22, height: 22)
 
             Text(String(localized: "COACH · \(timestampLabel)", comment: "Dashboard coach card header"))
-                .font(.system(size: 11, weight: .semibold))
+                .font(IRFont.eyebrow.weight(.semibold))
                 .tracking(1.0)
                 .foregroundStyle(Color.irTextPrimary)
         }
@@ -108,7 +108,7 @@ struct PulseCoachingCard: View {
                         .foregroundStyle(Color.irAIAccent)
                         .underline(true, color: Color.irAIAccent.opacity(0.6))
                     + Text(tldr[range.upperBound..<tldr.endIndex]))
-                .font(.system(size: 17, weight: .semibold))
+                .font(IRFont.headline.weight(.semibold))
                 .lineSpacing(2)
                 .kerning(-0.1)
                 .foregroundStyle(Color.irTextPrimary)
@@ -117,7 +117,7 @@ struct PulseCoachingCard: View {
         } else {
             return AnyView(
                 Text(tldr)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(IRFont.headline.weight(.semibold))
                     .lineSpacing(2)
                     .kerning(-0.1)
                     .foregroundStyle(Color.irTextPrimary)
@@ -130,12 +130,12 @@ struct PulseCoachingCard: View {
         FlowLayout(spacing: 6) {
             ForEach(reasons, id: \.self) { reason in
                 Text(reason)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(IRFont.eyebrow.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary)
                     .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Spacing.xxs)
                     .background(
-                        Capsule().fill(Color.white.opacity(0.06))
+                        Capsule().fill(Color.irBorder)
                     )
                     .overlay(
                         Capsule().strokeBorder(Color.irBorder, lineWidth: 0.5)
@@ -152,13 +152,13 @@ struct PulseCoachingCard: View {
                 Text(expanded
                     ? String(localized: "Reduce", comment: "Coaching collapse")
                     : String(localized: "View detail", comment: "Coaching expand"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(IRFont.footnote.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary)
 
                 Spacer()
 
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(IRFont.eyebrow.weight(.bold))
                     .foregroundStyle(Color.irTextSecondary)
                     .rotationEffect(.degrees(expanded ? 180 : 0))
             }
@@ -171,14 +171,14 @@ struct PulseCoachingCard: View {
 
     private func createPlanButton(action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(IRFont.footnote.weight(.bold))
 
                 Text(String(localized: "Create a training plan", comment: "Dashboard create plan button"))
-                    .font(.system(size: 14, weight: .bold))
+                    .font(IRFont.body.weight(.bold))
             }
-            .foregroundStyle(Color.black)
+            .foregroundStyle(Color.irCardBackground)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.md)
             .background(Color.irAIAccent)

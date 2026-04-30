@@ -25,11 +25,11 @@ struct ViewOnStravaLink: View {
 
     var body: some View {
         Link(destination: stravaURL) {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xxs) {
                 Text("View on Strava")
                     .applyLinkStyle(style)
                 Image(systemName: "arrow.up.right.square")
-                    .font(.caption)
+                    .font(IRFont.caption)
             }
         }
     }
@@ -62,9 +62,9 @@ private extension Text {
 // MARK: - Preview
 
 #Preview {
-    VStack(alignment: .leading, spacing: 16) {
+    VStack(alignment: .leading, spacing: Spacing.base) {
         Text("Link Styles (per Strava Guidelines):")
-            .font(.headline)
+            .font(IRFont.headline)
 
         ViewOnStravaLink(activityId: 123456789, style: .bold)
         ViewOnStravaLink(activityId: 123456789, style: .underline)

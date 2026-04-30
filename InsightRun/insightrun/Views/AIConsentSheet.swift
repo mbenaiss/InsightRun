@@ -15,107 +15,107 @@ struct AIConsentSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: Spacing.base) {
                     // Header Section
-                    VStack(spacing: 12) {
+                    VStack(spacing: Spacing.md) {
                         Image(systemName: "hand.raised.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(.blue.gradient)
-                            .padding(.top, 24)
+                            .font(IRFont.numLG)
+                            .foregroundStyle(Color.irPrimaryAccent.gradient)
+                            .padding(.top, Spacing.xl)
 
                         Text(String(localized: "consent.title"))
-                            .font(.title2.bold())
+                            .font(IRFont.title2.bold())
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, Spacing.base)
 
                         Text(String(localized: "consent.description"))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                            .font(IRFont.bodyEmphasized)
+                            .foregroundStyle(Color.irTextSecondary)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, Spacing.xl)
                     }
 
                     // Data Collection Section
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: Spacing.md) {
                         Text(String(localized: "consent.data_header"))
-                            .font(.headline)
+                            .font(IRFont.headline)
                         
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: Spacing.sm) {
                             DataCategoryRow(text: String(localized: "consent.data.health_profile"))
                             DataCategoryRow(text: String(localized: "consent.data.history"))
                             DataCategoryRow(text: String(localized: "consent.data.workout"))
                         }
                     }
-                    .padding(12)
+                    .padding(Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .padding(.horizontal, 24)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                    .padding(.horizontal, Spacing.xl)
 
                     // Privacy Section
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: Spacing.md) {
                         Text(String(localized: "consent.privacy_header"))
-                            .font(.headline)
+                            .font(IRFont.headline)
                         
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: Spacing.sm) {
                             PrivacyCheckRow(text: String(localized: "consent.privacy.anonymous"))
                             PrivacyCheckRow(text: String(localized: "consent.privacy.only_analysis"))
                             PrivacyCheckRow(text: String(localized: "consent.privacy.no_storage"))
                             PrivacyCheckRow(text: String(localized: "consent.privacy.no_sale"))
                         }
                     }
-                    .padding(12)
+                    .padding(Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .padding(.horizontal, 24)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                    .padding(.horizontal, Spacing.xl)
 
                     // Provider & Privacy link
-                    VStack(spacing: 12) {
-                        VStack(alignment: .center, spacing: 4) {
+                    VStack(spacing: Spacing.md) {
+                        VStack(alignment: .center, spacing: Spacing.xxs) {
                             Text(String(localized: "consent.processed_by"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(IRFont.caption)
+                                .foregroundStyle(Color.irTextSecondary)
                             
-                            HStack(spacing: 6) {
+                            HStack(spacing: Spacing.xs) {
                                 Image(systemName: "brain.head.profile")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.irPrimaryAccent)
                                 Text(String(localized: "consent.provider_openrouter"))
-                                    .font(.subheadline.bold())
+                                    .font(IRFont.body.bold())
                             }
                         }
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 16)
+                        .padding(.vertical, Spacing.xs)
+                        .padding(.horizontal, Spacing.base)
                         .background(.ultraThinMaterial)
                         .clipShape(Capsule())
 
                         Link(destination: URL(string: "https://insightrun.altcode.studio/privacy")!) {
-                            HStack(spacing: 4) {
+                            HStack(spacing: Spacing.xxs) {
                                 Text(String(localized: "consent.privacy_policy"))
-                                    .font(.footnote)
+                                    .font(IRFont.footnote)
                                 Image(systemName: "arrow.up.right")
-                                    .font(.caption2)
+                                    .font(IRFont.microLabel)
                             }
                             .foregroundStyle(Color.irPrimaryAccent)
                         }
                     }
                 }
-                .padding(.bottom, 16)
+                .padding(.bottom, Spacing.base)
             }
 
             // Buttons pinned at bottom
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 Button {
                     onDecline()
                 } label: {
                     Text(String(localized: "consent.dont_allow"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(Color.irTextPrimary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }
 
                 Button {
@@ -123,16 +123,16 @@ struct AIConsentSheet: View {
                     onConsent()
                 } label: {
                     Text(String(localized: "consent.allow"))
-                        .font(.headline)
-                        .foregroundStyle(.white)
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irCardBackground)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .background(Color.irPrimaryAccent)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.bottom, Spacing.xxl)
         }
         .interactiveDismissDisabled()
         .presentationDetents([.large])
@@ -145,12 +145,12 @@ struct DataCategoryRow: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Spacing.sm) {
             Text("•")
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
             Text(text)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -162,12 +162,12 @@ struct PrivacyCheckRow: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irSuccess)
             Text(text)
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

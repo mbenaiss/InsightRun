@@ -16,7 +16,7 @@ struct MarkdownView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             ForEach(parsedNodes) { node in
                 MarkdownNodeView(node: node)
             }
@@ -41,7 +41,7 @@ struct MarkdownNodeView: View {
         switch node.type {
         case .header(let level, let text):
             Text(LocalizedStringKey(text))
-                .font(headerFont(for: level))
+                .font(IRFont.markdownHeader(for: level))
                 .fontWeight(.bold)
                 .foregroundStyle(Color.irTextPrimary)
                 .padding(.top, level == 1 ? 8 : 4)
@@ -52,9 +52,9 @@ struct MarkdownNodeView: View {
                 .fixedSize(horizontal: false, vertical: true)
             
         case .list(let items):
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 ForEach(items, id: \.self) { item in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: Spacing.sm) {
                         Text("•")
                             .foregroundStyle(Color.irTextSecondary)
                         Text(LocalizedStringKey(item))
@@ -63,28 +63,20 @@ struct MarkdownNodeView: View {
                     }
                 }
             }
-            .padding(.leading, 8)
+            .padding(.leading, Spacing.sm)
             
         case .table(let headers, let rows):
             MarkdownTableView(headers: headers, rows: rows)
             
         case .codeBlock(let code):
             Text(code)
-                .font(.system(.body, design: .monospaced))
+                .font(IRFont.monoSM)
                 .padding()
                 .background(Color.irCardBackground.opacity(0.5))
-                .cornerRadius(8)
+                .cornerRadius(Radius.xs)
         }
     }
     
-    private func headerFont(for level: Int) -> Font {
-        switch level {
-        case 1: return .title2
-        case 2: return .headline
-        case 3: return .subheadline
-        default: return .body
-        }
-    }
 }
 
 struct MarkdownTableView: View {
@@ -99,12 +91,12 @@ struct MarkdownTableView: View {
                     HStack(spacing: 0) {
                         ForEach(0..<headers.count, id: \.self) { index in
                             Text(LocalizedStringKey(headers[index]))
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .fontWeight(.bold)
                                 .foregroundStyle(Color.irTextSecondary)
                                 .textCase(.uppercase)
                                 .frame(minWidth: 100, alignment: .leading)
-                                .padding(12)
+                                .padding(Spacing.md)
                                 .background(Color.irCardBackground)
                         }
                     }
@@ -119,10 +111,10 @@ struct MarkdownTableView: View {
                         ForEach(0..<max(headers.count, row.count), id: \.self) { colIndex in
                             if colIndex < row.count {
                                 Text(LocalizedStringKey(row[colIndex]))
-                                    .font(.callout)
+                                    .font(IRFont.bodyEmphasized)
                                     .foregroundStyle(Color.irTextPrimary)
                                     .frame(minWidth: 100, alignment: .leading)
-                                    .padding(12)
+                                    .padding(Spacing.md)
                             } else {
                                 Spacer()
                                     .frame(minWidth: 100)
@@ -138,11 +130,11 @@ struct MarkdownTableView: View {
                 }
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.irPrimaryAccent.opacity(0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: Radius.sm)
+                    .strokeBorder(Color.irPrimaryAccent.opacity(0.1), lineWidth: 0.5)
                     .background(Color.irCardBackground.opacity(0.1))
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
         }
     }
 }

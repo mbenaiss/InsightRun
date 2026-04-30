@@ -32,13 +32,13 @@ struct StravaConnectButton: View {
                     ProgressView()
                         .tint(variant == .orange ? .white : .orange)
                     Text(String(localized: "Connecting...", comment: "Loading state while connecting to Strava"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .foregroundStyle(variant == .orange ? .white : Color(hex: "FC5200"))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 48) // Official height @1x
                 .background(variant == .orange ? Color(hex: "FC5200") : .white)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
             } else {
                 // Use official Strava button image (per Strava Brand Guidelines)
                 // Button height: 48px @1x, 96px @2x
@@ -97,11 +97,11 @@ struct StravaNavigationRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 StravaLogo(size: 28)
 
                 Text("Strava")
-                    .font(.body)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
@@ -111,7 +111,7 @@ struct StravaNavigationRow: View {
                         .controlSize(.small)
                 } else {
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
@@ -169,7 +169,7 @@ extension Color {
 // MARK: - Preview
 
 #Preview("Connect Button - Orange") {
-    VStack(spacing: 20) {
+    VStack(spacing: Spacing.lg) {
         StravaConnectButton(action: {}, isLoading: false, variant: .orange)
         StravaConnectButton(action: {}, isLoading: true, variant: .orange)
     }
@@ -177,7 +177,7 @@ extension Color {
 }
 
 #Preview("Connect Button - White") {
-    VStack(spacing: 20) {
+    VStack(spacing: Spacing.lg) {
         StravaConnectButton(action: {}, isLoading: false, variant: .white)
         StravaConnectButton(action: {}, isLoading: true, variant: .white)
     }
@@ -186,7 +186,7 @@ extension Color {
 }
 
 #Preview("Powered by Strava") {
-    VStack(spacing: 20) {
+    VStack(spacing: Spacing.lg) {
         PoweredByStravaLogo(variant: .orange)
             .frame(height: 30)
 
@@ -201,7 +201,7 @@ extension Color {
 }
 
 #Preview("Strava Logo") {
-    VStack(spacing: 20) {
+    VStack(spacing: Spacing.lg) {
         StravaLogo(size: 48)
 
         StravaLogo(color: .white, size: 48)

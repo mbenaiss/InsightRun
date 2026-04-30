@@ -23,19 +23,19 @@ struct SignalCard: View {
         Button {
             onTap?()
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 header
 
-                HStack(alignment: .lastTextBaseline, spacing: 4) {
+                HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                     Text(value)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(IRFont.numMD.weight(.bold))
                         .kerning(-0.5)
                         .foregroundStyle(Color.irTextPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
 
                     Text(unit)
-                        .font(.system(size: 11))
+                        .font(IRFont.eyebrow)
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
@@ -44,7 +44,7 @@ struct SignalCard: View {
 
                 if let status, !status.isEmpty {
                     Text(status)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(IRFont.microLabel.weight(.semibold))
                         .foregroundStyle(statusColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
@@ -53,9 +53,9 @@ struct SignalCard: View {
             .padding(Spacing.base - 2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: Radius.lg)
+                RoundedRectangle(cornerRadius: Radius.md)
                     .strokeBorder(Color.irBorder, lineWidth: 0.5)
             )
         }
@@ -63,9 +63,9 @@ struct SignalCard: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .bold))
+                .font(IRFont.eyebrow.weight(.bold))
                 .foregroundStyle(color)
                 .frame(width: 22, height: 22)
                 .background(
@@ -74,7 +74,7 @@ struct SignalCard: View {
                 )
 
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(IRFont.eyebrow.weight(.medium))
                 .foregroundStyle(Color.irTextSecondary)
                 .lineLimit(1)
                 .layoutPriority(1)
@@ -82,7 +82,7 @@ struct SignalCard: View {
             Spacer(minLength: 4)
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 9, weight: .bold))
+                .font(IRFont.eyebrow.weight(.bold))
                 .foregroundStyle(Color.irTextSecondary.opacity(0.55))
         }
     }

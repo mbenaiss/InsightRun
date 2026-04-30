@@ -71,7 +71,7 @@ struct AlreadySubscribedView: View {
             primaryTitle: String(localized: "paywall.alreadySubscribed.continue", comment: "Continue button when already subscribed"),
             primaryAction: onContinue
         ) {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.xl) {
                 AnimatedOnboardingIllustration(type: .paywall)
 
                 OnboardingEditorialHeader(

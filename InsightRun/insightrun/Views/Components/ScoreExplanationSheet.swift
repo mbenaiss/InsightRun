@@ -221,7 +221,7 @@ struct ScoreExplanationSheet: View {
 
     private func scoreBody(_ scoreType: ScoreType) -> some View {
         // Order: Hero → AI analysis → Trend → Components → Calculation → References.
-        VStack(spacing: 14) {
+        VStack(spacing: Spacing.dash) {
             scoreValueCard(scoreType)
 
             aiInsightCard
@@ -251,7 +251,7 @@ struct ScoreExplanationSheet: View {
     // MARK: - Cardiac Load Body
 
     private var cardiacLoadBody: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: Spacing.dash) {
             cardiacLoadValueCard
 
             aiInsightCard
@@ -270,7 +270,7 @@ struct ScoreExplanationSheet: View {
     // MARK: - Metric Body (HRV, RHR, SpO2, Respiratory)
 
     private var metricBody: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: Spacing.dash) {
             metricValueCard
 
             aiInsightCard
@@ -467,12 +467,12 @@ struct ScoreExplanationSheet: View {
     // MARK: - Shared AI Insight Card
 
     private var aiInsightCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             aiInsightHeader
 
             aiInsightBody
         }
-        .padding(18)
+        .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .detailCard()
         .sheet(isPresented: $showSubscriptionPaywall) {
@@ -482,7 +482,7 @@ struct ScoreExplanationSheet: View {
     }
 
     private var aiInsightHeader: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: 7)
                     .fill(
@@ -494,13 +494,13 @@ struct ScoreExplanationSheet: View {
                     )
 
                 Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.black)
+                    .font(IRFont.eyebrow.weight(.bold))
+                    .foregroundStyle(Color.irCardBackground)
             }
             .frame(width: 22, height: 22)
 
             Text(String(localized: "Coach", comment: "Detail sheet AI analysis label").uppercased())
-                .font(.system(size: 11, weight: .bold))
+                .font(IRFont.eyebrow.weight(.bold))
                 .tracking(1.5)
                 .foregroundStyle(Color.irTextSecondary)
 
@@ -516,7 +516,7 @@ struct ScoreExplanationSheet: View {
             aiInsightLoading(label: String(localized: "Analyzing...", comment: "AI analysis loading"))
         } else if let analysis = analysisVM.analysisText, !analysis.isEmpty {
             Text(analysis)
-                .font(.system(size: 14))
+                .font(IRFont.body)
                 .lineSpacing(3)
                 .foregroundStyle(Color.irTextPrimary)
                 .onAppear {
@@ -526,27 +526,27 @@ struct ScoreExplanationSheet: View {
                     }
                 }
         } else if let error = analysisVM.error {
-            VStack(spacing: 12) {
+            VStack(spacing: Spacing.md) {
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .foregroundStyle(Color.irWarning)
 
                 Text(error)
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, Spacing.sm)
         } else {
             aiInsightLoading(label: String(localized: "Loading analysis...", comment: "AI analysis loading"))
         }
     }
 
     private var aiInsightPaywallContent: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: Spacing.dash) {
             Image(systemName: "sparkles")
-                .font(.system(size: 32))
+                .font(IRFont.title1)
                 .foregroundStyle(
                     LinearGradient(
                         colors: [Color.irAIAccent, Color.irAIAccentSecondary],
@@ -556,21 +556,21 @@ struct ScoreExplanationSheet: View {
                 )
 
             Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .multilineTextAlignment(.center)
 
             Button {
                 showSubscriptionPaywall = true
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xs) {
                     Image(systemName: "sparkles")
                     Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
                 }
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(Color.black)
+                .font(IRFont.body.weight(.bold))
+                .foregroundStyle(Color.irCardBackground)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, Spacing.md)
                 .background(
                     LinearGradient(
                         colors: [Color.irAIAccent, Color.irAIAccentSecondary],
@@ -578,23 +578,23 @@ struct ScoreExplanationSheet: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xxs)
     }
 
     private func aiInsightLoading(label: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             ProgressView().controlSize(.small)
 
             Text(label)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.vertical, 12)
+        .padding(.vertical, Spacing.md)
     }
 
     // MARK: - Score Value Cards
@@ -614,7 +614,7 @@ struct ScoreExplanationSheet: View {
             valueLabel: "\(score)",
             unitLabel: "/20",
             statusLabel: cardiacLoadStatus?.title ?? "—",
-            accent: cardiacLoadStatus?.color ?? .purple,
+            accent: cardiacLoadStatus?.color ?? Color.irPurple,
             progress: Double(score) / 20.0
         )
     }
@@ -655,10 +655,10 @@ struct ScoreExplanationSheet: View {
         let accent = scoreAccentColor
         let selected = selectedPoint(in: data)
 
-        return VStack(alignment: .leading, spacing: 16) {
+        return VStack(alignment: .leading, spacing: Spacing.base) {
             HStack {
                 Text(String(localized: "7-Day Trend", comment: "Score trend chart title"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
@@ -666,12 +666,12 @@ struct ScoreExplanationSheet: View {
                 if let selected {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(String(format: "%.0f%%", selected.value))
-                            .font(.system(.title3, design: .rounded))
+                            .font(IRFont.title3)
                             .fontWeight(.bold)
                             .foregroundStyle(accent)
 
                         Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                            .font(.caption2)
+                            .font(IRFont.microLabel)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                     .animation(.easeInOut(duration: 0.15), value: selected.id)
@@ -682,18 +682,18 @@ struct ScoreExplanationSheet: View {
 
             chartLegend(color: accent, label: String(localized: "Daily score", comment: "Chart legend - daily score"))
         }
-        .padding(20)
+        .padding(Spacing.lg)
         .detailCard()
     }
 
     private func cardiacLoadChartCard(_ data: [TrendDataPoint]) -> some View {
-        let accent = cardiacLoadStatus?.color ?? .purple
+        let accent = cardiacLoadStatus?.color ?? Color.irPurple
         let selected = selectedPoint(in: data)
 
-        return VStack(alignment: .leading, spacing: 16) {
+        return VStack(alignment: .leading, spacing: Spacing.base) {
             HStack {
                 Text(String(localized: "14-Day Trend", comment: "Cardiac load trend chart title"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
@@ -701,12 +701,12 @@ struct ScoreExplanationSheet: View {
                 if let selected {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(String(format: "%.0f", selected.value))
-                            .font(.system(.title3, design: .rounded))
+                            .font(IRFont.title3)
                             .fontWeight(.bold)
                             .foregroundStyle(accent)
 
                         Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                            .font(.caption2)
+                            .font(IRFont.microLabel)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                     .animation(.easeInOut(duration: 0.15), value: selected.id)
@@ -737,21 +737,21 @@ struct ScoreExplanationSheet: View {
             .frame(height: 200)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 3)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated)).font(IRFont.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
                     AxisGridLine().foregroundStyle(Color.irBorder.opacity(0.5))
                 }
             }
             .chartYAxis {
                 AxisMarks(position: .leading) { _ in
-                    AxisValueLabel().font(.caption2)
+                    AxisValueLabel().font(IRFont.microLabel)
                     AxisGridLine().foregroundStyle(Color.irBorder.opacity(0.3))
                 }
             }
 
             chartLegend(color: accent, label: String(localized: "Daily load", comment: "Chart legend - daily load"))
         }
-        .padding(20)
+        .padding(Spacing.lg)
         .detailCard()
     }
 
@@ -767,29 +767,29 @@ struct ScoreExplanationSheet: View {
             return historyData.min(by: { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) })
         }()
 
-        return AnyView(VStack(alignment: .leading, spacing: 16) {
+        return AnyView(VStack(alignment: .leading, spacing: Spacing.base) {
             HStack {
                 Text(String(localized: "7-Day History", comment: "History chart header"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
 
                 if let selected {
                     VStack(alignment: .trailing, spacing: 2) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xxs) {
                             Text(String(format: "%.1f", selected.value))
-                                .font(.system(.title3, design: .rounded))
+                                .font(IRFont.title3)
                                 .fontWeight(.bold)
                                 .foregroundStyle(accent)
 
                             Text(metricUnit)
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
 
                         Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                            .font(.caption2)
+                            .font(IRFont.microLabel)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                     .animation(.easeInOut(duration: 0.15), value: selected.id)
@@ -818,11 +818,11 @@ struct ScoreExplanationSheet: View {
 
                 if let avg = getBaselineAverage(metricType) {
                     RuleMark(y: .value("Baseline", avg))
-                        .foregroundStyle(Color.gray.opacity(0.5))
+                        .foregroundStyle(Color.irTextTertiary.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
                         .annotation(position: .top, alignment: .trailing) {
                             Text(String(localized: "Avg", comment: "Average baseline label"))
-                                .font(.caption2)
+                                .font(IRFont.microLabel)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
                 }
@@ -831,24 +831,24 @@ struct ScoreExplanationSheet: View {
             .frame(height: 200)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 1)) { _ in
-                    AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(.caption2)
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(IRFont.microLabel)
                 }
             }
             .chartYAxis {
                 AxisMarks(position: .leading) { _ in
-                    AxisValueLabel().font(.caption2)
+                    AxisValueLabel().font(IRFont.microLabel)
                     AxisGridLine()
                 }
             }
 
-            HStack(spacing: 16) {
+            HStack(spacing: Spacing.base) {
                 chartLegend(color: accent, label: String(localized: "Daily value", comment: "Chart legend - daily value"))
 
                 if getBaselineAverage(metricType) != nil {
-                    HStack(spacing: 4) {
-                        Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 16, height: 2)
+                    HStack(spacing: Spacing.xxs) {
+                        Rectangle().fill(Color.irTextTertiary.opacity(0.5)).frame(width: 16, height: 2)
                         Text(String(localized: "Personal average", comment: "Chart legend - personal average"))
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -856,15 +856,15 @@ struct ScoreExplanationSheet: View {
                 Spacer()
             }
         }
-        .padding(20)
+        .padding(Spacing.lg)
         .detailCard())
     }
 
     // MARK: - Calories Stacked Bar Chart
 
     private func caloriesStackedHistoryChart(_ data: [CaloriesBreakdownPoint]) -> some View {
-        let activeColor = Color.green
-        let restingColor = Color.orange
+        let activeColor = Color.irSuccess
+        let restingColor = Color.irWarning
         let activeLabel = String(localized: "Active", comment: "Active calories label")
         let restingLabel = String(localized: "Resting", comment: "Basal/resting calories label")
 
@@ -874,29 +874,29 @@ struct ScoreExplanationSheet: View {
             return data.min(by: { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) })
         }()
 
-        return VStack(alignment: .leading, spacing: 16) {
+        return VStack(alignment: .leading, spacing: Spacing.base) {
             HStack {
                 Text(String(localized: "7-Day History", comment: "History chart header"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
 
                 if let selected {
                     VStack(alignment: .trailing, spacing: 2) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xxs) {
                             Text(String(format: "%.0f", selected.total))
-                                .font(.system(.title3, design: .rounded))
+                                .font(IRFont.title3)
                                 .fontWeight(.bold)
                                 .foregroundStyle(Color.irTextPrimary)
 
                             Text("kcal")
-                                .font(.caption)
+                                .font(IRFont.caption)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
 
                         Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                            .font(.caption2)
+                            .font(IRFont.microLabel)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                     .animation(.easeInOut(duration: 0.15), value: selected.id)
@@ -933,40 +933,39 @@ struct ScoreExplanationSheet: View {
             .frame(height: 220)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 1)) { _ in
-                    AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(.caption2)
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(IRFont.microLabel)
                 }
             }
             .chartYAxis {
                 AxisMarks(position: .leading) { _ in
-                    AxisValueLabel().font(.caption2)
+                    AxisValueLabel().font(IRFont.microLabel)
                     AxisGridLine()
                 }
             }
 
             if let selected {
-                HStack(spacing: 16) {
+                HStack(spacing: Spacing.base) {
                     breakdownLegendItem(color: activeColor, label: activeLabel, value: selected.active)
                     breakdownLegendItem(color: restingColor, label: restingLabel, value: selected.resting)
                     Spacer()
                 }
             }
         }
-        .padding(20)
+        .padding(Spacing.lg)
         .detailCard()
     }
 
     private func breakdownLegendItem(color: Color, label: String, value: Double) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Spacing.xs) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(color)
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)
-                    .font(.caption2)
+                    .font(IRFont.microLabel)
                     .foregroundStyle(Color.irTextSecondary)
                 Text(String(format: "%.0f kcal", value))
-                    .font(.caption.monospacedDigit())
-                    .fontWeight(.semibold)
+                    .font(IRFont.monoMD)
                     .foregroundStyle(Color.irTextPrimary)
             }
         }
@@ -1006,22 +1005,22 @@ struct ScoreExplanationSheet: View {
         .frame(height: 200)
         .chartXAxis {
             AxisMarks(values: .stride(by: .day, count: 1)) { _ in
-                AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(.caption2)
+                AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(IRFont.microLabel)
             }
         }
         .chartYAxis {
             AxisMarks(position: .leading) { _ in
-                AxisValueLabel().font(.caption2)
+                AxisValueLabel().font(IRFont.microLabel)
                 AxisGridLine()
             }
         }
     }
 
     private func chartLegend(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Spacing.xxs) {
             Circle().fill(color).frame(width: 8, height: 8)
             Text(label)
-                .font(.caption)
+                .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
         }
     }
@@ -1029,24 +1028,24 @@ struct ScoreExplanationSheet: View {
     // MARK: - Score Explanation Card
 
     private func scoreExplanationCard(_ scoreType: ScoreType) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Spacing.base) {
             HStack {
                 Image(systemName: "info.circle.fill")
-                    .foregroundStyle(Color.blue.gradient)
+                    .foregroundStyle(Color.irPrimaryAccent.gradient)
 
                 Text(String(localized: "What does this mean?", comment: "Explanation header"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
             }
 
             Text(scoreDescription(scoreType))
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
         }
-        .padding(20)
+        .padding(Spacing.lg)
         .detailCard()
     }
 
@@ -1055,9 +1054,9 @@ struct ScoreExplanationSheet: View {
     @ViewBuilder
     private var metricExplanationCard: some View {
         if case .metric(let metricType) = mode {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
                 Text(metricExplanationText(metricType))
-                    .font(.system(size: 14))
+                    .font(IRFont.body)
                     .lineSpacing(3)
                     .foregroundStyle(Color.irTextPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1065,20 +1064,20 @@ struct ScoreExplanationSheet: View {
                 if let status = deviationStatus {
                     Divider().background(Color.irBorder)
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(String(localized: "Recommendation", comment: "Recommendation header").uppercased())
-                            .font(.system(size: 11, weight: .bold))
+                            .font(IRFont.eyebrow.weight(.bold))
                             .tracking(1.4)
                             .foregroundStyle(Color.irTextSecondary)
 
                         Text(metricRecommendation(metricType, status: status))
-                            .font(.system(size: 13))
+                            .font(IRFont.footnote)
                             .lineSpacing(2)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
             }
-            .padding(18)
+            .padding(Spacing.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .detailCard()
         }
@@ -1109,25 +1108,25 @@ struct ScoreExplanationSheet: View {
     private func baselineRow(label: String, value: String, unit: String, color: Color) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 13))
+                .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
-            HStack(alignment: .lastTextBaseline, spacing: 4) {
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                 Text(value)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(IRFont.numSM)
                     .foregroundStyle(color)
 
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(.system(size: 11))
+                        .font(IRFont.eyebrow)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.horizontal, Spacing.cardPadding)
+        .padding(.vertical, Spacing.dash)
     }
 
     private func deviationRow(metricType: MetricType, average: Double) -> some View {
@@ -1148,27 +1147,27 @@ struct ScoreExplanationSheet: View {
 
         return HStack {
             Text(String(localized: "Current deviation", comment: "Deviation label"))
-                .font(.system(size: 13))
+                .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xxs) {
                 Image(systemName: arrow)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(IRFont.eyebrow.weight(.bold))
                     .foregroundStyle(accent)
 
                 Text(String(format: "%.1f", abs(deviationPercent)))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(IRFont.numSM)
                     .foregroundStyle(accent)
 
                 Text("%")
-                    .font(.system(size: 11))
+                    .font(IRFont.eyebrow)
                     .foregroundStyle(Color.irTextSecondary)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.horizontal, Spacing.cardPadding)
+        .padding(.vertical, Spacing.dash)
     }
 
     // MARK: - Score Calculation Section
@@ -1182,17 +1181,17 @@ struct ScoreExplanationSheet: View {
                 explanation: scoreCalculationExplanation(scoreType)
             )
         case .cardiacLoad:
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Spacing.base) {
                 HStack {
                     Text(String(localized: "How it's calculated", comment: "Calculation section header"))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(IRFont.footnote.weight(.semibold))
                         .foregroundStyle(Color.irTextPrimary)
                     Spacer()
                 }
 
                 cardiacLoadCalculationContent
             }
-            .padding(18)
+            .padding(Spacing.cardPadding)
             .detailCard()
         }
     }
@@ -1201,23 +1200,23 @@ struct ScoreExplanationSheet: View {
         switch scoreType {
         case .effort:
             return [
-                DetailFormulaSlice(label: String(localized: "Steps", comment: "Effort steps label"), weight: 30, color: .green),
-                DetailFormulaSlice(label: String(localized: "Active Calories", comment: "Effort calories label"), weight: 35, color: .orange),
-                DetailFormulaSlice(label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), weight: 35, color: .red)
+                DetailFormulaSlice(label: String(localized: "Steps", comment: "Effort steps label"), weight: 30, color: Color.irSuccess),
+                DetailFormulaSlice(label: String(localized: "Active Calories", comment: "Effort calories label"), weight: 35, color: Color.irWarning),
+                DetailFormulaSlice(label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), weight: 35, color: Color.irError)
             ]
         case .sleep:
             return [
-                DetailFormulaSlice(label: String(localized: "Duration", comment: "Sleep duration label"), weight: 30, color: .indigo),
-                DetailFormulaSlice(label: String(localized: "Efficiency", comment: "Sleep efficiency label"), weight: 30, color: .green),
-                DetailFormulaSlice(label: String(localized: "Stages", comment: "Sleep stages label"), weight: 40, color: .purple)
+                DetailFormulaSlice(label: String(localized: "Duration", comment: "Sleep duration label"), weight: 30, color: Color.irPurple),
+                DetailFormulaSlice(label: String(localized: "Efficiency", comment: "Sleep efficiency label"), weight: 30, color: Color.irSuccess),
+                DetailFormulaSlice(label: String(localized: "Stages", comment: "Sleep stages label"), weight: 40, color: Color.irPurple)
             ]
         case .readiness:
             return [
-                DetailFormulaSlice(label: String(localized: "Sleep", comment: "Sleep weight label"), weight: 40, color: .indigo),
-                DetailFormulaSlice(label: String(localized: "HRV", comment: "HRV weight label"), weight: 25, color: .blue),
-                DetailFormulaSlice(label: String(localized: "Resting HR", comment: "RHR weight label"), weight: 15, color: .red),
-                DetailFormulaSlice(label: String(localized: "SpO2", comment: "SpO2 weight label"), weight: 10, color: .cyan),
-                DetailFormulaSlice(label: String(localized: "Respiratory Rate", comment: "Resp weight label"), weight: 10, color: .teal)
+                DetailFormulaSlice(label: String(localized: "Sleep", comment: "Sleep weight label"), weight: 40, color: Color.irPurple),
+                DetailFormulaSlice(label: String(localized: "HRV", comment: "HRV weight label"), weight: 25, color: Color.irPrimaryAccent),
+                DetailFormulaSlice(label: String(localized: "Resting HR", comment: "RHR weight label"), weight: 15, color: Color.irError),
+                DetailFormulaSlice(label: String(localized: "SpO2", comment: "SpO2 weight label"), weight: 10, color: Color.irPrimaryAccent),
+                DetailFormulaSlice(label: String(localized: "Respiratory Rate", comment: "Resp weight label"), weight: 10, color: Color.irPrimaryAccent)
             ]
         case .cardiacLoad:
             return []
@@ -1241,35 +1240,35 @@ struct ScoreExplanationSheet: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Formula", comment: "Calculation formula label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(String(localized: "Steps × 30% + Calories × 35% + Exercise × 35%", comment: "Effort score formula"))
-                        .font(.subheadline).foregroundStyle(Color.irAIAccent)
+                        .font(IRFont.body).foregroundStyle(Color.irAIAccent)
                     Text(String(localized: "Each component = actual / personal goal, capped at 100%", comment: "Effort score formula detail"))
-                        .font(.caption).foregroundStyle(Color.irTextSecondary)
+                        .font(IRFont.caption).foregroundStyle(Color.irTextSecondary)
                 }
                 .padding(Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.irAIAccent.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Components & Targets", comment: "Effort components label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .green, label: String(localized: "Steps", comment: "Effort steps label"), value: String(localized: "10,000 steps/day", comment: "Effort steps target"))
-                calculationRow(color: .orange, label: String(localized: "Active Calories", comment: "Effort calories label"), value: String(localized: "Apple Ring goal", comment: "Effort calories target"))
-                calculationRow(color: .red, label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), value: String(localized: "Apple Ring goal", comment: "Effort exercise target"))
-                calculationRow(color: .blue, label: String(localized: "Cap", comment: "Effort score cap label"), value: String(localized: "Maximum 100%", comment: "Effort score cap value"))
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: Color.irSuccess, label: String(localized: "Steps", comment: "Effort steps label"), value: String(localized: "10,000 steps/day", comment: "Effort steps target"))
+                calculationRow(color: Color.irWarning, label: String(localized: "Active Calories", comment: "Effort calories label"), value: String(localized: "Apple Ring goal", comment: "Effort calories target"))
+                calculationRow(color: Color.irError, label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), value: String(localized: "Apple Ring goal", comment: "Effort exercise target"))
+                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Cap", comment: "Effort score cap label"), value: String(localized: "Maximum 100%", comment: "Effort score cap value"))
             }
 
             Divider()
 
             Text(String(localized: "Calories and exercise targets use your personal Apple Activity Ring goals. If unavailable, defaults to 400 kcal and 30 min (WHO, 2020). Steps target is 10,000/day (Tudor-Locke, 2004).", comment: "Effort calculation detail"))
-                .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
+                .font(IRFont.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
         }
     }
 
@@ -1277,35 +1276,35 @@ struct ScoreExplanationSheet: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Base Score", comment: "Sleep base score label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .gray, label: String(localized: "Starting points", comment: "Sleep base points label"), value: String(localized: "50 pts", comment: "Sleep base points value"))
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: Color.irTextTertiary, label: String(localized: "Starting points", comment: "Sleep base points label"), value: String(localized: "50 pts", comment: "Sleep base points value"))
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Duration Bonus", comment: "Sleep duration bonus label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                sleepDurationRow(range: String(localized: "7-9 hours", comment: "Sleep range"), points: "+25", color: .green, isActive: sleepDurationHours.map { $0 >= 7 && $0 <= 9 })
-                sleepDurationRow(range: String(localized: "6-7 hours", comment: "Sleep range"), points: "+15", color: .yellow, isActive: sleepDurationHours.map { $0 >= 6 && $0 < 7 })
-                sleepDurationRow(range: String(localized: "5-6 hours", comment: "Sleep range"), points: "+5", color: .orange, isActive: sleepDurationHours.map { $0 >= 5 && $0 < 6 })
-                sleepDurationRow(range: String(localized: "< 5 hours", comment: "Sleep range"), points: "-20", color: .red, isActive: sleepDurationHours.map { $0 < 5 })
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                sleepDurationRow(range: String(localized: "7-9 hours", comment: "Sleep range"), points: "+25", color: Color.irSuccess, isActive: sleepDurationHours.map { $0 >= 7 && $0 <= 9 })
+                sleepDurationRow(range: String(localized: "6-7 hours", comment: "Sleep range"), points: "+15", color: Color.irWarning, isActive: sleepDurationHours.map { $0 >= 6 && $0 < 7 })
+                sleepDurationRow(range: String(localized: "5-6 hours", comment: "Sleep range"), points: "+5", color: Color.irWarning, isActive: sleepDurationHours.map { $0 >= 5 && $0 < 6 })
+                sleepDurationRow(range: String(localized: "< 5 hours", comment: "Sleep range"), points: "-20", color: Color.irError, isActive: sleepDurationHours.map { $0 < 5 })
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Efficiency Bonus", comment: "Sleep efficiency bonus label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                sleepDurationRow(range: String(localized: "\u{2265} 85%", comment: "Sleep efficiency"), points: "+25", color: .green, isActive: sleepEfficiency.map { $0 >= 85 })
-                sleepDurationRow(range: String(localized: "\u{2265} 75%", comment: "Sleep efficiency"), points: "+15", color: .yellow, isActive: sleepEfficiency.map { $0 >= 75 && $0 < 85 })
-                sleepDurationRow(range: String(localized: "\u{2265} 65%", comment: "Sleep efficiency"), points: "+5", color: .orange, isActive: sleepEfficiency.map { $0 >= 65 && $0 < 75 })
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                sleepDurationRow(range: String(localized: "\u{2265} 85%", comment: "Sleep efficiency"), points: "+25", color: Color.irSuccess, isActive: sleepEfficiency.map { $0 >= 85 })
+                sleepDurationRow(range: String(localized: "\u{2265} 75%", comment: "Sleep efficiency"), points: "+15", color: Color.irWarning, isActive: sleepEfficiency.map { $0 >= 75 && $0 < 85 })
+                sleepDurationRow(range: String(localized: "\u{2265} 65%", comment: "Sleep efficiency"), points: "+5", color: Color.irWarning, isActive: sleepEfficiency.map { $0 >= 65 && $0 < 75 })
             }
 
             Divider()
 
             Text(String(localized: "Final score is clamped between 0 and 100.", comment: "Sleep score clamping note"))
-                .font(.caption).foregroundStyle(Color.irTextSecondary)
+                .font(IRFont.caption).foregroundStyle(Color.irTextSecondary)
         }
     }
 
@@ -1313,30 +1312,30 @@ struct ScoreExplanationSheet: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Metric Weights", comment: "Readiness metric weights label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .indigo, label: String(localized: "Sleep Quality", comment: "Readiness sleep weight"), value: "40%")
-                calculationRow(color: .blue, label: String(localized: "HRV", comment: "Readiness HRV weight"), value: "25%")
-                calculationRow(color: .red, label: String(localized: "Resting Heart Rate", comment: "Readiness RHR weight"), value: "15%")
-                calculationRow(color: .cyan, label: String(localized: "Oxygen Saturation (SpO2)", comment: "Readiness SpO2 weight"), value: "10%")
-                calculationRow(color: .teal, label: String(localized: "Respiratory Rate", comment: "Readiness resp rate weight"), value: "10%")
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: Color.irPurple, label: String(localized: "Sleep Quality", comment: "Readiness sleep weight"), value: "40%")
+                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "HRV", comment: "Readiness HRV weight"), value: "25%")
+                calculationRow(color: Color.irError, label: String(localized: "Resting Heart Rate", comment: "Readiness RHR weight"), value: "15%")
+                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Oxygen Saturation (SpO2)", comment: "Readiness SpO2 weight"), value: "10%")
+                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Respiratory Rate", comment: "Readiness resp rate weight"), value: "10%")
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "How each metric is scored", comment: "Readiness metric scoring header"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                metricScoringRow(icon: "waveform.path.ecg", color: .blue, label: String(localized: "HRV", comment: "HRV scoring"), detail: String(localized: "Higher HRV = better parasympathetic recovery", comment: "HRV detail"))
-                metricScoringRow(icon: "heart.fill", color: .red, label: String(localized: "Resting HR", comment: "RHR scoring"), detail: String(localized: "Lower RHR = less cardiovascular stress", comment: "RHR detail"))
-                metricScoringRow(icon: "drop.fill", color: .cyan, label: String(localized: "SpO2", comment: "SpO2 scoring"), detail: String(localized: "Higher = better oxygenation", comment: "SpO2 detail"))
-                metricScoringRow(icon: "lungs.fill", color: .teal, label: String(localized: "Respiratory Rate", comment: "Resp scoring"), detail: String(localized: "Lower = less stress", comment: "Resp detail"))
-                metricScoringRow(icon: "moon.fill", color: .indigo, label: String(localized: "Sleep", comment: "Sleep scoring"), detail: String(localized: "Duration + efficiency + stages", comment: "Sleep detail"))
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                metricScoringRow(icon: "waveform.path.ecg", color: Color.irPrimaryAccent, label: String(localized: "HRV", comment: "HRV scoring"), detail: String(localized: "Higher HRV = better parasympathetic recovery", comment: "HRV detail"))
+                metricScoringRow(icon: "heart.fill", color: Color.irError, label: String(localized: "Resting HR", comment: "RHR scoring"), detail: String(localized: "Lower RHR = less cardiovascular stress", comment: "RHR detail"))
+                metricScoringRow(icon: "drop.fill", color: Color.irPrimaryAccent, label: String(localized: "SpO2", comment: "SpO2 scoring"), detail: String(localized: "Higher = better oxygenation", comment: "SpO2 detail"))
+                metricScoringRow(icon: "lungs.fill", color: Color.irPrimaryAccent, label: String(localized: "Respiratory Rate", comment: "Resp scoring"), detail: String(localized: "Lower = less stress", comment: "Resp detail"))
+                metricScoringRow(icon: "moon.fill", color: Color.irPurple, label: String(localized: "Sleep", comment: "Sleep scoring"), detail: String(localized: "Duration + efficiency + stages", comment: "Sleep detail"))
             }
 
             Divider()
 
             Text(String(localized: "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 50%.", comment: "Readiness baseline explanation"))
-                .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
+                .font(IRFont.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
         }
     }
 
@@ -1344,60 +1343,60 @@ struct ScoreExplanationSheet: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Formula", comment: "Calculation formula label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(String(localized: "TRIMP = Duration × \u{0394}HR × Weight(\u{0394}HR)", comment: "Cardiac load TRIMP formula"))
-                        .font(.subheadline).foregroundStyle(.purple)
+                        .font(IRFont.body).foregroundStyle(Color.irPurple)
                     Text(String(localized: "Falls back to pace × intensity when HR unavailable", comment: "Cardiac load TRIMP fallback note"))
-                        .font(.caption).foregroundStyle(Color.irTextSecondary)
+                        .font(IRFont.caption).foregroundStyle(Color.irTextSecondary)
                 }
                 .padding(Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.purple.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+                .background(Color.irPurple.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "HR-based TRIMP (primary)", comment: "Cardiac load HR TRIMP label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .red, label: "\u{0394}HR", value: "(HR_avg - HR_rest) / (HR_max - HR_rest)")
-                calculationRow(color: .blue, label: String(localized: "Male", comment: "TRIMP male label"), value: "0.64 × e^(1.92 × \u{0394}HR)")
-                calculationRow(color: .pink, label: String(localized: "Female", comment: "TRIMP female label"), value: "0.86 × e^(1.67 × \u{0394}HR)")
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: Color.irError, label: "\u{0394}HR", value: "(HR_avg - HR_rest) / (HR_max - HR_rest)")
+                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Male", comment: "TRIMP male label"), value: "0.64 × e^(1.92 × \u{0394}HR)")
+                calculationRow(color: Color.irError, label: String(localized: "Female", comment: "TRIMP female label"), value: "0.86 × e^(1.67 × \u{0394}HR)")
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Pace-based (fallback)", comment: "Cardiac load pace fallback label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .red, label: String(localized: "< 4:00 /km"), value: "1.8×")
-                calculationRow(color: .orange, label: String(localized: "4:00–5:00 /km"), value: "1.4–1.6×")
-                calculationRow(color: .yellow, label: String(localized: "5:00–6:00 /km"), value: "1.0–1.2×")
-                calculationRow(color: .green, label: String(localized: "6:00–7:00 /km"), value: "0.8×")
-                calculationRow(color: .blue, label: String(localized: "> 7:00 /km"), value: "0.6×")
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: Color.irError, label: String(localized: "< 4:00 /km"), value: "1.8×")
+                calculationRow(color: Color.irWarning, label: String(localized: "4:00–5:00 /km"), value: "1.4–1.6×")
+                calculationRow(color: Color.irWarning, label: String(localized: "5:00–6:00 /km"), value: "1.0–1.2×")
+                calculationRow(color: Color.irSuccess, label: String(localized: "6:00–7:00 /km"), value: "0.8×")
+                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "> 7:00 /km"), value: "0.6×")
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "ATL / CTL / ACWR", comment: "Cardiac load EWMA section label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
                 Text(String(localized: "ATL (7 days) & CTL (42 days) via EWMA. ACWR = ATL/CTL. Score 0-20 personalized: ATL/CTL × 10 (maintaining = 10/20).", comment: "Cardiac load EWMA explanation"))
-                    .font(.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
+                    .font(IRFont.caption).foregroundStyle(Color.irTextSecondary).lineSpacing(3)
             }
 
             Divider()
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Status Thresholds (ACWR)", comment: "Cardiac load ACWR status thresholds label"))
-                    .font(.subheadline).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: .orange, label: String(localized: "Increasing", comment: "Cardiac load status"), value: "ACWR > 1.3")
-                calculationRow(color: .purple, label: String(localized: "Maintaining", comment: "Cardiac load status"), value: String(localized: "ACWR 0.8–1.3", comment: "ACWR maintaining range"))
-                calculationRow(color: .blue, label: String(localized: "Decreasing", comment: "Cardiac load status"), value: String(localized: "ACWR 0.5–0.8", comment: "ACWR decreasing range"))
-                calculationRow(color: .red, label: String(localized: "Detraining", comment: "Cardiac load status"), value: "ACWR < 0.5")
+                    .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
+                calculationRow(color: Color.irWarning, label: String(localized: "Increasing", comment: "Cardiac load status"), value: "ACWR > 1.3")
+                calculationRow(color: Color.irPurple, label: String(localized: "Maintaining", comment: "Cardiac load status"), value: String(localized: "ACWR 0.8–1.3", comment: "ACWR maintaining range"))
+                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Decreasing", comment: "Cardiac load status"), value: String(localized: "ACWR 0.5–0.8", comment: "ACWR decreasing range"))
+                calculationRow(color: Color.irError, label: String(localized: "Detraining", comment: "Cardiac load status"), value: "ACWR < 0.5")
             }
         }
     }
@@ -1405,7 +1404,7 @@ struct ScoreExplanationSheet: View {
     // MARK: - References
 
     private func scoreReferencesSection(_ scoreType: ScoreType) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             DetailReferencesCard(sources: scoreReferenceSources(scoreType))
             allSourcesButton
         }
@@ -1414,7 +1413,7 @@ struct ScoreExplanationSheet: View {
     @ViewBuilder
     private var metricReferenceCard: some View {
         if case .metric(let metricType) = mode {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
                 DetailReferencesCard(sources: metricReferenceSources(metricType))
                 allSourcesButton
             }
@@ -1425,18 +1424,18 @@ struct ScoreExplanationSheet: View {
         Button {
             showMedicalSources = true
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: "book.pages")
-                    .font(.caption)
+                    .font(IRFont.caption)
                 Text(String(localized: "View all sources", comment: "Button to open full medical sources view"))
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.medium)
             }
             .foregroundStyle(Color.irAIAccent)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Spacing.dash)
+            .padding(.vertical, Spacing.sm)
             .background(Color.irAIAccent.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showMedicalSources) {
@@ -1448,10 +1447,10 @@ struct ScoreExplanationSheet: View {
 
     private var scoreAccentColor: Color {
         switch score {
-        case 80...100: return .green
-        case 60..<80: return .yellow
-        case 40..<60: return .orange
-        default: return .red
+        case 80...100: return Color.irSuccess
+        case 60..<80: return Color.irWarning
+        case 40..<60: return Color.irWarning
+        default: return Color.irError
         }
     }
 
@@ -1542,14 +1541,14 @@ struct ScoreExplanationSheet: View {
 
     private func metricColor(_ type: MetricType) -> Color {
         switch type {
-        case .recoveryScore: return .purple
-        case .hrv: return .blue
-        case .restingHeartRate: return .red
-        case .respiratoryRate: return .teal
-        case .oxygenSaturation: return .cyan
-        case .sleepDuration: return .indigo
-        case .sleepEfficiency: return .green
-        case .totalCalories: return .orange
+        case .recoveryScore: return Color.irPurple
+        case .hrv: return Color.irPrimaryAccent
+        case .restingHeartRate: return Color.irError
+        case .respiratoryRate: return Color.irPrimaryAccent
+        case .oxygenSaturation: return Color.irPrimaryAccent
+        case .sleepDuration: return Color.irPurple
+        case .sleepEfficiency: return Color.irSuccess
+        case .totalCalories: return Color.irWarning
         }
     }
 
@@ -1644,31 +1643,31 @@ struct ScoreExplanationSheet: View {
     private func calculationRow(color: Color, label: String, value: String) -> some View {
         HStack {
             Circle().fill(color).frame(width: 10, height: 10)
-            Text(label).font(.subheadline).foregroundStyle(Color.irTextPrimary)
+            Text(label).font(IRFont.body).foregroundStyle(Color.irTextPrimary)
             Spacer()
-            Text(value).font(.subheadline).fontWeight(.bold).foregroundStyle(Color.irTextPrimary)
+            Text(value).font(IRFont.body).fontWeight(.bold).foregroundStyle(Color.irTextPrimary)
         }
     }
 
     private func sleepDurationRow(range: String, points: String, color: Color, isActive: Bool?) -> some View {
         HStack {
             Circle().fill(color).frame(width: 10, height: 10)
-            Text(range).font(.subheadline).foregroundStyle(Color.irTextPrimary)
+            Text(range).font(IRFont.body).foregroundStyle(Color.irTextPrimary)
             Spacer()
-            Text(points).font(.subheadline).fontWeight(.bold)
+            Text(points).font(IRFont.body).fontWeight(.bold)
                 .foregroundStyle(isActive == true ? color : Color.irTextPrimary)
             if let isActive, isActive {
-                Image(systemName: "checkmark.circle.fill").font(.caption).foregroundStyle(color)
+                Image(systemName: "checkmark.circle.fill").font(IRFont.caption).foregroundStyle(color)
             }
         }
     }
 
     private func metricScoringRow(icon: String, color: Color, label: String, detail: String) -> some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
-            Image(systemName: icon).font(.caption).foregroundStyle(color).frame(width: 16)
+            Image(systemName: icon).font(IRFont.caption).foregroundStyle(color).frame(width: 16)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(label).font(.subheadline).fontWeight(.medium).foregroundStyle(Color.irTextPrimary)
-                Text(detail).font(.caption).foregroundStyle(Color.irTextSecondary)
+                Text(label).font(IRFont.body).fontWeight(.medium).foregroundStyle(Color.irTextPrimary)
+                Text(detail).font(IRFont.caption).foregroundStyle(Color.irTextSecondary)
             }
             Spacer()
         }

@@ -64,7 +64,7 @@ struct AppearancePreview<Content: View>: View {
 #Preview("Theme Demo - Light") {
     VStack(spacing: 20) {
         Text("Insight Run")
-            .font(.title)
+            .font(IRFont.title2)
             .foregroundStyle(Color.irTextPrimary)
 
         VStack(spacing: 12) {
@@ -93,7 +93,7 @@ struct AppearancePreview<Content: View>: View {
 
         VStack(spacing: 12) {
             Text("Matériaux Adaptatifs")
-                .font(.headline)
+                .font(IRFont.headline)
 
             VStack {
                 Text("Ultra Thin Material")
@@ -117,7 +117,7 @@ struct AppearancePreview<Content: View>: View {
 #Preview("Theme Demo - Dark") {
     VStack(spacing: 20) {
         Text("Insight Run")
-            .font(.title)
+            .font(IRFont.title2)
             .foregroundStyle(Color.irTextPrimary)
 
         VStack(spacing: 12) {
@@ -146,7 +146,7 @@ struct AppearancePreview<Content: View>: View {
 
         VStack(spacing: 12) {
             Text("Matériaux Adaptatifs")
-                .font(.headline)
+                .font(IRFont.headline)
 
             VStack {
                 Text("Ultra Thin Material")

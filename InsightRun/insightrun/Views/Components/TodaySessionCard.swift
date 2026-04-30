@@ -22,14 +22,14 @@ struct TodaySessionCard: View {
 
                 // Workout icon
                 Image(systemName: workout.type.icon)
-                    .font(.title2)
+                    .font(IRFont.title2)
                     .foregroundStyle(workout.intensity.themeColor)
                     .frame(width: 36)
 
                 // Workout details
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(workout.name)
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.irTextPrimary)
                         .lineLimit(1)
@@ -48,18 +48,18 @@ struct TodaySessionCard: View {
                             )
                         }
                     }
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
 
                     Text(goal.raceName)
-                        .font(.caption2)
+                        .font(IRFont.microLabel)
                         .foregroundStyle(workout.intensity.themeColor)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.irTextSecondary)
             }

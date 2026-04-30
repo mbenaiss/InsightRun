@@ -14,7 +14,7 @@ struct MedicalSourcesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     // Disclaimer Section
                     disclaimerSection
 
@@ -35,7 +35,7 @@ struct MedicalSourcesView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
+                            .font(IRFont.title3)
                             .foregroundStyle(Color.irTextSecondary)
                     }
                 }
@@ -49,40 +49,40 @@ struct MedicalSourcesView: View {
     // MARK: - Disclaimer Section
 
     private var disclaimerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.md) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.orange.gradient)
+                    .font(IRFont.title2)
+                    .foregroundStyle(Color.irWarning.gradient)
 
                 Text(String(localized: "Medical Disclaimer", comment: "Medical disclaimer section title"))
-                    .font(.headline)
+                    .font(IRFont.headline)
                     .foregroundStyle(Color.irTextPrimary)
             }
 
             Text(MedicalSourcesDatabase.disclaimer)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .lineSpacing(4)
         }
-        .padding(16)
+        .padding(Spacing.base)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.orange.opacity(0.1))
+            RoundedRectangle(cornerRadius: Radius.md)
+                .fill(Color.irWarning.opacity(0.1))
         )
     }
 
     // MARK: - Category Picker
 
     private var categoryPicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             Text(String(localized: "Filter by Category", comment: "Category picker label"))
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: Spacing.md) {
                     ForEach(MedicalSourceCategory.allCases) { category in
                         categoryButton(for: category)
                     }
@@ -101,14 +101,14 @@ struct MedicalSourcesView: View {
             }
         } label: {
             Text(category.localizedTitle)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .fontWeight(isSelected ? .semibold : .regular)
-                .foregroundStyle(isSelected ? .white : Color.irTextPrimary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .foregroundStyle(Color.irTextPrimary)
+                .padding(.horizontal, Spacing.base)
+                .padding(.vertical, Spacing.md)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? AnyShapeStyle(Color.irPrimaryAccent.gradient) : AnyShapeStyle(Color.irSurface))
+                    RoundedRectangle(cornerRadius: Radius.md)
+                        .fill(isSelected ? AnyShapeStyle(Color.irPrimaryAccent.gradient) : AnyShapeStyle(Color.irCard2))
                 )
         }
         .buttonStyle(.plain)
@@ -117,9 +117,9 @@ struct MedicalSourcesView: View {
     // MARK: - Sources Section
 
     private var sourcesSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Spacing.base) {
             Text(String(format: String(localized: "%d Scientific Sources", comment: "Number of sources label"), MedicalSourcesDatabase.sources(for: selectedCategory).count))
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
 
             ForEach(MedicalSourcesDatabase.sources(for: selectedCategory)) { source in
@@ -135,22 +135,22 @@ struct SourceCard: View {
     let source: MedicalSource
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             // Year badge + Journal
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 Text("\(source.year)")
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .foregroundStyle(Color.irTextPrimary)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xxs)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.blue.gradient)
+                            .fill(Color.irPrimaryAccent.gradient)
                     )
 
                 Text(source.journal)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
                     .lineLimit(1)
 
@@ -159,22 +159,22 @@ struct SourceCard: View {
 
             // Title
             Text(source.title)
-                .font(.headline)
+                .font(IRFont.headline)
                 .foregroundStyle(Color.irTextPrimary)
                 .lineSpacing(2)
 
             // Authors
             Text(source.authors)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .italic()
 
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, Spacing.xxs)
 
             // Summary
             Text(source.summary)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
                 .lineSpacing(4)
 
@@ -184,16 +184,16 @@ struct SourceCard: View {
                 Link(destination: url) {
                     HStack {
                         Image(systemName: "link")
-                            .font(.subheadline)
+                            .font(IRFont.body)
                         Text(String(localized: "View Source", comment: "Button to view source link"))
-                            .font(.subheadline)
+                            .font(IRFont.body)
                             .fontWeight(.medium)
                     }
                     .foregroundStyle(Color.irPrimaryAccent)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, Spacing.base)
+                    .padding(.vertical, Spacing.sm)
                     .background(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: Radius.xs)
                             .fill(Color.irPrimaryAccent.opacity(0.1))
                     )
                 }
@@ -201,14 +201,14 @@ struct SourceCard: View {
 
             // Citation
             Text(source.citation)
-                .font(.caption2)
+                .font(IRFont.microLabel)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.7))
-                .padding(.top, 4)
+                .padding(.top, Spacing.xxs)
         }
-        .padding(16)
+        .padding(Spacing.base)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: Radius.md)
                 .fill(Color.irCardBackground)
                 .shadow(color: Color.irShadow, radius: 8, y: 2)
         )

@@ -54,9 +54,9 @@ struct MetricRangeVisualization: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Spacing.sm) {
             // Range visualization with bars
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 // Colored bars with indicator
                 VStack(spacing: 0) {
                     // Current value indicator (triangle pointing down) with value
@@ -68,16 +68,16 @@ struct MetricRangeVisualization: View {
                                 VStack(spacing: 2) {
                                     HStack(spacing: 3) {
                                         Text(String(format: "%.0f", value))
-                                            .font(.system(size: 15, weight: .bold))
+                                            .font(IRFont.bodyEmphasized.weight(.bold))
                                             .foregroundStyle(Color.irTextPrimary)
 
                                         Text(String(localized: "current", comment: "Label for current value indicator"))
-                                            .font(.system(size: 10, weight: .medium))
+                                            .font(IRFont.microLabel.weight(.medium))
                                             .foregroundStyle(Color.irTextSecondary)
                                     }
 
                                     Image(systemName: "arrowtriangle.down.fill")
-                                        .font(.system(size: 12))
+                                        .font(IRFont.caption)
                                         .foregroundStyle(Color.irPrimaryAccent)
                                 }
                                 .offset(x: position - 25, y: 0)
@@ -102,13 +102,13 @@ struct MetricRangeVisualization: View {
                         ForEach(Array(rangeModel.ranges.enumerated()), id: \.element.id) { index, range in
                             HStack(spacing: 0) {
                                 Text("\(Int(range.minValue))")
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(IRFont.microLabel.weight(.medium))
                                     .foregroundStyle(Color.irTextSecondary)
 
                                 if index == rangeModel.ranges.count - 1 {
                                     Spacer()
                                     Text("\(Int(range.maxValue))+")
-                                        .font(.system(size: 10, weight: .medium))
+                                        .font(IRFont.microLabel.weight(.medium))
                                         .foregroundStyle(Color.irTextSecondary)
                                 } else {
                                     Spacer()
@@ -124,11 +124,11 @@ struct MetricRangeVisualization: View {
                 if let value = currentValue,
                    let currentRange = rangeModel.ranges.first(where: { $0.contains(value) }) {
                     Text(rangeDescription(for: currentRange))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.irTextPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 4)
+                        .padding(.top, Spacing.xxs)
                 }
             }
         }
@@ -145,11 +145,11 @@ struct MetricRanges {
     // These are general values, ideally should be personalized by age/sex
     static let vo2Max = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Very Low", comment: "VO2 Max range: Very Low"), minValue: 15, maxValue: 30, color: Color(red: 0.5, green: 0.5, blue: 0.5)),
-            .init(label: String(localized: "Low", comment: "VO2 Max range: Low"), minValue: 30, maxValue: 38, color: Color(red: 0.35, green: 0.35, blue: 0.35)),
-            .init(label: String(localized: "Average", comment: "VO2 Max range: Average"), minValue: 38, maxValue: 44, color: .blue),
-            .init(label: String(localized: "Good", comment: "VO2 Max range: Good"), minValue: 44, maxValue: 52, color: .purple),
-            .init(label: String(localized: "Excellent", comment: "VO2 Max range: Excellent"), minValue: 52, maxValue: 70, color: Color(red: 1.0, green: 0.4, blue: 0.8))
+            .init(label: String(localized: "Very Low", comment: "VO2 Max range: Very Low"), minValue: 15, maxValue: 30, color: Color.irTextTertiary),
+            .init(label: String(localized: "Low", comment: "VO2 Max range: Low"), minValue: 30, maxValue: 38, color: Color.irTextSecondary),
+            .init(label: String(localized: "Average", comment: "VO2 Max range: Average"), minValue: 38, maxValue: 44, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Good", comment: "VO2 Max range: Good"), minValue: 44, maxValue: 52, color: Color.irPurple),
+            .init(label: String(localized: "Excellent", comment: "VO2 Max range: Excellent"), minValue: 52, maxValue: 70, color: Color.irError)
         ],
         unit: "ml/kg/min"
     )
@@ -158,10 +158,10 @@ struct MetricRanges {
     // Based on running research showing optimal range 160-180 spm
     static let cadence = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Low", comment: "Cadence range: Low"), minValue: 120, maxValue: 160, color: .orange),
-            .init(label: String(localized: "Good", comment: "Cadence range: Good"), minValue: 160, maxValue: 170, color: .blue),
-            .init(label: String(localized: "Optimal", comment: "Cadence range: Optimal"), minValue: 170, maxValue: 180, color: .green),
-            .init(label: String(localized: "High", comment: "Cadence range: High"), minValue: 180, maxValue: 200, color: .purple)
+            .init(label: String(localized: "Low", comment: "Cadence range: Low"), minValue: 120, maxValue: 160, color: Color.irWarning),
+            .init(label: String(localized: "Good", comment: "Cadence range: Good"), minValue: 160, maxValue: 170, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Optimal", comment: "Cadence range: Optimal"), minValue: 170, maxValue: 180, color: Color.irSuccess),
+            .init(label: String(localized: "High", comment: "Cadence range: High"), minValue: 180, maxValue: 200, color: Color.irPurple)
         ],
         unit: "spm"
     )
@@ -170,10 +170,10 @@ struct MetricRanges {
     // Based on running biomechanics research
     static let groundContactTime = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Excellent", comment: "GCT range: Excellent"), minValue: 150, maxValue: 200, color: .green),
-            .init(label: String(localized: "Good", comment: "GCT range: Good"), minValue: 200, maxValue: 220, color: .blue),
-            .init(label: String(localized: "Average", comment: "GCT range: Average"), minValue: 220, maxValue: 250, color: .orange),
-            .init(label: String(localized: "High", comment: "GCT range: High"), minValue: 250, maxValue: 300, color: .red)
+            .init(label: String(localized: "Excellent", comment: "GCT range: Excellent"), minValue: 150, maxValue: 200, color: Color.irSuccess),
+            .init(label: String(localized: "Good", comment: "GCT range: Good"), minValue: 200, maxValue: 220, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Average", comment: "GCT range: Average"), minValue: 220, maxValue: 250, color: Color.irWarning),
+            .init(label: String(localized: "High", comment: "GCT range: High"), minValue: 250, maxValue: 300, color: Color.irError)
         ],
         unit: "ms"
     )
@@ -182,10 +182,10 @@ struct MetricRanges {
     // Based on running efficiency research
     static let verticalOscillation = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Excellent", comment: "VO range: Excellent"), minValue: 4, maxValue: 7, color: .green),
-            .init(label: String(localized: "Good", comment: "VO range: Good"), minValue: 7, maxValue: 9, color: .blue),
-            .init(label: String(localized: "Average", comment: "VO range: Average"), minValue: 9, maxValue: 11, color: .orange),
-            .init(label: String(localized: "High", comment: "VO range: High"), minValue: 11, maxValue: 15, color: .red)
+            .init(label: String(localized: "Excellent", comment: "VO range: Excellent"), minValue: 4, maxValue: 7, color: Color.irSuccess),
+            .init(label: String(localized: "Good", comment: "VO range: Good"), minValue: 7, maxValue: 9, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Average", comment: "VO range: Average"), minValue: 9, maxValue: 11, color: Color.irWarning),
+            .init(label: String(localized: "High", comment: "VO range: High"), minValue: 11, maxValue: 15, color: Color.irError)
         ],
         unit: "cm"
     )
@@ -194,11 +194,11 @@ struct MetricRanges {
     // Based on cardiovascular fitness research
     static let restingHeartRate = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Athlete", comment: "RHR range: Athlete"), minValue: 40, maxValue: 60, color: .green),
-            .init(label: String(localized: "Excellent", comment: "RHR range: Excellent"), minValue: 60, maxValue: 70, color: .blue),
-            .init(label: String(localized: "Good", comment: "RHR range: Good"), minValue: 70, maxValue: 80, color: .cyan),
-            .init(label: String(localized: "Average", comment: "RHR range: Average"), minValue: 80, maxValue: 90, color: .orange),
-            .init(label: String(localized: "High", comment: "RHR range: High"), minValue: 90, maxValue: 110, color: .red)
+            .init(label: String(localized: "Athlete", comment: "RHR range: Athlete"), minValue: 40, maxValue: 60, color: Color.irSuccess),
+            .init(label: String(localized: "Excellent", comment: "RHR range: Excellent"), minValue: 60, maxValue: 70, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Good", comment: "RHR range: Good"), minValue: 70, maxValue: 80, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Average", comment: "RHR range: Average"), minValue: 80, maxValue: 90, color: Color.irWarning),
+            .init(label: String(localized: "High", comment: "RHR range: High"), minValue: 90, maxValue: 110, color: Color.irError)
         ],
         unit: "bpm"
     )
@@ -207,11 +207,11 @@ struct MetricRanges {
     // Based on RMSSD values from research
     static let hrv = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Low", comment: "HRV range: Low"), minValue: 10, maxValue: 30, color: .red),
-            .init(label: String(localized: "Below Average", comment: "HRV range: Below Average"), minValue: 30, maxValue: 50, color: .orange),
-            .init(label: String(localized: "Average", comment: "HRV range: Average"), minValue: 50, maxValue: 80, color: .blue),
-            .init(label: String(localized: "Good", comment: "HRV range: Good"), minValue: 80, maxValue: 120, color: .purple),
-            .init(label: String(localized: "Excellent", comment: "HRV range: Excellent"), minValue: 120, maxValue: 200, color: .green)
+            .init(label: String(localized: "Low", comment: "HRV range: Low"), minValue: 10, maxValue: 30, color: Color.irError),
+            .init(label: String(localized: "Below Average", comment: "HRV range: Below Average"), minValue: 30, maxValue: 50, color: Color.irWarning),
+            .init(label: String(localized: "Average", comment: "HRV range: Average"), minValue: 50, maxValue: 80, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Good", comment: "HRV range: Good"), minValue: 80, maxValue: 120, color: Color.irPurple),
+            .init(label: String(localized: "Excellent", comment: "HRV range: Excellent"), minValue: 120, maxValue: 200, color: Color.irSuccess)
         ],
         unit: "ms"
     )
@@ -219,10 +219,10 @@ struct MetricRanges {
     // Running Power (watts)
     static let runningPower = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Low", comment: "Power range: Low"), minValue: 100, maxValue: 200, color: .gray),
-            .init(label: String(localized: "Moderate", comment: "Power range: Moderate"), minValue: 200, maxValue: 250, color: .blue),
-            .init(label: String(localized: "Good", comment: "Power range: Good"), minValue: 250, maxValue: 300, color: .purple),
-            .init(label: String(localized: "High", comment: "Power range: High"), minValue: 300, maxValue: 400, color: .orange)
+            .init(label: String(localized: "Low", comment: "Power range: Low"), minValue: 100, maxValue: 200, color: Color.irTextTertiary),
+            .init(label: String(localized: "Moderate", comment: "Power range: Moderate"), minValue: 200, maxValue: 250, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Good", comment: "Power range: Good"), minValue: 250, maxValue: 300, color: Color.irPurple),
+            .init(label: String(localized: "High", comment: "Power range: High"), minValue: 300, maxValue: 400, color: Color.irWarning)
         ],
         unit: "W"
     )
@@ -230,9 +230,9 @@ struct MetricRanges {
     // Stride Length (meters)
     static let strideLength = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Short", comment: "Stride range: Short"), minValue: 0.8, maxValue: 1.1, color: .orange),
-            .init(label: String(localized: "Average", comment: "Stride range: Average"), minValue: 1.1, maxValue: 1.4, color: .blue),
-            .init(label: String(localized: "Long", comment: "Stride range: Long"), minValue: 1.4, maxValue: 1.8, color: .green)
+            .init(label: String(localized: "Short", comment: "Stride range: Short"), minValue: 0.8, maxValue: 1.1, color: Color.irWarning),
+            .init(label: String(localized: "Average", comment: "Stride range: Average"), minValue: 1.1, maxValue: 1.4, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Long", comment: "Stride range: Long"), minValue: 1.4, maxValue: 1.8, color: Color.irSuccess)
         ],
         unit: "m"
     )
@@ -240,9 +240,9 @@ struct MetricRanges {
     // Respiratory Rate (breaths per minute)
     static let respiratoryRate = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Low", comment: "Respiratory range: Low"), minValue: 8, maxValue: 12, color: .blue),
-            .init(label: String(localized: "Normal", comment: "Respiratory range: Normal"), minValue: 12, maxValue: 18, color: .green),
-            .init(label: String(localized: "Elevated", comment: "Respiratory range: Elevated"), minValue: 18, maxValue: 25, color: .orange)
+            .init(label: String(localized: "Low", comment: "Respiratory range: Low"), minValue: 8, maxValue: 12, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Normal", comment: "Respiratory range: Normal"), minValue: 12, maxValue: 18, color: Color.irSuccess),
+            .init(label: String(localized: "Elevated", comment: "Respiratory range: Elevated"), minValue: 18, maxValue: 25, color: Color.irWarning)
         ],
         unit: "/min"
     )
@@ -250,10 +250,10 @@ struct MetricRanges {
     // Best Pace (seconds per km) - Lower is better
     static let bestPace = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Elite", comment: "Pace range: Elite"), minValue: 150, maxValue: 210, color: .green),
-            .init(label: String(localized: "Advanced", comment: "Pace range: Advanced"), minValue: 210, maxValue: 270, color: .blue),
-            .init(label: String(localized: "Intermediate", comment: "Pace range: Intermediate"), minValue: 270, maxValue: 360, color: .orange),
-            .init(label: String(localized: "Beginner", comment: "Pace range: Beginner"), minValue: 360, maxValue: 480, color: .gray)
+            .init(label: String(localized: "Elite", comment: "Pace range: Elite"), minValue: 150, maxValue: 210, color: Color.irSuccess),
+            .init(label: String(localized: "Advanced", comment: "Pace range: Advanced"), minValue: 210, maxValue: 270, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Intermediate", comment: "Pace range: Intermediate"), minValue: 270, maxValue: 360, color: Color.irWarning),
+            .init(label: String(localized: "Beginner", comment: "Pace range: Beginner"), minValue: 360, maxValue: 480, color: Color.irTextTertiary)
         ],
         unit: "s/km"
     )
@@ -261,10 +261,10 @@ struct MetricRanges {
     // Max Speed (km/h)
     static let maxSpeed = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Beginner", comment: "Speed range: Beginner"), minValue: 6, maxValue: 12, color: .gray),
-            .init(label: String(localized: "Intermediate", comment: "Speed range: Intermediate"), minValue: 12, maxValue: 16, color: .orange),
-            .init(label: String(localized: "Advanced", comment: "Speed range: Advanced"), minValue: 16, maxValue: 20, color: .blue),
-            .init(label: String(localized: "Elite", comment: "Speed range: Elite"), minValue: 20, maxValue: 30, color: .green)
+            .init(label: String(localized: "Beginner", comment: "Speed range: Beginner"), minValue: 6, maxValue: 12, color: Color.irTextTertiary),
+            .init(label: String(localized: "Intermediate", comment: "Speed range: Intermediate"), minValue: 12, maxValue: 16, color: Color.irWarning),
+            .init(label: String(localized: "Advanced", comment: "Speed range: Advanced"), minValue: 16, maxValue: 20, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Elite", comment: "Speed range: Elite"), minValue: 20, maxValue: 30, color: Color.irSuccess)
         ],
         unit: "km/h"
     )
@@ -272,11 +272,11 @@ struct MetricRanges {
     // Contact Balance (percentage) - 50% is ideal
     static let contactBalance = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Poor Left", comment: "Balance range: Poor Left"), minValue: 40, maxValue: 47, color: .red),
-            .init(label: String(localized: "Good", comment: "Balance range: Good"), minValue: 47, maxValue: 49, color: .orange),
-            .init(label: String(localized: "Ideal", comment: "Balance range: Ideal"), minValue: 49, maxValue: 51, color: .green),
-            .init(label: String(localized: "Good", comment: "Balance range: Good"), minValue: 51, maxValue: 53, color: .orange),
-            .init(label: String(localized: "Poor Right", comment: "Balance range: Poor Right"), minValue: 53, maxValue: 60, color: .red)
+            .init(label: String(localized: "Poor Left", comment: "Balance range: Poor Left"), minValue: 40, maxValue: 47, color: Color.irError),
+            .init(label: String(localized: "Good", comment: "Balance range: Good"), minValue: 47, maxValue: 49, color: Color.irWarning),
+            .init(label: String(localized: "Ideal", comment: "Balance range: Ideal"), minValue: 49, maxValue: 51, color: Color.irSuccess),
+            .init(label: String(localized: "Good", comment: "Balance range: Good"), minValue: 51, maxValue: 53, color: Color.irWarning),
+            .init(label: String(localized: "Poor Right", comment: "Balance range: Poor Right"), minValue: 53, maxValue: 60, color: Color.irError)
         ],
         unit: "%"
     )
@@ -284,10 +284,10 @@ struct MetricRanges {
     // Running Efficiency (percentage)
     static let runningEfficiency = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Low", comment: "Efficiency range: Low"), minValue: 40, maxValue: 60, color: .red),
-            .init(label: String(localized: "Average", comment: "Efficiency range: Average"), minValue: 60, maxValue: 75, color: .orange),
-            .init(label: String(localized: "Good", comment: "Efficiency range: Good"), minValue: 75, maxValue: 85, color: .blue),
-            .init(label: String(localized: "Elite", comment: "Efficiency range: Elite"), minValue: 85, maxValue: 100, color: .green)
+            .init(label: String(localized: "Low", comment: "Efficiency range: Low"), minValue: 40, maxValue: 60, color: Color.irError),
+            .init(label: String(localized: "Average", comment: "Efficiency range: Average"), minValue: 60, maxValue: 75, color: Color.irWarning),
+            .init(label: String(localized: "Good", comment: "Efficiency range: Good"), minValue: 75, maxValue: 85, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Elite", comment: "Efficiency range: Elite"), minValue: 85, maxValue: 100, color: Color.irSuccess)
         ],
         unit: "%"
     )
@@ -295,9 +295,9 @@ struct MetricRanges {
     // Walking Steadiness (percentage)
     static let walkingSteadiness = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Very Low", comment: "Steadiness range: Very Low"), minValue: 0, maxValue: 40, color: .red),
-            .init(label: String(localized: "Low", comment: "Steadiness range: Low"), minValue: 40, maxValue: 80, color: .orange),
-            .init(label: String(localized: "OK", comment: "Steadiness range: OK"), minValue: 80, maxValue: 100, color: .green)
+            .init(label: String(localized: "Very Low", comment: "Steadiness range: Very Low"), minValue: 0, maxValue: 40, color: Color.irError),
+            .init(label: String(localized: "Low", comment: "Steadiness range: Low"), minValue: 40, maxValue: 80, color: Color.irWarning),
+            .init(label: String(localized: "OK", comment: "Steadiness range: OK"), minValue: 80, maxValue: 100, color: Color.irSuccess)
         ],
         unit: "%"
     )
@@ -305,9 +305,9 @@ struct MetricRanges {
     // Walking Asymmetry (percentage) - Lower is better
     static let walkingAsymmetry = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Normal", comment: "Asymmetry range: Normal"), minValue: 0, maxValue: 15, color: .green),
-            .init(label: String(localized: "Asymmetric", comment: "Asymmetry range: Asymmetric"), minValue: 15, maxValue: 20, color: .orange),
-            .init(label: String(localized: "High", comment: "Asymmetry range: High"), minValue: 20, maxValue: 50, color: .red)
+            .init(label: String(localized: "Normal", comment: "Asymmetry range: Normal"), minValue: 0, maxValue: 15, color: Color.irSuccess),
+            .init(label: String(localized: "Asymmetric", comment: "Asymmetry range: Asymmetric"), minValue: 15, maxValue: 20, color: Color.irWarning),
+            .init(label: String(localized: "High", comment: "Asymmetry range: High"), minValue: 20, maxValue: 50, color: Color.irError)
         ],
         unit: "%"
     )
@@ -315,10 +315,10 @@ struct MetricRanges {
     // Double Support (percentage) - Lower is better for speed
     static let doubleSupport = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Fast", comment: "Support range: Fast"), minValue: 10, maxValue: 20, color: .green),
-            .init(label: String(localized: "Normal", comment: "Support range: Normal"), minValue: 20, maxValue: 25, color: .blue),
-            .init(label: String(localized: "Slow", comment: "Support range: Slow"), minValue: 25, maxValue: 30, color: .orange),
-            .init(label: String(localized: "Very Slow", comment: "Support range: Very Slow"), minValue: 30, maxValue: 40, color: .gray)
+            .init(label: String(localized: "Fast", comment: "Support range: Fast"), minValue: 10, maxValue: 20, color: Color.irSuccess),
+            .init(label: String(localized: "Normal", comment: "Support range: Normal"), minValue: 20, maxValue: 25, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Slow", comment: "Support range: Slow"), minValue: 25, maxValue: 30, color: Color.irWarning),
+            .init(label: String(localized: "Very Slow", comment: "Support range: Very Slow"), minValue: 30, maxValue: 40, color: Color.irTextTertiary)
         ],
         unit: "%"
     )
@@ -326,10 +326,10 @@ struct MetricRanges {
     // Walking Speed (km/h)
     static let walkingSpeed = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Slow", comment: "Walking speed: Slow"), minValue: 2, maxValue: 4.8, color: .gray),
-            .init(label: String(localized: "Average", comment: "Walking speed: Average"), minValue: 4.8, maxValue: 6.4, color: .blue),
-            .init(label: String(localized: "Brisk", comment: "Walking speed: Brisk"), minValue: 6.4, maxValue: 8.0, color: .green),
-            .init(label: String(localized: "Very Brisk", comment: "Walking speed: Very Brisk"), minValue: 8.0, maxValue: 12, color: .purple)
+            .init(label: String(localized: "Slow", comment: "Walking speed: Slow"), minValue: 2, maxValue: 4.8, color: Color.irTextTertiary),
+            .init(label: String(localized: "Average", comment: "Walking speed: Average"), minValue: 4.8, maxValue: 6.4, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Brisk", comment: "Walking speed: Brisk"), minValue: 6.4, maxValue: 8.0, color: Color.irSuccess),
+            .init(label: String(localized: "Very Brisk", comment: "Walking speed: Very Brisk"), minValue: 8.0, maxValue: 12, color: Color.irPurple)
         ],
         unit: "km/h"
     )
@@ -337,10 +337,10 @@ struct MetricRanges {
     // Stair Ascent Speed (m/s)
     static let stairAscentSpeed = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Reduced", comment: "Ascent speed: Reduced"), minValue: 0.2, maxValue: 0.5, color: .red),
-            .init(label: String(localized: "Average", comment: "Ascent speed: Average"), minValue: 0.5, maxValue: 0.7, color: .blue),
-            .init(label: String(localized: "Good", comment: "Ascent speed: Good"), minValue: 0.7, maxValue: 1.0, color: .green),
-            .init(label: String(localized: "Athlete", comment: "Ascent speed: Athlete"), minValue: 1.0, maxValue: 1.5, color: .purple)
+            .init(label: String(localized: "Reduced", comment: "Ascent speed: Reduced"), minValue: 0.2, maxValue: 0.5, color: Color.irError),
+            .init(label: String(localized: "Average", comment: "Ascent speed: Average"), minValue: 0.5, maxValue: 0.7, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Good", comment: "Ascent speed: Good"), minValue: 0.7, maxValue: 1.0, color: Color.irSuccess),
+            .init(label: String(localized: "Athlete", comment: "Ascent speed: Athlete"), minValue: 1.0, maxValue: 1.5, color: Color.irPurple)
         ],
         unit: "m/s"
     )
@@ -348,10 +348,10 @@ struct MetricRanges {
     // Stair Descent Speed (m/s)
     static let stairDescentSpeed = MetricRangeModel(
         ranges: [
-            .init(label: String(localized: "Reduced", comment: "Descent speed: Reduced"), minValue: 0.3, maxValue: 0.6, color: .red),
-            .init(label: String(localized: "Average", comment: "Descent speed: Average"), minValue: 0.6, maxValue: 0.8, color: .blue),
-            .init(label: String(localized: "Good", comment: "Descent speed: Good"), minValue: 0.8, maxValue: 1.0, color: .green),
-            .init(label: String(localized: "Fast", comment: "Descent speed: Fast"), minValue: 1.0, maxValue: 1.5, color: .purple)
+            .init(label: String(localized: "Reduced", comment: "Descent speed: Reduced"), minValue: 0.3, maxValue: 0.6, color: Color.irError),
+            .init(label: String(localized: "Average", comment: "Descent speed: Average"), minValue: 0.6, maxValue: 0.8, color: Color.irPrimaryAccent),
+            .init(label: String(localized: "Good", comment: "Descent speed: Good"), minValue: 0.8, maxValue: 1.0, color: Color.irSuccess),
+            .init(label: String(localized: "Fast", comment: "Descent speed: Fast"), minValue: 1.0, maxValue: 1.5, color: Color.irPurple)
         ],
         unit: "m/s"
     )
@@ -401,7 +401,7 @@ struct MetricRanges {
 
 #Preview {
     ScrollView {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             MetricRangeVisualization(
                 rangeModel: MetricRanges.vo2Max,
                 currentValue: 43

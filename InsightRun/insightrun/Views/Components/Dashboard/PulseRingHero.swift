@@ -40,9 +40,9 @@ struct PulseRingHero: View {
             .padding(.top, Spacing.lg)
             .padding(.bottom, Spacing.base)
             .background(heroBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: Radius.xl)
+                RoundedRectangle(cornerRadius: Radius.md)
                     .strokeBorder(Color.irBorder, lineWidth: 0.5)
             )
         }
@@ -56,22 +56,22 @@ struct PulseRingHero: View {
     private var header: some View {
         HStack {
             Text(String(localized: "AVAILABILITY", comment: "Pulse ring eyebrow"))
-                .font(.system(size: 11, weight: .bold))
+                .font(IRFont.eyebrow.weight(.bold))
                 .tracking(1.6)
                 .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
 
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 StatusChip(title: statusTitle, color: statusColor)
 
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(IRFont.microLabel.weight(.bold))
                     .foregroundStyle(Color.irTextSecondary)
                     .frame(width: 22, height: 22)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.white.opacity(0.06))
+                            .fill(Color.irBorder)
                     )
             }
         }
@@ -161,7 +161,7 @@ struct PulseRingHero: View {
                     p.move(to: CGPoint(x: cx + cos(angle) * r1, y: cy + sin(angle) * r1))
                     p.addLine(to: CGPoint(x: cx + cos(angle) * r2, y: cy + sin(angle) * r2))
                 }
-                .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                .stroke(Color.irTextPrimary.opacity(0.22), lineWidth: 1)
             }
         }
     }
@@ -181,10 +181,10 @@ struct PulseRingHero: View {
                     p.move(to: CGPoint(x: cx + cos(angle) * inner, y: cy + sin(angle) * inner))
                     p.addLine(to: CGPoint(x: cx + cos(angle) * outer, y: cy + sin(angle) * outer))
                 }
-                .stroke(Color.white.opacity(0.45), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                .stroke(Color.irTextPrimary.opacity(0.45), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
 
                 Text(String(localized: "yesterday", comment: "Pulse ring yesterday marker"))
-                    .font(.system(size: 9, design: .monospaced))
+                    .font(IRFont.monoSM)
                     .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                     .position(x: labelX, y: labelY)
             }
@@ -203,10 +203,10 @@ struct PulseRingHero: View {
                 p.move(to: CGPoint(x: cx, y: cy))
                 p.addLine(to: needleEnd)
             }
-            .stroke(Color.white.opacity(0.20), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+            .stroke(Color.irTextPrimary.opacity(0.20), style: StrokeStyle(lineWidth: 1, lineCap: .round))
 
             Circle()
-                .fill(Color.white)
+                .fill(Color.irTextPrimary)
                 .frame(width: 12, height: 12)
                 .position(dot)
 
@@ -220,14 +220,14 @@ struct PulseRingHero: View {
     private func centerScore(cx: CGFloat, cy: CGFloat) -> some View {
         VStack(spacing: 2) {
             Text("\(score)")
-                .font(.system(size: 84, weight: .heavy, design: .rounded))
+                .font(IRFont.numXL.weight(.heavy))
                 .kerning(-3.5)
                 .foregroundStyle(Color.irTextPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
 
             Text("/100")
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(IRFont.microLabel.weight(.semibold))
                 .tracking(2.5)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.7))
         }
@@ -241,18 +241,17 @@ struct PulseRingHero: View {
             if let yesterday = yesterdayScore {
                 let delta = score - yesterday
                 let isUp = delta >= 0
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xs) {
                     Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(IRFont.microLabel.weight(.bold))
                         .foregroundStyle(isUp ? Color.irSuccess : Color.irError)
 
                     Text("\(delta >= 0 ? "+" : "")\(delta)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .monospacedDigit()
+                        .font(IRFont.numXS.weight(.bold))
                         .foregroundStyle(Color.irTextPrimary)
 
                     Text(String(localized: "vs yesterday", comment: "Pulse ring delta caption"))
-                        .font(.system(size: 12))
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
@@ -260,7 +259,7 @@ struct PulseRingHero: View {
             Spacer()
 
             Text(summary)
-                .font(.system(size: 11))
+                .font(IRFont.eyebrow)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 .lineLimit(1)
         }
@@ -302,10 +301,10 @@ struct StatusChip: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 11, weight: .semibold))
+            .font(IRFont.eyebrow.weight(.semibold))
             .foregroundStyle(color)
             .padding(.horizontal, 9)
-            .padding(.vertical, 4)
+            .padding(.vertical, Spacing.xxs)
             .background(
                 Capsule().fill(color.opacity(0.14))
             )
@@ -316,7 +315,7 @@ struct StatusChip: View {
 }
 
 #Preview {
-    VStack(spacing: 20) {
+    VStack(spacing: Spacing.lg) {
         PulseRingHero(
             score: 47,
             yesterdayScore: 52,

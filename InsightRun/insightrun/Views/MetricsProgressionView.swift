@@ -23,7 +23,7 @@ struct MetricsProgressionView: View {
     // MARK: - Loading State
 
     private var loadingState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.base) {
             ProgressView(value: viewModel.progressionLoadingProgress)
                 .tint(Color.irPrimaryAccent)
 
@@ -31,7 +31,7 @@ struct MetricsProgressionView: View {
                 format: String(localized: "progression.loading", defaultValue: "Loading metrics… %d%%", comment: "Loading progression metrics"),
                 Int(viewModel.progressionLoadingProgress * 100)
             ))
-            .font(.subheadline)
+            .font(IRFont.body)
             .foregroundStyle(Color.irTextSecondary)
         }
         .padding()
@@ -41,17 +41,17 @@ struct MetricsProgressionView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 60))
+                .font(IRFont.numLG)
                 .foregroundStyle(Color.irTextSecondary)
 
             Text(String(localized: "progression.empty.title", defaultValue: "Not enough data", comment: "Progression empty state title"))
-                .font(.title2)
+                .font(IRFont.title2)
                 .fontWeight(.semibold)
 
             Text(String(localized: "progression.empty.message", defaultValue: "At least 2 workouts are needed in this period to show progression.", comment: "Progression empty state message"))
-                .font(.body)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
@@ -62,7 +62,7 @@ struct MetricsProgressionView: View {
     // MARK: - Metrics Content
 
     private var metricsContent: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             if viewModel.isLoadingProgression {
                 ProgressView(value: viewModel.progressionLoadingProgress)
                     .tint(Color.irPrimaryAccent)
@@ -70,9 +70,9 @@ struct MetricsProgressionView: View {
             }
 
             if !viewModel.performanceMetrics.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(String(localized: "progression.section.performance", defaultValue: "Performance", comment: "Performance section title"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -83,9 +83,9 @@ struct MetricsProgressionView: View {
             }
 
             if !viewModel.advancedMetrics.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(String(localized: "progression.section.advanced", defaultValue: "Advanced metrics", comment: "Advanced metrics section title"))
-                        .font(.headline)
+                        .font(IRFont.headline)
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity, alignment: .leading)
 

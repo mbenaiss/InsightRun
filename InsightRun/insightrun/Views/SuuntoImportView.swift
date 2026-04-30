@@ -21,18 +21,18 @@ struct SuuntoImportView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.xl) {
                 // Header
-                VStack(spacing: 12) {
+                VStack(spacing: Spacing.md) {
                     Image(systemName: "square.and.arrow.down.fill")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.orange)
+                        .font(IRFont.numLG)
+                        .foregroundStyle(Color(hex: "E84545"))
 
                     Text(String(localized: "Import Suunto Workout", comment: "Title for Suunto import screen"))
-                        .font(.title2.bold())
+                        .font(IRFont.title2.bold())
 
                     Text(String(localized: "Import a FIT file exported from the Suunto app to enrich your workout data with advanced metrics.", comment: "Description for Suunto import screen"))
-                        .font(.subheadline)
+                        .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
@@ -50,22 +50,22 @@ struct SuuntoImportView: View {
                         showFilePicker = true
                     } label: {
                         Label(String(localized: "Select FIT File", comment: "Button to select a FIT file for import"), systemImage: "doc.badge.plus")
-                            .font(.headline)
+                            .font(IRFont.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(.orange)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .background(Color(hex: "E84545"))
+                            .foregroundStyle(Color.irTextPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, Spacing.xxl)
                 }
 
                 // Instructions
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: Spacing.base) {
                     Text(String(localized: "How to export from Suunto:", comment: "Instructions header for Suunto export"))
-                        .font(.headline)
+                        .font(IRFont.headline)
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
                         instructionRow(number: 1, text: String(localized: "Open Suunto app on your phone", comment: "Suunto export instruction step 1"))
                         instructionRow(number: 2, text: String(localized: "Go to a workout and tap the share icon", comment: "Suunto export instruction step 2"))
                         instructionRow(number: 3, text: String(localized: "Choose \"Export as FIT\"", comment: "Suunto export instruction step 3"))
@@ -73,8 +73,8 @@ struct SuuntoImportView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .background(Color.irCard2)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 .padding(.horizontal)
 
                 Spacer()
@@ -82,7 +82,7 @@ struct SuuntoImportView: View {
                 // Stats
                 if let count = try? importService.getCachedWorkoutCount(), count > 0 {
                     Text(String(localized: "\(count) Suunto workouts imported", comment: "Count of imported Suunto workouts"))
-                        .font(.caption)
+                        .font(IRFont.caption)
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
@@ -124,16 +124,16 @@ struct SuuntoImportView: View {
     }
 
     private func instructionRow(number: Int, text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Spacing.md) {
             Text("\(number)")
-                .font(.caption.bold())
+                .font(IRFont.caption.bold())
                 .frame(width: 20, height: 20)
-                .background(.orange.opacity(0.2))
-                .foregroundStyle(.orange)
+                .background(Color(hex: "E84545").opacity(0.2))
+                .foregroundStyle(Color(hex: "E84545"))
                 .clipShape(Circle())
 
             Text(text)
-                .font(.subheadline)
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextSecondary)
         }
     }
@@ -261,7 +261,7 @@ struct SuuntoImportFromShareView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.xl) {
                 switch importState {
                 case .loading:
                     loadingView
@@ -291,54 +291,54 @@ struct SuuntoImportFromShareView: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             ProgressView()
                 .scaleEffect(1.5)
 
             Text(String(localized: "Importing workout...", comment: "Loading state during workout import"))
-                .font(.headline)
+                .font(IRFont.headline)
 
             if let url = fileURL {
                 Text(url.lastPathComponent)
-                    .font(.caption)
+                    .font(IRFont.caption)
                     .foregroundStyle(Color.irTextSecondary)
             }
         }
     }
 
     private var successView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .font(IRFont.numXL)
+                .foregroundStyle(Color.irSuccess)
 
             Text(isMatched ? String(localized: "Workout Enriched!", comment: "Success title when workout enriched") : (isSavedToHealthKit ? String(localized: "Saved to Apple Health!", comment: "Success title when saved to HealthKit") : String(localized: "Workout Imported!", comment: "Success title when workout imported")))
-                .font(.title2.bold())
+                .font(IRFont.title2.weight(.bold))
 
             if let workout = importedWorkout {
-                VStack(spacing: 8) {
+                VStack(spacing: Spacing.sm) {
                     Text(workout.activityType)
-                        .font(.headline)
+                        .font(IRFont.headline)
 
-                    HStack(spacing: 16) {
+                    HStack(spacing: Spacing.base) {
                         Label(formattedDistance(workout.distance), systemImage: "figure.run")
                         Label(formattedDuration(workout.duration), systemImage: "clock")
                     }
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
 
                     if isMatched {
                         Text(String(localized: "Suunto data has been merged with the existing HealthKit workout.", comment: "Detail message when workout enriched"))
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                             .multilineTextAlignment(.center)
-                            .padding(.top, 8)
+                            .padding(.top, Spacing.sm)
                     } else if isSavedToHealthKit {
                         Text(String(localized: "Workout imported and saved to Apple Health!", comment: "Detail message when saved to HealthKit"))
-                            .font(.caption)
+                            .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                             .multilineTextAlignment(.center)
-                            .padding(.top, 8)
+                            .padding(.top, Spacing.sm)
                     }
                 }
             }
@@ -353,17 +353,17 @@ struct SuuntoImportFromShareView: View {
     }
 
     private var errorView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.lg) {
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.red)
+                .font(IRFont.numXL)
+                .foregroundStyle(Color.irError)
 
             Text(String(localized: "Import Failed", comment: "Error title when import fails"))
-                .font(.title2.bold())
+                .font(IRFont.title2.weight(.bold))
 
             if let error = errorMessage {
                 Text(error)
-                    .font(.subheadline)
+                    .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
             }

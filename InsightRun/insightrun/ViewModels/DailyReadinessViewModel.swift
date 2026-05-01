@@ -114,19 +114,31 @@ class DailyReadinessViewModel: ObservableObject {
                 CardiacLoadPayload(score: $0, status: cardiacLoadStatus.rawValue)
             }
 
+            // Pull the morning score for today (if any) so the backend keeps it stable
+            // when only effort/cardiac context has shifted.
+            let frozenScore = dailyCache.getCachedScoreForToday()
+
             let request = DailyReadinessRequest(
                 recovery: buildRecoveryPayload(from: recoveryMetrics),
                 baseline: baseline.map { buildBaselinePayload(from: $0) },
                 dailyActivity: activityPayload,
                 cardiacLoad: cardiacPayload,
                 recentWorkouts: workoutPayloads.isEmpty ? nil : workoutPayloads,
-                language: AppLanguage.current
+                language: AppLanguage.current,
+                cachedScore: frozenScore?.score,
+                cachedStatus: frozenScore?.status
             )
 
             let response = try await backendClient.fetchDailyReadiness(request: request)
 
-            readinessScore = response.score
-            status = ReadinessStatus(from: response.status)
+            // Defensive freeze: if the user already has a morning score for today,
+            // keep it regardless of what the backend returned. Covers older backends
+            // that don't honor `cachedScore`, and rollback scenarios.
+            let displayScore = frozenScore?.score ?? response.score
+            let displayStatus = frozenScore?.status ?? response.status
+
+            readinessScore = displayScore
+            status = ReadinessStatus(from: displayStatus)
             // Long form goes to the legacy `recommendation` (so older readers keep working);
             // collapsed dashboard view reads `recommendationSummary` and falls back gracefully.
             let detailText = response.detail?.nilIfEmpty ?? response.recommendation
@@ -136,8 +148,8 @@ class DailyReadinessViewModel: ObservableObject {
             insights = response.insights.map { ReadinessInsight(from: $0) }
 
             dailyCache.cacheReadiness(
-                score: response.score,
-                status: response.status,
+                score: displayScore,
+                status: displayStatus,
                 recommendation: detailText,
                 summary: response.summary,
                 workoutType: response.suggestedWorkoutType,
@@ -223,6 +235,12 @@ struct DailyReadinessRequest: Encodable {
     let cardiacLoad: CardiacLoadPayload?
     let recentWorkouts: [ReadinessWorkoutData]?
     let language: String
+    /// Morning score already computed today. When set, the backend honors it as the
+    /// response score instead of recomputing — keeps the displayed score stable for the day.
+    let cachedScore: Int?
+    /// Status paired with `cachedScore`. Used by the backend to keep the AI prompt and
+    /// suggested workout type coherent with the frozen score.
+    let cachedStatus: String?
 }
 
 struct ReadinessWorkoutData: Encodable {

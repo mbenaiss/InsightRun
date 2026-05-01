@@ -48,7 +48,7 @@ final class DailyMetricsCache {
     // MARK: - Readiness
 
     /// Returns today's cached readiness only if the inputs (effort + cardiac load) still match.
-    /// A score mismatch invalidates the cache so a new workout or effort change triggers a re-fetch.
+    /// Used to skip the backend call entirely when nothing relevant has changed.
     func getCachedReadiness(effortScore: Int, cardiacLoadScore: Int?) -> CachedReadiness? {
         guard let data = defaults.data(forKey: readinessKey),
               let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
@@ -58,6 +58,18 @@ final class DailyMetricsCache {
             return nil
         }
         return cached
+    }
+
+    /// Returns the morning score for today regardless of effort/cardiac changes.
+    /// The readiness score is computed once per calendar day and frozen — only the
+    /// AI coaching text is allowed to refresh as inputs evolve during the day.
+    func getCachedScoreForToday() -> (score: Int, status: String)? {
+        guard let data = defaults.data(forKey: readinessKey),
+              let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
+              Calendar.current.isDateInToday(cached.cacheDate) else {
+            return nil
+        }
+        return (cached.score, cached.status)
     }
 
     func cacheReadiness(

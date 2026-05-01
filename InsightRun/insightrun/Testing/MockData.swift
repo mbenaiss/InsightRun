@@ -234,6 +234,22 @@ enum MockData {
         baseline: samplePersonalBaseline
     )
 
+    /// Recovery metrics without any sleep data — represents a user who doesn't wear
+    /// their Apple Watch at night (or doesn't have one). Used to test the no-sleep
+    /// presentation mode (freshness card replacing sleep card, sleep omitted from prompts).
+    static let sampleRecoveryMetricsNoSleep: RecoveryMetrics = RecoveryMetrics(
+        date: now,
+        restingHeartRate: 58,
+        hrvAverage: 52,
+        hrvMin: 38,
+        hrvMax: 72,
+        walkingHeartRate: 82,
+        sleepData: nil,
+        respiratoryRate: 15,
+        oxygenSaturation: 97,
+        baseline: samplePersonalBaseline
+    )
+
     // MARK: - Sample Health Profile
 
     static let sampleHealthProfile: HealthProfile = HealthProfile(

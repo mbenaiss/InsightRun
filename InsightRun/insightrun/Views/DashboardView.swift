@@ -102,6 +102,7 @@ struct DashboardView: View {
                     case .sleep: return recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0
                     case .readiness: return readinessVM.readinessScore ?? 0
                     case .cardiacLoad: return trainingLoadService.cardiacLoadScore ?? 0
+                    case .freshness: return trainingLoadService.freshnessScore
                     }
                 }()
                 let trend: [TrendDataPoint] = {
@@ -114,6 +115,8 @@ struct DashboardView: View {
                         return sleepTrend
                     case .readiness:
                         return readinessTrend
+                    case .freshness:
+                        return trainingLoadService.freshnessTrendData
                     }
                 }()
                 ScoreExplanationSheet(
@@ -304,14 +307,25 @@ struct DashboardView: View {
                             onTap: { selectedScoreType = .effort }
                         )
 
-                        SecondaryScoreCard(
-                            title: String(localized: "Sleep", comment: "Dashboard sleep label"),
-                            score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0,
-                            baseline: 75,
-                            accent: .irSuccess,
-                            trend: sleepTrend.suffix(7).map(\.value),
-                            onTap: { selectedScoreType = .sleep }
-                        )
+                        if readinessVM.isNoSleepMode {
+                            SecondaryScoreCard(
+                                title: String(localized: "Freshness", comment: "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable"),
+                                score: trainingLoadService.freshnessScore,
+                                baseline: 55,
+                                accent: .irSuccess,
+                                trend: trainingLoadService.freshnessTrendData.suffix(7).map(\.value),
+                                onTap: { selectedScoreType = .freshness }
+                            )
+                        } else {
+                            SecondaryScoreCard(
+                                title: String(localized: "Sleep", comment: "Dashboard sleep label"),
+                                score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0,
+                                baseline: 75,
+                                accent: .irSuccess,
+                                trend: sleepTrend.suffix(7).map(\.value),
+                                onTap: { selectedScoreType = .sleep }
+                            )
+                        }
                     }
                 }
 

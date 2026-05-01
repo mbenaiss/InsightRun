@@ -23,6 +23,10 @@ class DailyReadinessViewModel: ObservableObject {
     @Published var insights: [ReadinessInsight] = []
     @Published var needsConsent = false
     @Published var needsIndexation = false
+    /// True when fewer than 3 nights of sleep are tracked over the last 14 days.
+    /// The dashboard swaps sleep-based cards for freshness (TSB) cards and the
+    /// backend omits sleep from the AI coaching prompt.
+    @Published var isNoSleepMode: Bool = false
     private var hasPromptedConsent = false
 
     private let backendClient = BackendAPIClient.shared
@@ -96,10 +100,13 @@ class DailyReadinessViewModel: ObservableObject {
         do {
             async let recoveryMetricsFetch = healthKitManager.fetchRecoveryMetrics(for: Date())
             async let recentWorkoutsFetch = healthKitManager.fetchWorkouts(limit: 3)
+            async let noSleepFetch = SleepDataAvailabilityService.shared.isNoSleepMode()
 
             let recoveryMetrics = try await recoveryMetricsFetch
             let workoutPayloads = buildRecentWorkoutPayloads(from: await recentWorkoutsFetch)
             let baseline = PersonalBaselineStorage.shared.load()
+            let noSleepMode = await noSleepFetch
+            self.isNoSleepMode = noSleepMode
 
             let activityPayload: DailyActivityPayload? = activityData.map {
                 DailyActivityPayload(
@@ -126,7 +133,8 @@ class DailyReadinessViewModel: ObservableObject {
                 recentWorkouts: workoutPayloads.isEmpty ? nil : workoutPayloads,
                 language: AppLanguage.current,
                 cachedScore: frozenScore?.score,
-                cachedStatus: frozenScore?.status
+                cachedStatus: frozenScore?.status,
+                noSleepMode: noSleepMode ? true : nil
             )
 
             let response = try await backendClient.fetchDailyReadiness(request: request)
@@ -241,6 +249,10 @@ struct DailyReadinessRequest: Encodable {
     /// Status paired with `cachedScore`. Used by the backend to keep the AI prompt and
     /// suggested workout type coherent with the frozen score.
     let cachedStatus: String?
+    /// Set to true when the client detects fewer than 3 nights tracked over 14 days.
+    /// The backend uses it to omit sleep from the AI coaching prompt and tag the
+    /// response with `mode: "noSleep"`. Omitted (nil) for users who track sleep.
+    let noSleepMode: Bool?
 }
 
 struct ReadinessWorkoutData: Encodable {

@@ -73,15 +73,24 @@ struct SleepQualityWidgetView: View {
 
     // MARK: - Lock Screen: Circular
 
+    @ViewBuilder
     private var accessoryCircularView: some View {
-        Gauge(value: Double(entry.data?.qualityScore ?? 0), in: 0...100) {
-            Text("S")
-        } currentValueLabel: {
-            Image(systemName: "moon.zzz.fill")
-                .font(.caption)
+        if let data = entry.data {
+            Gauge(value: Double(data.qualityScore), in: 0...100) {
+                Text("S")
+            } currentValueLabel: {
+                Image(systemName: "moon.zzz.fill")
+                    .font(.caption)
+            }
+            .gaugeStyle(.accessoryCircular)
+            .containerBackground(for: .widget) { Color.clear }
+        } else {
+            // No sleep tracking — render a neutral icon instead of an empty 0% gauge.
+            Image(systemName: "moon.zzz")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .containerBackground(for: .widget) { Color.clear }
         }
-        .gaugeStyle(.accessoryCircular)
-        .containerBackground(for: .widget) { Color.clear }
     }
 
     // MARK: - Lock Screen: Rectangular

@@ -27,6 +27,19 @@ final class TrainingLoadService: ObservableObject {
     @Published var cardiacLoadTrendData: [TrendDataPoint] = []
     @Published var acwr: Double?
 
+    /// Acute Training Load (EWMA, τ=7 days) — used to derive Training Stress Balance (TSB).
+    @Published var atl: Double = 0
+    /// Chronic Training Load (EWMA, τ=42 days) — used to derive TSB.
+    @Published var ctl: Double = 0
+    /// Training Stress Balance = CTL - ATL. Positive = fresh, negative = fatigued.
+    /// Source: Coggan AR (TrainingPeaks), Banister EW (1991).
+    @Published var tsb: Double = 0
+    /// Freshness score (0-100) mapped from TSB. Used as a sleep-independent recovery
+    /// signal on the dashboard for users who don't track sleep.
+    @Published var freshnessScore: Int = 50
+    /// 14-day freshness trend for the dashboard sparkline.
+    @Published var freshnessTrendData: [TrendDataPoint] = []
+
     private let healthKitManager = HealthKitManager.shared
     private let volumeIncreaseThreshold = 10.0 // 10% increase triggers warning
     private let inactivityThreshold = 4 // 4+ days without workout
@@ -251,6 +264,7 @@ final class TrainingLoadService: ObservableObject {
             // Build trend data (last 14 days, recompute EWMA for each day)
             var trendATL: Double = 0
             var trendCTL: Double = 0
+            var freshnessTrend: [TrendDataPoint] = []
             for day in sortedDays {
                 let load = dailyLoad[day] ?? 0
                 trendATL = atlAlpha * load + (1 - atlAlpha) * trendATL
@@ -264,6 +278,10 @@ final class TrainingLoadService: ObservableObject {
                         normalizedValue = min(maxScore, (trendATL / fallbackATLNormalization) * maxScore)
                     }
                     trendPoints.append(TrendDataPoint(date: day, value: normalizedValue))
+
+                    let dayTSB = trendCTL - trendATL
+                    let dayFreshness = Self.freshnessScoreFromTSB(dayTSB)
+                    freshnessTrend.append(TrendDataPoint(date: day, value: Double(dayFreshness)))
                 }
             }
 
@@ -297,11 +315,28 @@ final class TrainingLoadService: ObservableObject {
             cardiacLoadTrendData = trendPoints
             acwr = computedACWR
 
-            print("📊 TrainingLoadService: ATL=\(String(format: "%.1f", atlEWMA)) CTL=\(String(format: "%.1f", ctlEWMA)) ACWR=\(computedACWR.map { String(format: "%.2f", $0) } ?? "n/a") score=\(score) status=\(status.rawValue)")
+            atl = atlEWMA
+            ctl = ctlEWMA
+            tsb = ctlEWMA - atlEWMA
+            freshnessScore = Self.freshnessScoreFromTSB(tsb)
+            freshnessTrendData = freshnessTrend
+
+            print("📊 TrainingLoadService: ATL=\(String(format: "%.1f", atlEWMA)) CTL=\(String(format: "%.1f", ctlEWMA)) TSB=\(String(format: "%.1f", tsb)) freshness=\(freshnessScore) ACWR=\(computedACWR.map { String(format: "%.2f", $0) } ?? "n/a") score=\(score) status=\(status.rawValue)")
         } catch {
             print("⚠️ TrainingLoadService: Failed to analyze cardiac load: \(error)")
             cardiacLoadScore = nil
         }
+    }
+
+    /// Map Training Stress Balance to a 0-100 freshness score.
+    /// TSB = +30 → ~100 (very fresh, possibly detrained)
+    /// TSB =   0 → ~55 (neutral)
+    /// TSB = -20 → ~25 (training stress, fatigue accumulating)
+    /// TSB = -30 → ~10 (overload risk)
+    /// Source: Coggan/TrainingPeaks Performance Management Chart conventions.
+    static func freshnessScoreFromTSB(_ tsb: Double) -> Int {
+        let raw = 55.0 + tsb * 1.5
+        return max(0, min(100, Int(raw.rounded())))
     }
 
     // MARK: - TRIMP Calculation

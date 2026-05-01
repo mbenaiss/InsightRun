@@ -40,6 +40,13 @@ interface DailyReadinessRequest {
   cachedScore?: number
   /** Status paired with `cachedScore`; falls back to derivation from the score. */
   cachedStatus?: string
+  /**
+   * Set by the iOS client when fewer than 3 nights of sleep have been tracked over
+   * the last 14 days. The backend uses it to omit sleep from the AI prompt and
+   * tag the response so the UI can swap to a sleep-independent presentation.
+   * Defaults to false/undefined for users who track sleep.
+   */
+  noSleepMode?: boolean
 }
 
 interface ReadinessResponse {
@@ -57,6 +64,8 @@ interface ReadinessResponse {
   detail?: string
   suggestedWorkoutType: 'intense' | 'moderate' | 'easy' | 'rest'
   insights: ReadinessInsight[]
+  /** "noSleep" when the client opted into the sleep-less presentation; "normal" otherwise. */
+  mode?: 'normal' | 'noSleep'
 }
 
 interface ReadinessInsight {
@@ -676,11 +685,16 @@ function buildReadinessContext(
   baseline?: PersonalBaselineData,
   activity?: DailyActivityData,
   cardiacLoad?: CardiacLoadData,
-  recentWorkouts?: ReadinessWorkoutData[]
+  recentWorkouts?: ReadinessWorkoutData[],
+  noSleepMode?: boolean
 ): string {
   let ctx = ''
 
   ctx += `Recovery Score: ${score}/100 (status: ${status})\n`
+
+  if (noSleepMode) {
+    ctx += 'Sleep tracking: NOT AVAILABLE (user does not wear a sleep tracker).\n'
+  }
 
   if (recovery.hrv !== undefined) {
     ctx += `HRV: ${Math.round(recovery.hrv)} ms`
@@ -782,7 +796,8 @@ async function generateAIRecommendation(
   baseline?: PersonalBaselineData,
   activity?: DailyActivityData,
   cardiacLoad?: CardiacLoadData,
-  recentWorkouts?: ReadinessWorkoutData[]
+  recentWorkouts?: ReadinessWorkoutData[],
+  noSleepMode?: boolean
 ): Promise<CoachingText> {
   const langName = getLanguageName(language)
   const readinessContext = buildReadinessContext(
@@ -792,8 +807,16 @@ async function generateAIRecommendation(
     baseline,
     activity,
     cardiacLoad,
-    recentWorkouts
+    recentWorkouts,
+    noSleepMode
   )
+
+  const noSleepRule = noSleepMode
+    ? `\n- This runner does NOT track sleep. You MUST NOT mention sleep, sleep quality, sleep duration, or suggest tracking sleep. Do NOT apologize for missing data. Base your advice exclusively on HRV, resting HR, recent workouts, and cardiac load trend.`
+    : ''
+  const detailMetricsHint = noSleepMode
+    ? 'HRV, resting HR, recent workout distance, cardiac load'
+    : 'sleep duration, HRV, recent workout distance'
 
   const systemPrompt = `You are an expert running coach analyzing daily readiness data.
 Produce two pieces of coaching text based on the runner's metrics:
@@ -808,8 +831,8 @@ Rules:
   * Hard effort (>=${EffortThresholds.hard.distanceKm} km, >=${EffortThresholds.hard.durationHours}h, or avg HR >=${EffortThresholds.hard.avgHeartRate} bpm) in the last ${EffortThresholds.hard.recencyHours}h: push towards easier training or rest.
 - Always factor the cardiac load trend into your recommendation.
 - Respond in ${langName}. No markdown, no bullet points — plain text only.
-- Be specific in the detail: reference actual metric values (e.g., sleep duration, HRV, recent workout distance).
-- Keep it warm, motivating, and actionable.
+- Be specific in the detail: reference actual metric values (e.g., ${detailMetricsHint}).
+- Keep it warm, motivating, and actionable.${noSleepRule}
 
 Return strictly a JSON object with exactly these two string fields: {"summary": "...", "detail": "..."}. No prose, no code fences.`
 
@@ -1032,7 +1055,8 @@ app.post('/', async (c) => {
         body.baseline,
         body.dailyActivity,
         body.cardiacLoad,
-        body.recentWorkouts
+        body.recentWorkouts,
+        body.noSleepMode === true
       )
     } catch (aiError) {
       console.warn('AI recommendation failed, falling back to static:', aiError)
@@ -1049,6 +1073,7 @@ app.post('/', async (c) => {
       detail: coachingText.detail,
       suggestedWorkoutType,
       insights,
+      mode: body.noSleepMode === true ? 'noSleep' : 'normal',
     }
 
     return c.json(response)

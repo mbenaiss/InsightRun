@@ -313,6 +313,12 @@ class ScoreAnalysisViewModel: ObservableObject {
                 return "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Here is my 14-day trend: [\(trendSummary)]. Analyze the trend evolution and current load. Is my training load progressing well? Give me 1 actionable tip on load management. Reply in 3-4 sentences max, no markdown. You MUST reply in \(lang)."
             }
             return "My cardiac load is \(score)/20 (ACWR-based, 10/20 = maintaining). Briefly analyze this cardiovascular load. Give me 1 tip on load management. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
+
+        case .freshness:
+            if let trendSummary = formatTrendSummary(trendData) {
+                return "My freshness score is \(score)/100, derived from Training Stress Balance (TSB = CTL − ATL). Higher = more rested for hard training, lower = accumulated fatigue. I don't track sleep, so this is my main recovery signal. Here is my 14-day trend: [\(trendSummary)]. Analyze whether I'm fresh enough for intensity today. Do NOT mention sleep. Give me 1 actionable tip. Reply in 3-4 sentences max, no markdown. You MUST reply in \(lang)."
+            }
+            return "My freshness score is \(score)/100, derived from Training Stress Balance. Higher = rested, lower = fatigued. I don't track sleep. Briefly tell me if I'm fresh enough for intensity today and give 1 tip. Do NOT mention sleep. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
         }
     }
 

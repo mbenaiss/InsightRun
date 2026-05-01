@@ -15,6 +15,9 @@ enum ScoreType: Identifiable {
     case sleep
     case readiness
     case cardiacLoad
+    /// Training Stress Balance derived freshness, shown in place of `.sleep`
+    /// when the user doesn't track sleep (less than 3 nights over 14 days).
+    case freshness
 
     var id: String {
         switch self {
@@ -22,6 +25,7 @@ enum ScoreType: Identifiable {
         case .sleep: return "sleep"
         case .readiness: return "readiness"
         case .cardiacLoad: return "cardiacLoad"
+        case .freshness: return "freshness"
         }
     }
 }
@@ -202,6 +206,7 @@ struct ScoreExplanationSheet: View {
             case .sleep: return String(localized: "Sleep", comment: "Sheet title for sleep")
             case .readiness: return String(localized: "Readiness", comment: "Sheet title for readiness")
             case .cardiacLoad: return String(localized: "Cardiac Load", comment: "Sheet title for cardiac load")
+            case .freshness: return String(localized: "Freshness", comment: "Sheet title for freshness (TSB)")
             }
         case .metric(let metricType):
             switch metricType {
@@ -1193,6 +1198,20 @@ struct ScoreExplanationSheet: View {
             }
             .padding(Spacing.cardPadding)
             .detailCard()
+        case .freshness:
+            VStack(alignment: .leading, spacing: Spacing.base) {
+                HStack {
+                    Text(String(localized: "How it's calculated", comment: "Calculation section header"))
+                        .font(IRFont.footnote.weight(.semibold))
+                        .foregroundStyle(Color.irTextPrimary)
+                    Spacer()
+                }
+                Text(String(localized: "Freshness derives from your Training Stress Balance: TSB = CTL − ATL, where CTL is your 42-day chronic load and ATL your 7-day acute load. A positive TSB means your recent training is lighter than your baseline (you're fresh); a negative TSB means accumulated fatigue. Source: Coggan/Banister Performance Management Chart.", comment: "Freshness calculation explanation"))
+                    .font(IRFont.caption)
+                    .foregroundStyle(Color.irTextSecondary)
+            }
+            .padding(Spacing.cardPadding)
+            .detailCard()
         }
     }
 
@@ -1218,7 +1237,7 @@ struct ScoreExplanationSheet: View {
                 DetailFormulaSlice(label: String(localized: "SpO2", comment: "SpO2 weight label"), weight: 10, color: Color.irPrimaryAccent),
                 DetailFormulaSlice(label: String(localized: "Respiratory Rate", comment: "Resp weight label"), weight: 10, color: Color.irPrimaryAccent)
             ]
-        case .cardiacLoad:
+        case .cardiacLoad, .freshness:
             return []
         }
     }
@@ -1231,7 +1250,7 @@ struct ScoreExplanationSheet: View {
             return String(localized: "Score combining sleep duration (~30%), efficiency (~30%) and balance of sleep stages (~40%). Optimal range: 7\u{2013}9h with at least 85% efficiency and 15\u{2013}20% deep sleep + 20\u{2013}25% REM (Hirshkowitz et al., 2015).", comment: "Sleep calculation explanation")
         case .readiness:
             return String(localized: "Composite score weighting recovery signals from your autonomic nervous system, sleep quality and recent training load. Uses personal baseline deviation (z-score) when enough data is available; a normal day at your baseline scores around 50%.", comment: "Readiness calculation explanation")
-        case .cardiacLoad:
+        case .cardiacLoad, .freshness:
             return ""
         }
     }
@@ -1482,6 +1501,8 @@ struct ScoreExplanationSheet: View {
             return String(localized: "An AI-enhanced score combining recovery metrics and your personal baseline. It indicates how ready your body is for physical activity by analyzing multiple physiological signals.", comment: "Readiness description")
         case .cardiacLoad:
             return String(localized: "Cardiac Load measures cumulative cardiovascular stress using HR-based TRIMP (with pace fallback). Calculates Acute (7-day ATL) and Chronic (42-day CTL) training loads. Status based on the ACWR ratio (Gabbett 2016).", comment: "Cardiac load description")
+        case .freshness:
+            return String(localized: "Freshness reflects how rested your body is for hard training. It compares your recent (7-day) and long-term (42-day) training loads — a sleep-independent indicator used when sleep tracking isn't available.", comment: "Freshness description")
         }
     }
 
@@ -1520,6 +1541,12 @@ struct ScoreExplanationSheet: View {
                 String(localized: "Impellizzeri FM et al. \u{00B7} IJSPP 2019", comment: "Cardiac source 6"),
                 String(localized: "Windt J, Gabbett TJ \u{00B7} BJSM 2017", comment: "Cardiac source 7"),
                 String(localized: "Coggan AR, Allen H \u{00B7} ATL/CTL framework", comment: "Cardiac source 8")
+            ]
+        case .freshness:
+            return [
+                String(localized: "Coggan AR, Allen H \u{00B7} Performance Management Chart, TSB framework", comment: "Freshness source 1"),
+                String(localized: "Banister EW \u{00B7} Impulse-response model 1991", comment: "Freshness source 2"),
+                String(localized: "Williams S et al. \u{00B7} BJSM 2017", comment: "Freshness source 3")
             ]
         }
     }

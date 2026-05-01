@@ -31,6 +31,15 @@ interface DailyReadinessRequest {
   cardiacLoad?: CardiacLoadData
   recentWorkouts?: ReadinessWorkoutData[]
   language: string
+  /**
+   * Morning score the client already computed today. When provided, the backend
+   * returns it as-is and skips score recomputation/effort penalties — the
+   * readiness score is product-defined as stable for the calendar day, only the
+   * AI coaching text refreshes as the day's context evolves.
+   */
+  cachedScore?: number
+  /** Status paired with `cachedScore`; falls back to derivation from the score. */
+  cachedStatus?: string
 }
 
 interface ReadinessResponse {
@@ -887,8 +896,13 @@ app.post('/', async (c) => {
 
     const language = body.language || 'en'
 
-    // Calculate readiness score
-    let { score, insights } = calculateReadinessScore(body.recovery, body.baseline)
+    // Calculate readiness score. When the client provides a frozen morning score,
+    // honor it for the response and downstream coaching context — the product rule
+    // is one score per calendar day, only the recommendation may refresh.
+    const computed = calculateReadinessScore(body.recovery, body.baseline)
+    const hasFrozenScore = typeof body.cachedScore === 'number'
+    let score = hasFrozenScore ? (body.cachedScore as number) : computed.score
+    const insights = computed.insights
 
     // Add daily activity insights
     if (body.dailyActivity) {
@@ -968,7 +982,11 @@ app.post('/', async (c) => {
       }
 
       if (effortWorkout && effortPenalty > 0) {
-        score = Math.max(0, score - effortPenalty)
+        // Skip the score penalty when the score is frozen for the day, but still
+        // surface the insight so the AI coaching can reference the recent effort.
+        if (!hasFrozenScore) {
+          score = Math.max(0, score - effortPenalty)
+        }
         const km = (effortWorkout.distanceMeters / 1000).toFixed(1)
         const isRace =
           effortWorkout.distanceMeters / 1000 >= EffortThresholds.race.distanceKm ||
@@ -984,7 +1002,12 @@ app.post('/', async (c) => {
       }
     }
 
-    const status = getStatusFromScore(score)
+    // Honor the client-provided status when a frozen score is in play, so the
+    // displayed status, AI prompt context, and suggested workout stay coherent.
+    const status =
+      hasFrozenScore && body.cachedStatus
+        ? (body.cachedStatus as ReadinessResponse['status'])
+        : getStatusFromScore(score)
     const suggestedWorkoutType = getWorkoutType(status, body.cardiacLoad, body.dailyActivity)
 
     // Generate AI recommendation with fallback to static one

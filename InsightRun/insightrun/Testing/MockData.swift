@@ -376,6 +376,10 @@ enum MockData {
             return lang == "fr"
                 ? "Charge cardiaque de 17, en augmentation. Votre tendance sur 7 jours montre une progression régulière. Maintenez cet équilibre charge/récupération pour optimiser vos adaptations."
                 : "Cardiac load of 17, increasing. Your 7-day trend shows steady progression. Maintain this load/recovery balance to optimize your adaptations."
+        case .freshness:
+            return lang == "fr"
+                ? "Score de fraîcheur de 72/100 — vous êtes bien récupéré. Votre charge récente reste sous votre charge chronique, signe d'un bon équilibre. Bon moment pour une séance qualitative."
+                : "Freshness score of 72/100 — you're well rested. Recent training load is below your chronic baseline, indicating good balance. Good time for a quality session."
         }
     }
 

@@ -254,12 +254,14 @@ class WorkoutKitManager: ObservableObject {
 
     /// Check current authorization status
     func checkAuthorizationStatus() async -> Bool {
+        if DemoMode.isEnabled { return true }
         let authState = await WorkoutScheduler.shared.authorizationState
         return authState == .authorized
     }
 
     /// Request authorization to export workouts to Fitness app
     func requestAuthorization() async throws {
+        if DemoMode.isEnabled { return }
         let authState = await WorkoutScheduler.shared.requestAuthorization()
 
         guard authState == .authorized else {
@@ -274,6 +276,12 @@ class WorkoutKitManager: ObservableObject {
         await MainActor.run {
             isExporting = true
             exportError = nil
+        }
+
+        if DemoMode.isEnabled {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            await MainActor.run { isExporting = false }
+            return
         }
 
         do {

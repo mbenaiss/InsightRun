@@ -2,7 +2,8 @@
 //  HealthVitalsWidget.swift
 //  InsightRunWidgets
 //
-//  Widget displaying key health vitals (HRV, RHR, SpO2, Respiratory Rate)
+//  Health vitals widget — small (HRV hero + sparkline), medium (4-tile bio
+//  grid: HRV, FC repos, SpO₂, Resp.).
 //
 
 import WidgetKit
@@ -23,11 +24,15 @@ struct HealthVitalsProvider: TimelineProvider {
             date: Date(),
             data: WidgetHealthVitalsData(
                 date: Date(),
-                hrv: 48,
-                restingHeartRate: 54,
-                oxygenSaturation: 97.5,
-                respiratoryRate: 14,
-                walkingHeartRate: 85
+                hrv: 112,
+                restingHeartRate: 53,
+                oxygenSaturation: 99.0,
+                respiratoryRate: 13.5,
+                walkingHeartRate: 85,
+                hrvSeries: [104, 108, 102, 110, 116, 109, 112],
+                rhrSeries: [51, 50, 52, 54, 53, 55, 53],
+                hrvDelta: 4,
+                rhrDelta: 2
             )
         )
     }
@@ -68,43 +73,145 @@ struct HealthVitalsWidgetView: View {
         }
     }
 
-    // MARK: - Lock Screen: Circular
+    // MARK: - Small (HRV hero + sparkline at bottom)
+
+    private var smallView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WGHeader(label: String(localized: "HRV", comment: "Widget HRV header"), icon: "waveform.path.ecg")
+
+            Spacer(minLength: 12)
+
+            HStack(alignment: .lastTextBaseline, spacing: 3) {
+                Text(hrvValue)
+                    .font(WGFont.num(36, weight: .heavy))
+                    .kerning(WGTracking.numHero(36))
+                    .foregroundStyle(Color.wgTextPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text("ms")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.wgTextTertiary)
+            }
+
+            if let delta = entry.data?.hrvDelta {
+                HStack(spacing: 2) {
+                    Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.system(size: 9, weight: .heavy))
+                    Text(String(format: "%+.0f ms", delta))
+                        .font(WGFont.mono(10, weight: .bold))
+                }
+                .foregroundStyle(delta >= 0 ? Color.wgSuccess : Color.wgWarning)
+                .padding(.top, 2)
+            }
+
+            Spacer()
+
+            WGSparkline(values: entry.data?.hrvSeries ?? [], color: .wgAccent)
+                .frame(height: 36)
+                .padding(.horizontal, -4)
+                .padding(.bottom, -4)
+        }
+        .padding(14)
+        .wgContainerBackground()
+    }
+
+    // MARK: - Medium (4-tile bio grid)
+
+    private var mediumView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                WGHeader(label: String(localized: "Vitals", comment: "Widget vitals header"), icon: "heart.text.square.fill")
+
+                Spacer()
+
+                Text(timestampLabel)
+                    .font(WGFont.mono(10, weight: .semibold))
+                    .foregroundStyle(Color.wgTextTertiary)
+            }
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ],
+                spacing: 8
+            ) {
+                if let hrv = entry.data?.hrv {
+                    WGBioMini(
+                        label: String(localized: "HRV", comment: "Bio tile: HRV"),
+                        value: String(format: "%.0f", hrv),
+                        unit: "ms",
+                        delta: entry.data?.hrvDelta.map { String(format: "%+.0f", $0) },
+                        deltaPositive: (entry.data?.hrvDelta ?? 0) >= 0,
+                        color: .wgAccent
+                    )
+                }
+                if let rhr = entry.data?.restingHeartRate {
+                    WGBioMini(
+                        label: String(localized: "Resting HR", comment: "Bio tile: resting HR"),
+                        value: String(format: "%.0f", rhr),
+                        unit: "bpm",
+                        delta: entry.data?.rhrDelta.map { String(format: "%+.0f", $0) },
+                        deltaPositive: (entry.data?.rhrDelta ?? 0) <= 0,
+                        color: .wgError
+                    )
+                }
+                if let spo2 = entry.data?.oxygenSaturation {
+                    WGBioMini(
+                        label: String(localized: "SpO2", comment: "Bio tile: SpO2"),
+                        value: String(format: "%.1f", spo2),
+                        unit: "%",
+                        delta: nil,
+                        color: Color(uiColor: UIColor(red: 0.36, green: 0.76, blue: 1.0, alpha: 1.0))
+                    )
+                }
+                if let resp = entry.data?.respiratoryRate {
+                    WGBioMini(
+                        label: String(localized: "Resp.", comment: "Bio tile: respiratory rate"),
+                        value: String(format: "%.1f", resp),
+                        unit: "rpm",
+                        delta: nil,
+                        color: .wgPurple
+                    )
+                }
+            }
+            .padding(.top, 10)
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .wgContainerBackground()
+    }
+
+    // MARK: - Lock screen variants
 
     private var accessoryCircularView: some View {
         VStack(spacing: 1) {
             Image(systemName: "waveform.path.ecg")
                 .font(.caption)
-            Text(entry.data?.hrv.map { String(format: "%.0f", $0) } ?? "--")
+            Text(hrvValue)
                 .font(.system(.caption, design: .rounded, weight: .bold))
-            Text("ms")
-                .font(.system(size: 8))
-                .foregroundStyle(.secondary)
         }
         .containerBackground(for: .widget) { Color.clear }
     }
-
-    // MARK: - Lock Screen: Rectangular
 
     private var accessoryRectangularView: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
-                Image(systemName: "heart.text.clipboard")
-                Text(String(localized: "Health Vitals", comment: "Widget health vitals title"))
+                Image(systemName: "heart.text.square.fill")
+                Text(String(localized: "Vitals", comment: "Lock screen vitals title"))
                     .font(.headline)
                     .widgetAccentable()
             }
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 if let hrv = entry.data?.hrv {
-                    Text("HRV \(String(format: "%.0f", hrv))ms")
+                    Text(String(format: "HRV %.0f ms", hrv))
                         .font(.caption)
+                        .fontWeight(.semibold)
                 }
                 if let rhr = entry.data?.restingHeartRate {
-                    Text("FC \(String(format: "%.0f", rhr))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if let spo2 = entry.data?.oxygenSaturation {
-                    Text("SpO2 \(String(format: "%.0f", spo2))%")
+                    Text(String(format: "RHR %.0f", rhr))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -112,172 +219,27 @@ struct HealthVitalsWidgetView: View {
         }
         .containerBackground(for: .widget) { Color.clear }
     }
-
-    // MARK: - Lock Screen: Inline
 
     private var accessoryInlineView: some View {
         HStack(spacing: 4) {
             Image(systemName: "waveform.path.ecg")
-            Text("HRV \(entry.data?.hrv.map { String(format: "%.0f ms", $0) } ?? "--")")
+            Text(String(format: "HRV %@ ms", hrvValue))
         }
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Small Widget
+    // MARK: - Helpers
 
-    private var smallView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "heart.text.clipboard")
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                Text(String(localized: "Health", comment: "Widget health title"))
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Spacer()
-            }
-
-            Spacer()
-
-            if let hrv = entry.data?.hrv {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("HRV")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(String(format: "%.0f ms", hrv))
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.purple)
-                }
-            }
-
-            Spacer()
-
-            HStack(spacing: 12) {
-                if let rhr = entry.data?.restingHeartRate {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.red)
-                        Text(String(format: "%.0f", rhr))
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                }
-
-                if let spo2 = entry.data?.oxygenSaturation {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Image(systemName: "lungs.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.blue)
-                        Text(String(format: "%.0f%%", spo2))
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                }
-            }
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
+    private var hrvValue: String {
+        guard let hrv = entry.data?.hrv else { return "—" }
+        return String(format: "%.0f", hrv)
     }
 
-    // MARK: - Medium Widget
-
-    private var mediumView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "heart.text.clipboard")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                Text(String(localized: "Health Vitals", comment: "Widget health vitals title"))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Spacer()
-            }
-
-            HStack(spacing: 0) {
-                // HRV
-                VitalCard(
-                    icon: "waveform.path.ecg",
-                    label: "HRV",
-                    value: entry.data?.hrv.map { String(format: "%.0f", $0) } ?? "--",
-                    unit: "ms",
-                    color: .purple
-                )
-
-                Spacer()
-
-                // Resting Heart Rate
-                VitalCard(
-                    icon: "heart.fill",
-                    label: String(localized: "Resting HR", comment: "Resting heart rate label"),
-                    value: entry.data?.restingHeartRate.map { String(format: "%.0f", $0) } ?? "--",
-                    unit: "bpm",
-                    color: .red
-                )
-
-                Spacer()
-
-                // SpO2
-                VitalCard(
-                    icon: "lungs.fill",
-                    label: "SpO2",
-                    value: entry.data?.oxygenSaturation.map { String(format: "%.0f", $0) } ?? "--",
-                    unit: "%",
-                    color: .blue
-                )
-
-                Spacer()
-
-                // Respiratory Rate
-                VitalCard(
-                    icon: "wind",
-                    label: "Resp.",
-                    value: entry.data?.respiratoryRate.map { String(format: "%.0f", $0) } ?? "--",
-                    unit: "/min",
-                    color: .teal
-                )
-            }
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-    }
-}
-
-// MARK: - Vital Card
-
-private struct VitalCard: View {
-    let icon: String
-    let label: String
-    let value: String
-    let unit: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(color)
-
-            HStack(alignment: .lastTextBaseline, spacing: 1) {
-                Text(value)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                Text(unit)
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity)
+    private var timestampLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: entry.data?.date ?? Date())
     }
 }
 
@@ -291,7 +253,7 @@ struct HealthVitalsWidget: Widget {
             HealthVitalsWidgetView(entry: entry)
         }
         .configurationDisplayName(String(localized: "Health Vitals", comment: "Widget display name"))
-        .description(String(localized: "HRV, resting heart rate, SpO2 and respiratory rate.", comment: "Health vitals widget description"))
+        .description(String(localized: "HRV, resting heart rate, SpO₂ and respiratory rate.", comment: "Health vitals widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

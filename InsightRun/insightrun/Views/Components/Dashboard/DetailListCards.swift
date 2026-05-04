@@ -189,61 +189,6 @@ struct DetailReferencesCard: View {
     }
 }
 
-// MARK: - Analysis (coach card with sparkle glyph)
-
-struct DetailAnalysisCard: View {
-    let text: String
-    var isLoading: Bool = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack(spacing: Spacing.md) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-
-                    Image(systemName: "sparkles")
-                        .font(IRFont.eyebrow.weight(.bold))
-                        .foregroundStyle(Color.irCardBackground)
-                }
-                .frame(width: 22, height: 22)
-
-                Text(String(localized: "Coach", comment: "Detail sheet AI analysis label"))
-                    .font(IRFont.eyebrow.weight(.semibold))
-                    .tracking(1.0)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
-            }
-
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, Spacing.xxs)
-            } else if !text.isEmpty {
-                Text(text)
-                    .font(IRFont.body)
-                    .lineSpacing(3)
-                    .foregroundStyle(Color.irTextPrimary)
-            }
-        }
-        .padding(Spacing.cardPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
-    }
-}
-
 #Preview {
     ScrollView {
         VStack(spacing: Spacing.dash) {
@@ -261,8 +206,6 @@ struct DetailAnalysisCard: View {
                 ],
                 explanation: "Score quotidien mesurant ta progression vers tes objectifs personnels."
             )
-
-            DetailAnalysisCard(text: "Score 39% : tu es en dessous de tes objectifs sur les pas, calories et minutes d'exercice.")
 
             DetailReferencesCard(sources: [
                 "Tudor-Locke C, Bassett DR · Sports Medicine 2004",

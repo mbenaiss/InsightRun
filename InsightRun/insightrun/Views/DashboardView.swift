@@ -306,6 +306,7 @@ struct DashboardView: View {
                             trend: effortTrend.suffix(7).map(\.value),
                             onTap: { selectedScoreType = .effort }
                         )
+                        .accessibilityIdentifier("score-effort")
 
                         if readinessVM.isNoSleepMode {
                             SecondaryScoreCard(
@@ -316,6 +317,7 @@ struct DashboardView: View {
                                 trend: trainingLoadService.freshnessTrendData.suffix(7).map(\.value),
                                 onTap: { selectedScoreType = .freshness }
                             )
+                            .accessibilityIdentifier("score-freshness")
                         } else {
                             SecondaryScoreCard(
                                 title: String(localized: "Sleep", comment: "Dashboard sleep label"),
@@ -325,6 +327,7 @@ struct DashboardView: View {
                                 trend: sleepTrend.suffix(7).map(\.value),
                                 onTap: { selectedScoreType = .sleep }
                             )
+                            .accessibilityIdentifier("score-sleep")
                         }
                     }
                 }

@@ -254,13 +254,6 @@ class NotificationManager: ObservableObject {
         }
     }
 
-    /// Cancel weekly AI insight notifications
-    func cancelWeeklyAIInsight() {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["weekly-ai-insight"])
-        userDefaults.set(false, forKey: weeklyAIInsightKey)
-    }
-
     // MARK: - Weekly Progress Notification
 
     /// Send weekly progress notification with actual stats

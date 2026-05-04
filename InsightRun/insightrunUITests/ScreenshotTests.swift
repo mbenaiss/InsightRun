@@ -34,8 +34,7 @@ final class ScreenshotTests: XCTestCase {
     func testLightModeScreenshots() {
         XCUIDevice.shared.appearance = .light
         sleep(1)
-        app.tap()
-        sleep(1)
+        dismissAlertsSafely()
         captureAllScreenshots(prefix: "Light")
     }
 
@@ -44,9 +43,19 @@ final class ScreenshotTests: XCTestCase {
     func testDarkModeScreenshots() {
         XCUIDevice.shared.appearance = .dark
         sleep(1)
-        app.tap()
-        sleep(1)
+        dismissAlertsSafely()
         captureAllScreenshots(prefix: "Dark")
+    }
+
+    /// Wake the UI interruption monitor without tapping interactive elements.
+    /// Tapping the Dashboard center or its edges hits the PulseRingHero / score
+    /// cards (full-width), so we tap the status bar which is never interactive.
+    private func dismissAlertsSafely() {
+        let statusBar = app.statusBars.firstMatch
+        if statusBar.exists {
+            statusBar.tap()
+        }
+        sleep(1)
     }
 
     // MARK: - Screenshot Capture
@@ -66,7 +75,7 @@ final class ScreenshotTests: XCTestCase {
         // 03 - Workout Detail (map + metrics + AI analysis)
         let workoutRow = findWorkoutRow()
         if let row = workoutRow {
-            row.tap()
+            forceTap(row)
             sleep(3)
             snapshot("\(prefix)-03-WorkoutDetail")
 
@@ -85,12 +94,29 @@ final class ScreenshotTests: XCTestCase {
         sleep(2)
         snapshot("\(prefix)-05-Statistics")
 
-        // 10 - Statistics Progression (tap Progression tab)
-        let progressionTab = app.buttons["Progression"]
-        if progressionTab.waitForExistence(timeout: 3) {
-            progressionTab.tap()
+        // 10 - Statistics Progression (tap second tab in custom segmented control)
+        let progressionTab = findProgressionTab()
+        if let tab = progressionTab {
+            forceTap(tab)
             sleep(2)
             snapshot("\(prefix)-10-Progression")
+        }
+
+        // 13 - Goals tab (active 10K plan)
+        app.tabBars.buttons.element(boundBy: 3).tap()
+        sleep(2)
+        snapshot("\(prefix)-13-Goals")
+
+        // 14 - Goal Detail (tap the active goal row)
+        let goalRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "10K")).firstMatch
+        if goalRow.waitForExistence(timeout: 2) {
+            forceTap(goalRow)
+            sleep(2)
+            snapshot("\(prefix)-14-GoalDetail")
+            if app.navigationBars.buttons.firstMatch.exists {
+                app.navigationBars.buttons.firstMatch.tap()
+                sleep(1)
+            }
         }
 
         // === BACK TO DASHBOARD FOR SCORE SHEETS ===
@@ -106,41 +132,53 @@ final class ScreenshotTests: XCTestCase {
         app.swipeDown()
         sleep(1)
 
-        // 07 - Readiness Score Detail Sheet
-        let readinessButton = findHittableElement(identifier: "score-readiness", elementType: .button)
-        if let btn = readinessButton {
-            btn.tap()
-            sleep(2)
-            snapshot("\(prefix)-07-ReadinessDetail")
-            dismissSheet()
-        }
+        // 07 - Readiness Score Detail Sheet (tap pulse-ring-hero)
+        forceTapAndCapture(identifier: "pulse-ring-hero", snapshotName: "\(prefix)-07-ReadinessDetail")
 
         // 11 - Sleep Score Detail Sheet
-        let sleepButton = findHittableElement(identifier: "score-sleep", elementType: .button)
-        if let btn = sleepButton {
-            btn.tap()
-            sleep(2)
-            snapshot("\(prefix)-11-SleepDetail")
-            dismissSheet()
-        }
+        forceTapAndCapture(identifier: "score-sleep", snapshotName: "\(prefix)-11-SleepDetail")
 
         // 12 - Effort Score Detail Sheet
-        let effortButton = findHittableElement(identifier: "score-effort", elementType: .button)
-        if let btn = effortButton {
-            btn.tap()
-            sleep(2)
-            snapshot("\(prefix)-12-EffortDetail")
-            dismissSheet()
-        }
+        forceTapAndCapture(identifier: "score-effort", snapshotName: "\(prefix)-12-EffortDetail")
+
+        // 09 - Training Plan sheet (from Coach card)
+        forceTapAndCapture(identifier: "create-training-plan", snapshotName: "\(prefix)-09-TrainingPlan")
 
         // 08 - AI Assistant (tap floating button)
-        let aiButton = app.buttons["floating-ai-button"]
-        if aiButton.waitForExistence(timeout: 3) {
-            aiButton.tap()
-            sleep(2)
-            snapshot("\(prefix)-08-AIAssistant")
-            dismissSheet()
+        forceTapAndCapture(identifier: "floating-ai-button", snapshotName: "\(prefix)-08-AIAssistant")
+    }
+
+    /// Force-tap by computing element center coordinate.
+    /// XCUITest's regular `tap()` checks isHittable which fails for SwiftUI cards
+    /// inside a ScrollView even when they are visible.
+    private func forceTap(_ element: XCUIElement) {
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
+    /// Locate the Progression segment in the custom Statistics tab control.
+    /// Falls back to localized label, then to the second button in the segment.
+    private func findProgressionTab() -> XCUIElement? {
+        for label in ["Progression", "Évolution", "Progresión", "Progressione", "Progressão", "進行"] {
+            let btn = app.buttons[label]
+            if btn.waitForExistence(timeout: 1) { return btn }
         }
+        // Fallback: the segmented control has 2 buttons; the second is Progression
+        let candidates = app.buttons.matching(NSPredicate(format: "label != %@ AND label != %@", "", " "))
+        if candidates.count >= 2 {
+            return candidates.element(boundBy: 1)
+        }
+        return nil
+    }
+
+    /// Force-tap an element by its center coordinate (bypasses XCUITest isHittable check)
+    /// then take a snapshot and dismiss the resulting sheet.
+    private func forceTapAndCapture(identifier: String, snapshotName: String) {
+        let element = app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+        guard element.waitForExistence(timeout: 3) else { return }
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        sleep(2)
+        snapshot(snapshotName)
+        dismissSheet()
     }
 
     // MARK: - Sheet Dismissal
@@ -193,34 +231,29 @@ final class ScreenshotTests: XCTestCase {
         return first
     }
 
-    /// Try multiple strategies to find the first workout row
+    /// Try multiple strategies to find the first workout row.
+    /// Does NOT filter by isHittable — XCUITest reports SwiftUI cards in
+    /// ScrollView as not-hittable even when visible. The caller must use
+    /// `forceTap` (coordinate-based) to actually tap.
     private func findWorkoutRow() -> XCUIElement? {
         // Strategy 1: accessibility identifier as button
         let button = app.buttons.matching(identifier: "workout-row-0").firstMatch
-        if button.waitForExistence(timeout: 5) && button.isHittable {
-            return button
-        }
+        if button.waitForExistence(timeout: 5) { return button }
 
-        // Strategy 2: accessibility identifier as any element type
+        // Strategy 2: any element type
         let any = app.descendants(matching: .any).matching(identifier: "workout-row-0").firstMatch
-        if any.waitForExistence(timeout: 3) && any.isHittable {
-            return any
-        }
+        if any.waitForExistence(timeout: 3) { return any }
 
-        // Strategy 3: find any button inside the workout-list scroll view
+        // Strategy 3: any button inside the workout-list scroll view
         let list = app.scrollViews["workout-list"]
         if list.waitForExistence(timeout: 3) {
             let firstButton = list.buttons.firstMatch
-            if firstButton.waitForExistence(timeout: 2) && firstButton.isHittable {
-                return firstButton
-            }
+            if firstButton.waitForExistence(timeout: 2) { return firstButton }
         }
 
-        // Strategy 4: find any element with workout-row prefix
+        // Strategy 4: any element with workout-row prefix
         let workoutRowAny = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'workout-row'")).firstMatch
-        if workoutRowAny.waitForExistence(timeout: 2) && workoutRowAny.isHittable {
-            return workoutRowAny
-        }
+        if workoutRowAny.waitForExistence(timeout: 2) { return workoutRowAny }
 
         return nil
     }

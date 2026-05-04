@@ -477,12 +477,6 @@ class SuuntoImportService: ObservableObject {
         }
     }
 
-    func clearAllCache() throws {
-        let context = try getContext()
-        try context.delete(model: CachedSuuntoWorkout.self)
-        try context.save()
-        print("🗑️ Cleared all Suunto cache")
-    }
 }
 
 // MARK: - Suunto Activity (for UnifiedWorkout compatibility)

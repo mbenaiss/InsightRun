@@ -7,7 +7,6 @@
 
 import Foundation
 import HealthKit
-import CoreLocation
 
 enum MockData {
 
@@ -20,32 +19,6 @@ enum MockData {
         let day = calendar.date(byAdding: .day, value: -daysAgo, to: now)!
         return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)!
     }
-
-    // MARK: - GPS Route (Bois de Boulogne, Paris)
-
-    static let parisRouteCoordinates: [CLLocationCoordinate2D] = [
-        CLLocationCoordinate2D(latitude: 48.8638, longitude: 2.2492),
-        CLLocationCoordinate2D(latitude: 48.8645, longitude: 2.2478),
-        CLLocationCoordinate2D(latitude: 48.8658, longitude: 2.2461),
-        CLLocationCoordinate2D(latitude: 48.8672, longitude: 2.2445),
-        CLLocationCoordinate2D(latitude: 48.8685, longitude: 2.2430),
-        CLLocationCoordinate2D(latitude: 48.8698, longitude: 2.2418),
-        CLLocationCoordinate2D(latitude: 48.8710, longitude: 2.2405),
-        CLLocationCoordinate2D(latitude: 48.8720, longitude: 2.2398),
-        CLLocationCoordinate2D(latitude: 48.8732, longitude: 2.2410),
-        CLLocationCoordinate2D(latitude: 48.8740, longitude: 2.2425),
-        CLLocationCoordinate2D(latitude: 48.8748, longitude: 2.2442),
-        CLLocationCoordinate2D(latitude: 48.8752, longitude: 2.2460),
-        CLLocationCoordinate2D(latitude: 48.8745, longitude: 2.2480),
-        CLLocationCoordinate2D(latitude: 48.8735, longitude: 2.2495),
-        CLLocationCoordinate2D(latitude: 48.8722, longitude: 2.2510),
-        CLLocationCoordinate2D(latitude: 48.8708, longitude: 2.2520),
-        CLLocationCoordinate2D(latitude: 48.8695, longitude: 2.2515),
-        CLLocationCoordinate2D(latitude: 48.8680, longitude: 2.2505),
-        CLLocationCoordinate2D(latitude: 48.8665, longitude: 2.2498),
-        CLLocationCoordinate2D(latitude: 48.8650, longitude: 2.2495),
-        CLLocationCoordinate2D(latitude: 48.8638, longitude: 2.2492),
-    ]
 
     // MARK: - Sample Workouts
 
@@ -198,26 +171,45 @@ enum MockData {
 
     // MARK: - Sample Sleep Data
 
-    static let sampleSleepData: SleepData = {
+    static let sampleSleepData: SleepData = sampleSleep(daysAgo: 0)
+
+    private static func sampleSleep(daysAgo: Int) -> SleepData {
+        let nightDate = calendar.date(byAdding: .day, value: -daysAgo, to: now)!
         let sleepStart = calendar.date(bySettingHour: 23, minute: 0, second: 0,
-                                       of: calendar.date(byAdding: .day, value: -1, to: now)!)!
-        let sleepEnd = calendar.date(bySettingHour: 6, minute: 45, second: 0, of: now)!
-        let totalSleep: TimeInterval = 7 * 3600 + 45 * 60  // 7h45
-        let timeInBed: TimeInterval = 8 * 3600 + 30 * 60   // 8h30 (includes awake)
+                                       of: calendar.date(byAdding: .day, value: -1, to: nightDate)!)!
+        let sleepEnd = calendar.date(bySettingHour: 6, minute: 45, second: 0, of: nightDate)!
+
+        let baseTotal: TimeInterval = 7 * 3600 + 45 * 60
+        let baseInBed: TimeInterval = 8 * 3600 + 30 * 60
+        let variance = TimeInterval((daysAgo * 17) % 60 - 30) * 60
+
+        let totalSleep = baseTotal + variance
+        let timeInBed = baseInBed + variance + 600
 
         return SleepData(
-            date: now,
+            date: nightDate,
             sleepStart: sleepStart,
             sleepEnd: sleepEnd,
             totalSleepDuration: totalSleep,
             timeInBed: timeInBed,
-            deepSleepDuration: 1 * 3600 + 30 * 60,   // 1h30
-            coreSleepDuration: 3 * 3600 + 30 * 60,    // 3h30
-            remSleepDuration: 2 * 3600,                // 2h00
-            awakeDuration: 45 * 60,                    // 45min
+            deepSleepDuration: 1 * 3600 + 30 * 60 + variance / 4,
+            coreSleepDuration: 3 * 3600 + 30 * 60 + variance / 2,
+            remSleepDuration: 2 * 3600 + variance / 4,
+            awakeDuration: 45 * 60,
             napDuration: nil
         )
-    }()
+    }
+
+    static func sampleSleepHistory(start: Date, end: Date) -> [SleepData] {
+        var nights: [SleepData] = []
+        var cursor = end
+        while cursor >= start {
+            let daysAgo = max(0, calendar.dateComponents([.day], from: cursor, to: now).day ?? 0)
+            nights.append(sampleSleep(daysAgo: daysAgo))
+            cursor = calendar.date(byAdding: .day, value: -1, to: cursor)!
+        }
+        return nights
+    }
 
     // MARK: - Sample Recovery Metrics
 
@@ -231,22 +223,6 @@ enum MockData {
         sleepData: sampleSleepData,
         respiratoryRate: 14,
         oxygenSaturation: 98,
-        baseline: samplePersonalBaseline
-    )
-
-    /// Recovery metrics without any sleep data — represents a user who doesn't wear
-    /// their Apple Watch at night (or doesn't have one). Used to test the no-sleep
-    /// presentation mode (freshness card replacing sleep card, sleep omitted from prompts).
-    static let sampleRecoveryMetricsNoSleep: RecoveryMetrics = RecoveryMetrics(
-        date: now,
-        restingHeartRate: 58,
-        hrvAverage: 52,
-        hrvMin: 38,
-        hrvMax: 72,
-        walkingHeartRate: 82,
-        sleepData: nil,
-        respiratoryRate: 15,
-        oxygenSaturation: 97,
         baseline: samplePersonalBaseline
     )
 
@@ -273,6 +249,30 @@ enum MockData {
         flightsClimbed: 8,
         cyclingDistance: 35000,
         swimmingDistance: 2000
+    )
+
+    // MARK: - Sample Race Goal
+
+    static let sampleRaceGoal: RaceGoal = RaceGoal(
+        raceType: .tenK,
+        raceName: "Paris 10K",
+        targetDate: calendar.date(byAdding: .weekOfYear, value: 8, to: now)!,
+        fitnessLevel: .intermediate,
+        createdAt: calendar.date(byAdding: .day, value: -3, to: now)!,
+        trainingDaysPerWeek: 4,
+        preferredDays: [.monday, .wednesday, .friday, .saturday],
+        targetTime: 50 * 60
+    )
+
+    // MARK: - Sample Daily Activity Data
+
+    static let sampleDailyActivityData: DailyActivityData = DailyActivityData(
+        steps: 8420,
+        activeCalories: 512,
+        basalCalories: 1684,
+        exerciseMinutes: 38,
+        activeCaloriesGoal: 600,
+        exerciseMinutesGoal: 30
     )
 
     // MARK: - Sample Personal Baseline
@@ -421,12 +421,6 @@ enum MockData {
         }
     }
 
-    // MARK: - Sample Unified Workouts
-
-    static let sampleUnifiedWorkouts: [UnifiedWorkout] = sampleWorkouts.map {
-        UnifiedWorkout(from: $0)
-    }
-
     // MARK: - Sample Progression Data
 
     static let sampleProgressionData: [ProgressionDataPoint] = sampleWorkouts.enumerated().map { index, workout in
@@ -449,12 +443,4 @@ enum MockData {
         )
     }
 
-    // MARK: - Sample Trend Data (7 days)
-
-    static let sampleTrendData: [String: [Double]] = [
-        "hrv": [58, 62, 55, 68, 60, 65, 65],
-        "rhr": [54, 53, 56, 51, 53, 52, 52],
-        "sleepDuration": [7.2, 7.5, 6.8, 8.0, 7.3, 7.8, 7.75],
-        "trainingLoad": [0, 85, 0, 65, 110, 45, 0],
-    ]
 }

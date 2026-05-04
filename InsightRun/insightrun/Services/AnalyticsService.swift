@@ -226,20 +226,6 @@ final class AnalyticsService {
         ])
     }
 
-    // MARK: - Recovery Dashboard Events
-
-    func trackRecoveryDashboardViewed(recoveryScore: Int?, hasRecentWorkouts: Bool) {
-        var properties: [String: Any] = [
-            "has_recent_workouts": hasRecentWorkouts
-        ]
-
-        if let score = recoveryScore {
-            properties["recovery_score"] = score
-        }
-
-        track(.recoveryDashboardViewed, properties: properties)
-    }
-
     // MARK: - Historical Indexation Events
 
     func trackIndexationBannerShown() {
@@ -508,11 +494,7 @@ final class AnalyticsService {
         track(.reviewManualTap)
     }
 
-    // MARK: - Health Profile Events
-
-    func trackHealthProfileViewed() {
-        track(.healthProfileViewed)
-    }
+    // MARK: - Medical Sources Events
 
     func trackMedicalSourcesViewed() {
         track(.medicalSourcesViewed)
@@ -549,9 +531,6 @@ enum AnalyticsEvent: String {
     case aiResponseReceived = "ai_response_received"
     case aiResponseError = "ai_response_error"
     case aiMessageSentWithoutContext = "ai_message_sent_without_context"
-
-    // Recovery Dashboard
-    case recoveryDashboardViewed = "recovery_dashboard_viewed"
 
     // Historical Indexation
     case indexationBannerShown = "indexation_banner_shown"
@@ -628,8 +607,7 @@ enum AnalyticsEvent: String {
     case aiTeaserShown = "ai_teaser_shown"
     case aiTeaserSubscribeTapped = "ai_teaser_subscribe_tapped"
 
-    // Health Profile
-    case healthProfileViewed = "health_profile_viewed"
+    // Medical Sources
     case medicalSourcesViewed = "medical_sources_viewed"
 }
 

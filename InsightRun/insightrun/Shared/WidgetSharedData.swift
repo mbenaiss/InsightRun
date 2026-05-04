@@ -33,6 +33,10 @@ struct WidgetWeeklyStatsData: Codable {
     let totalDuration: TimeInterval
     let totalCalories: Double
     let weekStartDate: Date
+    /// Distance run on each day of the current week, in km. Always 7 entries
+    /// ordered by `Calendar.firstWeekday`. 0 for days without a recorded run.
+    /// Optional for backward compatibility with cached payloads from older app builds.
+    let dailyDistancesKm: [Double]?
 }
 
 struct WidgetLastWorkoutData: Codable {
@@ -52,6 +56,15 @@ struct WidgetHealthVitalsData: Codable {
     let oxygenSaturation: Double?
     let respiratoryRate: Double?
     let walkingHeartRate: Double?
+    /// 7-day HRV history (oldest → newest) for sparkline rendering.
+    /// Optional for backward compatibility.
+    let hrvSeries: [Double]?
+    /// 7-day resting HR history (oldest → newest) for sparkline rendering.
+    let rhrSeries: [Double]?
+    /// Week-over-week HRV delta in ms (positive = improvement).
+    let hrvDelta: Double?
+    /// Week-over-week resting HR delta in bpm (positive = up, generally bad).
+    let rhrDelta: Double?
 }
 
 struct WidgetSleepQualityData: Codable {

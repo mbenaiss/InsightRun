@@ -41,16 +41,8 @@ final class SleepDataAvailabilityService {
     /// nights over the last `lookbackDays` days. Cached 12h to avoid hammering
     /// HealthKit on every dashboard refresh.
     func isNoSleepMode() async -> Bool {
+        if DemoMode.isEnabled { return false }
         if let cached = readCache() { return cached }
-        let mode = await detectFromHealthKit()
-        writeCache(mode)
-        return mode
-    }
-
-    /// Force re-detection (e.g. after the user grants HealthKit permissions
-    /// post-onboarding, or if the cache might be stale).
-    @discardableResult
-    func refresh() async -> Bool {
         let mode = await detectFromHealthKit()
         writeCache(mode)
         return mode

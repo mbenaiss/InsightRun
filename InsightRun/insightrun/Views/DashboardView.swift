@@ -102,7 +102,7 @@ struct DashboardView: View {
                     case .sleep: return recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0
                     case .readiness: return readinessVM.readinessScore ?? 0
                     case .cardiacLoad: return trainingLoadService.cardiacLoadScore ?? 0
-                    case .freshness: return trainingLoadService.freshnessScore
+                    case .freshness: return trainingLoadService.freshnessScore ?? 0
                     }
                 }()
                 let trend: [TrendDataPoint] = {
@@ -308,10 +308,14 @@ struct DashboardView: View {
                         )
                         .accessibilityIdentifier("score-effort")
 
-                        if readinessVM.isNoSleepMode {
+                        // Show freshness in place of sleep only when both conditions hold:
+                        // user is in no-sleep mode AND we have enough training history (CTL stable).
+                        // Otherwise the legacy sleep card stays (its empty-state behavior is already
+                        // well understood: 0/100 with the card explaining what's missing).
+                        if readinessVM.isNoSleepMode, let freshness = trainingLoadService.freshnessScore {
                             SecondaryScoreCard(
                                 title: String(localized: "Freshness", comment: "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable"),
-                                score: trainingLoadService.freshnessScore,
+                                score: freshness,
                                 baseline: 55,
                                 accent: .irSuccess,
                                 trend: trainingLoadService.freshnessTrendData.suffix(7).map(\.value),

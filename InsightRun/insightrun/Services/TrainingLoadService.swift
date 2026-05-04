@@ -36,7 +36,9 @@ final class TrainingLoadService: ObservableObject {
     @Published var tsb: Double = 0
     /// Freshness score (0-100) mapped from TSB. Used as a sleep-independent recovery
     /// signal on the dashboard for users who don't track sleep.
-    @Published var freshnessScore: Int = 50
+    /// Nil when CTL is below `minCTLForNormalization` — the underlying TSB is meaningless
+    /// without ~6 weeks of training history, and a default value would lie to the user.
+    @Published var freshnessScore: Int?
     /// 14-day freshness trend for the dashboard sparkline.
     @Published var freshnessTrendData: [TrendDataPoint] = []
 
@@ -318,10 +320,13 @@ final class TrainingLoadService: ObservableObject {
             atl = atlEWMA
             ctl = ctlEWMA
             tsb = ctlEWMA - atlEWMA
-            freshnessScore = Self.freshnessScoreFromTSB(tsb)
+            freshnessScore = ctlEWMA >= minCTLForNormalization
+                ? Self.freshnessScoreFromTSB(tsb)
+                : nil
             freshnessTrendData = freshnessTrend
 
-            print("📊 TrainingLoadService: ATL=\(String(format: "%.1f", atlEWMA)) CTL=\(String(format: "%.1f", ctlEWMA)) TSB=\(String(format: "%.1f", tsb)) freshness=\(freshnessScore) ACWR=\(computedACWR.map { String(format: "%.2f", $0) } ?? "n/a") score=\(score) status=\(status.rawValue)")
+            let freshnessLog = freshnessScore.map(String.init) ?? "n/a"
+            print("📊 TrainingLoadService: ATL=\(String(format: "%.1f", atlEWMA)) CTL=\(String(format: "%.1f", ctlEWMA)) TSB=\(String(format: "%.1f", tsb)) freshness=\(freshnessLog) ACWR=\(computedACWR.map { String(format: "%.2f", $0) } ?? "n/a") score=\(score) status=\(status.rawValue)")
         } catch {
             print("⚠️ TrainingLoadService: Failed to analyze cardiac load: \(error)")
             cardiacLoadScore = nil

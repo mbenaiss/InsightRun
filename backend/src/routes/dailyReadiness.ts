@@ -49,9 +49,12 @@ interface DailyReadinessRequest {
   noSleepMode?: boolean
 }
 
+const READINESS_STATUSES = ['excellent', 'good', 'fair', 'poor'] as const
+type ReadinessStatus = (typeof READINESS_STATUSES)[number]
+
 interface ReadinessResponse {
   score: number // 0-100
-  status: 'excellent' | 'good' | 'fair' | 'poor'
+  status: ReadinessStatus
   /**
    * Legacy field — kept populated with the full coaching text for
    * backward compatibility with older app builds that only know this key.
@@ -168,7 +171,8 @@ function scoreSpO2(spo2: number): number {
 // Scientific basis: Plews et al. (2013), Buchheit (2014), Flatt & Esco (2016)
 function calculateReadinessScore(
   recovery: RecoveryData,
-  baseline?: PersonalBaselineData
+  baseline?: PersonalBaselineData,
+  noSleepMode?: boolean
 ): { score: number; insights: ReadinessInsight[] } {
   const insights: ReadinessInsight[] = []
   const useBaseline = baseline?.isReliable === true
@@ -310,7 +314,9 @@ function calculateReadinessScore(
 
   // Sleep Score (40% weight)
   // Source: Hirshkowitz et al. (Sleep Health, 2015), Sleep Foundation (2024)
-  if (recovery.sleepData) {
+  // Skip when the client signals no-sleep mode: a single tracked night out of 14
+  // would otherwise dominate the score for someone who doesn't track sleep.
+  if (recovery.sleepData && !noSleepMode) {
     const weight = RecoveryWeights.sleep
     const hours = recovery.sleepData.totalDuration / 3600
     const efficiency = recovery.sleepData.efficiency
@@ -504,7 +510,7 @@ function calculateReadinessScore(
   let score = Math.max(0, Math.min(100, Math.round(finalScore)))
 
   // Cap score when critical thresholds are breached (aligned with iOS)
-  if (recovery.sleepData) {
+  if (recovery.sleepData && !noSleepMode) {
     const hours = recovery.sleepData.totalDuration / 3600
     if (hours < RecoveryCaps.criticalSleepHours) {
       score = Math.min(score, RecoveryCaps.maxScoreCriticalSleep)
@@ -523,7 +529,7 @@ function calculateReadinessScore(
 
 // Determine status from score (aligned with iOS RecoveryStatus thresholds)
 // Status thresholds adjusted for linear 0-100 scale (baseline day ≈ 50%)
-function getStatusFromScore(score: number): 'excellent' | 'good' | 'fair' | 'poor' {
+function getStatusFromScore(score: number): ReadinessStatus {
   if (score >= 67) return 'excellent'
   if (score >= 50) return 'good'
   if (score >= 33) return 'fair'
@@ -710,7 +716,7 @@ function buildReadinessContext(
     ctx += '\n'
   }
 
-  if (recovery.sleepData) {
+  if (recovery.sleepData && !noSleepMode) {
     const hours = recovery.sleepData.totalDuration / 3600
     ctx += `Sleep: ${hours.toFixed(1)}h, efficiency ${Math.round(recovery.sleepData.efficiency)}%`
     if (recovery.sleepData.deepDuration && recovery.sleepData.remDuration) {
@@ -920,7 +926,11 @@ app.post('/', async (c) => {
     // Calculate readiness score. When the client provides a frozen morning score,
     // honor it for the response and downstream coaching context — the product rule
     // is one score per calendar day, only the recommendation may refresh.
-    const computed = calculateReadinessScore(body.recovery, body.baseline)
+    const computed = calculateReadinessScore(
+      body.recovery,
+      body.baseline,
+      body.noSleepMode === true
+    )
     const hasFrozenScore = typeof body.cachedScore === 'number'
     let score = hasFrozenScore ? (body.cachedScore as number) : computed.score
     const insights = computed.insights
@@ -1025,9 +1035,12 @@ app.post('/', async (c) => {
 
     // Honor the client-provided status when a frozen score is in play, so the
     // displayed status, AI prompt context, and suggested workout stay coherent.
-    const status =
-      hasFrozenScore && body.cachedStatus
-        ? (body.cachedStatus as ReadinessResponse['status'])
+    // Validate at runtime — TypeScript can't protect us from buggy/old clients.
+    const isValidStatus = (s: unknown): s is ReadinessStatus =>
+      typeof s === 'string' && (READINESS_STATUSES as readonly string[]).includes(s)
+    const status: ReadinessStatus =
+      hasFrozenScore && isValidStatus(body.cachedStatus)
+        ? body.cachedStatus
         : getStatusFromScore(score)
     const suggestedWorkoutType = getWorkoutType(status, body.cardiacLoad, body.dailyActivity)
 

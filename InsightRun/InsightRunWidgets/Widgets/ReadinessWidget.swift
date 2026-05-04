@@ -2,7 +2,8 @@
 //  ReadinessWidget.swift
 //  InsightRunWidgets
 //
-//  Widget displaying daily recovery/readiness score with circular gauge
+//  Daily recovery score widget — small (centred ring), medium (ring + coach
+//  text + bio strip). Lock screen variants stay native.
 //
 
 import WidgetKit
@@ -21,7 +22,7 @@ struct ReadinessProvider: TimelineProvider {
     func placeholder(in context: Context) -> ReadinessEntry {
         ReadinessEntry(
             date: Date(),
-            data: WidgetReadinessData(score: 78, status: "good", date: Date(), hrvValue: 45, rhrValue: 55)
+            data: WidgetReadinessData(score: 61, status: "fair", date: Date(), hrvValue: 112, rhrValue: 53)
         )
     }
 
@@ -61,7 +62,96 @@ struct ReadinessWidgetView: View {
         }
     }
 
-    // MARK: - Lock Screen: Circular
+    // MARK: - Small (centred ring, "Récupération" eyebrow)
+
+    private var smallView: some View {
+        ZStack {
+            VStack(alignment: .leading, spacing: 0) {
+                WGHeader(label: String(localized: "Recovery", comment: "Widget recovery title"), icon: "heart.fill")
+                Spacer()
+            }
+
+            WGMiniRing(
+                value: score,
+                size: 96,
+                label: WGStatusColor.recoveryLabel(score: score),
+                color: WGStatusColor.recovery(score: score)
+            )
+        }
+        .padding(14)
+        .wgContainerBackground(gradient: true)
+    }
+
+    // MARK: - Medium (ring + headline + bio strip)
+
+    private var mediumView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                WGHeader(label: String(localized: "This morning", comment: "Widget medium recovery header"), icon: "heart.fill")
+
+                Spacer()
+
+                Text(timestampLabel)
+                    .font(WGFont.mono(10, weight: .semibold))
+                    .foregroundStyle(Color.wgTextTertiary)
+            }
+
+            HStack(alignment: .center, spacing: 14) {
+                WGMiniRing(
+                    value: score,
+                    size: 70,
+                    color: WGStatusColor.recovery(score: score)
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(headlineText)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.wgTextPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Text(coachingText)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.wgTextSecondary)
+                        .lineSpacing(2)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 12)
+
+            Spacer(minLength: 0)
+
+            // Bio strip footer
+            Rectangle()
+                .fill(Color.wgBorder)
+                .frame(height: 0.5)
+                .padding(.bottom, 8)
+
+            HStack(spacing: 0) {
+                if let hrv = entry.data?.hrvValue {
+                    WGMiniStat(
+                        label: String(localized: "HRV", comment: "Widget HRV label"),
+                        value: String(format: "%.0f", hrv),
+                        unit: "ms"
+                    )
+                }
+                if let rhr = entry.data?.rhrValue {
+                    WGMiniStat(
+                        label: String(localized: "Resting HR", comment: "Widget resting HR label"),
+                        value: String(format: "%.0f", rhr),
+                        unit: "bpm",
+                        leadingDivider: entry.data?.hrvValue != nil
+                    )
+                }
+            }
+        }
+        .padding(14)
+        .wgContainerBackground()
+    }
+
+    // MARK: - Lock Screen variants (system styling)
 
     private var accessoryCircularView: some View {
         Gauge(value: Double(score), in: 0...100) {
@@ -74,22 +164,18 @@ struct ReadinessWidgetView: View {
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Lock Screen: Rectangular
-
     private var accessoryRectangularView: some View {
         HStack(spacing: 8) {
-            Gauge(value: Double(score), in: 0...100) {
-                Text("")
-            }
-            .gaugeStyle(.accessoryCircular)
-            .scaleEffect(0.7)
-            .frame(width: 36, height: 36)
+            Gauge(value: Double(score), in: 0...100) { Text("") }
+                .gaugeStyle(.accessoryCircular)
+                .scaleEffect(0.7)
+                .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(String(localized: "Readiness", comment: "Widget readiness title"))
+                Text(String(localized: "Recovery", comment: "Widget recovery lock title"))
                     .font(.headline)
                     .widgetAccentable()
-                Text("\(score)/100 - \(statusText)")
+                Text("\(score)/100 · \(statusText)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -97,170 +183,51 @@ struct ReadinessWidgetView: View {
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Lock Screen: Inline
-
     private var accessoryInlineView: some View {
         HStack(spacing: 4) {
-            Image(systemName: "bolt.heart.fill")
-            Text("\(String(localized: "Readiness", comment: "Widget readiness inline")) \(score)/100")
+            Image(systemName: "heart.fill")
+            Text("\(String(localized: "Recovery", comment: "Widget recovery inline")) \(score) · \(statusText)")
         }
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Small Widget
+    // MARK: - Computed properties
 
-    private var smallView: some View {
-        VStack(spacing: 6) {
-            HStack {
-                Image(systemName: "bolt.heart.fill")
-                    .font(.caption2)
-                    .foregroundStyle(scoreColor)
-                Text(String(localized: "Readiness", comment: "Widget readiness title"))
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Spacer()
-            }
-
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .stroke(scoreColor.opacity(0.15), lineWidth: 8)
-                    .frame(width: 72, height: 72)
-
-                Circle()
-                    .trim(from: 0, to: CGFloat(score) / 100)
-                    .stroke(scoreColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .frame(width: 72, height: 72)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeOut, value: score)
-
-                VStack(spacing: 0) {
-                    Text("\(score)")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    Text(statusText)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(scoreColor)
-                }
-            }
-
-            Spacer()
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-    }
-
-    // MARK: - Medium Widget
-
-    private var mediumView: some View {
-        HStack(spacing: 20) {
-            // Circular gauge
-            ZStack {
-                Circle()
-                    .stroke(scoreColor.opacity(0.15), lineWidth: 10)
-                    .frame(width: 100, height: 100)
-
-                Circle()
-                    .trim(from: 0, to: CGFloat(score) / 100)
-                    .stroke(
-                        scoreGradient,
-                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                    )
-                    .frame(width: 100, height: 100)
-                    .rotationEffect(.degrees(-90))
-
-                VStack(spacing: 2) {
-                    Text("\(score)")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    Text(statusText)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(scoreColor)
-                }
-            }
-
-            // Details
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "bolt.heart.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(scoreColor)
-                    Text(String(localized: "Readiness", comment: "Widget readiness title"))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                }
-
-                Divider()
-
-                if let hrv = entry.data?.hrvValue {
-                    WidgetMetricRow(
-                        icon: "waveform.path.ecg",
-                        label: "HRV",
-                        value: String(format: "%.0f %@", hrv, String(localized: "ms", comment: "Unit: milliseconds")),
-                        color: .purple
-                    )
-                }
-
-                if let rhr = entry.data?.rhrValue {
-                    WidgetMetricRow(
-                        icon: "heart.fill",
-                        label: String(localized: "Resting HR", comment: "Resting heart rate label"),
-                        value: String(format: "%.0f %@", rhr, String(localized: "bpm", comment: "Unit: beats per minute")),
-                        color: .red
-                    )
-                }
-
-                if entry.data?.hrvValue == nil && entry.data?.rhrValue == nil {
-                    Text(String(localized: "Open the app to sync", comment: "Prompt to open app"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-    }
-
-    // MARK: - Computed Properties
-
-    private var score: Int {
-        entry.data?.score ?? 0
-    }
+    private var score: Int { entry.data?.score ?? 0 }
 
     private var statusText: String {
-        guard let status = entry.data?.status else { return "--" }
-        switch status {
-        case "excellent": return String(localized: "Excellent", comment: "Readiness status")
-        case "good": return String(localized: "Good", comment: "Readiness status")
-        case "fair": return String(localized: "Fair", comment: "Readiness status")
-        case "poor": return String(localized: "Poor", comment: "Readiness status")
-        default: return status.capitalized
-        }
-    }
-
-    private var scoreColor: Color {
         switch entry.data?.status {
-        case "excellent": return .green
-        case "good": return .yellow
-        case "fair": return .orange
-        default: return .red
+        case "excellent": return String(localized: "Excellent", comment: "Recovery status")
+        case "good":      return String(localized: "Good", comment: "Recovery status")
+        case "fair":      return String(localized: "Fair", comment: "Recovery status")
+        case "poor":      return String(localized: "Rest", comment: "Recovery status")
+        default:          return "—"
         }
     }
 
-    private var scoreGradient: AngularGradient {
-        AngularGradient(
-            gradient: Gradient(colors: [scoreColor.opacity(0.5), scoreColor]),
-            center: .center,
-            startAngle: .degrees(-90),
-            endAngle: .degrees(-90 + 360 * Double(score) / 100)
-        )
+    private var headlineText: String {
+        switch score {
+        case 75...:    return String(localized: "Strong recovery", comment: "Widget recovery headline: high")
+        case 55..<75:  return String(localized: "Recovery is fair", comment: "Widget recovery headline: medium")
+        case 35..<55:  return String(localized: "Recovery is mixed", comment: "Widget recovery headline: low-medium")
+        default:       return String(localized: "Take it easy", comment: "Widget recovery headline: low")
+        }
+    }
+
+    private var coachingText: String {
+        switch score {
+        case 75...:    return String(localized: "You can push today.", comment: "Widget coaching: green light")
+        case 55..<75:  return String(localized: "Easy run, RPE 2–3.", comment: "Widget coaching: easy")
+        case 35..<55:  return String(localized: "20–30 min footing, no more.", comment: "Widget coaching: easy short")
+        default:       return String(localized: "Rest day, prioritise sleep.", comment: "Widget coaching: rest")
+        }
+    }
+
+    private var timestampLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: entry.data?.date ?? Date())
     }
 }
 
@@ -273,8 +240,8 @@ struct ReadinessWidget: Widget {
         StaticConfiguration(kind: kind, provider: ReadinessProvider()) { entry in
             ReadinessWidgetView(entry: entry)
         }
-        .configurationDisplayName(String(localized: "Readiness", comment: "Widget display name"))
-        .description(String(localized: "Daily readiness and recovery score.", comment: "Readiness widget description"))
+        .configurationDisplayName(String(localized: "Recovery", comment: "Widget display name: recovery"))
+        .description(String(localized: "Daily recovery and readiness score.", comment: "Recovery widget description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

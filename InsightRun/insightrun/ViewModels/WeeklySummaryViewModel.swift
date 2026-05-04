@@ -49,11 +49,39 @@ class WeeklySummaryViewModel: ObservableObject {
     @Published var averageHRV: Double?
     @Published var averageRestingHR: Double?
     @Published var averageSpO2: Double?
+    @Published var averageRespRate: Double?
+
+    // Daily series (for sparklines, week-long)
+    @Published var dailyHRV: [Double] = []
+    @Published var dailyRestingHR: [Double] = []
+    @Published var dailySpO2: [Double] = []
+    @Published var dailyRespRate: [Double] = []
+
+    // Per-metric deltas vs previous week (absolute units)
+    @Published var hrvDelta: Double?
+    @Published var restingHRDelta: Double?
+    @Published var spo2Delta: Double?
+    @Published var respRateDelta: Double?
+
+    // Previous-week averages (for strikethrough comparison)
+    @Published var prevTotalDistance: Double = 0
+    @Published var prevTotalDuration: TimeInterval = 0
+    @Published var prevAverageRecoveryScore: Int = 0
+    @Published var prevAverageSleepDuration: TimeInterval = 0
+    @Published var prevAverageHRV: Double?
 
     // Comparison vs previous week
     @Published var distanceChange: Double? // percentage
     @Published var durationChange: Double? // percentage
     @Published var recoveryScoreChange: Int? // absolute
+    @Published var sleepDurationChange: TimeInterval? // absolute seconds
+
+    // Coaching (LLM-driven)
+    @Published var coachingTLDR: String = ""
+    @Published var coachingHighlight: String?
+    @Published var coachingDetail: String = ""
+    @Published var isCoachingLoading: Bool = false
+    @Published var coachingTimestamp: Date?
 
     // Week dates
     @Published var weekStart: Date = .now
@@ -118,7 +146,7 @@ class WeeklySummaryViewModel: ObservableObject {
         return String(format: "%dh%02d", hours, minutes)
     }
 
-    func load() async {
+    func load(forceCoachingRefresh: Bool = false) async {
         isLoading = true
         errorMessage = nil
 
@@ -138,8 +166,8 @@ class WeeklySummaryViewModel: ObservableObject {
             let prevWorkouts = try await healthKitManager.fetchRunningWorkouts(from: prevWeekStart, to: startOfWeek)
             computeRunningComparison(previous: prevWorkouts)
 
-            // Fetch sleep data for each day
-            await loadSleepData(from: startOfWeek, to: now)
+            // Fetch sleep data for each day (including previous week for delta)
+            await loadSleepData(from: startOfWeek, to: now, prevStart: prevWeekStart, prevEnd: startOfWeek)
 
             // Fetch recovery metrics for each day
             await loadRecoveryData(from: startOfWeek, to: now, prevStart: prevWeekStart, prevEnd: startOfWeek)
@@ -148,6 +176,98 @@ class WeeklySummaryViewModel: ObservableObject {
         }
 
         isLoading = false
+
+        await loadCoaching(forceRefresh: forceCoachingRefresh)
+    }
+
+    // MARK: - Coaching
+
+    private func loadCoaching(forceRefresh: Bool) async {
+        let language = AppLanguage.current
+        if forceRefresh {
+            WeeklyCoachingService.shared.invalidateCache(weekStart: weekStart, language: language)
+        }
+
+        isCoachingLoading = true
+        defer { isCoachingLoading = false }
+
+        let snapshot = WeeklyCoachingService.Snapshot(
+            weekStart: weekStart,
+            weekEnd: weekEnd,
+            language: language,
+            runCount: runCount,
+            totalDistanceKm: totalDistance / 1000.0,
+            totalDurationMin: Int(totalDuration / 60),
+            averagePaceMinPerKm: averagePace,
+            prevTotalDistanceKm: prevTotalDistance / 1000.0,
+            prevTotalDurationMin: Int(prevTotalDuration / 60),
+            averageRecoveryScore: averageRecoveryScore,
+            recoveryScoreChange: recoveryScoreChange,
+            averageHRV: averageHRV,
+            hrvDelta: hrvDelta,
+            averageRestingHR: averageRestingHR,
+            restingHRDelta: restingHRDelta,
+            averageSleepHours: averageSleepDuration > 0 ? averageSleepDuration / 3600.0 : nil,
+            sleepDurationChangeMinutes: sleepDurationChange.map { Int($0 / 60) },
+            averageSleepEfficiency: averageSleepEfficiency > 0 ? averageSleepEfficiency : nil
+        )
+
+        do {
+            if let insight = try await WeeklyCoachingService.shared.insight(for: snapshot) {
+                coachingTLDR = insight.tldr
+                coachingHighlight = insight.highlight
+                coachingDetail = insight.detail
+                coachingTimestamp = Date()
+            } else {
+                // No consent yet — keep the local fallback so the card still appears.
+                applyLocalCoachingFallback()
+            }
+        } catch {
+            applyLocalCoachingFallback()
+        }
+    }
+
+    private func applyLocalCoachingFallback() {
+        coachingTLDR = coachingInsight ?? String(
+            localized: "Recovery is stable this week. Maintain your rhythm.",
+            comment: "Weekly coaching insight: stable recovery"
+        )
+        coachingHighlight = nil
+        coachingDetail = ""
+        coachingTimestamp = Date()
+    }
+
+    /// Reasons rendered as chips in the expanded coach card. Always derived locally
+    /// from the deltas so the figures stay consistent with what the user sees.
+    var coachingReasons: [String] {
+        var reasons: [String] = []
+        if let recDelta = recoveryScoreChange {
+            let label = String(localized: "Recovery", comment: "Coaching chip: recovery")
+            reasons.append("\(label) \(formatSignedInt(recDelta))")
+        }
+        if let hrv = hrvDelta {
+            let label = String(localized: "HRV", comment: "Coaching chip: HRV")
+            reasons.append(String(format: "%@ %+.0f", label, hrv))
+        }
+        if let rhr = restingHRDelta {
+            let label = String(localized: "Resting HR", comment: "Coaching chip: resting HR")
+            reasons.append(String(format: "%@ %+.0f", label, rhr))
+        }
+        if let sleepDelta = sleepDurationChange {
+            let mins = Int(sleepDelta / 60)
+            let label = String(localized: "Sleep", comment: "Coaching chip: sleep")
+            let unit = String(localized: "min", comment: "Unit abbreviation for minutes")
+            reasons.append("\(label) \(formatSignedInt(mins)) \(unit)")
+        }
+        if let dist = distanceChange {
+            let label = String(localized: "Weekly volume", comment: "Coaching chip: weekly running volume")
+            reasons.append(String(format: "%@ %+.0f%%", label, dist))
+        }
+        return reasons
+    }
+
+    private func formatSignedInt(_ value: Int) -> String {
+        value >= 0 ? "+\(value)" : "\(value)"
     }
 
     private func aggregateRunning(_ workouts: [WorkoutModel]) {
@@ -214,6 +334,8 @@ class WeeklySummaryViewModel: ObservableObject {
     private func computeRunningComparison(previous: [WorkoutModel]) {
         let prevDistance = previous.compactMap(\.distance).reduce(0, +)
         let prevDuration = previous.map(\.duration).reduce(0, +)
+        prevTotalDistance = prevDistance
+        prevTotalDuration = prevDuration
 
         if prevDistance > 0 {
             distanceChange = ((totalDistance - prevDistance) / prevDistance) * 100
@@ -223,14 +345,26 @@ class WeeklySummaryViewModel: ObservableObject {
         }
     }
 
-    private func loadSleepData(from start: Date, to end: Date) async {
+    private func loadSleepData(from start: Date, to end: Date, prevStart: Date, prevEnd: Date) async {
         let sleepHistory = await healthKitManager.fetchSleepHistory(start: start, end: end)
+
+        // Previous week sleep duration for comparison (always loaded so the row appears
+        // even when current week has no sleep data).
+        let prevSleep = await healthKitManager.fetchSleepHistory(start: prevStart, end: prevEnd)
+        if !prevSleep.isEmpty {
+            prevAverageSleepDuration = prevSleep.map(\.totalSleepDuration).reduce(0, +) / Double(prevSleep.count)
+        }
+
         guard !sleepHistory.isEmpty else { return }
 
         let count = Double(sleepHistory.count)
         averageSleepDuration = sleepHistory.map(\.totalSleepDuration).reduce(0, +) / count
         averageSleepEfficiency = sleepHistory.map(\.sleepEfficiency).reduce(0, +) / count
         averageQualityScore = Int(sleepHistory.map { Double($0.qualityScore) }.reduce(0, +) / count)
+
+        if averageSleepDuration > 0 && prevAverageSleepDuration > 0 {
+            sleepDurationChange = averageSleepDuration - prevAverageSleepDuration
+        }
 
         let withStages = sleepHistory.filter { $0.deepSleepDuration != nil && $0.totalSleepDuration > 0 }
         if !withStages.isEmpty {
@@ -253,41 +387,112 @@ class WeeklySummaryViewModel: ObservableObject {
 
     private func loadRecoveryData(from start: Date, to end: Date, prevStart: Date, prevEnd: Date) async {
         var scores: [Int] = []
-        var hrvValues: [Double] = []
-        var rhrValues: [Double] = []
-        var spo2Values: [Double] = []
 
         var currentDate = start
         while currentDate < end {
             if let metrics = try? await healthKitManager.fetchRecoveryMetrics(for: currentDate) {
                 scores.append(metrics.recoveryScore)
-                if let hrv = metrics.hrvAverage { hrvValues.append(hrv) }
-                if let rhr = metrics.restingHeartRate { rhrValues.append(rhr) }
-                if let spo2 = metrics.oxygenSaturation { spo2Values.append(spo2) }
             }
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
 
+        // Daily series — use the same trend service as the dashboard sparklines.
+        // It pulls raw HealthKit averages directly (more reliable than per-day
+        // RecoveryMetrics, which only populate when a full score is computed).
+        let trendService = MetricTrendDataService.shared
+        async let hrvTrend = trendService.metricTrend(for: .hrv, days: 7)
+        async let rhrTrend = trendService.metricTrend(for: .restingHeartRate, days: 7)
+        async let spo2Trend = trendService.metricTrend(for: .oxygenSaturation, days: 7)
+        async let respTrend = trendService.metricTrend(for: .respiratoryRate, days: 7)
+
+        let hrvPoints = await hrvTrend
+        let rhrPoints = await rhrTrend
+        let spo2Points = await spo2Trend
+        let respPoints = await respTrend
+
+        dailyHRV = hrvPoints.map(\.value)
+        dailyRestingHR = rhrPoints.map(\.value)
+        dailySpO2 = spo2Points.map(\.value)
+        dailyRespRate = respPoints.map(\.value)
+
         if !scores.isEmpty {
             averageRecoveryScore = scores.reduce(0, +) / scores.count
         }
-        averageHRV = hrvValues.isEmpty ? nil : hrvValues.reduce(0, +) / Double(hrvValues.count)
-        averageRestingHR = rhrValues.isEmpty ? nil : rhrValues.reduce(0, +) / Double(rhrValues.count)
-        averageSpO2 = spo2Values.isEmpty ? nil : spo2Values.reduce(0, +) / Double(spo2Values.count)
+        averageHRV = dailyHRV.isEmpty ? nil : dailyHRV.reduce(0, +) / Double(dailyHRV.count)
+        averageRestingHR = dailyRestingHR.isEmpty ? nil : dailyRestingHR.reduce(0, +) / Double(dailyRestingHR.count)
+        averageSpO2 = dailySpO2.isEmpty ? nil : dailySpO2.reduce(0, +) / Double(dailySpO2.count)
+        averageRespRate = dailyRespRate.isEmpty ? nil : dailyRespRate.reduce(0, +) / Double(dailyRespRate.count)
 
         // Previous week recovery for comparison
         var prevScores: [Int] = []
+        var prevHRV: [Double] = []
+        var prevRHR: [Double] = []
+        var prevSpO2: [Double] = []
+        var prevResp: [Double] = []
+
         var prevDate = prevStart
         while prevDate < prevEnd {
             if let metrics = try? await healthKitManager.fetchRecoveryMetrics(for: prevDate) {
                 prevScores.append(metrics.recoveryScore)
+                if let hrv = metrics.hrvAverage { prevHRV.append(hrv) }
+                if let rhr = metrics.restingHeartRate { prevRHR.append(rhr) }
+                if let spo2 = metrics.oxygenSaturation { prevSpO2.append(spo2) }
+                if let resp = metrics.respiratoryRate { prevResp.append(resp) }
             }
             prevDate = calendar.date(byAdding: .day, value: 1, to: prevDate)!
         }
 
         if !scores.isEmpty, !prevScores.isEmpty {
             let prevAvg = prevScores.reduce(0, +) / prevScores.count
+            prevAverageRecoveryScore = prevAvg
             recoveryScoreChange = averageRecoveryScore - prevAvg
         }
+
+        if let avg = averageHRV, !prevHRV.isEmpty {
+            let p = prevHRV.reduce(0, +) / Double(prevHRV.count)
+            prevAverageHRV = p
+            hrvDelta = avg - p
+        }
+        if let avg = averageRestingHR, !prevRHR.isEmpty {
+            restingHRDelta = avg - prevRHR.reduce(0, +) / Double(prevRHR.count)
+        }
+        if let avg = averageSpO2, !prevSpO2.isEmpty {
+            spo2Delta = avg - prevSpO2.reduce(0, +) / Double(prevSpO2.count)
+        }
+        if let avg = averageRespRate, !prevResp.isEmpty {
+            respRateDelta = avg - prevResp.reduce(0, +) / Double(prevResp.count)
+        }
+    }
+
+    /// Generates a coaching insight based on the week-over-week deltas.
+    /// Returns nil when no signal worth reporting.
+    var coachingInsight: String? {
+        // Big drop in recovery → focus on sleep & load
+        if let rec = recoveryScoreChange, rec <= -5 {
+            if let sleepDelta = sleepDurationChange, sleepDelta < -15 * 60 {
+                let minutesShort = Int(abs(sleepDelta) / 60)
+                return String(
+                    format: String(localized: "Recovery is down this week. Sleep is short by %d min on average — aim for a long night before your next run.", comment: "Weekly coaching insight: low recovery + short sleep"),
+                    minutesShort
+                )
+            }
+            return String(localized: "Recovery is down this week. Take it easy and prioritise sleep and hydration.", comment: "Weekly coaching insight: low recovery")
+        }
+        // Strong improvement
+        if let rec = recoveryScoreChange, rec >= 5 {
+            return String(localized: "Nice progression this week. Keep this rhythm and stay consistent on sleep.", comment: "Weekly coaching insight: high recovery")
+        }
+        // Stable but volume changed sharply
+        if let dist = distanceChange, dist <= -50, totalDistance < 1 {
+            return String(localized: "No run logged this week. Schedule a short easy session to keep momentum.", comment: "Weekly coaching insight: no runs")
+        }
+        if let dist = distanceChange, dist >= 30 {
+            return String(localized: "Volume is up significantly. Watch fatigue indicators and plan an easy day.", comment: "Weekly coaching insight: high volume jump")
+        }
+        // Default: only show insight when there's enough data
+        if averageRecoveryScore == 0 && runCount == 0 {
+            return nil
+        }
+        return String(localized: "Recovery is stable this week. Maintain your rhythm.", comment: "Weekly coaching insight: stable recovery")
     }
 }

@@ -2832,6 +2832,7 @@ class HealthKitManager: ObservableObject {
 
     /// Fetch daily activity metrics (steps, active calories, exercise minutes) and personal ring goals
     func fetchDailyActivityData(for date: Date) async -> DailyActivityData {
+        if DemoMode.isEnabled { return MockData.sampleDailyActivityData }
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: date)
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? date
@@ -3221,7 +3222,7 @@ class HealthKitManager: ObservableObject {
 
     /// Fetch sleep data for multiple days
     func fetchSleepHistory(start: Date, end: Date) async -> [SleepData] {
-        if DemoMode.isEnabled { return [MockData.sampleSleepData] }
+        if DemoMode.isEnabled { return MockData.sampleSleepHistory(start: start, end: end) }
 
         var sleepDataList: [SleepData] = []
         let calendar = Calendar.current

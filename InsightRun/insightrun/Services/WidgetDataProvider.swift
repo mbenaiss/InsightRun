@@ -59,13 +59,23 @@ class WidgetDataProvider {
         let paces = thisWeekWorkouts.compactMap { $0.averagePace }
         let avgPace = paces.isEmpty ? nil : paces.reduce(0, +) / Double(paces.count)
 
+        // Bucket distances by weekday (ordered by Calendar.firstWeekday)
+        var dailyKm = Array(repeating: 0.0, count: 7)
+        for workout in thisWeekWorkouts {
+            guard let dist = workout.distance else { continue }
+            let weekday = calendar.component(.weekday, from: workout.startDate)
+            let idx = (weekday - calendar.firstWeekday + 7) % 7
+            dailyKm[idx] += dist / 1000.0
+        }
+
         let data = WidgetWeeklyStatsData(
             totalDistance: totalDistance,
             totalRuns: thisWeekWorkouts.count,
             averagePace: avgPace,
             totalDuration: totalDuration,
             totalCalories: totalCalories,
-            weekStartDate: weekStart
+            weekStartDate: weekStart,
+            dailyDistancesKm: dailyKm
         )
         save(data, forKey: WidgetDataKeys.weeklyStats)
         reloadWidgets()
@@ -94,7 +104,11 @@ class WidgetDataProvider {
         rhr: Double?,
         spo2: Double?,
         respRate: Double?,
-        walkingHR: Double?
+        walkingHR: Double?,
+        hrvSeries: [Double]? = nil,
+        rhrSeries: [Double]? = nil,
+        hrvDelta: Double? = nil,
+        rhrDelta: Double? = nil
     ) {
         let data = WidgetHealthVitalsData(
             date: Date(),
@@ -102,7 +116,11 @@ class WidgetDataProvider {
             restingHeartRate: rhr,
             oxygenSaturation: spo2,
             respiratoryRate: respRate,
-            walkingHeartRate: walkingHR
+            walkingHeartRate: walkingHR,
+            hrvSeries: hrvSeries,
+            rhrSeries: rhrSeries,
+            hrvDelta: hrvDelta,
+            rhrDelta: rhrDelta
         )
         save(data, forKey: WidgetDataKeys.healthVitals)
         reloadWidgets()

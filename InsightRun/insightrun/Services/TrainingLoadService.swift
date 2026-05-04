@@ -333,7 +333,8 @@ final class TrainingLoadService: ObservableObject {
     /// TSB =   0 → ~55 (neutral)
     /// TSB = -20 → ~25 (training stress, fatigue accumulating)
     /// TSB = -30 → ~10 (overload risk)
-    /// Source: Coggan/TrainingPeaks Performance Management Chart conventions.
+    /// Linear approximation calibrated for our HR-based TRIMP scale, inspired by
+    /// the Coggan PMC interpretation bands (the PMC itself works in TSS, not TRIMP).
     static func freshnessScoreFromTSB(_ tsb: Double) -> Int {
         let raw = 55.0 + tsb * 1.5
         return max(0, min(100, Int(raw.rounded())))

@@ -64,8 +64,6 @@ interface ReadinessResponse {
   detail?: string
   suggestedWorkoutType: 'intense' | 'moderate' | 'easy' | 'rest'
   insights: ReadinessInsight[]
-  /** "noSleep" when the client opted into the sleep-less presentation; "normal" otherwise. */
-  mode?: 'normal' | 'noSleep'
 }
 
 interface ReadinessInsight {
@@ -1073,7 +1071,6 @@ app.post('/', async (c) => {
       detail: coachingText.detail,
       suggestedWorkoutType,
       insights,
-      mode: body.noSleepMode === true ? 'noSleep' : 'normal',
     }
 
     return c.json(response)

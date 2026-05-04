@@ -2,7 +2,8 @@
 //  WeeklyStatsWidget.swift
 //  InsightRunWidgets
 //
-//  Widget displaying weekly running statistics
+//  Weekly running statistics — small (X/7 days + day grid), medium
+//  (3-column KPI strip + day grid).
 //
 
 import WidgetKit
@@ -22,12 +23,13 @@ struct WeeklyStatsProvider: TimelineProvider {
         WeeklyStatsEntry(
             date: Date(),
             data: WidgetWeeklyStatsData(
-                totalDistance: 32500,
+                totalDistance: 21400,
                 totalRuns: 4,
                 averagePace: 5.45,
-                totalDuration: 9600,
-                totalCalories: 2100,
-                weekStartDate: Date()
+                totalDuration: 8280,
+                totalCalories: 1420,
+                weekStartDate: Date(),
+                dailyDistancesKm: [5.2, 6.0, 0, 4.5, 0, 5.7, 0]
             )
         )
     }
@@ -68,222 +70,186 @@ struct WeeklyStatsWidgetView: View {
         }
     }
 
-    // MARK: - Lock Screen: Circular
+    // MARK: - Small (streak count + day grid)
+
+    private var smallView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WGHeader(label: String(localized: "This week", comment: "Widget weekly stats short header"), icon: "calendar")
+
+            Spacer(minLength: 8)
+
+            HStack(alignment: .lastTextBaseline, spacing: 3) {
+                Text("\(totalRuns)")
+                    .font(WGFont.num(32, weight: .heavy))
+                    .kerning(WGTracking.numHero(32))
+                    .foregroundStyle(Color.wgTextPrimary)
+
+                Text(sessionsSuffix)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.wgTextSecondary)
+            }
+
+            Text(volumeSubtitle)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Color.wgTextTertiary)
+                .padding(.top, 2)
+
+            Spacer()
+
+            DayBarGrid(daily: dailyKm, todayIdx: todayIdx, height: 22)
+        }
+        .padding(14)
+        .wgContainerBackground()
+    }
+
+    // MARK: - Medium (3-KPI strip + day grid)
+
+    private var mediumView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WGHeader(label: String(localized: "Weekly stats", comment: "Widget weekly stats header"), icon: "chart.bar.fill")
+
+            HStack(spacing: 0) {
+                WGMiniStat(
+                    label: String(localized: "Distance", comment: "Widget distance label"),
+                    value: distanceLabel,
+                    unit: "km"
+                )
+                WGMiniStat(
+                    label: String(localized: "Runs", comment: "Widget runs label"),
+                    value: "\(totalRuns)",
+                    leadingDivider: true
+                )
+                WGMiniStat(
+                    label: String(localized: "Time", comment: "Widget time label"),
+                    value: durationLabel,
+                    mono: true,
+                    leadingDivider: true
+                )
+            }
+            .padding(.top, 14)
+
+            Spacer(minLength: 0)
+
+            DayBarGrid(daily: dailyKm, todayIdx: todayIdx, height: 26)
+        }
+        .padding(14)
+        .wgContainerBackground()
+    }
+
+    // MARK: - Lock screen variants
 
     private var accessoryCircularView: some View {
         VStack(spacing: 1) {
             Image(systemName: "figure.run")
                 .font(.caption)
-            Text(formattedDistanceShort)
+            Text(String(format: "%.0fk", (entry.data?.totalDistance ?? 0) / 1000.0))
                 .font(.system(.caption, design: .rounded, weight: .bold))
         }
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Lock Screen: Rectangular
-
     private var accessoryRectangularView: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "chart.bar.fill")
-                Text(String(localized: "This Week", comment: "Widget weekly stats header"))
+                Text(String(localized: "This week", comment: "Lock screen weekly title"))
                     .font(.headline)
                     .widgetAccentable()
             }
             HStack(spacing: 8) {
-                Text(formattedDistance)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                Text("\(distanceLabel) km").font(.caption).fontWeight(.semibold)
                 Text(String(localized: "\(totalRuns) runs", comment: "Number of runs"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if let pace = formattedPace {
-                    Text(pace)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
         .containerBackground(for: .widget) { Color.clear }
     }
-
-    // MARK: - Lock Screen: Inline
 
     private var accessoryInlineView: some View {
         HStack(spacing: 4) {
             Image(systemName: "figure.run")
-            Text("\(formattedDistance) - \(String(localized: "\(totalRuns) runs", comment: "Number of runs"))")
+            Text("\(distanceLabel) km · \(String(localized: "\(totalRuns) runs", comment: "Number of runs"))")
         }
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Small Widget
+    // MARK: - Helpers
 
-    private var smallView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "chart.bar.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.blue)
-                Text(String(localized: "This Week", comment: "Widget weekly stats header"))
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Spacer()
-            }
+    private var totalRuns: Int { entry.data?.totalRuns ?? 0 }
 
-            Spacer()
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(formattedDistance)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-
-                HStack(spacing: 12) {
-                    Label("\(totalRuns)", systemImage: "figure.run")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if let pace = formattedPace {
-                        Label(pace, systemImage: "timer")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
+    private var sessionsSuffix: String {
+        String(localized: "/ 7 days", comment: "Suffix after run count, e.g. 4 / 7 days")
     }
 
-    // MARK: - Medium Widget
-
-    private var mediumView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "chart.bar.fill")
-                    .font(.caption)
-                    .foregroundStyle(.blue)
-                Text(String(localized: "Weekly Statistics", comment: "Widget weekly stats medium header"))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Spacer()
-            }
-
-            HStack(spacing: 0) {
-                // Distance
-                StatMetricCard(
-                    icon: "road.lanes",
-                    value: formattedDistance,
-                    label: String(localized: "Distance", comment: "Widget distance label"),
-                    color: .blue
-                )
-
-                Spacer()
-
-                // Runs
-                StatMetricCard(
-                    icon: "figure.run",
-                    value: "\(totalRuns)",
-                    label: String(localized: "Runs", comment: "Widget runs label"),
-                    color: .green
-                )
-
-                Spacer()
-
-                // Pace
-                StatMetricCard(
-                    icon: "timer",
-                    value: formattedPace ?? "--",
-                    label: String(localized: "Avg Pace", comment: "Widget average pace label"),
-                    color: .orange
-                )
-
-                Spacer()
-
-                // Duration
-                StatMetricCard(
-                    icon: "clock.fill",
-                    value: formattedDuration,
-                    label: String(localized: "Duration", comment: "Widget duration label"),
-                    color: .purple
-                )
-            }
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
+    private var distanceLabel: String {
+        String(format: "%.1f", (entry.data?.totalDistance ?? 0) / 1000.0)
     }
 
-    // MARK: - Computed Properties
-
-    private var totalRuns: Int {
-        entry.data?.totalRuns ?? 0
+    private var durationLabel: String {
+        let total = Int(entry.data?.totalDuration ?? 0)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        if h > 0 {
+            return String(format: "%dh%02d", h, m)
+        }
+        return String(format: "%dmin", m)
     }
 
-    private var formattedDistance: String {
+    private var volumeSubtitle: String {
         let km = (entry.data?.totalDistance ?? 0) / 1000.0
-        if km >= 100 {
-            return String(format: "%.0f km", km)
-        }
-        return String(format: "%.1f km", km)
+        return String(format: "%.1f km · %@", km, durationLabel)
     }
 
-    private var formattedPace: String? {
-        guard let pace = entry.data?.averagePace, pace > 0 else { return nil }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d:%02d /km", minutes, seconds)
+    private var dailyKm: [Double] {
+        entry.data?.dailyDistancesKm ?? Array(repeating: 0.0, count: 7)
     }
 
-    private var formattedDistanceShort: String {
-        let km = (entry.data?.totalDistance ?? 0) / 1000.0
-        return String(format: "%.0f km", km)
-    }
-
-    private var formattedDuration: String {
-        let duration = entry.data?.totalDuration ?? 0
-        let hours = Int(duration) / 3600
-        let minutes = Int(duration) % 3600 / 60
-        if hours > 0 {
-            return String(format: "%dh%02d", hours, minutes)
-        }
-        return String(format: "%d min", minutes)
+    private var todayIdx: Int {
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: Date())
+        return (weekday - calendar.firstWeekday + 7) % 7
     }
 }
 
-// MARK: - Stat Metric Card
+// MARK: - Day bar grid (7 columns)
 
-private struct StatMetricCard: View {
-    let icon: String
-    let value: String
-    let label: String
-    let color: Color
+private struct DayBarGrid: View {
+    let daily: [Double]
+    let todayIdx: Int
+    let height: CGFloat
+
+    private var letters: [String] {
+        let calendar = Calendar.current
+        let symbols = calendar.veryShortStandaloneWeekdaySymbols
+        let firstWeekday = calendar.firstWeekday
+        return (0..<7).map { offset in
+            let weekdayNumber = ((firstWeekday - 1 + offset) % 7) + 1
+            return symbols[(weekdayNumber - 1) % symbols.count].uppercased()
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(color)
+        HStack(spacing: 4) {
+            ForEach(0..<7, id: \.self) { idx in
+                let value = idx < daily.count ? daily[idx] : 0
+                let isToday = idx == todayIdx
+                VStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(value > 0 ? Color.wgAccent : (isToday ? Color.white.opacity(0.14) : Color.white.opacity(0.05)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .strokeBorder(isToday && value <= 0 ? Color.wgAccent : Color.clear, lineWidth: 0.5)
+                        )
+                        .frame(height: height)
 
-            Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
-
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+                    Text(letters[idx])
+                        .font(WGFont.mono(8, weight: isToday ? .heavy : .semibold))
+                        .foregroundStyle(isToday ? Color.wgAccent : Color.wgTextTertiary)
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
-        .frame(maxWidth: .infinity)
     }
 }
 

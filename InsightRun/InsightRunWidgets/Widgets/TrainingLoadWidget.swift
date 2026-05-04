@@ -2,7 +2,8 @@
 //  TrainingLoadWidget.swift
 //  InsightRunWidgets
 //
-//  Widget displaying training load status and weekly volume comparison
+//  Weekly training load widget — small (status pill + delta) and medium
+//  (status block + 3-column comparison + footer "x days ago").
 //
 
 import WidgetKit
@@ -23,11 +24,11 @@ struct TrainingLoadProvider: TimelineProvider {
             date: Date(),
             data: WidgetTrainingLoadData(
                 date: Date(),
-                weeklyVolumeChange: 5.2,
-                daysSinceLastWorkout: 1,
+                weeklyVolumeChange: -100,
+                daysSinceLastWorkout: 3,
                 status: "normal",
-                thisWeekDistance: 28000,
-                lastWeekDistance: 26600
+                thisWeekDistance: 0,
+                lastWeekDistance: 18500
             )
         )
     }
@@ -68,7 +69,138 @@ struct TrainingLoadWidgetView: View {
         }
     }
 
-    // MARK: - Lock Screen: Circular
+    // MARK: - Small (status pill + KPI)
+
+    private var smallView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WGHeader(label: String(localized: "Load", comment: "Widget training load short header"), icon: "chart.line.uptrend.xyaxis", color: statusColor)
+
+            Spacer(minLength: 8)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(statusColor.opacity(0.18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(statusColor.opacity(0.30), lineWidth: 0.5)
+                    )
+
+                VStack(spacing: 4) {
+                    Image(systemName: statusIcon)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(statusColor)
+
+                    Text(statusTitle)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(statusColor)
+                }
+            }
+            .frame(width: 86, height: 86)
+            .frame(maxWidth: .infinity, alignment: .center)
+
+            Spacer(minLength: 6)
+
+            if let change = entry.data?.weeklyVolumeChange {
+                HStack(spacing: 3) {
+                    Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.system(size: 9, weight: .heavy))
+
+                    Text(String(format: "%+.0f%%", change))
+                        .font(WGFont.mono(11, weight: .bold))
+
+                    Text(String(localized: "vs last wk", comment: "Compared to last week"))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(Color.wgTextTertiary)
+                }
+                .foregroundStyle(deltaColor(change: change))
+            }
+        }
+        .padding(14)
+        .wgContainerBackground(gradient: true)
+    }
+
+    // MARK: - Medium (status pill + 3 KPI grid + footer)
+
+    private var mediumView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WGHeader(
+                label: String(localized: "Training Load", comment: "Widget training load header"),
+                icon: "chart.line.uptrend.xyaxis",
+                color: statusColor
+            )
+
+            HStack(alignment: .top, spacing: 16) {
+                // Status block
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(statusColor.opacity(0.18))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(statusColor.opacity(0.30), lineWidth: 0.5)
+                        )
+
+                    VStack(spacing: 4) {
+                        Image(systemName: statusIcon)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(statusColor)
+
+                        Text(statusTitle)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(statusColor)
+                    }
+                }
+                .frame(width: 86, height: 86)
+
+                // 3-column grid
+                HStack(spacing: 0) {
+                    WGMiniStat(
+                        label: String(localized: "This week", comment: "Widget this week label"),
+                        value: distanceLabel(entry.data?.thisWeekDistance ?? 0),
+                        unit: "km"
+                    )
+                    WGMiniStat(
+                        label: String(localized: "Prev. week", comment: "Widget previous week label"),
+                        value: distanceLabel(entry.data?.lastWeekDistance ?? 0),
+                        unit: "km",
+                        valueColor: Color.wgTextSecondary,
+                        leadingDivider: true
+                    )
+                    if let change = entry.data?.weeklyVolumeChange {
+                        WGMiniStat(
+                            label: String(localized: "Change", comment: "Widget volume change label"),
+                            value: String(format: "%+.0f", change),
+                            unit: "%",
+                            valueColor: deltaColor(change: change),
+                            leadingDivider: true
+                        )
+                    }
+                }
+            }
+            .padding(.top, 14)
+
+            Spacer(minLength: 0)
+
+            if let days = entry.data?.daysSinceLastWorkout {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.wgTextTertiary)
+                    (
+                        Text(String(localized: "Last run · ", comment: "Last run prefix"))
+                            .foregroundStyle(Color.wgTextSecondary)
+                        + Text(daysAgoLabel(days))
+                            .foregroundStyle(Color.wgTextPrimary)
+                            .fontWeight(.semibold)
+                    )
+                    .font(.system(size: 11, weight: .medium))
+                }
+            }
+        }
+        .padding(14)
+        .wgContainerBackground(gradient: true)
+    }
+
+    // MARK: - Lock screen variants
 
     private var accessoryCircularView: some View {
         ZStack {
@@ -83,27 +215,18 @@ struct TrainingLoadWidgetView: View {
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Lock Screen: Rectangular
-
     private var accessoryRectangularView: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "chart.line.uptrend.xyaxis")
-                Text(String(localized: "Load", comment: "Widget training load title"))
+                Text(String(localized: "Load", comment: "Lock screen load title"))
                     .font(.headline)
                     .widgetAccentable()
             }
             HStack(spacing: 8) {
-                Text(statusTitle)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                Text(statusTitle).font(.caption).fontWeight(.semibold)
                 if let change = entry.data?.weeklyVolumeChange {
                     Text(String(format: "%+.0f%%", change))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if let days = entry.data?.daysSinceLastWorkout {
-                    Text(days == 0 ? String(localized: "Today", comment: "Today abbreviation") : String(localized: "\(days)d ago", comment: "Days since last workout"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -111,8 +234,6 @@ struct TrainingLoadWidgetView: View {
         }
         .containerBackground(for: .widget) { Color.clear }
     }
-
-    // MARK: - Lock Screen: Inline
 
     private var accessoryInlineView: some View {
         HStack(spacing: 4) {
@@ -125,207 +246,59 @@ struct TrainingLoadWidgetView: View {
         .containerBackground(for: .widget) { Color.clear }
     }
 
-    // MARK: - Small Widget
-
-    private var smallView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.caption2)
-                    .foregroundStyle(statusColor)
-                Text(String(localized: "Load", comment: "Widget training load title"))
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Spacer()
-            }
-
-            Spacer()
-
-            // Status indicator
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 10, height: 10)
-                Text(statusTitle)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-            }
-
-            // Volume change
-            if let change = entry.data?.weeklyVolumeChange {
-                HStack(spacing: 2) {
-                    Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        .font(.system(size: 10))
-                        .foregroundStyle(change >= 0 ? .orange : .blue)
-                    Text(String(format: "%+.0f%%", change))
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                    Text(String(localized: "vs last wk", comment: "Compared to last week"))
-                        .font(.system(size: 8))
-                        .foregroundStyle(.tertiary)
-                }
-            }
-
-            Spacer()
-
-            // Days since last workout
-            if let days = entry.data?.daysSinceLastWorkout {
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
-                    Text(days == 0 ? String(localized: "Today", comment: "Today") : days == 1 ? String(localized: "Yesterday", comment: "Yesterday") : String(localized: "\(days)d ago", comment: "Days ago"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-    }
-
-    // MARK: - Medium Widget
-
-    private var mediumView: some View {
-        HStack(spacing: 16) {
-            // Left: Status
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(statusColor.opacity(0.15))
-                        .frame(width: 64, height: 64)
-
-                    Image(systemName: statusIcon)
-                        .font(.title2)
-                        .foregroundStyle(statusColor)
-                }
-
-                Text(statusTitle)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-            }
-
-            // Right: Details
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.caption)
-                        .foregroundStyle(statusColor)
-                    Text(String(localized: "Training Load", comment: "Widget training load header"))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    Spacer()
-                }
-
-                // Volume comparison
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "This Week", comment: "This week label"))
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                        Text(formattedDistance(entry.data?.thisWeekDistance ?? 0))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "Last Week", comment: "Last week label"))
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                        Text(formattedDistance(entry.data?.lastWeekDistance ?? 0))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let change = entry.data?.weeklyVolumeChange {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(String(localized: "Change", comment: "Volume change label"))
-                                .font(.system(size: 9))
-                                .foregroundStyle(.secondary)
-                            HStack(spacing: 2) {
-                                Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                    .font(.system(size: 10))
-                                Text(String(format: "%+.0f%%", change))
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                            }
-                            .foregroundStyle(change > 10 ? .orange : change < -10 ? .blue : .green)
-                        }
-                    }
-                }
-
-                // Days since last workout
-                if let days = entry.data?.daysSinceLastWorkout {
-                    HStack(spacing: 4) {
-                        Image(systemName: "figure.run")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                        Text(lastWorkoutText(days))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
-        }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-    }
-
-    // MARK: - Computed Properties
+    // MARK: - Helpers
 
     private var statusColor: Color {
         switch entry.data?.status {
-        case "normal": return .green
-        case "overtraining": return .orange
-        case "inactive": return .blue
-        default: return .gray
-        }
-    }
-
-    private var statusTitle: String {
-        switch entry.data?.status {
-        case "normal": return String(localized: "On Track", comment: "Training status: normal")
-        case "overtraining": return String(localized: "High Load", comment: "Training status: overtraining")
-        case "inactive": return String(localized: "Inactive", comment: "Training status: inactive")
-        default: return "--"
-        }
-    }
-
-    private var statusShort: String {
-        switch entry.data?.status {
-        case "normal": return "OK"
-        case "overtraining": return String(localized: "High", comment: "Training status short: overtraining")
-        case "inactive": return String(localized: "Rest", comment: "Training status short: inactive")
-        default: return "--"
+        case "normal":       return .wgSuccess
+        case "overtraining": return .wgWarning
+        case "inactive":     return Color(uiColor: UIColor(red: 0.36, green: 0.76, blue: 1.0, alpha: 1.0))
+        default:             return Color.gray
         }
     }
 
     private var statusIcon: String {
         switch entry.data?.status {
-        case "normal": return "checkmark.circle.fill"
+        case "normal":       return "checkmark.circle.fill"
         case "overtraining": return "exclamationmark.triangle.fill"
-        case "inactive": return "zzz"
-        default: return "questionmark.circle"
+        case "inactive":     return "zzz"
+        default:             return "questionmark.circle"
         }
     }
 
-    private func formattedDistance(_ meters: Double) -> String {
-        let km = meters / 1000.0
-        return String(format: "%.1f km", km)
+    private var statusTitle: String {
+        switch entry.data?.status {
+        case "normal":       return String(localized: "On track", comment: "Training status: normal")
+        case "overtraining": return String(localized: "High load", comment: "Training status: overtraining")
+        case "inactive":     return String(localized: "Inactive", comment: "Training status: inactive")
+        default:             return "—"
+        }
     }
 
-    private func lastWorkoutText(_ days: Int) -> String {
+    private var statusShort: String {
+        switch entry.data?.status {
+        case "normal":       return "OK"
+        case "overtraining": return String(localized: "High", comment: "Training status short: overtraining")
+        case "inactive":     return String(localized: "Rest", comment: "Training status short: inactive")
+        default:             return "—"
+        }
+    }
+
+    private func distanceLabel(_ meters: Double) -> String {
+        String(format: "%.1f", meters / 1000.0)
+    }
+
+    private func deltaColor(change: Double) -> Color {
+        if change > 25  { return .wgWarning }
+        if change < -25 { return .wgError }
+        return .wgSuccess
+    }
+
+    private func daysAgoLabel(_ days: Int) -> String {
         switch days {
-        case 0: return String(localized: "Last run: today", comment: "Last workout today")
-        case 1: return String(localized: "Last run: yesterday", comment: "Last workout yesterday")
-        default: return String(localized: "Last run: \(days) days ago", comment: "Last workout days ago")
+        case 0:  return String(localized: "today", comment: "Today, lowercase")
+        case 1:  return String(localized: "yesterday", comment: "Yesterday, lowercase")
+        default: return String(localized: "\(days) days ago", comment: "N days ago, lowercase")
         }
     }
 }

@@ -39,14 +39,6 @@ class UserIdentityService {
         print("🔄 UserIdentityService: Updated user ID to: \(newID)")
     }
 
-    /// Reset user ID (for debugging or testing purposes)
-    func resetUserID() {
-        let newID = UUID().uuidString
-        UserDefaults.standard.set(newID, forKey: userDefaultsKey)
-        self.userID = newID
-        print("🔄 UserIdentityService: Reset user ID to: \(newID)")
-    }
-
     /// Check if user ID exists
     var hasUserID: Bool {
         return !userID.isEmpty

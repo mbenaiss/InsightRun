@@ -14,7 +14,6 @@ class DailyReadinessViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var readinessScore: Int?
     @Published var status: ReadinessStatus = .unknown
-    /// Full coaching text. Kept for legacy callers (RecoveryDashboardView, etc.).
     @Published var recommendation: String = ""
     /// Short TL;DR shown collapsed in the dashboard coach card.
     /// Falls back to `recommendation` when the backend doesn't provide a separate summary.
@@ -79,6 +78,11 @@ class DailyReadinessViewModel: ObservableObject {
             return
         }
 
+        // Refresh the no-sleep flag up-front so the dashboard picks the right card
+        // even when the readiness cache hits below and we skip the network call.
+        // Backed by a 12h disk cache, so this is effectively free on hot paths.
+        self.isNoSleepMode = await SleepDataAvailabilityService.shared.isNoSleepMode()
+
         // Return cached readiness only if the inputs are unchanged (effort + cardiac load).
         // A new workout or shifting effort score will mismatch the cache and force a fresh analysis.
         if !forceRefresh,
@@ -100,13 +104,11 @@ class DailyReadinessViewModel: ObservableObject {
         do {
             async let recoveryMetricsFetch = healthKitManager.fetchRecoveryMetrics(for: Date())
             async let recentWorkoutsFetch = healthKitManager.fetchWorkouts(limit: 3)
-            async let noSleepFetch = SleepDataAvailabilityService.shared.isNoSleepMode()
 
             let recoveryMetrics = try await recoveryMetricsFetch
             let workoutPayloads = buildRecentWorkoutPayloads(from: await recentWorkoutsFetch)
             let baseline = PersonalBaselineStorage.shared.load()
-            let noSleepMode = await noSleepFetch
-            self.isNoSleepMode = noSleepMode
+            let noSleepMode = self.isNoSleepMode
 
             let activityPayload: DailyActivityPayload? = activityData.map {
                 DailyActivityPayload(

@@ -56,11 +56,6 @@ class RemoteConfigService: ObservableObject {
         return features[key] ?? DEFAULT_FEATURES[key] ?? false
     }
 
-    /// Fetch config from backend (can be called manually)
-    func fetchConfig() async {
-        await fetchConfigFromBackend()
-    }
-
     /// Fetch config if cache is stale
     func fetchConfigIfNeeded() async {
         if let lastFetch = lastFetchDate, Date().timeIntervalSince(lastFetch) < cacheInterval {

@@ -52,6 +52,7 @@ struct WeeklyActivityCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("weekly-summary-link")
     }
 
     private func statColumn(label: String, value: String) -> some View {

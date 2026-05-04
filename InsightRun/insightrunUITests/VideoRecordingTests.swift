@@ -30,6 +30,7 @@ final class VideoRecordingTests: XCTestCase {
             "-AppleLocale", locale
         ]
         app.launch()
+        XCUIDevice.shared.appearance = .dark
 
         addUIInterruptionMonitor(withDescription: "System Alert") { alert in
             let cancelButtons = ["Cancel", "Annuler", "Not Now", "Pas maintenant", "Don't Allow", "Ne pas autoriser"]
@@ -47,131 +48,118 @@ final class VideoRecordingTests: XCTestCase {
             return false
         }
 
-        // Dismiss any pending alerts
-        app.tap()
+        // Wake the UI interruption monitor via status bar (always safe)
+        let statusBar = app.statusBars.firstMatch
+        if statusBar.exists {
+            statusBar.tap()
+        }
         sleep(1)
     }
 
     // MARK: - Navigation
 
     private func navigateAppPreview() {
-        // === DASHBOARD ===
-        sleep(2)
+        // === DASHBOARD (≈8s) ===
+        sleep(3)
 
-        // Scroll down to show recovery metrics
+        // Open Readiness score detail (the marquee score)
+        tapElement(identifier: "pulse-ring-hero")
+        sleep(2)
+        dismissSheet()
+
+        // Scroll to show signals + weekly activity
         app.swipeUp()
-        sleep(1)
-
-        // Scroll back up for score buttons
-        app.swipeDown()
-        sleep(1)
-
-        // Open Effort score detail sheet
-        tapElement(identifier: "score-effort")
         sleep(2)
-        dismissSheet()
 
-        // Open Sleep score detail sheet
-        tapElement(identifier: "score-sleep")
-        sleep(2)
-        dismissSheet()
-
-        // Open Readiness score detail sheet
-        tapElement(identifier: "score-readiness")
-        sleep(2)
-        dismissSheet()
-
-        // Navigate to Weekly Summary
-        let weeklySummaryLink = app.buttons.matching(identifier: "weekly-summary-link").firstMatch
-        if weeklySummaryLink.waitForExistence(timeout: 3) && weeklySummaryLink.isHittable {
-            weeklySummaryLink.tap()
-            sleep(2)
-            app.swipeUp()
-            sleep(1)
-            app.navigationBars.buttons.firstMatch.tap()
-            sleep(1)
-        }
-
-        // Create Training Plan (do NOT swipe up - it triggers Export button)
-        let trainingPlanButton = app.buttons.matching(identifier: "create-training-plan").firstMatch
-        if trainingPlanButton.waitForExistence(timeout: 3) && trainingPlanButton.isHittable {
-            trainingPlanButton.tap()
-            sleep(3)
-            dismissSheet()
-        }
-
-        // === WORKOUTS ===
+        // === WORKOUTS (≈8s) ===
         app.tabBars.buttons.element(boundBy: 1).tap()
-        sleep(1)
+        sleep(3)
 
         // Open first workout detail
-        let firstWorkout = app.buttons.matching(identifier: "workout-row-0").firstMatch
-        if firstWorkout.waitForExistence(timeout: 3) && firstWorkout.isHittable {
-            firstWorkout.tap()
-            sleep(2)
+        tapElement(identifier: "workout-row-0")
+        sleep(2)
 
-            // Scroll through ALL workout detail sections
-            app.swipeUp()
-            sleep(1)
-            app.swipeUp()
-            sleep(1)
-            app.swipeUp()
-            sleep(1)
-            app.swipeUp()
-            sleep(1)
-            app.swipeUp()
-            sleep(1)
+        // Scroll through workout detail (map → metrics)
+        app.swipeUp()
+        sleep(1)
+        app.swipeUp()
+        sleep(1)
 
-            // Go back
+        // Go back to list
+        if app.navigationBars.buttons.firstMatch.exists {
             app.navigationBars.buttons.firstMatch.tap()
             sleep(1)
         }
 
-        // === STATISTICS ===
+        // === STATISTICS (≈8s) ===
         app.tabBars.buttons.element(boundBy: 2).tap()
-        sleep(2)
+        sleep(3)
 
-        // Expand Personal Records
-        let recordsToggle = app.buttons.matching(identifier: "personal-records-toggle").firstMatch
-        if recordsToggle.waitForExistence(timeout: 3) && recordsToggle.isHittable {
-            recordsToggle.tap()
-            sleep(1)
-            app.swipeUp()
-            sleep(1)
-        }
-
-        // Statistics - Progression tab
-        let progressionTab = app.buttons["Progression"]
-        if progressionTab.waitForExistence(timeout: 2) {
-            progressionTab.tap()
-            sleep(2)
-        }
-
-        // === BACK TO DASHBOARD ===
-        app.tabBars.buttons.element(boundBy: 0).tap()
-        sleep(1)
-
-        // Scroll dashboard to show recovery section
+        // Scroll to reveal KPIs + charts
         app.swipeUp()
         sleep(2)
 
-        // Open AI Assistant
-        let aiButton = app.buttons["floating-ai-button"]
-        if aiButton.waitForExistence(timeout: 2) {
-            aiButton.tap()
-            sleep(2)
-            dismissSheet()
+        // Switch to Progression tab
+        if let tab = findProgressionTab() {
+            if tab.isHittable {
+                tab.tap()
+            } else {
+                tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            sleep(3)
         }
 
+        // === GOALS (≈8s) ===
+        app.tabBars.buttons.element(boundBy: 3).tap()
+        sleep(3)
+
+        // Tap the active goal row to open detail
+        let firstGoalRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "10K")).firstMatch
+        if firstGoalRow.waitForExistence(timeout: 2) {
+            if firstGoalRow.isHittable {
+                firstGoalRow.tap()
+            } else {
+                firstGoalRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            sleep(2)
+            app.swipeUp()
+            sleep(1)
+            if app.navigationBars.buttons.firstMatch.exists {
+                app.navigationBars.buttons.firstMatch.tap()
+                sleep(1)
+            }
+        }
+
+        // === BACK TO DASHBOARD — AI ASSISTANT (≈4s) ===
+        app.tabBars.buttons.element(boundBy: 0).tap()
         sleep(1)
+        tapElement(identifier: "floating-ai-button")
+        sleep(2)
+        dismissSheet()
+    }
+
+    /// Resolve the Progression segment in the custom Statistics tab control.
+    /// Falls back across all supported localizations.
+    private func findProgressionTab() -> XCUIElement? {
+        for label in ["Progression", "Évolution", "Progresión", "Progressione", "Progressão", "進行"] {
+            let btn = app.buttons[label]
+            if btn.waitForExistence(timeout: 1) { return btn }
+        }
+        return nil
     }
 
     // MARK: - Helpers
 
+    /// Tap an element by accessibility identifier. Falls back to coordinate tap
+    /// when the element is not reported as hittable (e.g. SwiftUI cards inside
+    /// a ScrollView whose isHittable check times out under XCUITest).
     private func tapElement(identifier: String) {
-        let button = app.buttons.matching(identifier: identifier).firstMatch
-        if button.waitForExistence(timeout: 2) && button.isHittable {
-            button.tap()
+        let element = app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+        guard element.waitForExistence(timeout: 3) else { return }
+        if element.isHittable {
+            element.tap()
+        } else {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         }
     }
 

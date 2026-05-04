@@ -8,7 +8,7 @@ SCHEME="insightrun"
 DEVICE="iPhone 17 Pro Max"
 BUNDLE_ID="com.altcode.insightrun"
 TARGET_DURATION=28
-MAX_SPEED=3.0
+MAX_SPEED=2.0
 
 mkdir -p "$OUTPUT_DIR"
 

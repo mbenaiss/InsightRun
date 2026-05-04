@@ -24,6 +24,10 @@ class GoalsViewModel: ObservableObject {
     private let backendClient = BackendAPIClient.shared
 
     init() {
+        if DemoMode.isEnabled {
+            goals = [MockData.sampleRaceGoal]
+            return
+        }
         goals = storage.load()
     }
 
@@ -44,6 +48,7 @@ class GoalsViewModel: ObservableObject {
     // MARK: - CRUD
 
     func reload() {
+        guard !DemoMode.isEnabled else { return }
         goals = storage.load()
     }
 

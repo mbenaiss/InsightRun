@@ -46,6 +46,16 @@ class UnifiedWorkoutViewModel: ObservableObject {
     /// Load and merge workouts from both sources
     /// Strategy: Load from cache first (instant), then sync in background
     func loadUnifiedWorkouts() async {
+        // In demo mode, never overwrite the curated MockData seeded by
+        // WorkoutListViewModel — fetching from HealthKit/Strava in the
+        // simulator would either return [] (silent fallback) or real data
+        // that breaks the controlled screenshots / app preview.
+        if DemoMode.isEnabled {
+            isLoading = false
+            syncStatus = .completed
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 

@@ -357,6 +357,7 @@ struct StatisticsView: View {
             .padding(.horizontal, Spacing.cardPadding)
         }
         .padding(.horizontal, -18)
+        .accessibilityIdentifier("personal-records-carousel")
     }
 
     private var personalRecords: [PersonalRecord] {

@@ -308,10 +308,13 @@ struct DashboardView: View {
                         )
                         .accessibilityIdentifier("score-effort")
 
-                        // Show freshness in place of sleep only when both conditions hold:
-                        // user is in no-sleep mode AND we have enough training history (CTL stable).
-                        // Otherwise the legacy sleep card stays (its empty-state behavior is already
-                        // well understood: 0/100 with the card explaining what's missing).
+                        // Three-way pick to keep the second slot meaningful:
+                        // 1. No-sleep mode + enough training history → freshness (TSB) card.
+                        // 2. No-sleep mode + CTL too low for a reliable TSB → neutral baseline card,
+                        //    avoids falling back to a Sleep 0/100 that actively misinforms users
+                        //    who have explicitly opted out of sleep tracking.
+                        // 3. Otherwise → legacy Sleep card (its 0/100 empty state is fine for users
+                        //    who do track sleep but happen to be missing one night).
                         if readinessVM.isNoSleepMode, let freshness = trainingLoadService.freshnessScore {
                             SecondaryScoreCard(
                                 title: String(localized: "Freshness", comment: "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable"),
@@ -322,6 +325,13 @@ struct DashboardView: View {
                                 onTap: { selectedScoreType = .freshness }
                             )
                             .accessibilityIdentifier("score-freshness")
+                        } else if readinessVM.isNoSleepMode {
+                            BuildingBaselineCard(
+                                title: String(localized: "Freshness", comment: "Dashboard freshness label, shown when sleep tracking is unavailable"),
+                                message: String(localized: "Building your baseline. Log a few weeks of training to unlock your freshness score.", comment: "Empty-state message shown on the freshness card while we don't have enough training history"),
+                                onTap: { selectedScoreType = .freshness }
+                            )
+                            .accessibilityIdentifier("score-freshness-building")
                         } else {
                             SecondaryScoreCard(
                                 title: String(localized: "Sleep", comment: "Dashboard sleep label"),

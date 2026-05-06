@@ -499,6 +499,17 @@ final class AnalyticsService {
     func trackMedicalSourcesViewed() {
         track(.medicalSourcesViewed)
     }
+
+    // MARK: - Daily Readiness Events
+
+    /// Fires once per backend-computed readiness (cache hits are skipped) so we
+    /// can monitor how the no-sleep adaptive mode is rolled out in production.
+    func trackDailyReadinessComputed(noSleepMode: Bool, freshnessAvailable: Bool) {
+        track(.dailyReadinessComputed, properties: [
+            "no_sleep_mode": noSleepMode,
+            "freshness_available": freshnessAvailable
+        ])
+    }
 }
 
 // MARK: - Analytics Event Enum
@@ -609,6 +620,9 @@ enum AnalyticsEvent: String {
 
     // Medical Sources
     case medicalSourcesViewed = "medical_sources_viewed"
+
+    // Daily Readiness
+    case dailyReadinessComputed = "daily_readiness_computed"
 }
 
 // MARK: - Supporting Types

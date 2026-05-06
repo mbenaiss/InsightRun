@@ -167,6 +167,14 @@ class DailyReadinessViewModel: ObservableObject {
                 cardiacLoadScore: cardiacLoadScore
             )
 
+            // Tracked here (not on cache hits) so the metric reflects real backend
+            // computations and stays cheap. `freshness_available` lets us split the
+            // no-sleep cohort into "TSB ready" vs. "still building baseline".
+            AnalyticsService.shared.trackDailyReadinessComputed(
+                noSleepMode: noSleepMode,
+                freshnessAvailable: TrainingLoadService.shared.freshnessScore != nil
+            )
+
         } catch {
             print("❌ DailyReadinessViewModel: Failed to fetch readiness: \(error)")
             errorMessage = String(

@@ -1408,10 +1408,38 @@
       }
     },
     "American Heart Association · Resting HR guidelines" : {
-      "comment" : "RHR source 1"
+      "comment" : "RHR source 1",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "American Heart Association · Resting HR guidelines"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "American Heart Association · Recommandations sur la fréquence cardiaque au repos"
+          }
+        }
+      }
     },
     "American Lung Association · 12–20 breaths/min normal range for adults at rest" : {
-      "comment" : "Resp source 2"
+      "comment" : "Resp source 2",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "American Lung Association · 12–20 breaths/min normal range for adults at rest"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "American Lung Association · Plage normale de 12 à 20 respirations/min chez l'adulte au repos"
+          }
+        }
+      }
     },
     "An AI-enhanced score combining recovery metrics and your personal baseline. It indicates how ready your body is for physical activity by analyzing multiple physiological signals." : {
       "comment" : "Readiness description",
@@ -1664,7 +1692,21 @@
       }
     },
     "Athletes typically have lower RHR (40–60 bpm) due to cardiovascular adaptations." : {
-      "comment" : "RHR source 2"
+      "comment" : "RHR source 2",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Athletes typically have lower RHR (40–60 bpm) due to cardiovascular adaptations."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les athlètes ont généralement une fréquence cardiaque au repos plus basse (40–60 bpm) grâce aux adaptations cardiovasculaires."
+          }
+        }
+      }
     },
     "ATL (7 days) & CTL (42 days) via EWMA. ACWR = ATL/CTL. Score 0-20 personalized: ATL/CTL × 10 (maintaining = 10/20)." : {
       "comment" : "Cardiac load EWMA explanation",
@@ -1816,7 +1858,21 @@
       }
     },
     "Average HRV" : {
-      "comment" : "Average HRV comparison row label"
+      "comment" : "Average HRV comparison row label",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average HRV"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VFC moyenne"
+          }
+        }
+      }
     },
     "Average recovery. Prefer a light to moderate workout." : {
       "comment" : "Recovery recommendation - fair status",
@@ -1854,7 +1910,21 @@
       }
     },
     "AVG DURATION" : {
-      "comment" : "Eyebrow above weekly average sleep duration"
+      "comment" : "Eyebrow above weekly average sleep duration",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AVG DURATION"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DURÉE MOY."
+          }
+        }
+      }
     },
     "Avg HR" : {
       "comment" : "Average heart rate metric\nComparison metric label for average heart rate",
@@ -1880,7 +1950,21 @@
       }
     },
     "AVG SCORE" : {
-      "comment" : "Eyebrow above weekly average recovery score"
+      "comment" : "Eyebrow above weekly average recovery score",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AVG SCORE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SCORE MOY."
+          }
+        }
+      }
     },
     "Awake" : {
       "comment" : "Sleep stage: awake",
@@ -2028,7 +2112,21 @@
       }
     },
     "Biometrics" : {
-      "comment" : "Weekly recap section: biometrics"
+      "comment" : "Weekly recap section: biometrics",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Biometrics"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Biométrie"
+          }
+        }
+      }
     },
     "Bouzat P et al. · BJSM 2018" : {
       "comment" : "Readiness source 4"
@@ -2119,6 +2217,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Construction de la baseline : %lld/7 jours"
+          }
+        }
+      }
+    },
+    "Building your baseline. Log a few weeks of training to unlock your freshness score." : {
+      "comment" : "Empty-state message shown on the freshness card while we don't have enough training history",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Building your baseline. Log a few weeks of training to unlock your freshness score."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Création de votre base. Enregistrez quelques semaines d'entraînement pour débloquer votre score de fraîcheur."
           }
         }
       }
@@ -2301,7 +2416,21 @@
       }
     },
     "Choose \"Export as FIT\"" : {
-      "comment" : "Suunto export instruction step 3"
+      "comment" : "Suunto export instruction step 3",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose \"Export as FIT\""
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez « Exporter en FIT »"
+          }
+        }
+      }
     },
     "Choose the app theme. System mode automatically adapts to your iOS settings." : {
       "comment" : "Settings appearance description",
@@ -2368,7 +2497,21 @@
       }
     },
     "Coach is reading your week..." : {
-      "comment" : "Coach card loading placeholder"
+      "comment" : "Coach card loading placeholder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coach is reading your week..."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le coach analyse votre semaine…"
+          }
+        }
+      }
     },
     "Coach reads your training load, recovery and recent sessions to pick a session that fits today." : {
       "comment" : "Plan generator suggestion description",
@@ -2404,10 +2547,38 @@
       }
     },
     "Coggan AR, Allen H · ATL/CTL framework" : {
-      "comment" : "Cardiac source 8"
+      "comment" : "Cardiac source 8",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coggan AR, Allen H · ATL/CTL framework"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coggan AR, Allen H · Modèle ATL/CTL"
+          }
+        }
+      }
     },
     "Coggan AR, Allen H · Performance Management Chart, TSB framework" : {
-      "comment" : "Freshness source 1"
+      "comment" : "Freshness source 1",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coggan AR, Allen H · Performance Management Chart, TSB framework"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coggan AR, Allen H · Performance Management Chart, modèle TSB"
+          }
+        }
+      }
     },
     "common.cancel" : {
       "extractionState" : "manual",
@@ -4175,13 +4346,55 @@
       }
     },
     "Freshness" : {
-      "comment" : "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable\nSheet title for freshness (TSB)"
+      "comment" : "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable\nDashboard freshness label, shown when sleep tracking is unavailable\nSheet title for freshness (TSB)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freshness"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fraîcheur"
+          }
+        }
+      }
     },
     "Freshness derives from your Training Stress Balance: TSB = CTL − ATL, where CTL is your 42-day chronic load and ATL your 7-day acute load. A positive TSB means your recent training is lighter than your baseline (you're fresh); a negative TSB means accumulated fatigue. Source: Coggan/Banister Performance Management Chart." : {
-      "comment" : "Freshness calculation explanation"
+      "comment" : "Freshness calculation explanation",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freshness derives from your Training Stress Balance: TSB = CTL − ATL, where CTL is your 42-day chronic load and ATL your 7-day acute load. A positive TSB means your recent training is lighter than your baseline (you're fresh); a negative TSB means accumulated fatigue. Source: Coggan/Banister Performance Management Chart."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fraîcheur dérive de votre Training Stress Balance : TSB = CTL − ATL, où le CTL représente votre charge chronique sur 42 jours et l'ATL votre charge aiguë sur 7 jours. Un TSB positif signifie que votre entraînement récent est plus léger que votre référence (vous êtes frais) ; un TSB négatif indique une fatigue accumulée. Source : Performance Management Chart de Coggan/Banister."
+          }
+        }
+      }
     },
     "Freshness reflects how rested your body is for hard training. It compares your recent (7-day) and long-term (42-day) training loads — a sleep-independent indicator used when sleep tracking isn't available." : {
-      "comment" : "Freshness description"
+      "comment" : "Freshness description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freshness reflects how rested your body is for hard training. It compares your recent (7-day) and long-term (42-day) training loads — a sleep-independent indicator used when sleep tracking isn't available."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fraîcheur reflète à quel point votre corps est reposé pour un entraînement intense. Elle compare votre charge récente (7 jours) et à long terme (42 jours) — un indicateur indépendant du sommeil utilisé quand le suivi du sommeil n'est pas disponible."
+          }
+        }
+      }
     },
     "Frontiers in Physiology · 2019" : {
       "comment" : "HRV source 1"
@@ -7507,7 +7720,21 @@
       }
     },
     "in progress" : {
-      "comment" : "Indicates the current week is ongoing"
+      "comment" : "Indicates the current week is ongoing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in progress"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en cours"
+          }
+        }
+      }
     },
     "Increasing" : {
       "comment" : "Cardiac load status\nCardiac load status - increasing",
@@ -7780,7 +8007,21 @@
       }
     },
     "Johns Hopkins Medicine · Respiratory rate ranges" : {
-      "comment" : "Resp source 1"
+      "comment" : "Resp source 1",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Johns Hopkins Medicine · Respiratory rate ranges"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Johns Hopkins Medicine · Plages de fréquence respiratoire"
+          }
+        }
+      }
     },
     "kcal" : {
       "comment" : "Unit abbreviation for kilocalories",
@@ -7900,7 +8141,21 @@
       }
     },
     "Lighter week" : {
-      "comment" : "Status chip for reduced training volume"
+      "comment" : "Status chip for reduced training volume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lighter week"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Semaine allégée"
+          }
+        }
+      }
     },
     "Load" : {
       "localizations" : {
@@ -8402,7 +8657,21 @@
       }
     },
     "National Sleep Foundation · 7–9 hours recommended for adults 18–64" : {
-      "comment" : "Sleep source default 2"
+      "comment" : "Sleep source default 2",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "National Sleep Foundation · 7–9 hours recommended for adults 18–64"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "National Sleep Foundation · 7 à 9 heures recommandées pour les adultes de 18 à 64 ans"
+          }
+        }
+      }
     },
     "Needs attention" : {
       "comment" : "Metric status - needs attention",
@@ -8473,7 +8742,21 @@
       }
     },
     "Nice progression this week. Keep this rhythm and stay consistent on sleep." : {
-      "comment" : "Weekly coaching insight: high recovery"
+      "comment" : "Weekly coaching insight: high recovery",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nice progression this week. Keep this rhythm and stay consistent on sleep."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belle progression cette semaine. Conservez ce rythme et restez régulier sur le sommeil."
+          }
+        }
+      }
     },
     "No Conversations Yet" : {
       "comment" : "Empty state title for conversation history",
@@ -8576,7 +8859,21 @@
       }
     },
     "No run logged this week. Schedule a short easy session to keep momentum." : {
-      "comment" : "Weekly coaching insight: no runs"
+      "comment" : "Weekly coaching insight: no runs",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No run logged this week. Schedule a short easy session to keep momentum."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune course enregistrée cette semaine. Programmez une courte sortie facile pour garder l'élan."
+          }
+        }
+      }
     },
     "No running workouts found." : {
       "localizations" : {
@@ -8618,7 +8915,21 @@
       }
     },
     "No runs" : {
-      "comment" : "Status chip when no runs in the week"
+      "comment" : "Status chip when no runs in the week",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No runs"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune course"
+          }
+        }
+      }
     },
     "No sessions this month" : {
       "comment" : "Empty state when selected month has no workouts",
@@ -8695,7 +9006,21 @@
       }
     },
     "Normal range 95–100%; values below 94% may warrant medical attention." : {
-      "comment" : "SpO2 source 2"
+      "comment" : "SpO2 source 2",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normal range 95–100%; values below 94% may warrant medical attention."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plage normale 95–100 % ; les valeurs inférieures à 94 % peuvent nécessiter un avis médical."
+          }
+        }
+      }
     },
     "Not authenticated with Strava" : {
       "comment" : "Error message when the user is not authenticated with Strava.",
@@ -8771,7 +9096,21 @@
       }
     },
     "On track" : {
-      "comment" : "Default status chip when training is on plan"
+      "comment" : "Default status chip when training is on plan",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On track"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur la bonne voie"
+          }
+        }
+      }
     },
     "On Track" : {
       "comment" : "Training status - normal",
@@ -9963,13 +10302,55 @@
       }
     },
     "Recovery is down this week. Sleep is short by %d min on average — aim for a long night before your next run." : {
-      "comment" : "Weekly coaching insight: low recovery + short sleep"
+      "comment" : "Weekly coaching insight: low recovery + short sleep",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery is down this week. Sleep is short by %d min on average — aim for a long night before your next run."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération en baisse cette semaine. Le sommeil est court de %d min en moyenne — visez une longue nuit avant votre prochaine course."
+          }
+        }
+      }
     },
     "Recovery is down this week. Take it easy and prioritise sleep and hydration." : {
-      "comment" : "Weekly coaching insight: low recovery"
+      "comment" : "Weekly coaching insight: low recovery",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery is down this week. Take it easy and prioritise sleep and hydration."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération en baisse cette semaine. Levez le pied et priorisez le sommeil et l'hydratation."
+          }
+        }
+      }
     },
     "Recovery is stable this week. Maintain your rhythm." : {
-      "comment" : "Weekly coaching insight: stable recovery"
+      "comment" : "Weekly coaching insight: stable recovery",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery is stable this week. Maintain your rhythm."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération stable cette semaine. Maintenez votre rythme."
+          }
+        }
+      }
     },
     "Recovery Run" : {
       "comment" : "Workout type\nWorkout type - recovery",
@@ -9983,7 +10364,21 @@
       }
     },
     "Recovery score" : {
-      "comment" : "Recovery score comparison row label"
+      "comment" : "Recovery score comparison row label",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery score"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score de récupération"
+          }
+        }
+      }
     },
     "Recovery Score" : {
       "comment" : "Label for recovery score metric",
@@ -10506,7 +10901,21 @@
       }
     },
     "Score combining sleep duration (~30%), efficiency (~30%) and balance of sleep stages (~40%). Optimal range: 7–9h with at least 85% efficiency and 15–20% deep sleep + 20–25% REM (Hirshkowitz et al., 2015)." : {
-      "comment" : "Sleep calculation explanation"
+      "comment" : "Sleep calculation explanation",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score combining sleep duration (~30%), efficiency (~30%) and balance of sleep stages (~40%). Optimal range: 7–9h with at least 85% efficiency and 15–20% deep sleep + 20–25% REM (Hirshkowitz et al., 2015)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score combinant la durée du sommeil (~30 %), l'efficacité (~30 %) et l'équilibre des stades de sommeil (~40 %). Plage optimale : 7–9 h avec au moins 85 % d'efficacité et 15–20 % de sommeil profond + 20–25 % de REM (Hirshkowitz et al., 2015)."
+          }
+        }
+      }
     },
     "Scoring uses personal baseline deviation (z-score) when enough data is available. A normal day at your baseline scores approximately 50%." : {
       "comment" : "Readiness baseline explanation",
@@ -10526,7 +10935,21 @@
       }
     },
     "Séance" : {
-      "comment" : "Workout detail hero eyebrow"
+      "comment" : "Workout detail hero eyebrow",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workout"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séance"
+          }
+        }
+      }
     },
     "Search by date or source" : {
       "comment" : "Workout list search placeholder",
@@ -10912,7 +11335,21 @@
       }
     },
     "Solid week" : {
-      "comment" : "Status chip for a strong training week"
+      "comment" : "Status chip for a strong training week",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solid week"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belle semaine"
+          }
+        }
+      }
     },
     "Sources" : {
       "comment" : "Metric info sources eyebrow",
@@ -12569,7 +13006,21 @@
       }
     },
     "The information provided in this app is for educational and informational purposes only. It is not intended as a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.\n\nThe health metrics and recommendations in this app are based on published scientific research and general guidelines. Individual results may vary, and what is considered \"normal\" or \"optimal\" can differ based on age, fitness level, and health status.\n\nIf you experience any concerning symptoms or changes in your health metrics, please consult with a qualified healthcare professional." : {
-      "comment" : "Medical disclaimer text explaining the app is for educational purposes only"
+      "comment" : "Medical disclaimer text explaining the app is for educational purposes only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The information provided in this app is for educational and informational purposes only. It is not intended as a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.\n\nThe health metrics and recommendations in this app are based on published scientific research and general guidelines. Individual results may vary, and what is considered \"normal\" or \"optimal\" can differ based on age, fitness level, and health status.\n\nIf you experience any concerning symptoms or changes in your health metrics, please consult with a qualified healthcare professional."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les informations fournies dans cette application le sont uniquement à des fins éducatives et informatives. Elles ne remplacent pas un avis médical professionnel, un diagnostic ou un traitement. Consultez toujours votre médecin ou un autre professionnel de santé qualifié pour toute question concernant un problème médical.\n\nLes métriques de santé et les recommandations de cette application reposent sur des recherches scientifiques publiées et sur des directives générales. Les résultats individuels peuvent varier, et ce qui est considéré comme « normal » ou « optimal » peut différer selon l'âge, le niveau de forme et l'état de santé.\n\nSi vous ressentez des symptômes préoccupants ou si vous constatez des changements dans vos métriques de santé, veuillez consulter un professionnel de santé qualifié."
+          }
+        }
+      }
     },
     "The request timed out. Please try again." : {
       "comment" : "Indexation timeout error",
@@ -13446,7 +13897,21 @@
       }
     },
     "Volume is up significantly. Watch fatigue indicators and plan an easy day." : {
-      "comment" : "Weekly coaching insight: high volume jump"
+      "comment" : "Weekly coaching insight: high volume jump",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume is up significantly. Watch fatigue indicators and plan an easy day."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le volume augmente significativement. Surveillez les signes de fatigue et prévoyez une journée facile."
+          }
+        }
+      }
     },
     "vs avg" : {
       "comment" : "Versus average suffix in KPI subtitle",
@@ -13673,7 +14138,21 @@
       }
     },
     "Weekly volume" : {
-      "comment" : "Coaching chip: weekly running volume"
+      "comment" : "Coaching chip: weekly running volume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly volume"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume hebdomadaire"
+          }
+        }
+      }
     },
     "Welcome to Insight Run" : {
       "comment" : "Onboarding welcome title",
@@ -13871,7 +14350,21 @@
       "comment" : "Effort source 3"
     },
     "WHO · Pulse oximetry guidelines" : {
-      "comment" : "SpO2 source 1"
+      "comment" : "SpO2 source 1",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHO · Pulse oximetry guidelines"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OMS · Recommandations sur l'oxymétrie de pouls"
+          }
+        }
+      }
     },
     "Why is my HRV low?" : {
       "comment" : "Sample question about low HRV",

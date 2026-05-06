@@ -107,6 +107,66 @@ struct SecondaryScoreCard: View {
     }
 }
 
+// MARK: - Building Baseline Card
+
+/// Empty-state twin of `SecondaryScoreCard`. Shown when a metric exists but the
+/// underlying signal isn't usable yet (e.g. freshness/TSB before ~6 weeks of
+/// training history). Keeps the 2-up grid layout balanced without lying with a
+/// 0/100 score.
+struct BuildingBaselineCard: View {
+    let title: String
+    let message: String
+    var onTap: (() -> Void)?
+
+    var body: some View {
+        Button {
+            onTap?()
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack {
+                    Text(title.uppercased())
+                        .font(IRFont.microLabel.weight(.bold))
+                        .tracking(1.6)
+                        .foregroundStyle(Color.irTextSecondary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(IRFont.eyebrow.weight(.bold))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.6))
+                }
+
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text("—")
+                        .font(IRFont.title1.weight(.heavy))
+                        .kerning(-1)
+                        .foregroundStyle(Color.irTextPrimary)
+
+                    Text("/100")
+                        .font(IRFont.eyebrow.weight(.semibold))
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.6))
+                }
+
+                Text(message)
+                    .font(IRFont.caption)
+                    .foregroundStyle(Color.irTextSecondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Spacing.xs)
+            }
+            .padding(Spacing.base - 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.irCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.md)
+                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Micro Sparkline
 
 struct MicroSparkline: View {

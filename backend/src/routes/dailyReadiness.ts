@@ -678,7 +678,11 @@ function getRecommendation(
 }
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const READINESS_MAX_TOKENS = 200
+// Sized to fit a structured JSON response with summary + 2-3 sentence detail in
+// verbose languages like French. Bumped from 200 because truncated responses
+// produced invalid JSON that fell through to the raw-string fallback and leaked
+// `{"summary":...,"detail":...}` into the dashboard card.
+const READINESS_MAX_TOKENS = 600
 const READINESS_TEMPERATURE = 0.6
 
 // Build a structured context string from all available readiness data
@@ -883,8 +887,9 @@ Return strictly a JSON object with exactly these two string fields: {"summary": 
 }
 
 // Parse the model's structured response, with graceful fallback to plain-text splitting.
-// Some models occasionally wrap JSON in code fences or add prose; the regex extraction
-// handles those cases without crashing the request.
+// Some models occasionally wrap JSON in code fences, add prose, or run out of tokens
+// mid-string; we try strict parsing first, then field-level regex extraction so that
+// a truncated response still surfaces clean text instead of leaking raw JSON to the UI.
 function parseCoachingJSON(content: string): CoachingText {
   const tryParse = (raw: string): CoachingText | null => {
     try {
@@ -909,7 +914,52 @@ function parseCoachingJSON(content: string): CoachingText {
     if (fromMatch) return fromMatch
   }
 
+  // Truncated JSON (e.g. response hit max_tokens mid-`detail`): pull each field
+  // out individually so we still render meaningful coaching text.
+  const summary = extractJSONStringField(content, 'summary')
+  const detail = extractJSONStringField(content, 'detail')
+  if (summary && detail) return { summary, detail }
+  if (summary) return { summary, detail: summary }
+  if (detail) return deriveCoachingText(detail)
+
   return deriveCoachingText(content)
+}
+
+// Extract a single JSON string value by key, tolerating an unterminated trailing
+// quote (truncated response). Handles standard JSON escapes inside the value.
+function extractJSONStringField(content: string, key: string): string | null {
+  const keyPattern = new RegExp(`"${key}"\\s*:\\s*"`)
+  const keyMatch = keyPattern.exec(content)
+  if (!keyMatch) return null
+
+  let i = keyMatch.index + keyMatch[0].length
+  let value = ''
+  while (i < content.length) {
+    const ch = content[i]
+    if (ch === '\\' && i + 1 < content.length) {
+      const next = content[i + 1]
+      const escapes: Record<string, string> = {
+        '"': '"',
+        '\\': '\\',
+        '/': '/',
+        n: '\n',
+        t: '\t',
+        r: '\r',
+        b: '\b',
+        f: '\f',
+      }
+      value += escapes[next] ?? next
+      i += 2
+      continue
+    }
+    if (ch === '"') {
+      return value.trim() || null
+    }
+    value += ch
+    i += 1
+  }
+  // Reached end of buffer without a closing quote — response was truncated.
+  return value.trim() || null
 }
 
 // POST /api/daily-readiness

@@ -621,7 +621,7 @@ struct DashboardView: View {
                 color: status.color,
                 label: String(localized: "Cardiac Load", comment: "Cardiac load metric title"),
                 value: "\(load)",
-                unit: "/100",
+                unit: "/20",
                 status: status.title,
                 statusColor: status.color,
                 trend: trainingLoadService.cardiacLoadTrendData.suffix(7).map(\.value),

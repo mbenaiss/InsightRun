@@ -31,6 +31,7 @@ struct WorkoutListView: View {
     @ObservedObject private var stravaAuth = StravaAuthService.shared
     @ObservedObject private var notificationRouter = NotificationRouter.shared
     @State private var navigationPath = NavigationPath()
+    @State private var didTrackListViewed = false
 
     private var viewModel: WorkoutListViewModel { healthKitViewModel }
 
@@ -142,17 +143,11 @@ struct WorkoutListView: View {
                         await unifiedViewModel.loadUnifiedWorkouts()
                     }
                 }
+                .onChange(of: canShowWorkouts) { _, canShow in
+                    if canShow { handleWorkoutsVisible() }
+                }
                 .onAppear {
-                    if canShowWorkouts {
-                        AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
-                        if revenueCatManager.hasAIAccess && HealthKitManager.shared.isHealthKitAuthorized {
-                            if let summary = HistoricalSummaryStorage.shared.load() {
-                                showIndexationBanner = summary.needsRefresh && HistoricalSummaryStorage.shared.shouldShowBanner()
-                            } else {
-                                showIndexationBanner = false
-                            }
-                        }
-                    }
+                    if canShowWorkouts { handleWorkoutsVisible() }
                     updateContextProvider()
                 }
                 .onChange(of: notificationRouter.pendingWorkoutUUID) { _, uuid in
@@ -178,6 +173,20 @@ struct WorkoutListView: View {
     }
 
     // MARK: - Helper Functions
+
+    private func handleWorkoutsVisible() {
+        if !didTrackListViewed {
+            didTrackListViewed = true
+            AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
+        }
+        if revenueCatManager.hasAIAccess && HealthKitManager.shared.isHealthKitAuthorized {
+            if let summary = HistoricalSummaryStorage.shared.load() {
+                showIndexationBanner = summary.needsRefresh && HistoricalSummaryStorage.shared.shouldShowBanner()
+            } else {
+                showIndexationBanner = false
+            }
+        }
+    }
 
     private func updateContextProvider() {
         let last10 = Array(displayWorkouts.prefix(10))

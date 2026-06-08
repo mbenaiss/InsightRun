@@ -519,7 +519,8 @@ app.post('/api/chat', async (c) => {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
-          max_tokens: requestType === RequestType.CLASSIFICATION ? 10 : MAX_TOKENS,
+          // GPT-5.x models reject max_output_tokens < 16; 32 keeps headroom for the one-word answer.
+          max_tokens: requestType === RequestType.CLASSIFICATION ? 32 : MAX_TOKENS,
           temperature: requestType === RequestType.CLASSIFICATION ? 0.3 : AI_TEMPERATURE,
           stream: false,
         }),

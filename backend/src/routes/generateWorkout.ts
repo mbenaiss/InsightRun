@@ -175,6 +175,35 @@ function validateWorkoutJSON(data: unknown): data is AIGeneratedWorkout {
   return true
 }
 
+function paceToSeconds(pace: string): number | null {
+  const match = pace.match(/^(\d+):([0-5]?\d)$/)
+  if (!match) return null
+  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10)
+}
+
+// The model occasionally emits a pace range with min/max swapped. The faster
+// (smaller) pace must stay in targetPaceMin so the watch never gets an inverted range.
+function normalizeWorkoutPaces(workout: AIGeneratedWorkout): void {
+  for (const step of workout.steps) {
+    if (!step.targetPaceMin || !step.targetPaceMax) continue
+    const minSec = paceToSeconds(step.targetPaceMin)
+    const maxSec = paceToSeconds(step.targetPaceMax)
+    if (minSec === null || maxSec === null) continue
+    if (minSec === maxSec) {
+      // A zero-width range is a single pace; collapse it so the watch gets a threshold, not an unsupported range.
+      if (!step.targetPace) step.targetPace = step.targetPaceMin
+      step.targetPaceMin = undefined
+      step.targetPaceMax = undefined
+      continue
+    }
+    if (minSec > maxSec) {
+      const tmp = step.targetPaceMin
+      step.targetPaceMin = step.targetPaceMax
+      step.targetPaceMax = tmp
+    }
+  }
+}
+
 async function callOpenRouterForWorkout(
   apiKey: string,
   systemPrompt: string,
@@ -313,6 +342,7 @@ app.post('/', async (c) => {
 
         // Validate structure
         if (validateWorkoutJSON(parsedData)) {
+          normalizeWorkoutPaces(parsedData)
           workoutJSON = parsedData
           console.log(
             `✅ Valid workout generated: "${workoutJSON.name}" with ${workoutJSON.steps.length} steps`

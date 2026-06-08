@@ -194,11 +194,13 @@ class WorkoutKitManager: ObservableObject {
     private func createWorkoutAlert(for step: WorkoutStep) -> (any WorkoutAlert)? {
         // Priority 1: Pace
         // Check if pace range is specified (min/max)
-        if let paceMin = step.targetPaceMin, let paceMax = step.targetPaceMax {
-            if let speedRange = convertPaceRangeToSpeedRange(paceMin, paceMax) {
-                // Use SpeedRangeAlert for pace range
+        if let paceMin = step.targetPaceMin, let paceMax = step.targetPaceMax,
+           let speedRange = convertPaceRangeToSpeedRange(paceMin, paceMax) {
+            // WorkoutKit traps with unsupportedRange unless lowerBound < upperBound; collapse equal bounds to a threshold.
+            if speedRange.lowerBound < speedRange.upperBound {
                 return SpeedRangeAlert.speed(speedRange, unit: UnitSpeed.metersPerSecond, metric: .current)
             }
+            return SpeedThresholdAlert.speed(speedRange.lowerBound, unit: UnitSpeed.metersPerSecond, metric: .current)
         }
 
         // Otherwise check for single pace value
@@ -242,12 +244,15 @@ class WorkoutKitManager: ObservableObject {
     /// Convert pace range (e.g., "6:52" to "7:22") to speed range in m/s
     /// Returns a range for use with SpeedRangeAlert
     private func convertPaceRangeToSpeedRange(_ paceMin: String, _ paceMax: String) -> ClosedRange<Double>? {
-        guard let minSpeed = convertPaceToSpeed(paceMax), // Slower pace = lower speed
-              let maxSpeed = convertPaceToSpeed(paceMin) else { // Faster pace = higher speed
+        guard let speedA = convertPaceToSpeed(paceMin),
+              let speedB = convertPaceToSpeed(paceMax),
+              speedA.isFinite, speedB.isFinite,
+              speedA > 0, speedB > 0 else {
             return nil
         }
 
-        return minSpeed...maxSpeed
+        // The model can emit min/max inverted; order the bounds so the range never traps.
+        return min(speedA, speedB)...max(speedA, speedB)
     }
 
     // MARK: - Authorization

@@ -25,7 +25,7 @@ class BackendAPIClient {
     // MARK: - Chat (Non-streaming)
 
     /// Simple classification using RequestType (no hardcoded model)
-    func classify(prompt: String, systemPrompt: String) async throws -> String {
+    func classify(prompt: String, systemPrompt: String, requestType: RequestType = .classification) async throws -> String {
         let url = URL(string: "\(baseURL)/api/chat")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -37,7 +37,7 @@ class BackendAPIClient {
         let body: [String: Any] = [
             "prompt": prompt,
             "systemPrompt": systemPrompt,
-            "requestType": RequestType.classification.rawValue,
+            "requestType": requestType.rawValue,
             "stream": false // Non-streaming for quick classification
         ]
 

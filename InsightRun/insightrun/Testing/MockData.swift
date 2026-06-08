@@ -304,47 +304,13 @@ enum MockData {
     }
 
     private static let sampleWorkoutAnalysisEN = """
-    ## 🎯 Key Points
-    - Strong 10K at 4'47"/km showing excellent aerobic fitness
-    - Heart rate averaged 172 bpm (Zone 4) — high intensity sustained well
-    - Negative split pattern suggests good pacing discipline
-
-    ## ✅ Optimal Metrics
-    - Cadence (182 spm), Stride length (1.12m), Vertical oscillation (8.2cm) ✅
-
-    ## ⚠️ To Optimize
-    - Ground contact time: 268 ms → 220-250 ms (improve running economy ~5%)
-    - Heart rate drift: +8% in last 2km → work on aerobic base to reduce drift
-
-    ## 💡 Concrete Actions
-    - Add 2x weekly cadence drills (high knees, butt kicks) to improve ground contact
-    - Include 1 tempo run at 5'00-5'10"/km to build aerobic efficiency
-
-    ## 🔄 Recovery
-    - 36-48h rest recommended before next intense session. Light jog or walk OK tomorrow.
-    - Focus on 8h+ sleep tonight and hydrate well (aim for 2.5L today).
+    ## Summary
+    Strong 10K at 4'47"/km showing excellent aerobic fitness. Heart rate averaged 172 bpm (Zone 4) with high intensity sustained well, and a negative split that reflects good pacing discipline.
     """
 
     private static let sampleWorkoutAnalysisFR = """
-    ## 🎯 Points clés
-    - Excellent 10K à 4'47"/km, très bonne condition aérobie
-    - FC moyenne de 172 bpm (Zone 4) — haute intensité bien maintenue
-    - Negative split : bonne gestion de l'allure
-
-    ## ✅ Métriques optimales
-    - Cadence (182 ppm), Longueur de foulée (1.12m), Oscillation verticale (8.2cm) ✅
-
-    ## ⚠️ À optimiser
-    - Temps de contact au sol : 268 ms → 220-250 ms (économie de course +5%)
-    - Dérive cardiaque : +8% sur les 2 derniers km → travailler la base aérobie
-
-    ## 💡 Actions concrètes
-    - Ajouter 2 séances de gammes/semaine (montées de genoux, talons-fesses)
-    - Inclure 1 séance tempo à 5'00-5'10"/km pour l'efficacité aérobie
-
-    ## 🔄 Récupération
-    - 36-48h de repos recommandées avant la prochaine séance intense. Footing léger OK demain.
-    - Viser 8h+ de sommeil ce soir et bien s'hydrater (objectif 2.5L aujourd'hui).
+    ## Synthèse
+    Excellent 10K à 4'47"/km, très bonne condition aérobie. Fréquence cardiaque moyenne de 172 bpm (Zone 4), haute intensité bien maintenue, et une fin de course plus rapide qui traduit une bonne gestion de l'allure.
     """
 
     // MARK: - Sample Monthly Coach Insight (Demo Mode)

@@ -175,9 +175,13 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
 
     // Formatted pace for display (handles both single and range)
     var paceFormatted: String? {
-        if let min = targetPaceMin, let max = targetPaceMax {
-            // Range format
-            return "\(min)–\(max)/km"
+        if let minRaw = targetPaceMin, let maxRaw = targetPaceMax {
+            // The model can emit min/max inverted; show the faster pace first.
+            if let a = Self.parsePaceMinutesPerKm(minRaw),
+               let b = Self.parsePaceMinutesPerKm(maxRaw), a > b {
+                return "\(maxRaw)–\(minRaw)/km"
+            }
+            return "\(minRaw)–\(maxRaw)/km"
         } else if let pace = targetPace {
             // Single value format
             return "\(pace)/km"

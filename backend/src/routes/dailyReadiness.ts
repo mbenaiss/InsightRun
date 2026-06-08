@@ -840,6 +840,7 @@ Rules:
 - Always factor the cardiac load trend into your recommendation.
 - Respond in ${langName}. No markdown, no bullet points — plain text only.
 - Be specific in the detail: reference actual metric values (e.g., ${detailMetricsHint}).
+- Write every number as digits ("17/20", "158 bpm"), never spelled out in words.
 - Keep it warm, motivating, and actionable.${noSleepRule}
 
 Return strictly a JSON object with exactly these two string fields: {"summary": "...", "detail": "..."}. No prose, no code fences.`
@@ -932,21 +933,30 @@ function extractJSONStringField(content: string, key: string): string | null {
   const keyMatch = keyPattern.exec(content)
   if (!keyMatch) return null
 
+  const escapes: Record<string, string> = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    n: '\n',
+    t: '\t',
+    r: '\r',
+    b: '\b',
+    f: '\f',
+  }
   let i = keyMatch.index + keyMatch[0].length
   let value = ''
   while (i < content.length) {
     const ch = content[i]
-    if (ch === '\\' && i + 1 < content.length) {
+    if (ch === '\\') {
       const next = content[i + 1]
-      const escapes: Record<string, string> = {
-        '"': '"',
-        '\\': '\\',
-        '/': '/',
-        n: '\n',
-        t: '\t',
-        r: '\r',
-        b: '\b',
-        f: '\f',
+      // Truncated right after a backslash — drop the dangling escape.
+      if (next === undefined) break
+      if (next === 'u') {
+        const hex = content.slice(i + 2, i + 6)
+        if (!/^[0-9a-fA-F]{4}$/.test(hex)) break // truncated/invalid \u escape
+        value += String.fromCharCode(parseInt(hex, 16))
+        i += 6
+        continue
       }
       value += escapes[next] ?? next
       i += 2

@@ -150,11 +150,16 @@ struct WorkoutListView: View {
                     if canShowWorkouts { handleWorkoutsVisible() }
                     updateContextProvider()
                 }
+                .onDisappear {
+                    // Re-arm so the next appearance logs a fresh impression.
+                    didTrackListViewed = false
+                }
                 .onChange(of: notificationRouter.pendingWorkoutUUID) { _, uuid in
                     guard let uuid else { return }
                     navigateToWorkout(uuid: uuid)
                 }
                 .onChange(of: displayWorkouts) { _, _ in
+                    trackListViewedIfReady()
                     if let uuid = notificationRouter.pendingWorkoutUUID {
                         navigateToWorkout(uuid: uuid)
                     }
@@ -175,16 +180,24 @@ struct WorkoutListView: View {
     // MARK: - Helper Functions
 
     private func handleWorkoutsVisible() {
-        if !didTrackListViewed {
-            didTrackListViewed = true
-            AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
-        }
-        if revenueCatManager.hasAIAccess && HealthKitManager.shared.isHealthKitAuthorized {
-            if let summary = HistoricalSummaryStorage.shared.load() {
-                showIndexationBanner = summary.needsRefresh && HistoricalSummaryStorage.shared.shouldShowBanner()
-            } else {
-                showIndexationBanner = false
-            }
+        trackListViewedIfReady()
+        updateIndexationBanner()
+    }
+
+    // Logged only once the list actually has workouts, so the count is never a premature 0
+    // (canShowWorkouts flips to true before the async load populates displayWorkouts).
+    private func trackListViewedIfReady() {
+        guard canShowWorkouts, !didTrackListViewed, !displayWorkouts.isEmpty else { return }
+        didTrackListViewed = true
+        AnalyticsService.shared.trackWorkoutListViewed(totalWorkouts: displayWorkouts.count)
+    }
+
+    private func updateIndexationBanner() {
+        guard revenueCatManager.hasAIAccess && HealthKitManager.shared.isHealthKitAuthorized else { return }
+        if let summary = HistoricalSummaryStorage.shared.load() {
+            showIndexationBanner = summary.needsRefresh && HistoricalSummaryStorage.shared.shouldShowBanner()
+        } else {
+            showIndexationBanner = false
         }
     }
 
@@ -651,7 +664,7 @@ struct WorkoutListView: View {
         let paces = workouts.compactMap { $0.averagePace }
         let avgPace = paces.isEmpty ? nil : paces.reduce(0, +) / Double(paces.count)
         let weeks = weeklyVolumes(in: workouts)
-        let lastIndex = max(0, weeks.count - 1)
+        let highlightIndex = currentWeekIndex(in: weeks)
 
         return VStack(alignment: .leading, spacing: Spacing.dash) {
             HStack(alignment: .firstTextBaseline) {
@@ -670,7 +683,7 @@ struct WorkoutListView: View {
                     }
                 }
                 Spacer()
-                weeklyMiniBars(weeks: weeks, lastIndex: lastIndex)
+                weeklyMiniBars(weeks: weeks, highlightIndex: highlightIndex)
             }
 
             Divider().background(Color.irBorder)
@@ -754,12 +767,12 @@ struct WorkoutListView: View {
         }
     }
 
-    private func weeklyMiniBars(weeks: [WeekVolume], lastIndex: Int) -> some View {
+    private func weeklyMiniBars(weeks: [WeekVolume], highlightIndex: Int?) -> some View {
         let peak = max(weeks.map { $0.kilometers }.max() ?? 1, 1)
         return HStack(alignment: .bottom, spacing: Spacing.xs) {
             ForEach(Array(weeks.enumerated()), id: \.offset) { idx, week in
                 let h = max(CGFloat(week.kilometers / peak) * 36, 2)
-                let isCurrent = idx == lastIndex
+                let isCurrent = idx == highlightIndex
                 VStack(spacing: Spacing.xxs) {
                     Text(String(format: "%.0f", week.kilometers))
                         .font(IRFont.eyebrow.weight(.semibold))
@@ -792,12 +805,21 @@ struct WorkoutListView: View {
             return byWeek.keys.sorted().map { WeekVolume(weekNumber: $0, kilometers: byWeek[$0] ?? 0) }
         }
 
-        let firstWeek = calendar.component(.weekOfYear, from: monthStart)
-        let weekCount = range.count
-        return (0..<weekCount).map { offset in
-            let w = firstWeek + offset
+        // Derive each week's real weekOfYear from its date so labels match the bucket
+        // keys across the Dec/Jan boundary, where weekOfYear wraps 52/53 → 1.
+        return (0..<range.count).compactMap { offset in
+            guard let weekDate = calendar.date(byAdding: .weekOfYear, value: offset, to: monthStart) else { return nil }
+            let w = calendar.component(.weekOfYear, from: weekDate)
             return WeekVolume(weekNumber: w, kilometers: byWeek[w] ?? 0)
         }
+    }
+
+    private func currentWeekIndex(in weeks: [WeekVolume]) -> Int? {
+        let calendar = Calendar.current
+        // No "current week" to highlight when browsing a past month
+        guard calendar.isDate(selectedMonth, equalTo: Date(), toGranularity: .month) else { return nil }
+        let currentWeek = calendar.component(.weekOfYear, from: Date())
+        return weeks.firstIndex { $0.weekNumber == currentWeek }
     }
 
     private func formattedKilometers(_ meters: Double) -> String {

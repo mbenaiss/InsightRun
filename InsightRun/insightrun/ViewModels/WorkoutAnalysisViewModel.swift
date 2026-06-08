@@ -107,45 +107,25 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         if languageCode == "fr" {
             return """
-            Analyse cette séance et rédige une réponse professionnelle et concise (140 mots maximum) en markdown, avec cette structure exacte :
+            Analyse cette séance et rédige une synthèse professionnelle et concise (100 mots maximum) en markdown.
 
             ## Synthèse
-            1 à 2 phrases qui qualifient la séance en s'appuyant sur les métriques clés disponibles (intensité, allure, fréquence cardiaque, technique).
-
-            ## À optimiser
-            Lister uniquement les métriques hors des normes attendues pour le niveau du coureur. Une ligne par métrique :
-            - **Métrique** : valeur actuelle → cible (impact concret, puis levier d'amélioration actionnable)
-
-            Omets entièrement cette section si toutes les métriques sont dans les normes.
-
-            ## Récupération
-            Une phrase : durée de repos recommandée avant la prochaine séance intense, et le levier prioritaire (sommeil, hydratation ou nutrition) adapté à l'effort.
+            2 à 3 phrases qui qualifient la séance en s'appuyant sur les métriques clés disponibles (intensité, allure, fréquence cardiaque, technique).
 
             Règles strictes :
             - Ton neutre, précis, factuel. Pas d'emojis, pas d'exclamations, pas de superlatifs creux.
             - N'utilise que les métriques effectivement présentes dans les données. Ne signale jamais une donnée manquante.
-            - Chaque conseil doit être directement applicable lors des prochaines séances.
             """
         } else {
             return """
-            Analyze this workout and produce a professional, concise response (140 words maximum) in markdown, using this exact structure:
+            Analyze this workout and produce a professional, concise synthesis (100 words maximum) in markdown.
 
             ## Summary
-            1 to 2 sentences characterizing the session based on the available key metrics (intensity, pace, heart rate, form).
-
-            ## To optimize
-            List only metrics outside the expected ranges for the runner's level. One line per metric:
-            - **Metric**: current value → target (concrete impact, then actionable lever for improvement)
-
-            Omit this section entirely if all metrics are within expected ranges.
-
-            ## Recovery
-            One sentence: recommended rest duration before the next intense session, and the priority lever (sleep, hydration, or nutrition) adapted to the effort.
+            2 to 3 sentences characterizing the session based on the available key metrics (intensity, pace, heart rate, form).
 
             Strict rules:
             - Neutral, precise, factual tone. No emojis, no exclamations, no empty superlatives.
             - Only use metrics actually present in the data. Never flag missing data.
-            - Every piece of advice must be directly applicable in upcoming sessions.
             """
         }
     }

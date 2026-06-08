@@ -4191,7 +4191,15 @@
       }
     },
     "FAIR" : {
-      "comment" : "Recovery ring label: fair"
+      "comment" : "Recovery ring label: fair",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MOYEN"
+          }
+        }
+      }
     },
     "Falls back to pace × intensity when HR unavailable" : {
       "comment" : "Cardiac load TRIMP fallback note",
@@ -6846,7 +6854,15 @@
       }
     },
     "GOOD" : {
-      "comment" : "Recovery ring label: good"
+      "comment" : "Recovery ring label: good",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BON"
+          }
+        }
+      }
     },
     "Good morning! 🏃" : {
       "comment" : "Daily readiness notification title",
@@ -8341,7 +8357,15 @@
       }
     },
     "LOW" : {
-      "comment" : "Recovery ring label: low"
+      "comment" : "Recovery ring label: low",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FAIBLE"
+          }
+        }
+      }
     },
     "Lower = less stress" : {
       "comment" : "Resp detail",
@@ -10234,7 +10258,15 @@
       }
     },
     "RECOV" : {
-      "comment" : "Recovery ring inner eyebrow"
+      "comment" : "Recovery ring inner eyebrow",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RÉCUP"
+          }
+        }
+      }
     },
     "Recovery" : {
       "comment" : "Navigation title for recovery dashboard / Interval type: recovery",
@@ -13413,7 +13445,15 @@
       }
     },
     "TRIMP = Duration × ΔHR × Weight(ΔHR)" : {
-      "comment" : "Cardiac load TRIMP formula"
+      "comment" : "Cardiac load TRIMP formula",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP = Durée × ΔFC × Pondération(ΔFC)"
+          }
+        }
+      }
     },
     "Tudor-Locke C, Bassett DR · Sports Medicine 2004" : {
       "comment" : "Effort source 1",
@@ -15179,6 +15219,822 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zone"
+          }
+        }
+      }
+    },
+    "metric.vo2_max.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂ max"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂ max"
+          }
+        }
+      }
+    },
+    "metric.vo2_max.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The maximum amount of oxygen your body can use during intense effort."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La quantité maximale d'oxygène que ton corps peut utiliser lors d'un effort intense."
+          }
+        }
+      }
+    },
+    "metric.vo2_max.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A key marker of aerobic fitness — the higher it is, the greater your endurance potential."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un marqueur clé de la condition aérobie : plus il est élevé, plus ton potentiel d'endurance est grand."
+          }
+        }
+      }
+    },
+    "metric.avg_cadence.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average cadence"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cadence moyenne"
+          }
+        }
+      }
+    },
+    "metric.avg_cadence.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The average number of steps you take per minute while running."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le nombre moyen de pas que tu fais par minute en courant."
+          }
+        }
+      }
+    },
+    "metric.avg_cadence.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A cadence around 170–180 spm usually softens impact and improves running economy."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une cadence autour de 170–180 ppm réduit les impacts et améliore l'économie de course."
+          }
+        }
+      }
+    },
+    "metric.ground_contact_time.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ground contact time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temps de contact au sol"
+          }
+        }
+      }
+    },
+    "metric.ground_contact_time.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How long your foot stays on the ground during each stride, in milliseconds."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La durée pendant laquelle ton pied reste au sol à chaque foulée, en millisecondes."
+          }
+        }
+      }
+    },
+    "metric.ground_contact_time.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shorter contact times reflect a more reactive, efficient stride."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un temps de contact plus court traduit une foulée plus réactive et efficace."
+          }
+        }
+      }
+    },
+    "metric.vertical_oscillation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vertical oscillation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oscillation verticale"
+          }
+        }
+      }
+    },
+    "metric.vertical_oscillation.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much your torso moves up and down with each stride, in centimeters."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'amplitude du mouvement de haut en bas de ton buste à chaque foulée, en centimètres."
+          }
+        }
+      }
+    },
+    "metric.vertical_oscillation.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Less vertical movement sends more energy forward instead of upward."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moins d'oscillation envoie plus d'énergie vers l'avant plutôt que vers le haut."
+          }
+        }
+      }
+    },
+    "metric.running_power.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running power"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puissance de course"
+          }
+        }
+      }
+    },
+    "metric.running_power.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The mechanical power you produce while running, in watts."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La puissance mécanique que tu produis en courant, en watts."
+          }
+        }
+      }
+    },
+    "metric.running_power.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power reflects your real effort instantly, whatever the terrain or weather."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La puissance reflète ton effort réel en temps réel, quel que soit le terrain ou la météo."
+          }
+        }
+      }
+    },
+    "metric.stride_length.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stride length"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longueur de foulée"
+          }
+        }
+      }
+    },
+    "metric.stride_length.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The distance you cover with each stride, in meters."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La distance que tu parcours à chaque foulée, en mètres."
+          }
+        }
+      }
+    },
+    "metric.stride_length.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With cadence it sets your speed — seek length without overstriding."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avec la cadence, elle détermine ta vitesse : cherche de l'amplitude sans sur-foulée."
+          }
+        }
+      }
+    },
+    "metric.best_pace.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best pace"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meilleure allure"
+          }
+        }
+      }
+    },
+    "metric.best_pace.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The fastest pace you held during the session."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'allure la plus rapide que tu as tenue durant la séance."
+          }
+        }
+      }
+    },
+    "metric.best_pace.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracks your top-end speed and how it progresses over time."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suit ta vitesse de pointe et son évolution dans le temps."
+          }
+        }
+      }
+    },
+    "metric.max_speed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max speed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vitesse max"
+          }
+        }
+      }
+    },
+    "metric.max_speed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The highest speed you reached during the session."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La vitesse la plus élevée que tu as atteinte durant la séance."
+          }
+        }
+      }
+    },
+    "metric.max_speed.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handy for gauging sprint ability and peak efforts."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utile pour évaluer ta capacité de sprint et tes pics d'effort."
+          }
+        }
+      }
+    },
+    "metric.contact_balance.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ground contact balance"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Équilibre d'appui"
+          }
+        }
+      }
+    },
+    "metric.contact_balance.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The left/right split of your ground contact time, as a percentage."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La répartition gauche/droite de ton temps de contact au sol, en pourcentage."
+          }
+        }
+      }
+    },
+    "metric.contact_balance.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A balance close to 50/50 means a symmetric stride with lower injury risk."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un équilibre proche de 50/50 traduit une foulée symétrique, à moindre risque de blessure."
+          }
+        }
+      }
+    },
+    "metric.running_efficiency.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running efficiency"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Efficacité de course"
+          }
+        }
+      }
+    },
+    "metric.running_efficiency.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much speed you get for the effort you put in."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La vitesse que tu obtiens par rapport à l'effort fourni."
+          }
+        }
+      }
+    },
+    "metric.running_efficiency.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Higher efficiency lets you run faster at the same physiological cost."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une efficacité élevée te permet de courir plus vite pour le même coût physiologique."
+          }
+        }
+      }
+    },
+    "metric.walking_steadiness.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walking steadiness"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabilité à la marche"
+          }
+        }
+      }
+    },
+    "metric.walking_steadiness.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An Apple Health measure of your balance and steadiness while walking."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une mesure d'Apple Santé de ton équilibre et de ta stabilité en marchant."
+          }
+        }
+      }
+    },
+    "metric.walking_steadiness.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower steadiness can point to a higher risk of falling."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une stabilité plus faible peut indiquer un risque de chute plus élevé."
+          }
+        }
+      }
+    },
+    "metric.walking_asymmetry.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walking asymmetry"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asymétrie de marche"
+          }
+        }
+      }
+    },
+    "metric.walking_asymmetry.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The share of time your left and right steps differ in timing."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La part du temps où tes pas gauche et droit diffèrent en rythme."
+          }
+        }
+      }
+    },
+    "metric.walking_asymmetry.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An even gait keeps it low; higher values can signal injury or imbalance."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une marche régulière la maintient basse ; des valeurs élevées peuvent signaler une blessure ou un déséquilibre."
+          }
+        }
+      }
+    },
+    "metric.double_support.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double support time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temps de double appui"
+          }
+        }
+      }
+    },
+    "metric.double_support.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The share of each walking cycle where both feet touch the ground at once."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La part de chaque cycle de marche où les deux pieds touchent le sol en même temps."
+          }
+        }
+      }
+    },
+    "metric.double_support.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower values mean a more dynamic, stable gait; higher values can signal reduced balance or fatigue."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des valeurs basses traduisent une marche plus dynamique et stable ; des valeurs élevées peuvent signaler une baisse d'équilibre ou de la fatigue."
+          }
+        }
+      }
+    },
+    "metric.walking_speed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walking speed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vitesse de marche"
+          }
+        }
+      }
+    },
+    "metric.walking_speed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your average speed while walking."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta vitesse moyenne en marchant."
+          }
+        }
+      }
+    },
+    "metric.walking_speed.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A reliable indicator of overall mobility and cardiovascular health."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un indicateur fiable de ta mobilité générale et de ta santé cardiovasculaire."
+          }
+        }
+      }
+    },
+    "metric.stair_ascent_speed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stair ascent speed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vitesse de montée d'escaliers"
+          }
+        }
+      }
+    },
+    "metric.stair_ascent_speed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How fast you climb stairs, in meters per second."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La vitesse à laquelle tu montes les escaliers, en mètres par seconde."
+          }
+        }
+      }
+    },
+    "metric.stair_ascent_speed.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflects lower-body power and tends to decline with fatigue or age."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflète la puissance du bas du corps et tend à diminuer avec la fatigue ou l'âge."
+          }
+        }
+      }
+    },
+    "metric.stair_descent_speed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stair descent speed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vitesse de descente d'escaliers"
+          }
+        }
+      }
+    },
+    "metric.stair_descent_speed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How fast you go down stairs, in meters per second."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La vitesse à laquelle tu descends les escaliers, en mètres par seconde."
+          }
+        }
+      }
+    },
+    "metric.stair_descent_speed.usage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relates to balance, control and joint stability."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liée à l'équilibre, au contrôle et à la stabilité articulaire."
           }
         }
       }

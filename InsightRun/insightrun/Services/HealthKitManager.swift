@@ -995,10 +995,10 @@ class HealthKitManager: ObservableObject {
             return nil
         }
 
-        // Fetch target paces from WorkoutPlan (iOS 17+)
-        var targetPaces: [IntervalTargetPace] = []
+        // Fetch step purposes + target paces from WorkoutPlan (iOS 17+)
+        var planSteps: [IntervalPlanStep] = []
         if #available(iOS 17.0, *) {
-            targetPaces = await fetchTargetPacesFromWorkoutPlan(for: workout)
+            planSteps = await fetchPlanStepsFromWorkoutPlan(for: workout)
         }
 
         var intervals: [WorkoutInterval] = []
@@ -1022,8 +1022,9 @@ class HealthKitManager: ObservableObject {
                 print("   - metadata: nil")
             }
 
-            // Get interval type from metadata
-            let intervalType = determineIntervalTypeFromActivity(activity, index: index, totalActivities: activities.count)
+            // Prefer the real purpose from the WorkoutPlan; fall back to metadata/heuristics
+            let planStep = planSteps.first { $0.stepIndex == index }
+            let intervalType = planStep?.type ?? determineIntervalTypeFromActivity(activity, index: index, totalActivities: activities.count)
             print("   - intervalType: \(intervalType.rawValue)")
 
             // Get statistics for this activity
@@ -1042,10 +1043,8 @@ class HealthKitManager: ObservableObject {
                 pace = (duration / 60.0) / (dist / 1000.0) // min/km
             }
 
-            // Find target pace for this step from WorkoutPlan
-            let targetPace = targetPaces.first { $0.stepIndex == index }
-            if let target = targetPace {
-                print("   - target pace: \(target.paceMinPerKm)-\(target.paceMaxPerKm) min/km")
+            if let planStep, let minPace = planStep.paceMinPerKm, let maxPace = planStep.paceMaxPerKm {
+                print("   - target pace: \(minPace)-\(maxPace) min/km")
             }
 
             let interval = WorkoutInterval(
@@ -1058,8 +1057,8 @@ class HealthKitManager: ObservableObject {
                 pace: pace,
                 averageHeartRate: averageHeartRate,
                 averagePower: averagePower,
-                targetPaceMin: targetPace?.paceMinPerKm,
-                targetPaceMax: targetPace?.paceMaxPerKm
+                targetPaceMin: planStep?.paceMinPerKm,
+                targetPaceMax: planStep?.paceMaxPerKm
             )
 
             intervals.append(interval)
@@ -1176,26 +1175,27 @@ class HealthKitManager: ObservableObject {
     // MARK: - WorkoutPlan Target Pace Extraction
     // iOS 17+ can access the original workout plan with target paces via WorkoutKit
 
-    /// Target pace information for an interval step
-    private struct IntervalTargetPace {
+    /// Purpose and target pace for a planned interval step
+    private struct IntervalPlanStep {
         let stepIndex: Int
-        let paceMinPerKm: Double // min/km (lower bound = faster)
-        let paceMaxPerKm: Double // min/km (upper bound = slower)
+        let type: IntervalType
+        let paceMinPerKm: Double? // min/km (lower bound = faster)
+        let paceMaxPerKm: Double? // min/km (upper bound = slower)
     }
 
-    /// Extracts target pace ranges from a workout's WorkoutPlan (iOS 17+)
-    /// Returns an array of target paces indexed by step order
+    /// Extracts the real purpose (warmup/work/recovery/cooldown) and target pace of each
+    /// planned step from a workout's WorkoutPlan (iOS 17+), indexed by step order
     @available(iOS 17.0, *)
-    private func fetchTargetPacesFromWorkoutPlan(for workout: HKWorkout) async -> [IntervalTargetPace] {
+    private func fetchPlanStepsFromWorkoutPlan(for workout: HKWorkout) async -> [IntervalPlanStep] {
         do {
             guard let workoutPlan = try await workout.workoutPlan else {
                 print("ℹ️ No WorkoutPlan found for workout")
                 return []
             }
 
-            print("📋 Found WorkoutPlan, extracting target paces...")
+            print("📋 Found WorkoutPlan, extracting step purposes and target paces...")
 
-            var targets: [IntervalTargetPace] = []
+            var steps: [IntervalPlanStep] = []
             var stepIndex = 0
 
             switch workoutPlan.workout {
@@ -1204,10 +1204,9 @@ class HealthKitManager: ObservableObject {
 
                 // Warmup step
                 if let warmup = customWorkout.warmup {
-                    if let targetPace = extractTargetPaceFromAlert(warmup.alert) {
-                        targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
-                        print("   - Warmup target: \(targetPace.min)-\(targetPace.max) min/km")
-                    }
+                    let targetPace = extractTargetPaceFromAlert(warmup.alert)
+                    steps.append(IntervalPlanStep(stepIndex: stepIndex, type: .warmup, paceMinPerKm: targetPace?.min, paceMaxPerKm: targetPace?.max))
+                    print("   - Step \(stepIndex): warmup, target \(String(describing: targetPace))")
                     stepIndex += 1
                 }
 
@@ -1216,14 +1215,10 @@ class HealthKitManager: ObservableObject {
                     print("   - Block \(blockIndex): \(block.iterations) iterations, \(block.steps.count) steps")
                     for iteration in 0..<block.iterations {
                         for intervalStep in block.steps {
-                            let alertType = intervalStep.step.alert.map { String(describing: type(of: $0)) } ?? "none"
-                            print("   - Step \(stepIndex) (\(intervalStep.purpose), iter \(iteration)): alert type = \(alertType)")
-                            if let targetPace = extractTargetPaceFromAlert(intervalStep.step.alert) {
-                                targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
-                                print("     → target: \(targetPace.min)-\(targetPace.max) min/km")
-                            } else {
-                                print("     → no speed target found")
-                            }
+                            let type: IntervalType = intervalStep.purpose == .recovery ? .recovery : .work
+                            let targetPace = extractTargetPaceFromAlert(intervalStep.step.alert)
+                            steps.append(IntervalPlanStep(stepIndex: stepIndex, type: type, paceMinPerKm: targetPace?.min, paceMaxPerKm: targetPace?.max))
+                            print("   - Step \(stepIndex): \(type.rawValue) (purpose \(intervalStep.purpose), iter \(iteration)), target \(String(describing: targetPace))")
                             stepIndex += 1
                         }
                     }
@@ -1231,20 +1226,19 @@ class HealthKitManager: ObservableObject {
 
                 // Cooldown step
                 if let cooldown = customWorkout.cooldown {
-                    if let targetPace = extractTargetPaceFromAlert(cooldown.alert) {
-                        targets.append(IntervalTargetPace(stepIndex: stepIndex, paceMinPerKm: targetPace.min, paceMaxPerKm: targetPace.max))
-                        print("   - Cooldown target: \(targetPace.min)-\(targetPace.max) min/km")
-                    }
+                    let targetPace = extractTargetPaceFromAlert(cooldown.alert)
+                    steps.append(IntervalPlanStep(stepIndex: stepIndex, type: .cooldown, paceMinPerKm: targetPace?.min, paceMaxPerKm: targetPace?.max))
+                    print("   - Step \(stepIndex): cooldown, target \(String(describing: targetPace))")
                     stepIndex += 1
                 }
 
             case .goal, .pacer, .swimBikeRun:
-                print("   - Non-custom workout type, no interval targets")
+                print("   - Non-custom workout type, no interval steps")
             @unknown default:
                 print("   - Unknown workout type")
             }
 
-            return targets
+            return steps
 
         } catch {
             print("⚠️ Error fetching WorkoutPlan: \(error)")

@@ -121,6 +121,7 @@ final class WeeklyCoachingService {
         - Be specific. Reference the metrics provided when they support the message.
         - Avoid emojis, exclamation marks, hashtags, and rhetorical questions.
         - Never invent numbers that aren't in the input.
+        - Write every number as digits ("17", "5:30/km"), never spelled out in words.
         """
     }
 

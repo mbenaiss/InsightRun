@@ -65,7 +65,9 @@ final class WeeklyCoachingService {
 
         let prompt = buildPrompt(snapshot: snapshot)
         let systemPrompt = buildSystemPrompt(language: snapshot.language)
-        let raw = try await backendClient.classify(prompt: prompt, systemPrompt: systemPrompt)
+        // `.moderate` (not `.classification`) — the coach needs a multi-field JSON reply;
+        // CLASSIFICATION caps the backend response at 10 tokens and truncates it.
+        let raw = try await backendClient.classify(prompt: prompt, systemPrompt: systemPrompt, requestType: .moderate)
 
         guard let parsed = parse(raw: raw) else {
             throw WeeklyCoachingError.invalidResponse

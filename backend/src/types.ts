@@ -39,10 +39,11 @@ export const workoutDataSchema = z.object({
     .array(
       z.object({
         kilometer: z.number(),
-        pace: z.string(),
-        time: z.string(),
+        pace: z.string().max(16),
+        time: z.string().max(16),
       })
     )
+    .max(100) // cap to keep prompt size bounded (ultra-marathon headroom)
     .optional(),
 })
 
@@ -141,7 +142,7 @@ export interface DailyActivityData {
 
 export interface CardiacLoadData {
   score: number // 0-20
-  status: 'increasing' | 'maintaining' | 'decreasing' | 'detraining'
+  status: 'increasing' | 'maintaining' | 'decreasing' | 'detraining' | 'overreaching'
 }
 
 export interface PersonalBaselineData {
@@ -261,7 +262,7 @@ export const batchAnalysisRequestSchema = z.object({
 
 // Zod schema for ConsolidateRequest validation
 export const consolidateRequestSchema = z.object({
-  batchSummaries: z.array(z.string().min(1)).min(1).max(20),
+  batchSummaries: z.array(z.string().min(1).max(4000)).min(1).max(20),
   totalWorkouts: z.number().int().min(1),
   profile: healthProfileDataSchema.optional(),
   language: z.string().min(2).max(5),

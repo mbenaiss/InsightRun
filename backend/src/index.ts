@@ -9,13 +9,11 @@ import {
   getCurrentModelConfig,
   type ModelConfig,
   RequestType,
-  selectModel,
   selectModelFromRequest,
   setModelMapping,
   upsertModel,
 } from './modelRouter'
 import { captureLLMEvent, createPostHogClient } from './posthog'
-import { buildPrompt } from './prompts'
 import type { QuotaCheck, QuotaConfig } from './quota'
 import {
   checkQuota,
@@ -33,7 +31,6 @@ import generateTrainingPlanRoutes from './routes/generateTrainingPlan'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
 import stravaRoutes from './routes/strava'
-import type { ChatRequestV2 } from './types'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -82,6 +79,7 @@ interface StreamChunk {
     delta?: {
       content?: string
     }
+    finish_reason?: string | null
   }>
   usage?: {
     prompt_tokens?: number
@@ -193,18 +191,6 @@ function validateChatRequest(body: unknown): body is ChatRequest {
   return !!(req.prompt && req.systemPrompt && (req.model || req.requestType))
 }
 
-function validateChatRequestV2(body: unknown): body is ChatRequestV2 {
-  const req = body as ChatRequestV2
-  // Either requestType or model must be provided (requestType takes priority)
-  return !!(
-    req.promptType &&
-    (req.requestType || req.model) &&
-    req.userQuestion &&
-    req.language &&
-    req.data
-  )
-}
-
 async function callOpenRouter(
   apiKey: string,
   model: string,
@@ -251,6 +237,14 @@ app.use('/api/*', async (c, next) => {
   // Skip rate limiting and blocking for admin routes (they have their own auth)
   const path = new URL(c.req.url).pathname
   if (path.startsWith('/api/admin')) {
+    await next()
+    return
+  }
+
+  // Strava webhooks are called from Strava's own IPs (shared across all users);
+  // applying the per-IP quota would let one busy account 429 every webhook and
+  // make Strava disable the subscription. They carry their own verify token.
+  if (path.startsWith('/api/strava/webhooks/')) {
     await next()
     return
   }
@@ -477,7 +471,7 @@ app.post('/api/chat', async (c) => {
       )
     }
 
-    const { prompt, systemPrompt, model, requestType, stream = true } = body
+    const { prompt, systemPrompt, requestType, stream = true } = body
 
     if (prompt.length > MAX_PROMPT_LENGTH) {
       return c.json(
@@ -494,13 +488,17 @@ app.post('/api/chat', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
-    // Select model using requestType or manual model
+    // Select model using requestType or manual model.
+    // /api/chat accepts a client-supplied systemPrompt, so it must never reach a
+    // premium (quota-backed) model: restrict the whitelist to cheap tiers and
+    // ignore any manual model override here.
     const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
       requestType,
-      model,
+      undefined,
       c.env.RATE_LIMITER,
       userId,
-      RequestType.MODERATE
+      RequestType.MODERATE,
+      [RequestType.SIMPLE, RequestType.MODERATE, RequestType.CLASSIFICATION]
     )
 
     // Non-streaming mode (for classification)
@@ -697,6 +695,11 @@ app.post('/api/chat', async (c) => {
                     })
                   }
 
+                  // Surface truncated responses (hit max_tokens) for observability.
+                  if (json.choices?.[0]?.finish_reason === 'length') {
+                    console.warn('⚠️ /api/chat: response truncated (finish_reason=length)')
+                  }
+
                   // Capture usage data if present
                   if (json.usage) {
                     inputTokens = json.usage.prompt_tokens
@@ -728,412 +731,6 @@ app.post('/api/chat', async (c) => {
   }
 })
 
-app.post('/api/chat/stream', async (c) => {
-  const startTime = Date.now()
-
-  try {
-    if (!validateAppAuth(c)) {
-      return c.json({ error: 'Unauthorized' }, 401)
-    }
-
-    const body = await c.req.json()
-
-    if (!validateChatRequest(body)) {
-      return c.json({ error: 'Bad Request', message: 'Missing required fields' }, 400)
-    }
-
-    const { prompt, systemPrompt, model, requestType } = body
-
-    // Get user ID from X-User-ID header (from iOS app) or fallback to IP
-    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
-    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-    const traceId = crypto.randomUUID()
-
-    // Select model using requestType or manual model
-    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
-      requestType,
-      model,
-      c.env.RATE_LIMITER,
-      userId,
-      RequestType.MODERATE
-    )
-
-    console.log(
-      `🎯 /api/chat/stream: Using model ${finalModel} for requestType ${requestType || 'none'}`
-    )
-
-    const openRouterResponse = await callOpenRouter(
-      c.env.OPENROUTER_API_KEY,
-      finalModel,
-      systemPrompt,
-      prompt
-    )
-
-    if (!openRouterResponse.ok) {
-      const errorText = await openRouterResponse.text()
-      console.error('OpenRouter error:', errorText)
-
-      return c.json(
-        {
-          error: 'AI Service Error',
-          message: 'Failed to get response from AI service',
-          details: errorText,
-        },
-        500
-      )
-    }
-
-    // Variables to capture during streaming
-    let fullOutput = ''
-    let inputTokens: number | undefined
-    let outputTokens: number | undefined
-    let totalTokens: number | undefined
-
-    // Wrap the response body to capture tokens
-    const reader = openRouterResponse.body?.getReader()
-    if (!reader) {
-      return c.json({ error: 'No response body' }, 500)
-    }
-
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) {
-              // Increment quota if model requires it
-              if (modelConfig) {
-                await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
-              }
-
-              // Capture LLM event with all collected data
-              const latency = (Date.now() - startTime) / 1000
-
-              if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
-                const posthog = createPostHogClient({
-                  apiKey: c.env.POSTHOG_API_KEY,
-                  host: c.env.POSTHOG_HOST,
-                })
-
-                c.executionCtx.waitUntil(
-                  (async () => {
-                    try {
-                      await captureLLMEvent(posthog, userId, traceId, {
-                        model: finalModel,
-                        input: prompt,
-                        systemPrompt,
-                        output: fullOutput,
-                        inputTokens,
-                        outputTokens,
-                        latency,
-                        cost: totalTokens ? totalTokens * 0.000001 : undefined,
-                        ip,
-                      })
-                      await posthog.shutdown()
-                    } catch (error) {
-                      console.error('PostHog capture error:', error)
-                    }
-                  })()
-                )
-              }
-
-              controller.close()
-              break
-            }
-
-            buffer += decoder.decode(value, { stream: true })
-            const lines = buffer.split('\n')
-            buffer = lines.pop() || ''
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6).trim()
-
-                if (data && data !== '[DONE]') {
-                  try {
-                    const json: StreamChunk = JSON.parse(data)
-                    const content = json.choices?.[0]?.delta?.content
-
-                    if (content) {
-                      fullOutput += content
-                    }
-
-                    // Capture usage data if present
-                    if (json.usage) {
-                      inputTokens = json.usage.prompt_tokens
-                      outputTokens = json.usage.completion_tokens
-                      totalTokens = json.usage.total_tokens
-                    }
-                  } catch (parseError) {
-                    console.warn('JSON parse error:', parseError)
-                  }
-                }
-              }
-            }
-
-            // Forward the chunk to the client
-            controller.enqueue(value)
-          }
-        } catch (error) {
-          console.error('Streaming error:', error)
-          controller.error(error)
-        }
-      },
-    })
-
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    })
-  } catch (error) {
-    console.error('Streaming error:', error)
-    return c.json({ error: 'Streaming failed' }, 500)
-  }
-})
-
-app.post('/api/chat/v2', async (c) => {
-  const startTime = Date.now()
-
-  try {
-    if (!validateAppAuth(c)) {
-      return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-    }
-
-    const body = await c.req.json()
-
-    if (!validateChatRequestV2(body)) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message:
-            'Missing required fields: promptType, requestType or model, userQuestion, language, data',
-        },
-        400
-      )
-    }
-
-    const { promptType, requestType, model: manualModel, userQuestion, language, data } = body
-
-    if (userQuestion.length > MAX_PROMPT_LENGTH) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: `Question too long (max ${MAX_PROMPT_LENGTH} characters)`,
-        },
-        400
-      )
-    }
-
-    // Get user ID from X-User-ID header (from iOS app) or fallback to IP
-    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
-    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-    const traceId = crypto.randomUUID()
-
-    // Determine which model to use
-    let finalModel: string
-    let selectedModelConfig: Awaited<ReturnType<typeof selectModel>>['model'] | undefined
-
-    if (requestType) {
-      // Use semantic requestType to select model (preferred)
-      console.log(`🎯 Using requestType: ${requestType}`)
-
-      // Validate requestType
-      if (!Object.values(RequestType).includes(requestType as RequestType)) {
-        return c.json(
-          {
-            error: 'Bad Request',
-            message: `Invalid requestType. Valid values: ${Object.values(RequestType).join(', ')}`,
-          },
-          400
-        )
-      }
-
-      // Select model based on requestType and user quota
-      const selection = await selectModel(requestType as RequestType, c.env.RATE_LIMITER, userId)
-      finalModel = selection.model.modelId
-      selectedModelConfig = selection.model
-
-      console.log(`✅ Selected model: ${selection.model.displayName} (${finalModel})`)
-    } else if (manualModel) {
-      // Fallback to manual model (backward compatibility)
-      console.log(`⚠️ Using legacy manual model: ${manualModel}`)
-      finalModel = manualModel
-    } else {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: 'Either requestType or model must be provided',
-        },
-        400
-      )
-    }
-
-    // Build system prompt from data using templates
-    let systemPrompt: string
-    try {
-      systemPrompt = buildPrompt(promptType, data, language || 'en')
-    } catch (error) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: error instanceof Error ? error.message : 'Invalid prompt type',
-        },
-        400
-      )
-    }
-
-    const openRouterResponse = await callOpenRouter(
-      c.env.OPENROUTER_API_KEY,
-      finalModel,
-      systemPrompt,
-      userQuestion
-    )
-
-    if (!openRouterResponse.ok) {
-      const errorText = await openRouterResponse.text()
-      console.error('OpenRouter error:', errorText)
-
-      return c.json(
-        {
-          error: 'AI Service Error',
-          message: 'Failed to get response from AI service',
-          details: errorText,
-        },
-        500
-      )
-    }
-
-    // Variables to capture during streaming
-    let fullOutput = ''
-    let inputTokens: number | undefined
-    let outputTokens: number | undefined
-    let totalTokens: number | undefined
-
-    return streamSSE(c, async (stream) => {
-      const reader = openRouterResponse.body?.getReader()
-      if (!reader) {
-        throw new Error('No response body')
-      }
-
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-
-          // Keep the last incomplete line in buffer
-          buffer = lines.pop() || ''
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6).trim()
-
-              if (dataStr === '[DONE]') {
-                await stream.writeSSE({
-                  data: '[DONE]',
-                })
-
-                // Capture LLM event with all collected data
-                const latency = (Date.now() - startTime) / 1000
-
-                // Increment quotas if needed (e.g., Sonnet usage)
-                if (selectedModelConfig) {
-                  c.executionCtx.waitUntil(
-                    (async () => {
-                      try {
-                        await afterModelUsage(selectedModelConfig, c.env.RATE_LIMITER, userId)
-                      } catch (error) {
-                        console.error('Quota increment error:', error)
-                      }
-                    })()
-                  )
-                }
-
-                if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
-                  const posthog = createPostHogClient({
-                    apiKey: c.env.POSTHOG_API_KEY,
-                    host: c.env.POSTHOG_HOST,
-                  })
-
-                  c.executionCtx.waitUntil(
-                    (async () => {
-                      try {
-                        await captureLLMEvent(posthog, userId, traceId, {
-                          model: finalModel,
-                          input: userQuestion,
-                          systemPrompt,
-                          output: fullOutput,
-                          inputTokens,
-                          outputTokens,
-                          latency,
-                          cost: totalTokens ? totalTokens * 0.000001 : undefined,
-                          ip,
-                        })
-                        await posthog.shutdown()
-                      } catch (error) {
-                        console.error('PostHog capture error:', error)
-                      }
-                    })()
-                  )
-                }
-
-                return
-              }
-
-              if (dataStr) {
-                try {
-                  const json: StreamChunk = JSON.parse(dataStr)
-                  const content = json.choices?.[0]?.delta?.content
-
-                  if (content) {
-                    fullOutput += content
-                    await stream.writeSSE({
-                      data: JSON.stringify({ content }),
-                    })
-                  }
-
-                  // Capture usage data if present
-                  if (json.usage) {
-                    inputTokens = json.usage.prompt_tokens
-                    outputTokens = json.usage.completion_tokens
-                    totalTokens = json.usage.total_tokens
-                  }
-                } catch (parseError) {
-                  console.warn('JSON parse error:', parseError, 'Data:', dataStr)
-                }
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Streaming error:', error)
-        throw error
-      }
-    })
-  } catch (error) {
-    console.error('Chat v2 endpoint error:', error)
-
-    return c.json(
-      {
-        error: 'Internal Server Error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      500
-    )
-  }
-})
-
 app.get('/api/stats', async (c) => {
   // Use X-User-ID header if available, fallback to IP
   const userId = c.req.header('X-User-ID')
@@ -1143,7 +740,19 @@ app.get('/api/stats', async (c) => {
   const config = await getQuotaConfigFromKV(c.env.RATE_LIMITER)
   const quotaCheck = await checkQuota(c.env.RATE_LIMITER, ip, userId, config)
 
+  // The effective quota is whichever bucket constrains the caller most: the user
+  // bucket when authenticated and tighter, otherwise the IP bucket.
+  const effective =
+    quotaCheck.user && quotaCheck.user.remaining < quotaCheck.ip.remaining
+      ? quotaCheck.user
+      : quotaCheck.ip
+
   return c.json({
+    // Root-level fields consumed by the iOS client (RateLimitStats).
+    requestsRemaining: effective.remaining,
+    limit: effective.limit,
+    resetIn: effective.resetIn,
+    resetAt: effective.resetAt,
     identifier: userId || ip,
     ip,
     userId: userId || null,

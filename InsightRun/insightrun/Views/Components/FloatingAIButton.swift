@@ -23,7 +23,7 @@ struct FloatingAIButton: View {
                     if isLoading || contextProvider.isLoading {
                         ProgressView()
                             .controlSize(.small)
-                            .tint(.black)
+                            .tint(Color.irTextOnAccent)
                     } else {
                         Image(systemName: "sparkles")
                             .font(IRFont.footnote.weight(.bold))
@@ -33,19 +33,10 @@ struct FloatingAIButton: View {
                         .font(IRFont.footnote.weight(.bold))
                         .kerning(-0.1)
                 }
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .padding(.horizontal, Spacing.dash)
                 .padding(.vertical, Spacing.md)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
+                .background(Capsule().fill(LinearGradient.irAIAccent))
                 .overlay(
                     Capsule()
                         .strokeBorder(Color.irBorderStrong, lineWidth: 0.5)

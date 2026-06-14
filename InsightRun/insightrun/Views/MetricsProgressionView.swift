@@ -35,7 +35,7 @@ struct MetricsProgressionView: View {
             .foregroundStyle(Color.irTextSecondary)
         }
         .padding()
-        .padding(.top, 30)
+        .padding(.top, Spacing.xxl)
     }
 
     // MARK: - Empty State
@@ -48,7 +48,6 @@ struct MetricsProgressionView: View {
 
             Text(String(localized: "progression.empty.title", defaultValue: "Not enough data", comment: "Progression empty state title"))
                 .font(IRFont.title2)
-                .fontWeight(.semibold)
 
             Text(String(localized: "progression.empty.message", defaultValue: "At least 2 workouts are needed in this period to show progression.", comment: "Progression empty state message"))
                 .font(IRFont.body)
@@ -56,7 +55,7 @@ struct MetricsProgressionView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
         }
-        .padding(.top, 50)
+        .padding(.top, Spacing.xxl)
     }
 
     // MARK: - Metrics Content
@@ -73,7 +72,6 @@ struct MetricsProgressionView: View {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(String(localized: "progression.section.performance", defaultValue: "Performance", comment: "Performance section title"))
                         .font(IRFont.headline)
-                        .fontWeight(.bold)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     ForEach(viewModel.performanceMetrics) { metric in
@@ -86,7 +84,6 @@ struct MetricsProgressionView: View {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(String(localized: "progression.section.advanced", defaultValue: "Advanced metrics", comment: "Advanced metrics section title"))
                         .font(IRFont.headline)
-                        .fontWeight(.bold)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     ForEach(viewModel.advancedMetrics) { metric in

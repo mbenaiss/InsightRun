@@ -149,7 +149,7 @@ struct MetricRanges {
             .init(label: String(localized: "Low", comment: "VO2 Max range: Low"), minValue: 30, maxValue: 38, color: Color.irTextSecondary),
             .init(label: String(localized: "Average", comment: "VO2 Max range: Average"), minValue: 38, maxValue: 44, color: Color.irPrimaryAccent),
             .init(label: String(localized: "Good", comment: "VO2 Max range: Good"), minValue: 44, maxValue: 52, color: Color.irPrimaryAccent),
-            .init(label: String(localized: "Excellent", comment: "VO2 Max range: Excellent"), minValue: 52, maxValue: 70, color: Color.irError)
+            .init(label: String(localized: "Excellent", comment: "VO2 Max range: Excellent"), minValue: 52, maxValue: 70, color: Color.irSuccess)
         ],
         unit: "ml/kg/min"
     )

@@ -14,18 +14,20 @@ struct DashboardEyebrow: View {
     var body: some View {
         HStack(spacing: Spacing.sm) {
             Rectangle()
-                .fill(Color.irTextSecondary.opacity(0.5))
-                .frame(width: 18, height: 1)
+                .fill(Color.irTextTertiary)
+                .frame(width: Spacing.cardPadding, height: 1)
 
             Text(title.uppercased())
                 .font(IRFont.eyebrow.weight(.bold))
-                .tracking(1.4)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .tracking(IRTracking.eyebrow)
+                .foregroundStyle(Color.irTextTertiary)
 
             Spacer()
         }
         .padding(.horizontal, Spacing.xxs)
         .padding(.bottom, Spacing.sm)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

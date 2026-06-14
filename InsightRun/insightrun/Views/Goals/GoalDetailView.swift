@@ -198,7 +198,10 @@ struct GoalDetailView: View {
                         .font(IRFont.footnote.weight(.heavy))
                         .foregroundStyle(Color.irTextSecondary)
                 }
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
             }
+            .accessibilityLabel(String(localized: "goals.detail.menu.accessibility", defaultValue: "Goal options", comment: "Accessibility label for the goal options menu button"))
         }
     }
 
@@ -261,7 +264,7 @@ struct GoalDetailView: View {
             } else {
                 Text(String(localized: "goals.card.completed", defaultValue: "Completed", comment: "Goal card - completed label"))
                     .font(IRFont.eyebrow.weight(.heavy))
-                    .foregroundStyle(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.xxs)
                     .background(Color.irSuccess)
@@ -273,15 +276,14 @@ struct GoalDetailView: View {
         .background(
             LinearGradient(
                 colors: [
-                    // accent 8% over #141416
-                    Color(red: 0.0784, green: 0.0784, blue: 0.0863).blended(with: Color.irPrimaryAccent, fraction: 0.08),
-                    // #0e0e10 at 80%
-                    Color(red: 0.0549, green: 0.0549, blue: 0.0627)
+                    Color.irPrimaryAccent.opacity(0.08),
+                    Color.irTextPrimary.opacity(0.04)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
         )
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.md)
@@ -292,14 +294,14 @@ struct GoalDetailView: View {
     private var formattedHeroDate: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "d MMMM yyyy"
+        formatter.setLocalizedDateFormatFromTemplate("dMMMMyyyy")
         return formatter.string(from: currentGoal.targetDate)
     }
 
     private var formattedHeroWeekday: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "EEEE"
+        formatter.setLocalizedDateFormatFromTemplate("EEEE")
         return formatter.string(from: currentGoal.targetDate).lowercased()
     }
 
@@ -336,12 +338,7 @@ struct GoalDetailView: View {
 
             kpiGrid
         }
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var kpiGrid: some View {
@@ -414,19 +411,13 @@ struct GoalDetailView: View {
     private func coachSummaryCard(assessment: String) -> some View {
         HStack(alignment: .top, spacing: Spacing.md) {
             ZStack {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                RoundedRectangle(cornerRadius: Radius.xs)
+                    .fill(Color.irPrimaryAccent)
                     .frame(width: 22, height: 22)
 
                 Text("✦")
                     .font(IRFont.caption.weight(.heavy))
-                    .foregroundStyle(Color.irCardBackground)
+                    .foregroundStyle(Color.irTextOnAccent)
             }
             .padding(.top, 2)
 
@@ -438,12 +429,7 @@ struct GoalDetailView: View {
         }
         .padding(.horizontal, Spacing.base)
         .padding(.vertical, Spacing.dash)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     // MARK: - Mission
@@ -479,12 +465,7 @@ struct GoalDetailView: View {
                         .foregroundStyle(Color.irTextPrimary)
                 }
                 .padding(Spacing.base)
-                .background(Color.irCardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.md)
-                        .strokeBorder(Color.irBorder, lineWidth: 0.5)
-                )
+                .detailCard()
             }
 
             if let notes = currentGoal.notes, !notes.isEmpty {
@@ -502,12 +483,7 @@ struct GoalDetailView: View {
                 }
                 .padding(Spacing.base)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.irCardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.md)
-                        .strokeBorder(Color.irBorder, lineWidth: 0.5)
-                )
+                .detailCard()
             }
         }
     }
@@ -524,12 +500,7 @@ struct GoalDetailView: View {
         }
         .padding(Spacing.lg)
         .frame(maxWidth: .infinity)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var generatingPlanView: some View {
@@ -590,7 +561,7 @@ struct GoalDetailView: View {
                     Text(generateButtonTitle)
                 }
                 .font(IRFont.headline)
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .padding(.horizontal, Spacing.xl)
                 .padding(.vertical, Spacing.md)
                 .background(Color.irPrimaryAccent.gradient)
@@ -699,12 +670,7 @@ struct GoalDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(Spacing.xl)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private func weekContent(_ plan: TrainingPlan, weekIndex: Int) -> some View {
@@ -722,7 +688,7 @@ struct GoalDetailView: View {
                     .foregroundStyle(Color.irTextSecondary)
                     .padding(.bottom, Spacing.dash)
             } else {
-                Spacer().frame(height: 14)
+                Spacer().frame(height: Spacing.dash)
             }
 
             VStack(spacing: Spacing.sm) {
@@ -731,13 +697,8 @@ struct GoalDetailView: View {
                 }
             }
         }
-        .padding(EdgeInsets(top: 16, leading: 16, bottom: 14, trailing: 16))
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .padding(EdgeInsets(top: Spacing.base, leading: Spacing.base, bottom: Spacing.dash, trailing: Spacing.base))
+        .detailCard()
     }
 
     private func weekHeader(_ week: TrainingWeek) -> some View {
@@ -758,7 +719,7 @@ struct GoalDetailView: View {
             Spacer()
 
             if let volume = week.weeklyVolume {
-                Text(String(format: "%.1f km", volume))
+                Text(Formatters.distance(km: volume, fractionDigits: 1))
                     .font(IRFont.monoSM)
                     .foregroundStyle(Color.irTextSecondary)
             }
@@ -929,7 +890,7 @@ struct GoalDetailView: View {
                 Text(workout.formattedDuration)
             }
             if let pace = workout.targetPace {
-                Text(pace + "/km")
+                Text(pace + Formatters.paceUnitSuffix())
             }
         }
         .font(IRFont.monoSM)
@@ -957,15 +918,20 @@ struct GoalDetailView: View {
                 if isCompleted {
                     Image(systemName: "checkmark")
                         .font(IRFont.eyebrow.weight(.heavy))
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                 } else if isSkipped {
                     Image(systemName: "minus")
                         .font(IRFont.eyebrow.weight(.heavy))
                         .foregroundStyle(Color.irTextSecondary)
                 }
             }
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(isCompleted
+            ? String(localized: "goals.day.markIncomplete.accessibility", defaultValue: "Mark session as not completed", comment: "Accessibility label to toggle a planned session back to incomplete")
+            : String(localized: "goals.day.markComplete.accessibility", defaultValue: "Mark session as completed", comment: "Accessibility label to mark a planned session as completed"))
     }
 
     // MARK: - Full plan list (V4 weeks)
@@ -1011,7 +977,7 @@ struct GoalDetailView: View {
                                     .font(IRFont.eyebrow.weight(.heavy))
                                     .tracking(0.36) // 0.04em on 9pt
                                     .foregroundStyle(Color.irPrimaryAccent)
-                                    .padding(.horizontal, 7)
+                                    .padding(.horizontal, Spacing.xs)
                                     .padding(.vertical, 2)
                                     .background(
                                         Capsule().fill(Color.irPrimaryAccent.opacity(0.18))
@@ -1097,15 +1063,8 @@ struct GoalDetailView: View {
         return TrainingCalendarView.isRaceDay(plan: plan, goal: currentGoal, weekIndex: weekIndex, day: day)
     }
 
-    /// V4 phase palette: base = lime accent, build = warn, peak = red, taper = success, recovery = purple.
     private func phaseColor(_ phase: TrainingPhase) -> Color {
-        switch phase {
-        case .base: return Color.irPrimaryAccent
-        case .build: return Color.irWarning
-        case .peak: return Color.irError
-        case .taper: return Color.irSuccess
-        case .recovery: return Color.irPrimaryAccent
-        }
+        phase.themeColor
     }
 
     /// Maps a workout's intensity / type to the V4 left-bar color.
@@ -1121,26 +1080,5 @@ struct GoalDetailView: View {
         case .crossTraining:
             return Color.irPrimaryAccent
         }
-    }
-}
-
-// MARK: - Color blending helper
-
-private extension Color {
-    /// Linear blend toward `other` by `fraction` (0…1) — RGB only, ignores alpha.
-    /// Used to mimic CSS `color-mix(in oklab, A f%, B)` for static design swatches.
-    func blended(with other: Color, fraction: Double) -> Color {
-        let f = max(0, min(1, fraction))
-        let a = UIColor(self)
-        let b = UIColor(other)
-        var ar: CGFloat = 0, ag: CGFloat = 0, ab: CGFloat = 0, aa: CGFloat = 0
-        var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
-        a.getRed(&ar, green: &ag, blue: &ab, alpha: &aa)
-        b.getRed(&br, green: &bg, blue: &bb, alpha: &ba)
-        return Color(
-            red: Double(ar) * (1 - f) + Double(br) * f,
-            green: Double(ag) * (1 - f) + Double(bg) * f,
-            blue: Double(ab) * (1 - f) + Double(bb) * f
-        )
     }
 }

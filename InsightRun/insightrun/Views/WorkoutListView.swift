@@ -316,13 +316,14 @@ struct WorkoutListView: View {
                         Text(String(localized: "Connect HealthKit", comment: "HealthKit permission button"))
                     }
                     .font(IRFont.headline)
-                    .foregroundStyle(Color.irCardBackground)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.red.gradient)
+                    .background(Color.brandHealthKit.gradient)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                    .shadow(color: Color.red.opacity(0.3), radius: 10, y: 5)
+                    .shadow(color: Color.brandHealthKit.opacity(0.3), radius: 10, y: 5)
                 }
+                .accessibilityLabel(String(localized: "Connect HealthKit", comment: "HealthKit permission button"))
 
                 if remoteConfig.isFeatureEnabled(.strava) {
                     Button {
@@ -335,13 +336,14 @@ struct WorkoutListView: View {
                             Text(String(localized: "Connect Strava", comment: "Strava connection button"))
                         }
                         .font(IRFont.headline)
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(hex: "FC5200").gradient)
+                        .background(Color.brandStrava.gradient)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                        .shadow(color: Color(hex: "FC5200").opacity(0.3), radius: 10, y: 5)
+                        .shadow(color: Color.brandStrava.opacity(0.3), radius: 10, y: 5)
                     }
+                    .accessibilityLabel(String(localized: "Connect Strava", comment: "Strava connection button"))
                 }
             }
             .padding(.horizontal, Spacing.xxl)
@@ -380,7 +382,7 @@ struct WorkoutListView: View {
             } label: {
                 Text(String(localized: "Open Settings", comment: "Settings button"))
                     .font(IRFont.headline)
-                    .foregroundStyle(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(Color.irWarning.gradient)
@@ -546,6 +548,7 @@ struct WorkoutListView: View {
                 .overlay(Capsule().strokeBorder(Color.irBorder, lineWidth: 0.5))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(String(localized: "Search workouts", comment: "Accessibility label for workout search button"))
         .accessibilityIdentifier("workout-list-search")
     }
 
@@ -602,9 +605,11 @@ struct WorkoutListView: View {
                 Image(systemName: "chevron.left")
                     .font(IRFont.microLabel.weight(.bold))
                     .foregroundStyle(Color.irTextSecondary)
-                    .frame(width: 18, height: 18)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Previous month", comment: "Accessibility label for previous month button"))
 
             Menu {
                 ForEach(availableYears, id: \.self) { year in
@@ -632,9 +637,11 @@ struct WorkoutListView: View {
                 Image(systemName: "chevron.right")
                     .font(IRFont.microLabel.weight(.bold))
                     .foregroundStyle(canGoForward ? Color.irTextSecondary : Color.irTextSecondary.opacity(0.3))
-                    .frame(width: 18, height: 18)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Next month", comment: "Accessibility label for next month button"))
             .disabled(!canGoForward)
         }
         .padding(.horizontal, Spacing.xxs)
@@ -661,8 +668,10 @@ struct WorkoutListView: View {
         let totalDuration = workouts.map { $0.duration }.reduce(0, +)
         let totalCalories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
         let totalElevation = workouts.compactMap { $0.elevationGain }.reduce(0, +)
-        let paces = workouts.compactMap { $0.averagePace }
-        let avgPace = paces.isEmpty ? nil : paces.reduce(0, +) / Double(paces.count)
+        let avgPace = Formatters.averagePace(
+            totalDurationSeconds: totalDuration,
+            totalDistanceKm: totalDistance / 1000.0
+        )
         let weeks = weeklyVolumes(in: workouts)
         let highlightIndex = currentWeekIndex(in: weeks)
 
@@ -677,7 +686,7 @@ struct WorkoutListView: View {
                             .font(IRFont.numMD.weight(.heavy))
                             .kerning(-0.5)
                             .foregroundStyle(Color.irTextPrimary)
-                        Text("km")
+                        Text(Formatters.distanceUnitLabel())
                             .font(IRFont.footnote.weight(.semibold))
                             .foregroundStyle(Color.irTextSecondary)
                     }
@@ -695,7 +704,7 @@ struct WorkoutListView: View {
                 )
                 summaryStat(
                     label: String(localized: "Avg Pace", comment: "Average pace stat label"),
-                    value: formatPaceShort(avgPace),
+                    value: avgPace ?? "—",
                     showsLeftBorder: true
                 )
                 summaryStat(
@@ -712,12 +721,7 @@ struct WorkoutListView: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var monthEmptyState: some View {
@@ -774,13 +778,13 @@ struct WorkoutListView: View {
                 let h = max(CGFloat(week.kilometers / peak) * 36, 2)
                 let isCurrent = idx == highlightIndex
                 VStack(spacing: Spacing.xxs) {
-                    Text(String(format: "%.0f", week.kilometers))
+                    Text(Formatters.integer(Int(week.kilometers.rounded())))
                         .font(IRFont.eyebrow.weight(.semibold))
                         .foregroundStyle(isCurrent ? Color.irPrimaryAccent : Color.irTextSecondary.opacity(0.7))
                     RoundedRectangle(cornerRadius: 2)
                         .fill(isCurrent ? Color.irPrimaryAccent : Color.irTextPrimary.opacity(0.18))
                         .frame(width: 12, height: h)
-                    Text("S\(week.weekNumber)")
+                    Text(String(format: String(localized: "workoutlist.week_abbreviation", defaultValue: "W%lld", comment: "Short week-number prefix, e.g. W12"), week.weekNumber))
                         .font(IRFont.monoSM)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.55))
                 }
@@ -823,12 +827,8 @@ struct WorkoutListView: View {
     }
 
     private func formattedKilometers(_ meters: Double) -> String {
-        let km = meters / 1000.0
-        if km < 10 {
-            return String(format: "%.1f", km)
-        } else {
-            return String(format: "%.0f", km)
-        }
+        let value = Formatters.distanceValue(km: meters / 1000.0)
+        return value < 10 ? Formatters.decimal(value, fractionDigits: 1) : Formatters.decimal(value, fractionDigits: 0)
     }
 
     private func formatHoursMinutes(_ seconds: TimeInterval) -> String {
@@ -839,25 +839,15 @@ struct WorkoutListView: View {
         return String(format: "%dm", m)
     }
 
-    private func formatPaceShort(_ pace: Double?) -> String {
-        guard let pace, pace > 0 else { return "—" }
-        let m = Int(pace)
-        let s = Int((pace - Double(m)) * 60)
-        return String(format: "%d'%02d\"", m, s)
-    }
-
     private func formatElevation(_ meters: Double) -> String {
-        if meters >= 1000 {
-            return String(format: "%.1fk", meters / 1000.0)
-        }
-        return String(format: "%.0fm", meters)
+        Formatters.elevation(meters: meters)
     }
 
     private func formatCalories(_ kcal: Double) -> String {
         if kcal >= 1000 {
-            return String(format: "%.1fk", kcal / 1000.0)
+            return Formatters.decimal(kcal / 1000.0, fractionDigits: 1) + "k"
         }
-        return String(format: "%.0f", kcal)
+        return Formatters.integer(Int(kcal))
     }
 
     // MARK: - Subscription CTA Card
@@ -866,23 +856,17 @@ struct WorkoutListView: View {
         VStack(spacing: Spacing.dash) {
             HStack(spacing: Spacing.md) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    RoundedRectangle(cornerRadius: Radius.xs)
+                        .fill(LinearGradient.irAIAccent)
                     Image(systemName: "sparkles")
                         .font(IRFont.eyebrow.weight(.bold))
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                 }
                 .frame(width: 22, height: 22)
 
                 Text(String(localized: "AI COACH", comment: "Subscription CTA eyebrow on workout list"))
                     .font(IRFont.eyebrow.weight(.bold))
-                    .tracking(1.0)
+                    .tracking(IRTracking.eyebrow)
                     .foregroundStyle(Color.irTextPrimary)
                 Spacer()
             }
@@ -902,7 +886,7 @@ struct WorkoutListView: View {
                     Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
                         .font(IRFont.body.weight(.bold))
                 }
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
                 .background(Color.irPrimaryAccent)
@@ -912,59 +896,7 @@ struct WorkoutListView: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
-    }
-}
-
-// MARK: - Stat Item Component (kept for compatibility)
-
-struct StatItem: View {
-    let icon: String
-    let value: String
-    let label: String
-
-    var body: some View {
-        VStack(spacing: Spacing.sm) {
-            Image(systemName: icon)
-                .font(IRFont.title3)
-                .foregroundStyle(Color.irPrimaryAccent.gradient)
-
-            Text(value)
-                .font(IRFont.title3.weight(.semibold))
-
-            Text(label)
-                .font(IRFont.caption)
-                .foregroundStyle(Color.irTextSecondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-struct StatsRow: View {
-    let icon: String
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundStyle(Color.irPrimaryAccent.gradient)
-                .frame(width: 24)
-
-            Text(label)
-                .font(IRFont.body)
-                .foregroundStyle(Color.irTextSecondary)
-
-            Spacer()
-
-            Text(value)
-                .font(IRFont.body.weight(.semibold))
-        }
+        .detailCard()
     }
 }
 

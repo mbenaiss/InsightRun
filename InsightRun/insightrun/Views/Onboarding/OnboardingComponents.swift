@@ -135,7 +135,7 @@ struct OnboardingFeatureCard: View {
     }
 }
 
-// MARK: - Primary CTA (lime, black text)
+// MARK: - Primary CTA (lime accent, on-accent ink)
 
 struct OnboardingPrimaryButton: View {
     let title: String
@@ -153,16 +153,17 @@ struct OnboardingPrimaryButton: View {
             ZStack {
                 if isLoading {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                        .progressViewStyle(CircularProgressViewStyle(tint: .irTextOnAccent))
                 } else {
                     Text(title)
                         .font(IRFont.body)
                         .fontWeight(.bold)
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .padding(.vertical, Spacing.base)
+            .frame(minHeight: 50)
             .background(
                 RoundedRectangle(cornerRadius: Radius.sm)
                     .fill(Color.irPrimaryAccent)

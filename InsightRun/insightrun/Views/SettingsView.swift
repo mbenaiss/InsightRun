@@ -31,7 +31,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     Text(String(localized: "Settings", comment: "Navigation title for settings view"))
                         .font(IRFont.title1.weight(.heavy))
-                        .tracking(-1.0)
+                        .tracking(IRTracking.title1)
                         .foregroundStyle(Color.irTextPrimary)
                         .padding(.top, Spacing.xxs)
 
@@ -353,7 +353,7 @@ struct SettingsView: View {
                         String(localized: "Last updated:", comment: "Last update label") + " " + formatDate(summary.indexedAt)
                     ]
                     if days > 0 {
-                        parts.append(String(localized: "Next update in", comment: "Next update prefix") + " \(days) " + String(localized: "days", comment: "days unit"))
+                        parts.append(String(format: String(localized: "settings.next_update_in_days", defaultValue: "Next update in %lld days", comment: "Days until next training-data update"), days))
                     } else {
                         parts.append(String(localized: "Update recommended", comment: "Update recommended message"))
                     }
@@ -363,7 +363,7 @@ struct SettingsView: View {
                 settingsRow(
                     icon: "checkmark.circle.fill",
                     iconColor: Color.irSuccess,
-                    title: "\(summary.workoutCount) " + String(localized: "workouts indexed", comment: "Number of indexed workouts"),
+                    title: String(format: String(localized: "settings.workouts_indexed", defaultValue: "%lld workouts indexed", comment: "Number of indexed workouts"), summary.workoutCount),
                     subtitle: subtitle
                 )
 

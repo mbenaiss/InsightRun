@@ -22,13 +22,7 @@ struct IndexationBannerView: View {
                 // Running icon
                 Image(systemName: "figure.run.circle.fill")
                     .font(IRFont.title1)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.irAIAccent)
 
                 // Title and description
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -50,6 +44,7 @@ struct IndexationBannerView: View {
                         .font(IRFont.numSM)
                         .foregroundStyle(Color.irTextSecondary)
                 }
+                .accessibilityLabel(String(localized: "Dismiss", comment: "Accessibility label for dismiss banner button"))
             }
 
             // Action buttons
@@ -74,16 +69,10 @@ struct IndexationBannerView: View {
                     }
                     .font(IRFont.body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.md)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color.irPrimaryAccent)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
                 }
             }

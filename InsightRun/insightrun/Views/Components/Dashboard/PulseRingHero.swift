@@ -48,6 +48,9 @@ struct PulseRingHero: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("pulse-ring-hero")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Availability", comment: "Pulse ring eyebrow"))
+        .accessibilityValue("\(score)/100, \(statusTitle)")
         .onAppear { halo = true }
     }
 
@@ -57,7 +60,7 @@ struct PulseRingHero: View {
         HStack {
             Text(String(localized: "AVAILABILITY", comment: "Pulse ring eyebrow"))
                 .font(IRFont.eyebrow.weight(.bold))
-                .tracking(1.6)
+                .tracking(IRTracking.eyebrow)
                 .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
@@ -70,7 +73,7 @@ struct PulseRingHero: View {
                     .foregroundStyle(Color.irTextSecondary)
                     .frame(width: 22, height: 22)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: Radius.xs)
                             .fill(Color.irBorder)
                     )
             }
@@ -107,8 +110,8 @@ struct PulseRingHero: View {
             .fill(
                 RadialGradient(
                     colors: [
-                        Color.irWarning.opacity(0.22),
-                        Color.irWarning.opacity(0)
+                        statusColor.opacity(0.22),
+                        statusColor.opacity(0)
                     ],
                     center: .center,
                     startRadius: 0,
@@ -211,7 +214,7 @@ struct PulseRingHero: View {
                 .position(dot)
 
             Circle()
-                .fill(Color.irWarning)
+                .fill(statusColor)
                 .frame(width: 6, height: 6)
                 .position(dot)
         }
@@ -228,8 +231,8 @@ struct PulseRingHero: View {
 
             Text("/100")
                 .font(IRFont.microLabel.weight(.semibold))
-                .tracking(2.5)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .tracking(IRTracking.microLabel)
+                .foregroundStyle(Color.irTextTertiary)
         }
         .position(x: cx, y: cy - 4)
     }
@@ -303,7 +306,7 @@ struct StatusChip: View {
         Text(title)
             .font(IRFont.eyebrow.weight(.semibold))
             .foregroundStyle(color)
-            .padding(.horizontal, 9)
+            .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xxs)
             .background(
                 Capsule().fill(color.opacity(0.14))

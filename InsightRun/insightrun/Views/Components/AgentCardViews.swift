@@ -18,13 +18,7 @@ struct WorkoutCardView: View {
             // Header
             HStack {
                 Image(systemName: workoutIcon)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.irAIAccent)
                     .font(IRFont.title3)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -41,13 +35,7 @@ struct WorkoutCardView: View {
 
                 Image(systemName: "figure.run.circle.fill")
                     .font(IRFont.title2)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.irAIAccent)
             }
 
             Divider()
@@ -98,9 +86,7 @@ struct WorkoutCardView: View {
             }
         }
         .padding(Spacing.base)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .shadow(color: Color.irShadow, radius: 8, y: 4)
+        .detailCard()
     }
 
     private var workoutIcon: String {
@@ -162,13 +148,7 @@ struct TrendAnalysisCardView: View {
             // Header
             HStack {
                 Image(systemName: "chart.line.uptrend.xyaxis")
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.irAIAccent)
                     .font(IRFont.title3)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -188,11 +168,13 @@ struct TrendAnalysisCardView: View {
                     Image(systemName: trend.trendIcon)
                         .font(IRFont.title3)
 
-                    Text(String(format: "%+.1f%%", trend.percentageChange))
+                    Text(Formatters.percent(trend.percentageChange, fractionDigits: 1, signed: true))
                         .font(IRFont.headline)
                         .fontWeight(.bold)
                 }
                 .foregroundStyle(trendColor)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(trendAccessibilityLabel)
             }
 
             Divider()
@@ -236,9 +218,7 @@ struct TrendAnalysisCardView: View {
             }
         }
         .padding(Spacing.base)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .shadow(color: Color.irShadow, radius: 8, y: 4)
+        .detailCard()
     }
 
     private var trendColor: Color {
@@ -255,5 +235,10 @@ struct TrendAnalysisCardView: View {
         case "declining": return String(localized: "Declining", comment: "Trend direction")
         default: return String(localized: "Stable", comment: "Trend direction")
         }
+    }
+
+    private var trendAccessibilityLabel: String {
+        let change = Formatters.percent(trend.percentageChange, fractionDigits: 1, signed: true)
+        return "\(trendLabel), \(change)"
     }
 }

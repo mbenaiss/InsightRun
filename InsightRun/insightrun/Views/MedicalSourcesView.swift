@@ -38,6 +38,7 @@ struct MedicalSourcesView: View {
                             .font(IRFont.title3)
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityLabel(String(localized: "Close", comment: "Close button"))
                 }
             }
             .onAppear {
@@ -103,7 +104,7 @@ struct MedicalSourcesView: View {
             Text(category.localizedTitle)
                 .font(IRFont.body)
                 .fontWeight(isSelected ? .semibold : .regular)
-                .foregroundStyle(Color.irTextPrimary)
+                .foregroundStyle(isSelected ? Color.irTextOnAccent : Color.irTextPrimary)
                 .padding(.horizontal, Spacing.base)
                 .padding(.vertical, Spacing.md)
                 .background(
@@ -141,11 +142,11 @@ struct SourceCard: View {
                 Text("\(source.year)")
                     .font(IRFont.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, Spacing.xxs)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: Radius.xs)
                             .fill(Color.irPrimaryAccent.gradient)
                     )
 
@@ -207,11 +208,7 @@ struct SourceCard: View {
         }
         .padding(Spacing.base)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .fill(Color.irCardBackground)
-                .shadow(color: Color.irShadow, radius: 8, y: 2)
-        )
+        .detailCard()
     }
 }
 

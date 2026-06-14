@@ -8,16 +8,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Shared Gradient
-
-extension LinearGradient {
-    static let irAccent = LinearGradient(
-        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-}
-
 // MARK: - Chat Bubble Shape (asymmetric corners like iMessage)
 
 struct ChatBubbleShape: Shape {
@@ -456,7 +446,7 @@ struct WorkoutAIAssistantView: View {
     private var headerView: some View {
         HStack {
             Image(systemName: "sparkles")
-                .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent], startPoint: .leading, endPoint: .trailing))
+                .foregroundStyle(LinearGradient.irAIAccent)
                 .font(IRFont.title3)
                 .symbolEffect(.pulse, isActive: aiService.isStreaming)
 
@@ -478,6 +468,7 @@ struct WorkoutAIAssistantView: View {
                         Image(systemName: "square.and.pencil")
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityLabel(String(localized: "New conversation", comment: "Accessibility label for new conversation button"))
                 }
 
                 Button(action: showConversationHistory) {
@@ -487,7 +478,7 @@ struct WorkoutAIAssistantView: View {
                             if !conversationHistories.isEmpty {
                                 Text("\(min(conversationHistories.count, 99))")
                                     .font(IRFont.microLabel)
-                                    .foregroundStyle(Color.irTextPrimary)
+                                    .foregroundStyle(Color.irTextOnAccent)
                                     .padding(3)
                                     .background(Color.irPrimaryAccent)
                                     .clipShape(Circle())
@@ -495,12 +486,14 @@ struct WorkoutAIAssistantView: View {
                             }
                         }
                 }
+                .accessibilityLabel(String(localized: "Conversation history", comment: "Accessibility label for conversation history button"))
 
                 if !messages.isEmpty {
                     Button(action: clearChat) {
                         Image(systemName: "trash")
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityLabel(String(localized: "Clear conversation", comment: "Accessibility label for clear chat button"))
                 }
             }
         }
@@ -649,7 +642,7 @@ struct WorkoutAIAssistantView: View {
             }
             .font(IRFont.caption)
         }
-        .padding()
+        .padding(Spacing.base)
         .background(Color.irError.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
         .padding(.horizontal)
@@ -683,7 +676,7 @@ struct WorkoutAIAssistantView: View {
                             HStack(spacing: Spacing.xs) {
                                 Image(systemName: sampleQuestionIcon(for: index))
                                     .font(IRFont.microLabel)
-                                    .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent], startPoint: .leading, endPoint: .trailing))
+                                    .foregroundStyle(LinearGradient.irAIAccent)
                                 Text(suggestion)
                                     .font(IRFont.body)
                                     .foregroundStyle(Color.irTextPrimary)
@@ -727,6 +720,7 @@ struct WorkoutAIAssistantView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityLabel(String(localized: "Clear text", comment: "Accessibility label for clearing the question text field"))
                 }
             }
             .padding(Spacing.md)
@@ -762,12 +756,12 @@ struct WorkoutAIAssistantView: View {
 
                     if aiService.isStreaming {
                         Image(systemName: "stop.fill")
-                            .foregroundStyle(Color.irCardBackground)
+                            .foregroundStyle(Color.irTextOnAccent)
                             .font(IRFont.bodyEmphasized)
                             .transition(.scale.combined(with: .opacity))
                     } else {
                         Image(systemName: "arrow.up")
-                            .foregroundStyle(Color.irCardBackground)
+                            .foregroundStyle(Color.irTextOnAccent)
                             .font(IRFont.bodyEmphasized)
                             .transition(.scale.combined(with: .opacity))
                     }
@@ -775,8 +769,11 @@ struct WorkoutAIAssistantView: View {
                 .animation(.spring(response: 0.3), value: aiService.isStreaming)
             }
             .disabled(question.isEmpty && !aiService.isStreaming)
+            .accessibilityLabel(aiService.isStreaming
+                ? String(localized: "Stop generating", comment: "Accessibility label for stop button while AI is responding")
+                : String(localized: "Send message", comment: "Accessibility label for send message button"))
         }
-        .padding()
+        .padding(Spacing.base)
         .background(.ultraThinMaterial)
     }
 
@@ -1096,7 +1093,7 @@ struct MessageBubble: View {
                         .shadow(color: Color.irShadow, radius: 4, y: 2)
                     Image(systemName: "sparkles")
                         .font(IRFont.caption)
-                        .foregroundStyle(.linearGradient(colors: [Color.irPrimaryAccent, Color.irPrimaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .foregroundStyle(LinearGradient.irAIAccent)
                 }
                 .offset(y: -16)
             }
@@ -1119,9 +1116,9 @@ struct MessageBubble: View {
                 } else {
                     Text(message.content)
                         .font(IRFont.body)
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                         .padding(Spacing.md)
-                        .background(LinearGradient.irAccent)
+                        .background(LinearGradient.irAIAccent)
                         .clipShape(ChatBubbleShape(isUser: true))
                         .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 8, y: 4)
                 }
@@ -1149,35 +1146,6 @@ struct MessageBubble: View {
 }
 
 
-
-// MARK: - Typing Indicator
-
-struct TypingIndicator: View {
-    @State private var animationPhase: Int = 0
-
-    var body: some View {
-        HStack(spacing: Spacing.xxs) {
-            ForEach(0..<3) { index in
-                Circle()
-                    .fill(Color.irTextSecondary)
-                    .frame(width: 8, height: 8)
-                    .scaleEffect(animationPhase == index ? 1.2 : 1.0)
-                    .animation(
-                        .easeInOut(duration: 0.6)
-                        .repeatForever()
-                        .delay(Double(index) * 0.2),
-                        value: animationPhase
-                    )
-            }
-        }
-        .padding(Spacing.md)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .onAppear {
-            animationPhase = 0
-        }
-    }
-}
 
 // MARK: - Conversation History View
 
@@ -1247,7 +1215,7 @@ struct ConversationHistoryView: View {
 
                 Image(systemName: "clock.arrow.circlepath")
                     .font(IRFont.icon(size: 40))
-                    .foregroundStyle(LinearGradient.irAccent)
+                    .foregroundStyle(LinearGradient.irAIAccent)
             }
 
             VStack(spacing: Spacing.sm) {
@@ -1282,7 +1250,7 @@ struct ConversationHistoryRow: View {
                         .frame(width: 44, height: 44)
 
                     Image(systemName: modeIcon)
-                        .foregroundStyle(LinearGradient.irAccent)
+                        .foregroundStyle(LinearGradient.irAIAccent)
                         .font(IRFont.icon(size: 18))
                 }
 
@@ -1317,6 +1285,7 @@ struct ConversationHistoryRow: View {
                         .font(IRFont.bodyEmphasized)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .accessibilityLabel(String(localized: "Delete conversation", comment: "Accessibility label for deleting a saved conversation"))
             }
             .padding(Spacing.base)
             .background(Color.irCardBackground)

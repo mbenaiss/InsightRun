@@ -25,6 +25,9 @@ struct WeeklySummaryView: View {
         .background(Color.irBackgroundApp.ignoresSafeArea())
         .navigationTitle(String(localized: "Weekly Summary", comment: "Navigation title for weekly summary"))
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable {
+            await viewModel.load(forceCoachingRefresh: true)
+        }
         .task {
             await viewModel.load()
         }
@@ -142,7 +145,7 @@ struct WeeklySummaryView: View {
     private var weekRangeShort: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM"
+        formatter.setLocalizedDateFormatFromTemplate("dMMM")
         return "\(formatter.string(from: viewModel.weekStart)) — \(formatter.string(from: viewModel.weekEnd))"
     }
 
@@ -172,9 +175,9 @@ struct WeeklySummaryView: View {
 
                     if let recDelta = viewModel.recoveryScoreChange {
                         let isUp = recDelta >= 0
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xxs) {
                             Image(systemName: isUp ? "arrow.up" : "arrow.down")
-                                .font(.system(size: 9, weight: .heavy))
+                                .font(IRFont.eyebrow.weight(.heavy))
                             Text(deltaPointsLabel(recDelta))
                                 .font(IRFont.monoSM.weight(.bold))
                         }
@@ -200,12 +203,7 @@ struct WeeklySummaryView: View {
                 endPoint: .bottom
             )
         )
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     // MARK: - Coach card (LLM-driven, mirrors Dashboard PulseCoachingCard)
@@ -235,19 +233,14 @@ struct WeeklySummaryView: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var coachTimestampLabel: String {
         let date = viewModel.coachingTimestamp ?? Date()
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM, HH:mm"
+        formatter.setLocalizedDateFormatFromTemplate("dMMMHmm")
         return formatter.string(from: date)
     }
 
@@ -269,8 +262,8 @@ struct WeeklySummaryView: View {
             HStack(alignment: .top, spacing: 0) {
                 runKPI(
                     label: String(localized: "Distance", comment: "Weekly distance label"),
-                    value: viewModel.runCount > 0 ? String(format: "%.1f", viewModel.totalDistance / 1000.0) : "0.0",
-                    unit: String(localized: "km", comment: "Unit abbreviation for kilometers"),
+                    value: Formatters.decimal(viewModel.runCount > 0 ? Formatters.distanceValue(km: viewModel.totalDistance / 1000.0) : 0, fractionDigits: 1),
+                    unit: Formatters.distanceUnitLabel(),
                     muted: viewModel.runCount == 0,
                     leadingDivider: false
                 )
@@ -298,12 +291,7 @@ struct WeeklySummaryView: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var runDaysLabel: String {
@@ -413,7 +401,7 @@ struct WeeklySummaryView: View {
 
                 HStack(spacing: Spacing.lg) {
                     sleepKpi(
-                        value: String(format: "%.0f", viewModel.averageSleepEfficiency),
+                        value: Formatters.decimal(viewModel.averageSleepEfficiency, fractionDigits: 0),
                         suffix: "%",
                         label: String(localized: "Efficiency", comment: "Average sleep efficiency label")
                     )
@@ -431,12 +419,7 @@ struct WeeklySummaryView: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var sleepDurationDisplay: some View {
@@ -498,7 +481,8 @@ struct WeeklySummaryView: View {
                 }
             }
             .frame(height: 10)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
+            .accessibilityHidden(true)
 
             HStack(spacing: Spacing.md) {
                 stageLegend(
@@ -552,10 +536,10 @@ struct WeeklySummaryView: View {
                 BioTile(
                     icon: "waveform.path.ecg",
                     label: String(localized: "HRV", comment: "Heart rate variability label"),
-                    value: String(format: "%.0f", hrv),
+                    value: Formatters.decimal(hrv, fractionDigits: 0),
                     unit: String(localized: "ms", comment: "Unit abbreviation for milliseconds"),
                     delta: viewModel.hrvDelta,
-                    deltaFormat: "%+.0f",
+                    deltaFractionDigits: 0,
                     higherIsBetter: true,
                     color: .irPrimaryAccent,
                     spark: viewModel.dailyHRV
@@ -565,10 +549,10 @@ struct WeeklySummaryView: View {
                 BioTile(
                     icon: "heart.fill",
                     label: String(localized: "Resting HR", comment: "Resting heart rate label"),
-                    value: String(format: "%.0f", rhr),
+                    value: Formatters.decimal(rhr, fractionDigits: 0),
                     unit: String(localized: "bpm", comment: "Unit abbreviation for beats per minute"),
                     delta: viewModel.restingHRDelta,
-                    deltaFormat: "%+.0f",
+                    deltaFractionDigits: 0,
                     higherIsBetter: false,
                     color: .irError,
                     spark: viewModel.dailyRestingHR
@@ -578,12 +562,12 @@ struct WeeklySummaryView: View {
                 BioTile(
                     icon: "drop.fill",
                     label: String(localized: "SpO2", comment: "Blood oxygen saturation label"),
-                    value: String(format: "%.1f", spo2),
+                    value: Formatters.decimal(spo2, fractionDigits: 1),
                     unit: "%",
                     delta: viewModel.spo2Delta,
-                    deltaFormat: "%+.1f",
+                    deltaFractionDigits: 1,
                     higherIsBetter: true,
-                    color: Color(red: 0.357, green: 0.765, blue: 1.0),
+                    color: Color.universal(0x5BC3FF),
                     spark: viewModel.dailySpO2
                 )
             }
@@ -591,10 +575,10 @@ struct WeeklySummaryView: View {
                 BioTile(
                     icon: "lungs.fill",
                     label: String(localized: "Resp.", comment: "Respiratory rate short label"),
-                    value: String(format: "%.1f", resp),
+                    value: Formatters.decimal(resp, fractionDigits: 1),
                     unit: String(localized: "rpm", comment: "Respirations per minute unit"),
                     delta: viewModel.respRateDelta,
-                    deltaFormat: "%+.1f",
+                    deltaFractionDigits: 1,
                     higherIsBetter: false,
                     color: .irPurple,
                     spark: viewModel.dailyRespRate
@@ -624,12 +608,7 @@ struct WeeklySummaryView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private struct ComparisonRow {
@@ -644,14 +623,14 @@ struct WeeklySummaryView: View {
         var rows: [ComparisonRow] = []
 
         if viewModel.distanceChange != nil || viewModel.prevTotalDistance > 0 {
-            let cur = String(format: "%.1f km", viewModel.totalDistance / 1000.0)
-            let prev = String(format: "%.1f km", viewModel.prevTotalDistance / 1000.0)
+            let cur = Formatters.distance(km: viewModel.totalDistance / 1000.0, fractionDigits: 1)
+            let prev = Formatters.distance(km: viewModel.prevTotalDistance / 1000.0, fractionDigits: 1)
             let change = viewModel.distanceChange ?? 0
             let neg = change < 0
             rows.append(ComparisonRow(
                 label: String(localized: "Distance", comment: "Distance comparison row label"),
                 current: cur, previous: prev,
-                delta: String(format: "%+.0f%%", change),
+                delta: Formatters.percent(change, signed: true),
                 isNegative: neg
             ))
         }
@@ -663,7 +642,7 @@ struct WeeklySummaryView: View {
             rows.append(ComparisonRow(
                 label: String(localized: "Duration", comment: "Duration comparison row label"),
                 current: cur, previous: prev,
-                delta: String(format: "%+.0f%%", change),
+                delta: Formatters.percent(change, signed: true),
                 isNegative: change < 0
             ))
         }
@@ -684,21 +663,24 @@ struct WeeklySummaryView: View {
             let secondsDelta = viewModel.sleepDurationChange ?? 0
             let minutesDelta = Int(secondsDelta / 60)
             let mins = String(localized: "min", comment: "Unit abbreviation for minutes")
+            let sign = minutesDelta >= 0 ? "+" : "−"
             rows.append(ComparisonRow(
                 label: String(localized: "Sleep", comment: "Sleep duration comparison row label"),
                 current: cur, previous: prev,
-                delta: String(format: "%+d %@", minutesDelta, mins),
+                delta: "\(sign)\(Formatters.integer(abs(minutesDelta))) \(mins)",
                 isNegative: minutesDelta < 0
             ))
         }
 
         if let hrvDelta = viewModel.hrvDelta, let avg = viewModel.averageHRV {
-            let cur = String(format: "%.0f ms", avg)
-            let prev = String(format: "%.0f ms", viewModel.prevAverageHRV ?? 0)
+            let ms = String(localized: "ms", comment: "Unit abbreviation for milliseconds")
+            let cur = "\(Formatters.decimal(avg, fractionDigits: 0)) \(ms)"
+            let prev = "\(Formatters.decimal(viewModel.prevAverageHRV ?? 0, fractionDigits: 0)) \(ms)"
+            let sign = hrvDelta >= 0 ? "+" : "−"
             rows.append(ComparisonRow(
                 label: String(localized: "Average HRV", comment: "Average HRV comparison row label"),
                 current: cur, previous: prev,
-                delta: String(format: "%+.0f ms", hrvDelta),
+                delta: "\(sign)\(Formatters.decimal(abs(hrvDelta), fractionDigits: 0)) \(ms)",
                 isNegative: hrvDelta < 0
             ))
         }
@@ -742,7 +724,7 @@ struct WeeklySummaryView: View {
                 )
         }
         .padding(.horizontal, Spacing.cardPadding)
-        .padding(.vertical, Spacing.base - 2)
+        .padding(.vertical, Spacing.dash)
     }
 
     // MARK: - Helpers
@@ -793,7 +775,7 @@ private struct RecoveryRing: View {
 
             VStack(spacing: 1) {
                 Text(String(localized: "RECOV", comment: "Recovery ring inner eyebrow").uppercased())
-                    .font(.system(size: 9, weight: .bold))
+                    .font(IRFont.microLabel.weight(.bold))
                     .tracking(IRTracking.microLabel)
                     .foregroundStyle(Color.irTextTertiary)
                 Text(ringLabel)
@@ -801,6 +783,9 @@ private struct RecoveryRing: View {
                     .foregroundStyle(Color.irPrimaryAccent)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "weekly.recovery.ring.accessibility", defaultValue: "Average recovery score", comment: "VoiceOver label for the weekly recovery ring"))
+        .accessibilityValue("\(Formatters.integer(score)) — \(ringLabel)")
     }
 
     private var ringLabel: String {
@@ -825,22 +810,29 @@ private struct BioTile: View {
     let value: String
     let unit: String
     let delta: Double?
-    let deltaFormat: String
+    let deltaFractionDigits: Int
     let higherIsBetter: Bool
     let color: Color
     let spark: [Double]
+
+    private var deltaLabel: String? {
+        guard let delta = delta else { return nil }
+        let sign = delta >= 0 ? "+" : "−"
+        return sign + Formatters.decimal(abs(delta), fractionDigits: deltaFractionDigits)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(IRFont.eyebrow.weight(.semibold))
                     .foregroundStyle(color)
                     .frame(width: 22, height: 22)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: Radius.xs)
                             .fill(color.opacity(0.18))
                     )
+                    .accessibilityHidden(true)
 
                 Text(label.uppercased())
                     .font(IRFont.microLabel.weight(.bold))
@@ -851,8 +843,8 @@ private struct BioTile: View {
 
                 Spacer(minLength: 0)
 
-                if let delta = delta {
-                    Text(String(format: deltaFormat, delta))
+                if let deltaLabel {
+                    Text(deltaLabel)
                         .font(IRFont.monoSM.weight(.bold))
                         .foregroundStyle(deltaColor)
                 }
@@ -880,14 +872,9 @@ private struct BioTile: View {
                 Color.clear.frame(height: 24)
             }
         }
-        .padding(Spacing.base - 2)
+        .padding(Spacing.dash)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var deltaColor: Color {

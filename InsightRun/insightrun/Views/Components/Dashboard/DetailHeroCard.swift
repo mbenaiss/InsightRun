@@ -48,6 +48,8 @@ struct DetailHeroCard: View {
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(valueLabel)\(unitLabel.map { " \($0)" } ?? ""), \(statusLabel)")
     }
 
     // MARK: Gauge variant
@@ -146,7 +148,7 @@ struct DetailHeroCard: View {
 
             Text(statusLabel.uppercased())
                 .font(IRFont.eyebrow.weight(.bold))
-                .tracking(2.5)
+                .tracking(IRTracking.eyebrow)
                 .foregroundStyle(accent)
         }
         .position(x: cx, y: cy - 14)
@@ -173,7 +175,7 @@ struct DetailHeroCard: View {
 
             Text(statusLabel.uppercased())
                 .font(IRFont.microLabel.weight(.bold))
-                .tracking(2.5)
+                .tracking(IRTracking.microLabel)
                 .foregroundStyle(accent)
         }
         .padding(.vertical, Spacing.sm)

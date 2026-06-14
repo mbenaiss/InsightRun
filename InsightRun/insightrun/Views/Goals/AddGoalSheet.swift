@@ -149,8 +149,11 @@ struct AddGoalSheet: View {
                                 .font(IRFont.footnote.weight(.heavy))
                                 .foregroundStyle(Color.irTextPrimary)
                         }
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(String(localized: "common.close.accessibility", defaultValue: "Close", comment: "Accessibility label for a close button"))
                 }
 
                 Spacer()
@@ -423,18 +426,18 @@ struct AddGoalSheet: View {
 
                     Image(systemName: typeTileIcon(type))
                         .font(IRFont.headline)
-                        .foregroundStyle(isSelected ? Color.black : Color.irPrimaryAccent)
+                        .foregroundStyle(isSelected ? Color.irTextOnAccent : Color.irPrimaryAccent)
                 }
 
                 Text(type.displayName)
                     .font(IRFont.footnote.weight(.bold))
-                    .foregroundStyle(isSelected ? .black : Color.irTextPrimary)
+                    .foregroundStyle(isSelected ? Color.irTextOnAccent : Color.irTextPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
-                Text(String(format: "%.1f km", type.distanceKm))
+                Text(Formatters.distance(km: type.distanceKm, fractionDigits: 1))
                     .font(IRFont.monoSM)
-                    .foregroundStyle(isSelected ? Color.black.opacity(0.6) : Color.irTextSecondary.opacity(0.6))
+                    .foregroundStyle(isSelected ? Color.irTextOnAccent.opacity(0.6) : Color.irTextSecondary.opacity(0.6))
             }
             .frame(maxWidth: .infinity)
             .padding(.top, Spacing.base)
@@ -481,12 +484,15 @@ struct AddGoalSheet: View {
 
                 Circle()
                     .fill(Color.white)
+                    .overlay(Circle().strokeBorder(Color.irBorderStrong, lineWidth: 0.5))
+                    .shadow(color: Color.irShadow, radius: 1, y: 0.5)
                     .frame(width: 22, height: 22)
                     .padding(.horizontal, 2)
             }
             .frame(width: 44, height: 26)
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn.wrappedValue ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Step 2: Training Profile
@@ -526,8 +532,8 @@ struct AddGoalSheet: View {
 
                 let parts: [String] = [
                     "\(historyRunCount) " + String(localized: "goals.wizard.runs", defaultValue: "runs", comment: "Wizard - runs count"),
-                    historyAvgPace.map { String(format: "%.0f:%02d/km", floor($0), Int(($0 - floor($0)) * 60)) },
-                    historyWeeklyKm.map { String(format: "%.0f km/", $0) + String(localized: "goals.wizard.perWeek", defaultValue: "week", comment: "Wizard - per week") }
+                    historyAvgPace.map { Formatters.paceFromMinutesPerKm($0) },
+                    historyWeeklyKm.map { Formatters.distance(km: $0, fractionDigits: 0) + "/" + String(localized: "goals.wizard.perWeek", defaultValue: "week", comment: "Wizard - per week") }
                 ].compactMap { $0 }
 
                 Text(parts.joined(separator: " · "))
@@ -717,7 +723,7 @@ struct AddGoalSheet: View {
         inline: Bool = false,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: inline ? 0 : 10) {
+        VStack(alignment: .leading, spacing: inline ? 0 : Spacing.md) {
             HStack(spacing: Spacing.md) {
                 ZStack {
                     Circle()
@@ -783,17 +789,17 @@ struct AddGoalSheet: View {
 
                 Image(systemName: "figure.run")
                     .font(IRFont.title1)
-                    .foregroundStyle(Color.irCardBackground)
+                    .foregroundStyle(Color.irTextOnAccent)
             }
 
             Text(customName.isEmpty ? raceType.displayName : customName)
                 .font(IRFont.title2.weight(.heavy))
-                .tracking(-0.5)
+                .tracking(IRTracking.title2)
                 .foregroundStyle(Color.irTextPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.top, Spacing.dash)
 
-            Text("\(raceType.displayName) · \(String(format: "%.1f km", raceType.distanceKm))")
+            Text("\(raceType.displayName) · \(Formatters.distance(km: raceType.distanceKm, fractionDigits: 1))")
                 .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextSecondary)
                 .padding(.top, Spacing.xxs)
@@ -805,9 +811,9 @@ struct AddGoalSheet: View {
 
     private var step3RecapGrid: some View {
         LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 8),
-            GridItem(.flexible(), spacing: 8)
-        ], spacing: 8) {
+            GridItem(.flexible(), spacing: Spacing.sm),
+            GridItem(.flexible(), spacing: Spacing.sm)
+        ], spacing: Spacing.sm) {
             recapCell(
                 icon: "calendar",
                 label: String(localized: "goals.recap.date", defaultValue: "Date", comment: "Recap - date"),
@@ -864,12 +870,7 @@ struct AddGoalSheet: View {
             Spacer()
         }
         .padding(Spacing.dash)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var step3DaysSection: some View {
@@ -886,9 +887,9 @@ struct AddGoalSheet: View {
                     let isSelected = preferredDays.contains(day)
                     Text(dayPillLabel(day))
                         .font(IRFont.monoSM.weight(.heavy))
-                        .foregroundStyle(isSelected ? .black : Color.irTextSecondary.opacity(0.6))
+                        .foregroundStyle(isSelected ? Color.irTextOnAccent : Color.irTextSecondary.opacity(0.6))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, Spacing.sm)
                         .background(isSelected ? Color.irPrimaryAccent : Color.irCard2)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
                 }
@@ -1022,12 +1023,12 @@ struct AddGoalSheet: View {
         Button(action: action) {
             Text(title)
                 .font(IRFont.bodyEmphasized.weight(.bold))
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, Spacing.cardPadding)
                 .padding(.vertical, Spacing.base)
                 .background(Color.irPrimaryAccent)
-                .clipShape(Capsule())
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 .shadow(color: Color.irPrimaryAccent.opacity(0.35), radius: 12, y: 8)
         }
         .padding(.top, Spacing.xs)
@@ -1148,7 +1149,7 @@ struct DayToggleButton: View {
         Button(action: action) {
             Text(dayPillLabel(day))
                 .font(IRFont.monoSM.weight(.heavy))
-                .foregroundStyle(isSelected ? .black : Color.irTextSecondary)
+                .foregroundStyle(isSelected ? Color.irTextOnAccent : Color.irTextSecondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
                 .background(isSelected ? Color.irPrimaryAccent : Color.irCard2)

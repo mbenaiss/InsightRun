@@ -150,6 +150,7 @@ struct ScoreExplanationSheet: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityLabel(String(localized: "Close", comment: "Accessibility label for sheet close button"))
                     .accessibilityIdentifier("sheet-close")
                 }
             }
@@ -489,24 +490,18 @@ struct ScoreExplanationSheet: View {
     private var aiInsightHeader: some View {
         HStack(spacing: Spacing.md) {
             ZStack {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                RoundedRectangle(cornerRadius: Radius.xs)
+                    .fill(LinearGradient.irAIAccent)
 
                 Image(systemName: "sparkles")
                     .font(IRFont.eyebrow.weight(.bold))
-                    .foregroundStyle(Color.irCardBackground)
+                    .foregroundStyle(Color.irTextOnAccent)
             }
             .frame(width: 22, height: 22)
 
             Text(String(localized: "Coach", comment: "Detail sheet AI analysis label").uppercased())
                 .font(IRFont.eyebrow.weight(.bold))
-                .tracking(1.5)
+                .tracking(IRTracking.eyebrow)
                 .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
@@ -552,13 +547,7 @@ struct ScoreExplanationSheet: View {
         VStack(spacing: Spacing.dash) {
             Image(systemName: "sparkles")
                 .font(IRFont.title1)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .foregroundStyle(LinearGradient.irAIAccent)
 
             Text(String(localized: "Subscribe to unlock AI analysis", comment: "AI locked message"))
                 .font(IRFont.body)
@@ -573,16 +562,10 @@ struct ScoreExplanationSheet: View {
                     Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
                 }
                 .font(IRFont.body.weight(.bold))
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(
-                    LinearGradient(
-                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .background(LinearGradient.irAIAccent)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
         }
@@ -753,6 +736,8 @@ struct ScoreExplanationSheet: View {
                     AxisGridLine().foregroundStyle(Color.irBorder.opacity(0.3))
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(trendChartAccessibilityLabel(data))
 
             chartLegend(color: accent, label: String(localized: "Daily load", comment: "Chart legend - daily load"))
         }
@@ -845,6 +830,8 @@ struct ScoreExplanationSheet: View {
                     AxisGridLine()
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(trendChartAccessibilityLabel(historyData))
 
             HStack(spacing: Spacing.base) {
                 chartLegend(color: accent, label: String(localized: "Daily value", comment: "Chart legend - daily value"))
@@ -947,6 +934,8 @@ struct ScoreExplanationSheet: View {
                     AxisGridLine()
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(localized: "Calories breakdown chart over 7 days, active and resting", comment: "Accessibility label for stacked calories chart"))
 
             if let selected {
                 HStack(spacing: Spacing.base) {
@@ -1019,6 +1008,16 @@ struct ScoreExplanationSheet: View {
                 AxisGridLine()
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(trendChartAccessibilityLabel(data))
+    }
+
+    private func trendChartAccessibilityLabel(_ data: [TrendDataPoint]) -> String {
+        guard let first = data.first?.value, let last = data.last?.value else {
+            return String(localized: "Trend chart", comment: "Accessibility label for an empty trend chart")
+        }
+        let format = String(localized: "Trend chart over %lld days, from %@ to %@", comment: "Accessibility label for trend chart: number of points, first value, last value")
+        return String(format: format, data.count, Formatters.decimal(first, fractionDigits: 0), Formatters.decimal(last, fractionDigits: 0))
     }
 
     private func chartLegend(color: Color, label: String) -> some View {
@@ -1072,7 +1071,7 @@ struct ScoreExplanationSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(String(localized: "Recommendation", comment: "Recommendation header").uppercased())
                             .font(IRFont.eyebrow.weight(.bold))
-                            .tracking(1.4)
+                            .tracking(IRTracking.eyebrow)
                             .foregroundStyle(Color.irTextSecondary)
 
                         Text(metricRecommendation(metricType, status: status))

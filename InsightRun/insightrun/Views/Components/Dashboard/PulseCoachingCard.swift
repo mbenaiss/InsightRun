@@ -26,7 +26,7 @@ struct PulseCoachingCard: View {
             header
 
             tldrBlock
-                .padding(.horizontal, Spacing.base + 2)
+                .padding(.horizontal, Spacing.cardPadding)
                 .padding(.bottom, Spacing.md)
 
             if expanded {
@@ -45,19 +45,14 @@ struct PulseCoachingCard: View {
                 createPlanButton(action: onCreatePlan)
             }
         }
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     @ViewBuilder
     private var expandedDetails: some View {
         if !reasons.isEmpty {
             reasonsRow
-                .padding(.horizontal, Spacing.base + 2)
+                .padding(.horizontal, Spacing.cardPadding)
                 .padding(.bottom, Spacing.md)
         }
 
@@ -66,7 +61,7 @@ struct PulseCoachingCard: View {
                 .font(IRFont.body)
                 .lineSpacing(3)
                 .foregroundStyle(Color.irTextSecondary)
-                .padding(.horizontal, Spacing.base + 2)
+                .padding(.horizontal, Spacing.cardPadding)
                 .padding(.bottom, Spacing.md)
         }
     }
@@ -74,27 +69,21 @@ struct PulseCoachingCard: View {
     private var header: some View {
         HStack(spacing: Spacing.md) {
             ZStack {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                RoundedRectangle(cornerRadius: Radius.xs)
+                    .fill(LinearGradient.irAIAccent)
 
                 Image(systemName: "sparkles")
                     .font(IRFont.eyebrow.weight(.bold))
-                    .foregroundStyle(Color.irCardBackground)
+                    .foregroundStyle(Color.irTextOnAccent)
             }
             .frame(width: 22, height: 22)
 
             Text(String(localized: "COACH · \(timestampLabel)", comment: "Dashboard coach card header"))
                 .font(IRFont.eyebrow.weight(.semibold))
-                .tracking(1.0)
+                .tracking(IRTracking.eyebrow)
                 .foregroundStyle(Color.irTextPrimary)
         }
-        .padding(.horizontal, Spacing.base + 2)
+        .padding(.horizontal, Spacing.cardPadding)
         .padding(.top, Spacing.base)
         .padding(.bottom, Spacing.sm + 2)
     }
@@ -127,12 +116,12 @@ struct PulseCoachingCard: View {
     }
 
     private var reasonsRow: some View {
-        FlowLayout(spacing: 6) {
+        FlowLayout(spacing: Spacing.xs) {
             ForEach(reasons, id: \.self) { reason in
                 Text(reason)
                     .font(IRFont.eyebrow.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary)
-                    .padding(.horizontal, 9)
+                    .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, Spacing.xxs)
                     .background(
                         Capsule().fill(Color.irBorder)
@@ -146,7 +135,7 @@ struct PulseCoachingCard: View {
 
     private var expandToggle: some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            withAnimation(IRAnimation.quick) { expanded.toggle() }
         } label: {
             HStack {
                 Text(expanded
@@ -162,7 +151,7 @@ struct PulseCoachingCard: View {
                     .foregroundStyle(Color.irTextSecondary)
                     .rotationEffect(.degrees(expanded ? 180 : 0))
             }
-            .padding(.horizontal, Spacing.base + 2)
+            .padding(.horizontal, Spacing.cardPadding)
             .padding(.vertical, Spacing.md)
             .contentShape(Rectangle())
         }
@@ -178,7 +167,7 @@ struct PulseCoachingCard: View {
                 Text(String(localized: "Create a training plan", comment: "Dashboard create plan button"))
                     .font(IRFont.body.weight(.bold))
             }
-            .foregroundStyle(Color.irCardBackground)
+            .foregroundStyle(Color.irTextOnAccent)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.md)
             .background(Color.irPrimaryAccent)

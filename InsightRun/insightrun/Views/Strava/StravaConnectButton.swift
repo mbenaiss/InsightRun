@@ -30,14 +30,14 @@ struct StravaConnectButton: View {
             if isLoading {
                 HStack {
                     ProgressView()
-                        .tint(variant == .orange ? .white : .orange)
+                        .tint(variant == .orange ? .white : Color.brandStrava)
                     Text(String(localized: "Connecting...", comment: "Loading state while connecting to Strava"))
                         .font(IRFont.headline)
-                        .foregroundStyle(variant == .orange ? .white : Color(hex: "FC5200"))
+                        .foregroundStyle(variant == .orange ? .white : Color.brandStrava)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 48) // Official height @1x
-                .background(variant == .orange ? Color(hex: "FC5200") : .white)
+                .background(variant == .orange ? Color.brandStrava : Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
             } else {
                 // Use official Strava button image (per Strava Brand Guidelines)
@@ -55,7 +55,7 @@ struct StravaConnectButton: View {
 // MARK: - Strava Logo (Symbol only)
 
 struct StravaLogo: View {
-    var color: Color = Color(hex: "FC5200")
+    var color: Color = .brandStrava
     var size: CGFloat = 32
 
     var body: some View {

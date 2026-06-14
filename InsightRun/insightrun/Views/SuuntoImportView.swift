@@ -26,7 +26,7 @@ struct SuuntoImportView: View {
                 VStack(spacing: Spacing.md) {
                     Image(systemName: "square.and.arrow.down.fill")
                         .font(IRFont.numLG)
-                        .foregroundStyle(Color(hex: "E84545"))
+                        .foregroundStyle(Color.brandSuunto)
 
                     Text(String(localized: "Import Suunto Workout", comment: "Title for Suunto import screen"))
                         .font(IRFont.title2.bold())
@@ -37,7 +37,7 @@ struct SuuntoImportView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 }
-                .padding(.top, 40)
+                .padding(.top, Spacing.xxl)
 
                 Spacer()
 
@@ -53,8 +53,8 @@ struct SuuntoImportView: View {
                             .font(IRFont.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color(hex: "E84545"))
-                            .foregroundStyle(Color.irTextPrimary)
+                            .background(Color.brandSuunto)
+                            .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
                     .padding(.horizontal, Spacing.xxl)
@@ -128,8 +128,8 @@ struct SuuntoImportView: View {
             Text("\(number)")
                 .font(IRFont.caption.bold())
                 .frame(width: 20, height: 20)
-                .background(Color(hex: "E84545").opacity(0.2))
-                .foregroundStyle(Color(hex: "E84545"))
+                .background(Color.brandSuunto.opacity(0.2))
+                .foregroundStyle(Color.brandSuunto)
                 .clipShape(Circle())
 
             Text(text)
@@ -217,8 +217,7 @@ struct SuuntoImportView: View {
     }
 
     private func formattedDistance(_ meters: Double) -> String {
-        let km = meters / 1000.0
-        return String(format: "%.2f %@", km, String(localized: "km", comment: "Kilometer unit abbreviation"))
+        Formatters.distance(km: meters / 1000.0)
     }
 
     private func formattedDuration(_ seconds: TimeInterval) -> String {
@@ -348,6 +347,7 @@ struct SuuntoImportFromShareView: View {
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
+            .tint(Color.irPrimaryAccent)
             .padding(.top)
         }
     }
@@ -434,7 +434,7 @@ struct SuuntoImportFromShareView: View {
     }
 
     private func formattedDistance(_ meters: Double) -> String {
-        String(format: "%.2f %@", meters / 1000.0, String(localized: "km", comment: "Kilometer unit abbreviation"))
+        Formatters.distance(km: meters / 1000.0)
     }
 
     private func formattedDuration(_ seconds: TimeInterval) -> String {

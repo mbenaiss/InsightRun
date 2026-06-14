@@ -44,10 +44,11 @@ struct MarkdownNodeView: View {
                 .font(IRFont.markdownHeader(for: level))
                 .fontWeight(.bold)
                 .foregroundStyle(Color.irTextPrimary)
-                .padding(.top, level == 1 ? 8 : 4)
-            
+                .padding(.top, level == 1 ? Spacing.sm : Spacing.xxs)
+
         case .paragraph(let text):
             Text(LocalizedStringKey(text))
+                .font(IRFont.body)
                 .foregroundStyle(Color.irTextPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             
@@ -56,8 +57,10 @@ struct MarkdownNodeView: View {
                 ForEach(items, id: \.self) { item in
                     HStack(alignment: .top, spacing: Spacing.sm) {
                         Text("•")
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
                         Text(LocalizedStringKey(item))
+                            .font(IRFont.body)
                             .foregroundStyle(Color.irTextPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -71,9 +74,9 @@ struct MarkdownNodeView: View {
         case .codeBlock(let code):
             Text(code)
                 .font(IRFont.monoSM)
-                .padding()
+                .padding(Spacing.base)
                 .background(Color.irCardBackground.opacity(0.5))
-                .cornerRadius(Radius.xs)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
         }
     }
     

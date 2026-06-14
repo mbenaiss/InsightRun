@@ -177,10 +177,16 @@ class DailyReadinessViewModel: ObservableObject {
 
         } catch {
             print("❌ DailyReadinessViewModel: Failed to fetch readiness: \(error)")
-            errorMessage = String(
-                localized: "Unable to calculate readiness score. Please try again.",
-                comment: "Error message when readiness calculation fails"
-            )
+            // Surface specific backend errors (rate limit + retry delay, blocked, …)
+            // instead of masking a 429 behind a generic "try again" message.
+            if let backendError = error as? BackendError {
+                errorMessage = backendError.errorDescription
+            } else {
+                errorMessage = String(
+                    localized: "Unable to calculate readiness score. Please try again.",
+                    comment: "Error message when readiness calculation fails"
+                )
+            }
         }
 
         isLoading = false
@@ -205,10 +211,11 @@ class DailyReadinessViewModel: ObservableObject {
         )
     }
 
-    private static let workoutDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = .short
+    // ISO 8601: the backend parses this via `new Date(w.date)`. A locale-formatted
+    // string ("14 juin 2026 à 09:30") would fail that parse on non-English locales.
+    private static let workoutDateFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
         return f
     }()
 

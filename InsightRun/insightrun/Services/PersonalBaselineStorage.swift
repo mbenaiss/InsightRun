@@ -45,10 +45,14 @@ class PersonalBaselineStorage {
         }
     }
 
-    /// Check if baseline needs to be refreshed (older than 24 hours or unreliable)
+    /// Check if baseline needs to be refreshed.
+    /// Refresh only when missing or older than 24h. An unreliable baseline is NOT
+    /// refreshed on every call: that made a single dashboard load recompute the
+    /// baseline 14× (once per recovery-metrics fetch) for users without enough
+    /// history. The 24h window bounds recomputation to once per day until reliable.
     func needsRefresh() -> Bool {
         guard let baseline = load() else { return true }
-        return baseline.needsRefresh || !baseline.isReliable
+        return baseline.needsRefresh
     }
 
     /// Delete the stored baseline

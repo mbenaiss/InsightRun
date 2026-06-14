@@ -103,6 +103,9 @@ final class DailyMetricsCache {
     private static let historicalReadinessPrefix = "readiness_score_"
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
+        // Fixed-format key: pin to POSIX locale so the key never shifts with the
+        // user's locale/calendar (e.g. Persian/Buddhist), keeping cache lookups stable.
+        f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()

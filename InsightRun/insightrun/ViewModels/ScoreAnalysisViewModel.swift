@@ -152,27 +152,27 @@ class ScoreAnalysisViewModel: ObservableObject {
         let prompt = buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
         let userLanguage = AppLanguage.current
 
+        // askQuestion only returns once the stream is fully consumed, so the final
+        // text is available synchronously on aiService.streamedResponse afterwards.
         await aiService.askQuestion(
             question: prompt,
             mode: .recoveryCoaching(recoveryMetrics),
             language: userLanguage
         )
 
-        var attempts = 0
-        while aiService.isStreaming && attempts < 60 {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            attempts += 1
-        }
-
         isLoading = false
 
-        if needsConsent || needsIndexation {
+        // Read the service flags directly: they are set synchronously inside askQuestion,
+        // whereas the @Published mirrors arrive through an async Combine sink a tick later.
+        if aiService.needsConsent || aiService.needsIndexation {
             return
         }
 
-        if let text = analysisText, Self.isCompleteAnalysis(text) {
+        let text = aiService.streamedResponse
+        if aiService.error == nil, Self.isCompleteAnalysis(text) {
+            analysisText = text
             Self.saveAnalysis(text, for: identifier, value: valueKey)
-        } else if error == nil {
+        } else if aiService.error == nil {
             // Stream finished without throwing but produced a truncated/empty payload —
             // surface as an error and clear the partial text so the sheet doesn't display
             // a half-sentence to the user.
@@ -221,27 +221,27 @@ class ScoreAnalysisViewModel: ObservableObject {
         let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit, activityData: activityData)
         let userLanguage = AppLanguage.current
 
+        // askQuestion only returns once the stream is fully consumed, so the final
+        // text is available synchronously on aiService.streamedResponse afterwards.
         await aiService.askQuestion(
             question: prompt,
             mode: .recoveryCoaching(recoveryMetrics),
             language: userLanguage
         )
 
-        var attempts = 0
-        while aiService.isStreaming && attempts < 60 {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            attempts += 1
-        }
-
         isLoading = false
 
-        if needsConsent || needsIndexation {
+        // Read the service flags directly: they are set synchronously inside askQuestion,
+        // whereas the @Published mirrors arrive through an async Combine sink a tick later.
+        if aiService.needsConsent || aiService.needsIndexation {
             return
         }
 
-        if let text = analysisText, Self.isCompleteAnalysis(text) {
+        let text = aiService.streamedResponse
+        if aiService.error == nil, Self.isCompleteAnalysis(text) {
+            analysisText = text
             Self.saveAnalysis(text, for: identifier, value: valueKey)
-        } else if error == nil {
+        } else if aiService.error == nil {
             analysisText = nil
             error = String(localized: "Unable to generate analysis", comment: "Score analysis error")
         }

@@ -102,9 +102,7 @@ class WeeklySummaryViewModel: ObservableObject {
     }
 
     var formattedTotalDistance: String {
-        let km = totalDistance / 1000.0
-        let unit = String(localized: "km", comment: "Unit abbreviation for kilometers")
-        return String(format: "%.1f %@", km, unit)
+        Formatters.distance(km: totalDistance / 1000.0, fractionDigits: 1)
     }
 
     var formattedTotalDuration: String {
@@ -120,24 +118,16 @@ class WeeklySummaryViewModel: ObservableObject {
 
     var formattedAveragePace: String {
         guard let pace = averagePace, pace.isFinite else { return "--" }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        let unit = String(localized: "/km", comment: "Pace unit per kilometer")
-        return "\(minutes)'\(String(format: "%02d", seconds))\"\(unit)"
+        return Formatters.paceFromMinutesPerKm(pace)
     }
 
     var formattedLongestRun: String {
-        let km = longestRunDistance / 1000.0
-        let unit = String(localized: "km", comment: "Unit abbreviation for kilometers")
-        return String(format: "%.1f %@", km, unit)
+        Formatters.distance(km: longestRunDistance / 1000.0, fractionDigits: 1)
     }
 
     var formattedBestPace: String {
         guard let pace = bestPace, pace.isFinite else { return "--" }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        let unit = String(localized: "/km", comment: "Pace unit per kilometer")
-        return "\(minutes)'\(String(format: "%02d", seconds))\"\(unit)"
+        return Formatters.paceFromMinutesPerKm(pace)
     }
 
     var formattedAverageSleep: String {
@@ -247,11 +237,11 @@ class WeeklySummaryViewModel: ObservableObject {
         }
         if let hrv = hrvDelta {
             let label = String(localized: "HRV", comment: "Coaching chip: HRV")
-            reasons.append(String(format: "%@ %+.0f", label, hrv))
+            reasons.append("\(label) \(formatSignedInt(Int(hrv.rounded())))")
         }
         if let rhr = restingHRDelta {
             let label = String(localized: "Resting HR", comment: "Coaching chip: resting HR")
-            reasons.append(String(format: "%@ %+.0f", label, rhr))
+            reasons.append("\(label) \(formatSignedInt(Int(rhr.rounded())))")
         }
         if let sleepDelta = sleepDurationChange {
             let mins = Int(sleepDelta / 60)
@@ -261,7 +251,7 @@ class WeeklySummaryViewModel: ObservableObject {
         }
         if let dist = distanceChange {
             let label = String(localized: "Weekly volume", comment: "Coaching chip: weekly running volume")
-            reasons.append(String(format: "%@ %+.0f%%", label, dist))
+            reasons.append("\(label) \(Formatters.percent(dist, signed: true))")
         }
         return reasons
     }

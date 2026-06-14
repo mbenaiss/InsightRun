@@ -68,7 +68,9 @@ final class WorkoutComparisonViewModel: ObservableObject {
     }
 
     var referencePace: String {
-        guard let pace = referenceWorkout.averagePace else { return "N/A" }
+        guard let pace = referenceWorkout.averagePace else {
+            return String(localized: "common.value.notAvailable", defaultValue: "N/A", comment: "Placeholder shown when a metric has no value")
+        }
         return Self.formatPace(pace)
     }
 
@@ -134,9 +136,9 @@ final class WorkoutComparisonViewModel: ObservableObject {
             deltas.append(MetricDelta(
                 label: String(localized: "Avg HR", comment: "Comparison metric label for average heart rate"),
                 icon: "heart.fill",
-                referenceValue: String(format: "%.0f bpm", cmpHR),
-                comparedValue: String(format: "%.0f bpm", refHR),
-                deltaText: String(format: "%+.0f bpm", diff),
+                referenceValue: Formatters.heartRate(cmpHR),
+                comparedValue: Formatters.heartRate(refHR),
+                deltaText: signed(diff) { Formatters.heartRate($0) },
                 direction: .neutral
             ))
         }
@@ -148,9 +150,9 @@ final class WorkoutComparisonViewModel: ObservableObject {
             deltas.append(MetricDelta(
                 label: String(localized: "Calories", comment: "Comparison metric label for calories"),
                 icon: "flame.fill",
-                referenceValue: String(format: "%.0f kcal", cmpCal),
-                comparedValue: String(format: "%.0f kcal", refCal),
-                deltaText: String(format: "%+.0f kcal", diff),
+                referenceValue: Formatters.calories(cmpCal),
+                comparedValue: Formatters.calories(refCal),
+                deltaText: signed(diff) { Formatters.calories($0) },
                 direction: direction
             ))
         }
@@ -161,9 +163,9 @@ final class WorkoutComparisonViewModel: ObservableObject {
             deltas.append(MetricDelta(
                 label: String(localized: "Elevation", comment: "Comparison metric label for elevation gain"),
                 icon: "mountain.2.fill",
-                referenceValue: String(format: "%.0f m", cmpElev),
-                comparedValue: String(format: "%.0f m", refElev),
-                deltaText: String(format: "%+.0f m", diff),
+                referenceValue: Formatters.elevation(meters: cmpElev),
+                comparedValue: Formatters.elevation(meters: refElev),
+                deltaText: signed(diff) { Formatters.elevation(meters: $0) },
                 direction: .neutral
             ))
         }
@@ -177,28 +179,30 @@ final class WorkoutComparisonViewModel: ObservableObject {
 
     // MARK: - Formatting Helpers
 
+    /// Signs a delta and formats its magnitude through a unit-suffixed formatter
+    /// (e.g. `+5 bpm`, `-12 kcal`). Keeps the unit/separator locale-aware.
+    private static func signed(_ value: Double, formatter: (Double) -> String) -> String {
+        let prefix = value >= 0 ? "+" : "-"
+        return "\(prefix)\(formatter(abs(value)))"
+    }
+
     static func formatPace(_ pace: Double) -> String {
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d'%02d\"/km", minutes, seconds)
+        Formatters.paceFromMinutesPerKm(pace)
     }
 
     private static func formatPaceDelta(_ diff: Double) -> String {
-        let absDiff = abs(diff)
-        let minutes = Int(absDiff)
-        let seconds = Int((absDiff - Double(minutes)) * 60)
         let sign = diff >= 0 ? "+" : "-"
-        return String(format: "%@%d'%02d\"", sign, minutes, seconds)
+        return "\(sign)\(Formatters.paceClock(abs(diff) * 60))"
     }
 
     private static func formatDistance(_ meters: Double) -> String {
-        let km = meters / 1000.0
-        return String(format: "%.2f km", km)
+        Formatters.distance(km: meters / 1000.0, fractionDigits: 2)
     }
 
     private static func formatDistanceDelta(_ meters: Double) -> String {
         let km = meters / 1000.0
-        return String(format: "%+.2f km", km)
+        let sign = km >= 0 ? "+" : ""
+        return "\(sign)\(Formatters.distance(km: km, fractionDigits: 2))"
     }
 
     private static func formatDuration(_ seconds: TimeInterval) -> String {

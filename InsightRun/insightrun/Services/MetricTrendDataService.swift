@@ -222,6 +222,7 @@ final class MetricTrendDataService {
 
     func invalidateCache() {
         cache.removeAll()
+        caloriesBreakdownCache.removeAll()
     }
 
     private static func computeEffortScore(activity: DailyActivityData) -> Int {

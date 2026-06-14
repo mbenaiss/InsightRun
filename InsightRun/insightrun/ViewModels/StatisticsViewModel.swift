@@ -36,6 +36,7 @@ struct ProgressionDataPoint: Identifiable {
 class StatisticsViewModel: ObservableObject {
     @Published var workouts: [WorkoutModel] = []
     @Published var isLoading = false
+    @Published var errorMessage: String?
     @Published var selectedPeriod: TimePeriod = .thisMonth
     @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
     @Published var chartGranularity: ChartGranularity = .week
@@ -110,6 +111,7 @@ class StatisticsViewModel: ObservableObject {
         let id = UUID()
         let date: Date
         let distance: Double // in meters
+        let duration: TimeInterval
         let workoutCount: Int
         let averagePace: Double?
     }
@@ -208,11 +210,12 @@ class StatisticsViewModel: ObservableObject {
         }
 
         isLoading = true
+        errorMessage = nil
 
         do {
             workouts = try await healthKitManager.fetchRunningWorkouts()
         } catch {
-            print("Error loading workouts: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
         }
 
         isLoading = false
@@ -252,16 +255,19 @@ class StatisticsViewModel: ObservableObject {
             guard let startOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 1, day: 1)) else {
                 return workouts
             }
-            guard let endOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 12, day: 31)) else {
+            guard let startOfNextYear = calendar.date(from: DateComponents(year: selectedYear + 1, month: 1, day: 1)) else {
                 return workouts
             }
-            return workouts.filter { $0.startDate >= startOfYear && $0.startDate <= endOfYear }
+            return workouts.filter { $0.startDate >= startOfYear && $0.startDate < startOfNextYear }
         }
     }
 
     // MARK: - KPI Hero Sparklines
 
     /// Returns the sorted period buckets used for KPI hero sparklines.
+    /// Computed once per access; the per-bucket distance/duration/pace are all
+    /// carried by `PeriodData`, so the sparkline accessors are O(buckets), not
+    /// O(buckets × workouts).
     private var sparklineBuckets: [PeriodData] {
         periodDistanceData.sorted { $0.date < $1.date }
     }
@@ -278,20 +284,19 @@ class StatisticsViewModel: ObservableObject {
 
     /// Duration in hours per bucket for the "Time" sparkline.
     var sparklineDuration: [Double] {
-        sparklineBuckets.map { bucket in
-            let workoutsInBucket = filteredWorkouts.filter { workout in
-                Calendar.current.isDate(workout.startDate, equalTo: bucket.date, toGranularity: chartGranularity == .week ? .weekOfYear : .month)
-            }
-            let total = workoutsInBucket.map { $0.duration }.reduce(0, +)
-            return total / 3600.0
-        }
+        sparklineBuckets.map { $0.duration / 3600.0 }
     }
 
-    /// Average pace per bucket for the "Avg pace" sparkline.
+    /// Average pace per bucket for the "Avg pace" sparkline. Buckets without a
+    /// pace map to 0 so the series stays index-aligned with the other sparklines.
     var sparklinePace: [Double] {
-        sparklineBuckets.compactMap { bucket in
-            bucket.averagePace
-        }
+        sparklineBuckets.map { $0.averagePace ?? 0 }
+    }
+
+    /// Canonical bucket pace (decimal min/km) = duration / distance; nil if either is zero.
+    private static func canonicalPace(distanceMeters: Double, duration: TimeInterval) -> Double? {
+        guard distanceMeters > 0, duration > 0 else { return nil }
+        return (duration / 60.0) / (distanceMeters / 1000.0)
     }
 
     // MARK: - Header Subtitle (editorial)
@@ -360,21 +365,15 @@ class StatisticsViewModel: ObservableObject {
         calculateConsistencyRate()
     }
 
+    /// Canonical average pace (decimal min/km) = sum(durations) / sum(distances),
+    /// over workouts that have a usable distance. Avoids the misaligned zip of a
+    /// compactMapped pace array against the full workout list.
     var averagePace: Double? {
-        let paces = filteredWorkouts.compactMap { $0.averagePace }
-        guard !paces.isEmpty else { return nil }
-
-        // Weighted average by distance
-        let totalDistance = filteredWorkouts.compactMap { $0.distance }.reduce(0, +)
-        guard totalDistance > 0 else { return nil }
-
-        let weightedSum = zip(filteredWorkouts, paces).reduce(0.0) { sum, pair in
-            let (workout, pace) = pair
-            let distance = workout.distance ?? 0
-            return sum + (pace * distance)
-        }
-
-        return weightedSum / totalDistance
+        let runs = filteredWorkouts.filter { ($0.distance ?? 0) > 0 && $0.duration > 0 }
+        let totalDistanceKm = runs.compactMap { $0.distance }.reduce(0, +) / 1000.0
+        let totalDurationMin = runs.map { $0.duration }.reduce(0, +) / 60.0
+        guard totalDistanceKm > 0, totalDurationMin > 0 else { return nil }
+        return totalDurationMin / totalDistanceKm
     }
 
     // MARK: - Performance Metrics
@@ -392,14 +391,11 @@ class StatisticsViewModel: ObservableObject {
     var weeklyFrequency: Double {
         guard !filteredWorkouts.isEmpty else { return 0 }
 
-        let sortedWorkouts = filteredWorkouts.sorted { $0.startDate < $1.startDate }
-        guard let firstDate = sortedWorkouts.first?.startDate,
-              let lastDate = sortedWorkouts.last?.startDate else { return 0 }
-
-        let weeks = Calendar.current.dateComponents([.weekOfYear], from: firstDate, to: lastDate).weekOfYear ?? 0
-        guard weeks > 0 else { return Double(filteredWorkouts.count) }
-
-        return Double(filteredWorkouts.count) / Double(weeks)
+        guard let windowDays = consistencyWindowDays(), windowDays > 0 else {
+            return Double(filteredWorkouts.count)
+        }
+        let weeks = max(1.0, Double(windowDays) / 7.0)
+        return Double(filteredWorkouts.count) / weeks
     }
 
     // MARK: - Personal Records
@@ -516,26 +512,55 @@ class StatisticsViewModel: ObservableObject {
     }
 
     private func calculateConsistencyRate() -> Double {
-        guard let days = selectedPeriod.days, days > 0 else {
-            // For all time, calculate based on actual date range
-            guard !workouts.isEmpty else { return 0 }
-            let sortedWorkouts = workouts.sorted { $0.startDate < $1.startDate }
-            guard let firstDate = sortedWorkouts.first?.startDate else { return 0 }
-
-            let totalDays = Calendar.current.dateComponents([.day], from: firstDate, to: Date()).day ?? 1
-            let workoutDays = Set(workouts.map { Calendar.current.startOfDay(for: $0.startDate) }).count
-
-            return Double(workoutDays) / Double(totalDays) * 100
-        }
-
-        let workoutDays = Set(filteredWorkouts.map { Calendar.current.startOfDay(for: $0.startDate) }).count
-        return Double(workoutDays) / Double(days) * 100
+        let calendar = Calendar.current
+        let workoutDays = Set(filteredWorkouts.map { calendar.startOfDay(for: $0.startDate) }).count
+        guard workoutDays > 0, let windowDays = consistencyWindowDays(), windowDays > 0 else { return 0 }
+        return Double(workoutDays) / Double(windowDays) * 100
     }
 
+    /// Number of elapsed days in the selected period, used as the denominator of
+    /// the consistency rate. Bounded so future-dated period starts can't yield <= 0.
+    private func consistencyWindowDays() -> Int? {
+        let calendar = Calendar.current
+        let now = Date()
+
+        switch selectedPeriod {
+        case .sixMonths, .oneYear:
+            return selectedPeriod.days
+
+        case .thisWeek:
+            guard let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) else { return nil }
+            return elapsedDays(from: startOfWeek, to: now)
+
+        case .thisMonth:
+            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else { return nil }
+            return elapsedDays(from: startOfMonth, to: now)
+
+        case .specificYear:
+            guard let startOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 1, day: 1)),
+                  let startOfNextYear = calendar.date(from: DateComponents(year: selectedYear + 1, month: 1, day: 1)) else { return nil }
+            let end = min(now, startOfNextYear)
+            return elapsedDays(from: startOfYear, to: end)
+
+        case .allTime:
+            let sorted = workouts.sorted { $0.startDate < $1.startDate }
+            guard let firstDate = sorted.first?.startDate else { return nil }
+            return elapsedDays(from: firstDate, to: now)
+        }
+    }
+
+    private func elapsedDays(from start: Date, to end: Date) -> Int {
+        let days = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
+        return max(1, days + 1)
+    }
+
+    /// Best (shortest) time for a target distance. Only runs that *cover at least*
+    /// the target distance qualify (a 4.75 km run can't be a 5K PR); the upper
+    /// bound stays loose so a slightly long run still counts.
     private func findBestTime(forDistance targetDistance: Double, tolerance: Double) -> WorkoutModel? {
         let candidates = workouts.filter { workout in
             guard let distance = workout.distance else { return false }
-            return abs(distance - targetDistance) <= tolerance
+            return distance >= targetDistance && distance <= targetDistance + tolerance
         }
 
         return candidates.min { $0.duration < $1.duration }
@@ -568,12 +593,9 @@ class StatisticsViewModel: ObservableObject {
             Int((Double(thisMonthWorkouts.count - lastMonthWorkouts.count) / Double(lastMonthWorkouts.count)) * 100) : 0
         let durationChange = thisMonthDuration - lastMonthDuration
 
-        // Calculate pace change
-        let thisMonthPaces = thisMonthWorkouts.compactMap { $0.averagePace }
-        let lastMonthPaces = lastMonthWorkouts.compactMap { $0.averagePace }
-
-        let thisMonthAvgPace = thisMonthPaces.isEmpty ? nil : thisMonthPaces.reduce(0, +) / Double(thisMonthPaces.count)
-        let lastMonthAvgPace = lastMonthPaces.isEmpty ? nil : lastMonthPaces.reduce(0, +) / Double(lastMonthPaces.count)
+        // Canonical pace = total duration / total distance over the month.
+        let thisMonthAvgPace = Self.canonicalPace(distanceMeters: thisMonthDistance, duration: thisMonthDuration)
+        let lastMonthAvgPace = Self.canonicalPace(distanceMeters: lastMonthDistance, duration: lastMonthDuration)
 
         let paceChange: Double?
         if let thisAvg = thisMonthAvgPace, let lastAvg = lastMonthAvgPace {
@@ -627,14 +649,14 @@ class StatisticsViewModel: ObservableObject {
                 let workoutsInWeek = grouped[weekComponents] ?? []
 
                 let distance = workoutsInWeek.compactMap { $0.distance }.reduce(0, +)
-                let paces = workoutsInWeek.compactMap { $0.averagePace }
-                let avgPace = !paces.isEmpty ? paces.reduce(0, +) / Double(paces.count) : nil
+                let duration = workoutsInWeek.map { $0.duration }.reduce(0, +)
 
                 data.append(PeriodData(
                     date: currentWeekDate,
                     distance: distance,
+                    duration: duration,
                     workoutCount: workoutsInWeek.count,
-                    averagePace: avgPace
+                    averagePace: Self.canonicalPace(distanceMeters: distance, duration: duration)
                 ))
 
                 guard let nextWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeekDate) else { break }
@@ -657,14 +679,14 @@ class StatisticsViewModel: ObservableObject {
             guard let date = calendar.date(from: dateComponents) else { continue }
 
             let distance = workouts.compactMap { $0.distance }.reduce(0, +)
-            let paces = workouts.compactMap { $0.averagePace }
-            let avgPace = !paces.isEmpty ? paces.reduce(0, +) / Double(paces.count) : nil
+            let duration = workouts.map { $0.duration }.reduce(0, +)
 
             data.append(PeriodData(
                 date: date,
                 distance: distance,
+                duration: duration,
                 workoutCount: workouts.count,
-                averagePace: avgPace
+                averagePace: Self.canonicalPace(distanceMeters: distance, duration: duration)
             ))
         }
 
@@ -809,8 +831,7 @@ class StatisticsViewModel: ObservableObject {
         let now = Date()
 
         guard let startOfThisYear = calendar.date(from: calendar.dateComponents([.year], from: now)),
-              let startOfLastYear = calendar.date(byAdding: .year, value: -1, to: startOfThisYear),
-              let endOfLastYear = calendar.date(byAdding: .day, value: -1, to: startOfThisYear) else {
+              let startOfLastYear = calendar.date(byAdding: .year, value: -1, to: startOfThisYear) else {
             return YearlyComparison(
                 thisYearDistance: 0,
                 lastYearDistance: 0,
@@ -822,16 +843,17 @@ class StatisticsViewModel: ObservableObject {
         }
 
         let thisYearWorkouts = workouts.filter { $0.startDate >= startOfThisYear }
-        let lastYearWorkouts = workouts.filter { $0.startDate >= startOfLastYear && $0.startDate <= endOfLastYear }
+        let lastYearWorkouts = workouts.filter { $0.startDate >= startOfLastYear && $0.startDate < startOfThisYear }
 
         let thisYearDistance = thisYearWorkouts.compactMap { $0.distance }.reduce(0, +)
         let lastYearDistance = lastYearWorkouts.compactMap { $0.distance }.reduce(0, +)
 
-        let thisYearPaces = thisYearWorkouts.compactMap { $0.averagePace }
-        let lastYearPaces = lastYearWorkouts.compactMap { $0.averagePace }
+        let thisYearDuration = thisYearWorkouts.map { $0.duration }.reduce(0, +)
+        let lastYearDuration = lastYearWorkouts.map { $0.duration }.reduce(0, +)
 
-        let thisYearAvgPace = !thisYearPaces.isEmpty ? thisYearPaces.reduce(0, +) / Double(thisYearPaces.count) : nil
-        let lastYearAvgPace = !lastYearPaces.isEmpty ? lastYearPaces.reduce(0, +) / Double(lastYearPaces.count) : nil
+        // Canonical pace = total duration / total distance over the year.
+        let thisYearAvgPace = Self.canonicalPace(distanceMeters: thisYearDistance, duration: thisYearDuration)
+        let lastYearAvgPace = Self.canonicalPace(distanceMeters: lastYearDistance, duration: lastYearDuration)
 
         return YearlyComparison(
             thisYearDistance: thisYearDistance,
@@ -1036,8 +1058,7 @@ class StatisticsViewModel: ObservableObject {
     // MARK: - Formatting
 
     func formatDistance(_ distance: Double) -> String {
-        let km = distance / 1000.0
-        return String(format: "%.1f km", km)
+        Formatters.distance(km: distance / 1000.0, fractionDigits: 1)
     }
 
     func formatDuration(_ duration: TimeInterval) -> String {
@@ -1052,22 +1073,19 @@ class StatisticsViewModel: ObservableObject {
     }
 
     func formatPace(_ pace: Double) -> String {
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d:%02d /km", minutes, seconds)
+        Formatters.paceFromMinutesPerKm(pace)
     }
 
     func formatConsistencyRate(_ rate: Double) -> String {
-        return String(format: "%.0f%%", min(rate, 100))
+        Formatters.percent(min(rate, 100))
     }
 
     func formatPercentageChange(_ change: Double) -> String {
-        let sign = change >= 0 ? "+" : ""
-        return String(format: "%@%.0f%%", sign, change)
+        Formatters.percent(change, signed: true)
     }
 
     func formatFrequency(_ frequency: Double) -> String {
-        return String(format: "%.1f", frequency)
+        Formatters.decimal(frequency, fractionDigits: 1)
     }
 
     // MARK: - Test Data

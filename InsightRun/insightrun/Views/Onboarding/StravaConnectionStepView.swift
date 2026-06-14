@@ -109,18 +109,12 @@ struct StravaConnectionStepView: View {
         if stravaAuth.isAuthenticated {
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "FC5200"), Color(hex: "E84545")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.brandStrava)
                     .frame(width: 96, height: 96)
                 Image(systemName: "checkmark")
                     .font(IRFont.numMD)
                     .fontWeight(.heavy)
-                    .foregroundStyle(Color.irTextPrimary)
+                    .foregroundStyle(Color.white)
             }
             .frame(maxWidth: .infinity)
         } else {

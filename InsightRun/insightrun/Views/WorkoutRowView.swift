@@ -77,7 +77,7 @@ enum WorkoutSessionType {
         case .interval: return .irError
         case .tempo:    return .irWarning
         case .easy:     return .irSuccess
-        case .long:     return Color.irPrimaryAccent
+        case .long:     return Color.irPurple
         }
     }
 
@@ -113,13 +113,13 @@ private enum RowWorkoutSource {
 
     var color: Color {
         switch self {
-        case .strava: return Color(hex: "FC5200")
-        case .apple: return .pink
-        case .suunto: return Color(hex: "E84545")
-        case .garmin: return Color(hex: "007CC3")
-        case .polar: return Color(hex: "D32F2F")
-        case .coros: return Color(hex: "FF6B00")
-        case .imported: return Color(hex: "FF9500")
+        case .strava: return .brandStrava
+        case .apple: return .brandAppleWatch
+        case .suunto: return .brandSuunto
+        case .garmin: return .brandGarmin
+        case .polar: return .brandPolar
+        case .coros: return .brandHealthKit
+        case .imported: return .brandCoros
         case .other: return Color.irPrimaryAccent
         }
     }
@@ -148,28 +148,27 @@ struct WorkoutRowView: View {
     private var dayLabel: String {
         let f = DateFormatter()
         f.locale = Locale.current
-        f.dateFormat = "EEE"
+        f.setLocalizedDateFormatFromTemplate("EEE")
         return f.string(from: workout.startDate).capitalized
     }
 
     private var dateLabel: String {
         let f = DateFormatter()
         f.locale = Locale.current
-        f.dateFormat = "d MMM"
+        f.setLocalizedDateFormatFromTemplate("dMMM")
         return f.string(from: workout.startDate)
     }
 
     private var timeLabel: String {
         let f = DateFormatter()
         f.locale = Locale.current
-        f.dateFormat = "HH:mm"
+        f.setLocalizedDateFormatFromTemplate("jmm")
         return f.string(from: workout.startDate)
     }
 
     private var distanceText: String {
         guard let distance = workout.distance else { return "—" }
-        let km = distance / 1000.0
-        return String(format: "%.2f", km)
+        return Formatters.decimal(Formatters.distanceValue(km: distance / 1000.0), fractionDigits: 2)
     }
 
     private var durationCompact: String {
@@ -183,14 +182,15 @@ struct WorkoutRowView: View {
 
     private var paceText: String? {
         guard let pace = workout.averagePace else { return nil }
-        let m = Int(pace)
-        let s = Int((pace - Double(m)) * 60)
-        return String(format: "%d'%02d\"", m, s)
+        let secondsPerUnit = UnitPreference.current == .imperial
+            ? pace * 60.0 / Formatters.kmToMiles
+            : pace * 60.0
+        return Formatters.paceClock(secondsPerUnit)
     }
 
     private var heartRateText: String? {
         guard let hr = workout.averageHeartRate else { return nil }
-        return String(format: "%.0f", hr)
+        return Formatters.integer(Int(hr))
     }
 
     /// 0–100, used for the bottom load bar width
@@ -283,12 +283,7 @@ struct WorkoutRowView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     // MARK: - Subviews
@@ -416,13 +411,13 @@ struct WorkoutRowView: View {
 
     private var statsRow: some View {
         HStack(spacing: Spacing.md) {
-            stat(icon: "ruler", value: distanceText, unit: "km", mono: false)
+            stat(icon: "ruler", value: distanceText, unit: Formatters.distanceUnitLabel(), mono: false)
             stat(icon: "clock", value: durationCompact, unit: nil, mono: true)
             if let pace = paceText {
-                stat(icon: "speedometer", value: pace, unit: "/km", mono: true)
+                stat(icon: "speedometer", value: pace, unit: Formatters.paceUnitSuffix(), mono: true)
             }
             if let hr = heartRateText {
-                stat(icon: "heart.fill", value: hr, unit: "bpm", mono: false, tint: .irError)
+                stat(icon: "heart.fill", value: hr, unit: String(localized: "bpm", comment: "Heart rate unit"), mono: false, tint: .irError)
             }
         }
     }

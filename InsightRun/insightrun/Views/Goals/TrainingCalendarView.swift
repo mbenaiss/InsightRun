@@ -97,7 +97,7 @@ struct TrainingCalendarView: View {
                     if isCurrentWeek {
                         Text(String(localized: "goals.calendar.current", defaultValue: "Current", comment: "Training calendar - current week"))
                             .font(IRFont.microLabel)
-                            .foregroundStyle(Color.irCardBackground)
+                            .foregroundStyle(Color.irTextOnAccent)
                             .padding(.horizontal, Spacing.xs)
                             .padding(.vertical, 2)
                             .background(Color.irPrimaryAccent.gradient)
@@ -150,7 +150,7 @@ struct TrainingCalendarView: View {
             Divider()
                 .padding(.horizontal, Spacing.md)
         }
-        .background(isCurrentWeek ? Color.irPrimaryAccent.opacity(0.04) : Color.clear)
+        .background(isCurrentWeek ? Color.irAccentSoft : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
     }
 
@@ -221,7 +221,12 @@ struct TrainingCalendarView: View {
                                 Image(systemName: day.isCompleted ? "checkmark.circle.fill" : "circle")
                                     .font(IRFont.title3)
                                     .foregroundStyle(day.isCompleted ? Color.irSuccess : Color.irBorder)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
+                            .accessibilityLabel(day.isCompleted
+                                ? String(localized: "goals.day.markIncomplete.accessibility", defaultValue: "Mark session as not completed", comment: "Accessibility label to toggle a planned session back to incomplete")
+                                : String(localized: "goals.day.markComplete.accessibility", defaultValue: "Mark session as completed", comment: "Accessibility label to mark a planned session as completed"))
 
                             if day.completedWorkoutId != nil {
                                 Text(String(localized: "goals.detail.autoTracked", defaultValue: "Auto", comment: "Auto-tracked label"))

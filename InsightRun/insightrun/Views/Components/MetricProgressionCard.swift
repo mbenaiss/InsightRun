@@ -23,13 +23,8 @@ struct MetricProgressionCard: View {
             header
             chartView
         }
-        .padding(Spacing.base)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .padding(Spacing.cardPadding)
+        .detailCard()
     }
 
     // MARK: - Header
@@ -55,6 +50,7 @@ struct MetricProgressionCard: View {
                         .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(String(localized: "progression.info.label", defaultValue: "About this metric", comment: "Accessibility label for the metric info button"))
                 .sheet(isPresented: $showingInfo) {
                     MetricInfoSheet(metricInfo: MetricInfo(key: infoKey, currentValue: series.average))
                 }
@@ -165,6 +161,8 @@ struct MetricProgressionCard: View {
                 }
             }
             .chartXSelection(value: $selectedDate)
+            .accessibilityLabel(series.name)
+            .accessibilityValue("\(formatValue(series.average)) \(series.unit)")
         }
     }
 
@@ -172,14 +170,12 @@ struct MetricProgressionCard: View {
 
     private func formatValue(_ value: Double) -> String {
         if series.id == "minPace" || series.id == "averagePace" {
-            let minutes = Int(value)
-            let seconds = Int((value - Double(minutes)) * 60)
-            return String(format: "%d:%02d", minutes, seconds)
+            return Formatters.paceClock(value * 60)
         }
         if value >= 100 {
-            return String(format: "%.0f", value)
+            return Formatters.decimal(value, fractionDigits: 0)
         }
-        return String(format: "%.1f", value)
+        return Formatters.decimal(value, fractionDigits: 1)
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -191,8 +187,8 @@ struct MetricProgressionCard: View {
 
     private func formatAxisDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "d MMM"
         formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
         return formatter.string(from: date)
     }
 }
@@ -212,7 +208,7 @@ struct TrendBadge: View {
             Image(systemName: percentage > 0 ? "arrow.up.right" : "arrow.down.right")
                 .font(IRFont.microLabel)
 
-            Text(String(format: "%@%.0f%%", percentage >= 0 ? "+" : "", percentage))
+            Text(Formatters.percent(percentage, fractionDigits: 0, signed: true))
                 .font(IRFont.microLabel)
                 .fontWeight(.semibold)
         }

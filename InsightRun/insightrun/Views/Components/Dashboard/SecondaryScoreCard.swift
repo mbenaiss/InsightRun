@@ -32,24 +32,22 @@ struct SecondaryScoreCard: View {
                 MicroSparkline(values: trend, color: accent)
                     .frame(height: 22)
                     .padding(.top, Spacing.sm)
+                    .accessibilityHidden(true)
             }
-            .padding(Spacing.base - 2)
+            .padding(Spacing.dash)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.md)
-                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
-            )
+            .detailCard()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(score)/100")
     }
 
     private var header: some View {
         HStack {
             Text(title.uppercased())
                 .font(IRFont.microLabel.weight(.bold))
-                .tracking(1.6)
+                .tracking(IRTracking.microLabel)
                 .foregroundStyle(Color.irTextSecondary)
 
             Spacer()
@@ -126,7 +124,7 @@ struct BuildingBaselineCard: View {
                 HStack {
                     Text(title.uppercased())
                         .font(IRFont.microLabel.weight(.bold))
-                        .tracking(1.6)
+                        .tracking(IRTracking.microLabel)
                         .foregroundStyle(Color.irTextSecondary)
 
                     Spacer()
@@ -154,16 +152,12 @@ struct BuildingBaselineCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, Spacing.xs)
             }
-            .padding(Spacing.base - 2)
+            .padding(Spacing.dash)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.md)
-                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
-            )
+            .detailCard()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 }
 

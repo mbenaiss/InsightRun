@@ -275,21 +275,15 @@ private struct StravaChevronIllustration: View {
 
     var body: some View {
         ZStack {
-            // Background gradient circle
+            // Strava brand circle
             Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: "FC5200"), Color(hex: "FC5200")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.brandStrava)
                 .frame(width: 120, height: 120)
-                .shadow(color: Color(hex: "FC5200").opacity(glowOpacity * 0.4), radius: 20, y: 8)
+                .shadow(color: Color.brandStrava.opacity(glowOpacity * 0.4), radius: 20, y: 8)
 
             // Strava double-chevron logo
             StravaLogoShape()
-                .fill(Color.irTextPrimary)
+                .fill(Color.white)
                 .frame(width: 50, height: 60)
                 .opacity(drawProgress)
         }

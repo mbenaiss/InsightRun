@@ -41,18 +41,16 @@ struct WeeklyActivityCard: View {
 
                 BarChartRow(values: dailyEfforts, highlighted: highlightedIndex)
                     .frame(height: 32)
+                    .accessibilityHidden(true)
             }
-            .padding(Spacing.lg - 2)
+            .padding(Spacing.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.md)
-                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
-            )
+            .detailCard()
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("weekly-summary-link")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(weekLabel), \(totalDistanceLabel), \(totalDurationLabel), \(averagePaceLabel)")
     }
 
     private func statColumn(label: String, value: String) -> some View {

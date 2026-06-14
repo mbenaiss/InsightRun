@@ -26,7 +26,7 @@ struct ViewOnStravaLink: View {
     var body: some View {
         Link(destination: stravaURL) {
             HStack(spacing: Spacing.xxs) {
-                Text("View on Strava")
+                Text(String(localized: "strava.viewOnStrava", defaultValue: "View on Strava", comment: "Link to the original activity on Strava"))
                     .applyLinkStyle(style)
                 Image(systemName: "arrow.up.right.square")
                     .font(IRFont.caption)
@@ -50,11 +50,11 @@ private extension Text {
                 .foregroundStyle(Color.irTextPrimary)
         case .orange:
             return self
-                .foregroundStyle(Color(hex: "FC5200"))
+                .foregroundStyle(Color.brandStrava)
         case .boldOrange:
             return self
                 .fontWeight(.bold)
-                .foregroundStyle(Color(hex: "FC5200"))
+                .foregroundStyle(Color.brandStrava)
         }
     }
 }

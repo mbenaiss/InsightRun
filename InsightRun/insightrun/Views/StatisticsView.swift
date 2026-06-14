@@ -85,7 +85,7 @@ struct StatisticsView: View {
                 .padding(.bottom, 40)
             }
             .accessibilityIdentifier("statistics-content")
-            .background(Color.irBackgroundApp)
+            .background(Color.irBackgroundApp.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .refreshable {
                 await viewModel.refresh()
@@ -139,8 +139,8 @@ struct StatisticsView: View {
             HStack(alignment: .top) {
                 Text(String(localized: "statistics.eyebrow", defaultValue: "Trends", comment: "Statistics screen eyebrow").uppercased())
                     .font(IRFont.eyebrow.weight(.bold))
-                    .tracking(1.6)
-                    .foregroundStyle(Color.irTextSecondary.opacity(0.55))
+                    .tracking(IRTracking.eyebrow)
+                    .foregroundStyle(Color.irTextTertiary)
 
                 Spacer()
             }
@@ -175,7 +175,7 @@ struct StatisticsView: View {
                 } label: {
                     Text(tab.localizedTitle)
                         .font(IRFont.caption.weight(.bold))
-                        .foregroundStyle(isActive ? Color.black : Color.irTextSecondary)
+                        .foregroundStyle(isActive ? Color.irBackgroundApp : Color.irTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.sm)
                         .padding(.horizontal, Spacing.md)
@@ -338,8 +338,8 @@ struct StatisticsView: View {
                 .frame(width: 18, height: 0.5)
             Text(title.uppercased())
                 .font(IRFont.eyebrow.weight(.bold))
-                .tracking(1.4)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .tracking(IRTracking.eyebrow)
+                .foregroundStyle(Color.irTextTertiary)
             Spacer()
         }
         .padding(.horizontal, Spacing.xxs)
@@ -366,8 +366,8 @@ struct StatisticsView: View {
         if let r = viewModel.longestRun, let d = r.distance {
             list.append(PersonalRecord(
                 label: String(localized: "statistics.records.longestDistance"),
-                value: viewModel.formatDistance(d).replacingOccurrences(of: " km", with: ""),
-                unit: "km",
+                value: Formatters.decimal(Formatters.distanceValue(km: d / 1000.0), fractionDigits: 1),
+                unit: Formatters.distanceUnitLabel(),
                 date: r.startDate,
                 color: Color.irPrimaryAccent,
                 icon: "trophy",
@@ -378,8 +378,8 @@ struct StatisticsView: View {
         if let r = viewModel.fastestRun, let pace = r.averagePace {
             list.append(PersonalRecord(
                 label: String(localized: "statistics.records.fastestPace"),
-                value: viewModel.formatPace(pace).replacingOccurrences(of: " /km", with: ""),
-                unit: "/km",
+                value: viewModel.formatPace(pace),
+                unit: nil,
                 date: r.startDate,
                 color: .irWarning,
                 icon: "bolt",
@@ -479,8 +479,8 @@ struct StatisticsView: View {
                 )
                 kpiHeroCell(
                     label: String(localized: "statistics.kpi.distance", defaultValue: "Distance", comment: "KPI hero label: distance"),
-                    value: viewModel.formatDistance(mc.thisMonthDistance).replacingOccurrences(of: " km", with: ""),
-                    unit: "km",
+                    value: Formatters.decimal(Formatters.distanceValue(km: mc.thisMonthDistance / 1000.0), fractionDigits: 1),
+                    unit: Formatters.distanceUnitLabel(),
                     valueColor: .irPrimaryAccent,
                     mono: false,
                     delta: percentChange(now: mc.thisMonthDistance, prev: mc.lastMonthDistance),
@@ -509,8 +509,8 @@ struct StatisticsView: View {
                 )
                 kpiHeroCell(
                     label: String(localized: "statistics.kpi.avgPace", defaultValue: "Avg pace", comment: "KPI hero label: avg pace"),
-                    value: mc.thisMonthAvgPace.map { viewModel.formatPace($0).replacingOccurrences(of: " /km", with: "") } ?? "—",
-                    unit: "/km",
+                    value: mc.thisMonthAvgPace.map { viewModel.formatPace($0) } ?? "—",
+                    unit: nil,
                     valueColor: .irWarning,
                     mono: true,
                     delta: paceDeltaPercent,
@@ -523,12 +523,7 @@ struct StatisticsView: View {
                 )
             }
         }
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     /// Returns nil when there is no baseline (prev = 0) so the delta badge can hide,
@@ -594,8 +589,9 @@ struct StatisticsView: View {
                         .foregroundStyle(Color.irTextSecondary.opacity(0.55))
                         .lineLimit(1)
                     Spacer()
-                    Sparkline(values: sparkline, color: sparklineColor)
+                    MicroSparkline(values: sparkline, color: sparklineColor)
                         .frame(width: 60, height: 18)
+                        .accessibilityHidden(true)
                 }
             }
             .padding(Spacing.dash)
@@ -620,11 +616,11 @@ struct StatisticsView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
-                        Text(viewModel.formatDistance(viewModel.totalDistance).replacingOccurrences(of: " km", with: ""))
+                        Text(Formatters.decimal(Formatters.distanceValue(km: viewModel.totalDistance / 1000.0), fractionDigits: 1))
                             .font(IRFont.numMD.weight(.heavy))
-                            .kerning(-0.6)
+                            .kerning(IRTracking.num(28))
                             .foregroundStyle(Color.irPrimaryAccent)
-                        Text(String(localized: "statistics.charts.totalKm", defaultValue: "km total", comment: "Distance chart caption: total km"))
+                        Text(String(format: String(localized: "statistics.charts.totalDistanceUnit", defaultValue: "%@ total", comment: "Distance chart caption: '<unit> total' (e.g. 'km total')"), Formatters.distanceUnitLabel()))
                             .font(IRFont.footnote)
                             .foregroundStyle(Color.irTextSecondary.opacity(0.55))
                     }
@@ -655,12 +651,7 @@ struct StatisticsView: View {
             }
         }
         .padding(Spacing.cardPadding)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var peakBucketLabel: String? {
@@ -668,7 +659,7 @@ struct StatisticsView: View {
         guard let top = sorted.first, top.distance > 0 else { return nil }
         let f = DateFormatter()
         f.locale = Locale.current
-        f.dateFormat = viewModel.chartGranularity == .week ? "d MMM" : "LLL yyyy"
+        f.setLocalizedDateFormatFromTemplate(viewModel.chartGranularity == .week ? "dMMM" : "LLLyyyy")
         let dateLabel = f.string(from: top.date)
         let kmLabel = viewModel.formatDistance(top.distance)
         return "\(String(localized: "statistics.charts.peak", defaultValue: "Peak", comment: "Distance chart caption prefix: peak")) \(dateLabel) · \(kmLabel)"
@@ -687,7 +678,7 @@ struct StatisticsView: View {
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, Spacing.xxs)
                         .background(
-                            RoundedRectangle(cornerRadius: 6)
+                            RoundedRectangle(cornerRadius: Radius.xs)
                                 .fill(isActive ? Color.irBorder : Color.clear)
                         )
                 }
@@ -797,6 +788,7 @@ struct StatisticsView: View {
                 }
             }
             .chartXSelection(value: $selectedPeriodDate)
+            .accessibilityLabel(String(localized: "statistics.charts.distance.accessibility", defaultValue: "Distance over period chart", comment: "VoiceOver label for the distance-over-period chart"))
         }
     }
 
@@ -809,8 +801,8 @@ struct StatisticsView: View {
 
     private func formatChartAxisDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = viewModel.chartGranularity == .week ? "d MMM" : "LLL"
         formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate(viewModel.chartGranularity == .week ? "dMMM" : "LLL")
         return formatter.string(from: date)
     }
 
@@ -824,12 +816,7 @@ struct StatisticsView: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     // MARK: - Distance distribution (Section 05)
@@ -844,12 +831,7 @@ struct StatisticsView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     // MARK: - Coach insight helpers
@@ -896,6 +878,7 @@ struct StatisticsView: View {
             Image(systemName: "chart.bar.xaxis")
                 .font(IRFont.display)
                 .foregroundStyle(Color.irTextSecondary.opacity(0.5))
+                .accessibilityHidden(true)
 
             Text(String(localized: "statistics.empty.title"))
                 .font(IRFont.numSM.weight(.semibold))
@@ -934,7 +917,7 @@ struct PRCard: View {
     private var dateLabel: String {
         let f = DateFormatter()
         f.locale = Locale.current
-        f.dateFormat = "d MMM yyyy"
+        f.setLocalizedDateFormatFromTemplate("dMMMyyyy")
         return f.string(from: record.date)
     }
 
@@ -954,9 +937,9 @@ struct PRCard: View {
                 if record.recent {
                     Text(String(localized: "statistics.records.new", defaultValue: "★ NEW", comment: "Badge for recent personal record").uppercased())
                         .font(IRFont.eyebrow.weight(.heavy))
-                        .tracking(0.6)
-                        .foregroundStyle(Color.irCardBackground)
-                        .padding(.horizontal, 5)
+                        .tracking(IRTracking.eyebrow)
+                        .foregroundStyle(Color.irTextOnAccent)
+                        .padding(.horizontal, Spacing.xxs + 1)
                         .padding(.vertical, 2)
                         .background(record.color)
                         .clipShape(Capsule())
@@ -1061,52 +1044,6 @@ struct DeltaBadge: View {
     }
 }
 
-// MARK: - Sparkline
-
-struct Sparkline: View {
-    let values: [Double]
-    let color: Color
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                if values.count >= 2 {
-                    let normalized = normalize(values)
-                    Path { path in
-                        for (i, v) in normalized.enumerated() {
-                            let x = CGFloat(i) * (geo.size.width / CGFloat(normalized.count - 1))
-                            let y = geo.size.height * (1 - CGFloat(v))
-                            if i == 0 {
-                                path.move(to: CGPoint(x: x, y: y))
-                            } else {
-                                path.addLine(to: CGPoint(x: x, y: y))
-                            }
-                        }
-                    }
-                    .stroke(color, lineWidth: 1.4)
-
-                    // Terminal dot
-                    if let last = normalized.last {
-                        let x = geo.size.width
-                        let y = geo.size.height * (1 - CGFloat(last))
-                        Circle()
-                            .fill(color)
-                            .frame(width: 4, height: 4)
-                            .position(x: x, y: y)
-                    }
-                }
-            }
-        }
-    }
-
-    private func normalize(_ vs: [Double]) -> [Double] {
-        guard let minV = vs.min(), let maxV = vs.max(), maxV > minV else {
-            return vs.map { _ in 0.5 }
-        }
-        return vs.map { ($0 - minV) / (maxV - minV) }
-    }
-}
-
 // MARK: - Pulse-Ring period chip
 
 struct PulseRingPeriodChip: View {
@@ -1118,7 +1055,7 @@ struct PulseRingPeriodChip: View {
         Button(action: action) {
             Text(title)
                 .font(IRFont.eyebrow.weight(.bold))
-                .foregroundStyle(isSelected ? Color.black : Color.irTextSecondary)
+                .foregroundStyle(isSelected ? Color.irTextOnAccent : Color.irTextSecondary)
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.xs)
                 .background(
@@ -1189,7 +1126,7 @@ struct DistanceBucketRow: View {
     let distribution: StatisticsViewModel.DistanceDistribution
 
     private var isEmpty: Bool { distribution.count == 0 }
-    private var fillColor: Color { distribution.isMarathon ? Color.irPrimaryAccent : .irPrimaryAccent }
+    private var fillColor: Color { .irPrimaryAccent }
 
     var body: some View {
         HStack(spacing: Spacing.md) {
@@ -1211,10 +1148,10 @@ struct DistanceBucketRow: View {
             .frame(height: 8)
 
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(distribution.count > 0 ? String(format: "%.1f", distribution.totalKm) : "—")
+                Text(distribution.count > 0 ? Formatters.decimal(Formatters.distanceValue(km: distribution.totalKm), fractionDigits: 1) : "—")
                     .font(IRFont.monoSM.weight(.heavy))
                     .foregroundStyle(isEmpty ? Color.irTextSecondary.opacity(0.5) : Color.irTextPrimary)
-                Text("km")
+                Text(Formatters.distanceUnitLabel())
                     .font(IRFont.eyebrow.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary.opacity(0.55))
             }
@@ -1263,22 +1200,17 @@ struct MonthlyCoachInsightCard: View {
         HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: Radius.xs)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(LinearGradient.irAIAccent)
                 Text("✦")
                     .font(IRFont.footnote.weight(.heavy))
-                    .foregroundStyle(Color.irCardBackground)
+                    .foregroundStyle(Color.irTextOnAccent)
             }
             .frame(width: 28, height: 28)
+            .accessibilityHidden(true)
 
             Text(String(localized: "statistics.coach.eyebrow", defaultValue: "Read of the month", comment: "Coach insight eyebrow").uppercased())
                 .font(IRFont.eyebrow.weight(.bold))
-                .tracking(1.4)
+                .tracking(IRTracking.eyebrow)
                 .foregroundStyle(Color.irPrimaryAccent)
 
             Spacer()
@@ -1343,7 +1275,7 @@ struct MonthlyCoachInsightCard: View {
                     Text(String(localized: "statistics.coach.teaser.cta", defaultValue: "Unlock with AI", comment: "Subscribe CTA on locked monthly coach insight"))
                         .font(IRFont.footnote.weight(.bold))
                 }
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
                 .background(Color.irPrimaryAccent)
@@ -1426,7 +1358,7 @@ struct MonthlyCoachInsightCard: View {
                     Text(String(localized: "statistics.coach.generate.cta", defaultValue: "Generate with AI", comment: "Coach insight generate CTA"))
                         .font(IRFont.footnote.weight(.bold))
                 }
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.sm)
                 .background(Color.irPrimaryAccent)

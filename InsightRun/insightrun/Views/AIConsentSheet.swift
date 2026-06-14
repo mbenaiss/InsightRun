@@ -49,7 +49,7 @@ struct AIConsentSheet: View {
                     }
                     .padding(Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCard2)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                     .padding(.horizontal, Spacing.xl)
 
@@ -67,7 +67,7 @@ struct AIConsentSheet: View {
                     }
                     .padding(Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.ultraThinMaterial)
+                    .background(Color.irCard2)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                     .padding(.horizontal, Spacing.xl)
 
@@ -87,7 +87,7 @@ struct AIConsentSheet: View {
                         }
                         .padding(.vertical, Spacing.xs)
                         .padding(.horizontal, Spacing.base)
-                        .background(.ultraThinMaterial)
+                        .background(Color.irCard2)
                         .clipShape(Capsule())
 
                         Link(destination: URL(string: "https://insightrun.altcode.studio/privacy")!) {
@@ -113,7 +113,8 @@ struct AIConsentSheet: View {
                         .font(IRFont.headline)
                         .foregroundStyle(Color.irTextPrimary)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .frame(minHeight: 44)
+                        .padding(.vertical, Spacing.sm)
                         .background(Color.irCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }
@@ -124,9 +125,10 @@ struct AIConsentSheet: View {
                 } label: {
                     Text(String(localized: "consent.allow"))
                         .font(IRFont.headline)
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .frame(minHeight: 44)
+                        .padding(.vertical, Spacing.sm)
                         .background(Color.irPrimaryAccent)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }

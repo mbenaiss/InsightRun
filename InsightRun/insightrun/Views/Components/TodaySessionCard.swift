@@ -37,7 +37,7 @@ struct TodaySessionCard: View {
                     HStack(spacing: Spacing.sm) {
                         if let distance = workout.targetDistance {
                             Label(
-                                String(format: "%.1f km", distance / 1000),
+                                Formatters.distance(km: distance / 1000, fractionDigits: 1),
                                 systemImage: "point.topleft.down.to.point.bottomright.curvepath"
                             )
                         }
@@ -69,6 +69,6 @@ struct TodaySessionCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .cardStyle(padding: 0)
+        .detailCard()
     }
 }

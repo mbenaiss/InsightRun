@@ -59,8 +59,7 @@ struct WorkoutDetailView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
+        ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.cardPadding) {
                         if viewModel.isLoading {
                             loadingSection
@@ -141,18 +140,16 @@ struct WorkoutDetailView: View {
                     .padding(.horizontal, Spacing.cardPadding)
                     .padding(.top, Spacing.sm)
                     .padding(.bottom, Spacing.lg)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .background(Color.irBackgroundApp)
+                .background(Color.irBackgroundApp.ignoresSafeArea())
                 .accessibilityIdentifier("workout-detail")
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .clipped()
-            }
-            .sheet(isPresented: $showComparisonSheet) {
-                WorkoutComparisonView(
-                    referenceWorkout: workout,
-                    similarWorkouts: similarWorkouts
-                )
-            }
+                .sheet(isPresented: $showComparisonSheet) {
+                    WorkoutComparisonView(
+                        referenceWorkout: workout,
+                        similarWorkouts: similarWorkouts
+                    )
+                }
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -198,47 +195,36 @@ struct WorkoutDetailView: View {
     private func headerSection(metrics: WorkoutMetrics) -> some View {
         let type = sessionType(metrics: metrics)
         let heroText = workoutHeroText(type: type)
-        let dateFormatter: DateFormatter = {
-            let f = DateFormatter()
-            f.locale = Locale.current
-            f.dateFormat = "EEE d MMMM"
-            return f
-        }()
-        let timeFormatter: DateFormatter = {
-            let f = DateFormatter()
-            f.locale = Locale.current
-            f.dateFormat = "HH:mm"
-            return f
-        }()
-        let compactDateFormatter: DateFormatter = {
-            let f = DateFormatter()
-            f.locale = Locale.current
-            f.dateFormat = "d MMM"
-            return f
-        }()
+        let eyebrowDate = workout.startDate.formatted(
+            .dateTime.day().month(.abbreviated)
+        ).uppercased()
+        let fullDate = workout.startDate.formatted(
+            .dateTime.weekday(.abbreviated).day().month(.wide)
+        ).capitalized
+        let time = workout.startDate.formatted(date: .omitted, time: .shortened)
 
         return VStack(alignment: .leading, spacing: Spacing.base) {
-            Text("\(String(localized: "Séance", comment: "Workout detail hero eyebrow").uppercased()) · \(compactDateFormatter.string(from: workout.startDate).uppercased())")
+            Text("\(String(localized: "workout.detail.hero_eyebrow", defaultValue: "Séance", comment: "Workout detail hero eyebrow").uppercased()) · \(eyebrowDate)")
                 .font(IRFont.eyebrow.weight(.heavy))
-                .tracking(2.6)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.65))
+                .tracking(IRTracking.eyebrow)
+                .foregroundStyle(Color.irTextTertiary)
                 .frame(maxWidth: .infinity, alignment: .center)
 
             VStack(alignment: .leading, spacing: Spacing.md) {
-                HStack(spacing: 7) {
+                HStack(spacing: Spacing.xs) {
                     Circle()
                         .fill(type.color)
-                        .frame(width: 7, height: 7)
-                    Text("\(type.localizedLabel.uppercased()) · \(shortDistance(workout.distance)) KM")
+                        .frame(width: Spacing.xs, height: Spacing.xs)
+                    Text("\(type.localizedLabel.uppercased()) · \(Formatters.distance(km: (workout.distance ?? 0) / 1000.0))")
                         .font(IRFont.footnote.weight(.heavy))
-                        .tracking(1.8)
+                        .tracking(IRTracking.eyebrow)
                         .foregroundStyle(type.color)
                 }
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(heroText.title)
                         .font(IRFont.title1.weight(.heavy))
-                        .kerning(-0.8)
+                        .kerning(IRTracking.title1)
                         .foregroundStyle(Color.irTextPrimary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)
@@ -246,7 +232,7 @@ struct WorkoutDetailView: View {
                     if let subtitle = heroText.subtitle {
                         Text(subtitle)
                             .font(IRFont.title1.weight(.heavy))
-                            .kerning(-0.8)
+                            .kerning(IRTracking.title1)
                             .foregroundStyle(Color.irTextSecondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
@@ -259,17 +245,17 @@ struct WorkoutDetailView: View {
                         LocationText(coordinate: firstPoint.coordinate)
                             .font(IRFont.body)
                             .foregroundStyle(Color.irTextSecondary)
-                        Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 24)
+                        Rectangle().fill(Color.irBorder).frame(width: 0.5, height: Spacing.xl)
                     }
 
-                    Text("\(dateFormatter.string(from: workout.startDate).capitalized) · \(timeFormatter.string(from: workout.startDate))")
+                    Text("\(fullDate) · \(time)")
                         .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
 
                     if let temperature = metrics.temperature {
-                        Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 24)
+                        Rectangle().fill(Color.irBorder).frame(width: 0.5, height: Spacing.xl)
                         HStack(spacing: Spacing.xxs) {
-                            Text("\(Int(temperature.rounded()))°C")
+                            Text(verbatim: "\(Formatters.integer(Int(temperature.rounded())))°C")
                             Image(systemName: "cloud.fill")
                                 .font(IRFont.body)
                         }
@@ -356,23 +342,18 @@ struct WorkoutDetailView: View {
 
                 Text(String(format: String(localized: "%lld GPS points", comment: "GPS points count"), routePoints.count))
                     .font(IRFont.microLabel.weight(.semibold))
-                    .tracking(0.4)
-                    .foregroundStyle(Color.irTextPrimary)
+                    .tracking(IRTracking.microLabel)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, Spacing.xxs)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.black.opacity(0.5))
+                        RoundedRectangle(cornerRadius: Radius.xs)
+                            .fill(Color.irPrimaryAccent)
                     )
                     .padding(Spacing.md)
             }
         }
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     // MARK: - Main Metrics Grid (KPI hero card)
@@ -384,7 +365,7 @@ struct WorkoutDetailView: View {
         let distanceCell = KPICell(
             label: String(localized: "Distance", comment: "Distance metric"),
             value: shortDistance(workout.distance),
-            unit: "km",
+            unit: Formatters.distanceUnitLabel(),
             mono: false,
             sub: distanceVsAvgLabel(peers: peers),
             subColor: distanceVsAvgColor(peers: peers)
@@ -398,10 +379,14 @@ struct WorkoutDetailView: View {
         )
         let paceCell: KPICell? = {
             guard let pace = metrics.averagePace else { return nil }
+            let secondsPerKm = pace * 60.0
+            let secondsPerUnit = UnitPreference.current.usesImperial
+                ? secondsPerKm / Formatters.kmToMiles
+                : secondsPerKm
             return KPICell(
                 label: String(localized: "Avg Pace", comment: "Average pace metric"),
-                value: shortPace(pace),
-                unit: "/km",
+                value: Formatters.paceClock(secondsPerUnit),
+                unit: Formatters.paceUnitSuffix(),
                 mono: true,
                 sub: paceVsAvgLabel(currentPace: pace, peers: peers),
                 subColor: paceVsAvgColor(currentPace: pace, peers: peers)
@@ -411,8 +396,8 @@ struct WorkoutDetailView: View {
             guard let avgHR = metrics.averageHeartRate else { return nil }
             return KPICell(
                 label: String(localized: "Avg HR", comment: "Average heart rate metric"),
-                value: String(format: "%.0f", avgHR),
-                unit: "bpm",
+                value: Formatters.integer(Int(avgHR.rounded())),
+                unit: String(localized: "bpm", comment: "Beats per minute unit"),
                 mono: false,
                 sub: hrZoneLabel(avgHR: avgHR),
                 subColor: hrZoneColor(avgHR: avgHR)
@@ -441,32 +426,27 @@ struct WorkoutDetailView: View {
                 }
             }
         }
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private func kpiView(cell: KPICell, showsLeftBorder: Bool) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(cell.label.uppercased())
                 .font(IRFont.microLabel.weight(.bold))
-                .tracking(0.8)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .tracking(IRTracking.microLabel)
+                .foregroundStyle(Color.irTextTertiary)
 
-            HStack(alignment: .lastTextBaseline, spacing: 3) {
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                 Text(cell.value)
                     .font(IRFont.numMD.weight(.heavy))
-                    .kerning(-0.6)
+                    .kerning(IRTracking.title2)
                     .foregroundStyle(Color.irTextPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 if let unit = cell.unit {
                     Text(unit)
                         .font(IRFont.footnote.weight(.bold))
-                        .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                        .foregroundStyle(Color.irTextTertiary)
                 }
             }
 
@@ -485,18 +465,8 @@ struct WorkoutDetailView: View {
 
     private func shortDistance(_ meters: Double?) -> String {
         guard let meters else { return "—" }
-        let km = meters / 1000.0
-        return localizedDecimal(km, fractionDigits: km < 10 ? 2 : 1)
-    }
-
-    private func localizedDecimal(_ value: Double, fractionDigits: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = .current
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = fractionDigits
-        formatter.maximumFractionDigits = fractionDigits
-        return formatter.string(from: NSNumber(value: value))
-            ?? String(format: "%.\(fractionDigits)f", value)
+        let value = Formatters.distanceValue(km: meters / 1000.0)
+        return Formatters.decimal(value, fractionDigits: value < 10 ? 2 : 1)
     }
 
     private func shortDuration(_ seconds: TimeInterval) -> String {
@@ -506,12 +476,6 @@ struct WorkoutDetailView: View {
         let s = total % 60
         if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
         return String(format: "%d:%02d", m, s)
-    }
-
-    private func shortPace(_ pace: Double) -> String {
-        let m = Int(pace)
-        let s = Int((pace - Double(m)) * 60)
-        return String(format: "%d'%02d\"", m, s)
     }
 
     // MARK: - KPI Context (peers, vs-avg, HR zone)
@@ -528,10 +492,10 @@ struct WorkoutDetailView: View {
         let distances = peers.compactMap { $0.distance }.filter { $0 > 0 }
         guard distances.count >= 2 else { return nil }
         let avg = distances.reduce(0, +) / Double(distances.count)
-        let deltaKm = (current - avg) / 1000.0
-        let sign = deltaKm >= 0 ? "+" : "−"
-        let abs = Swift.abs(deltaKm)
-        let formatted = localizedDecimal(abs, fractionDigits: abs < 10 ? 1 : 0)
+        let deltaValue = Formatters.distanceValue(km: (current - avg) / 1000.0)
+        let sign = deltaValue >= 0 ? "+" : "−"
+        let abs = Swift.abs(deltaValue)
+        let formatted = Formatters.decimal(abs, fractionDigits: abs < 10 ? 1 : 0)
         return "\(sign)\(formatted) " + String(localized: "vs avg", comment: "Versus average suffix in KPI subtitle")
     }
 
@@ -595,7 +559,8 @@ struct WorkoutDetailView: View {
         guard avgHR > 0 else { return nil }
         let zone = hrZone(avgHR: avgHR)
         let pct = Int(((avgHR / personalMaxHR) * 100).rounded())
-        return "Z\(zone) · \(pct)% FCmax"
+        let pctLabel = Formatters.percent(Double(pct))
+        return "Z\(zone) · \(pctLabel) \(String(localized: "workout.detail.hr_max_suffix", defaultValue: "FCmax", comment: "Heart-rate percentage-of-max suffix"))"
     }
 
     private func hrZoneColor(avgHR: Double) -> Color {
@@ -634,7 +599,7 @@ struct WorkoutDetailView: View {
                 .foregroundStyle(Color.irTextSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(40)
+        .padding(Spacing.xxl)
     }
 
     // MARK: - Error
@@ -651,7 +616,7 @@ struct WorkoutDetailView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding()
+        .padding(Spacing.base)
     }
 
     // MARK: - Content Functions
@@ -732,7 +697,7 @@ struct WorkoutDetailView: View {
             rows.append(MetricRowData(
                 icon: "lungs.fill",
                 label: String(localized: "VO2 Max", comment: "VO2 Maximum performance metric"),
-                value: String(format: "%.1f %@", vo2Max, String(localized: "ml/kg/min", comment: "VO2 Max unit")),
+                value: "\(Formatters.decimal(vo2Max, fractionDigits: 1)) \(String(localized: "ml/kg/min", comment: "VO2 Max unit"))",
                 color: Color.irError,
                 metricInfoKey: "metric.vo2_max",
                 currentValue: vo2Max
@@ -748,7 +713,7 @@ struct WorkoutDetailView: View {
             rows.append(MetricRowData(
                 icon: "timer",
                 label: String(localized: "Ground Contact Time", comment: "Ground contact time advanced metric"),
-                value: String(format: "%.0f %@", gct, String(localized: "ms", comment: "Milliseconds unit")),
+                value: "\(Formatters.integer(Int(gct.rounded()))) \(String(localized: "ms", comment: "Milliseconds unit"))",
                 color: Color.irPrimaryAccent,
                 metricInfoKey: "metric.ground_contact_time",
                 currentValue: gct
@@ -758,7 +723,7 @@ struct WorkoutDetailView: View {
             rows.append(MetricRowData(
                 icon: "arrow.up.and.down",
                 label: String(localized: "Vertical Oscillation", comment: "Vertical oscillation advanced metric"),
-                value: String(format: "%.1f %@", vo, String(localized: "cm", comment: "Centimeters unit")),
+                value: "\(Formatters.decimal(vo, fractionDigits: 1)) \(String(localized: "cm", comment: "Centimeters unit"))",
                 color: Color.irPrimaryAccent,
                 metricInfoKey: "metric.vertical_oscillation",
                 currentValue: vo
@@ -857,23 +822,17 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.md) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    RoundedRectangle(cornerRadius: Radius.xs)
+                        .fill(LinearGradient.irAIAccent)
                     Image(systemName: "sparkles")
                         .font(IRFont.eyebrow.weight(.bold))
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                 }
                 .frame(width: 22, height: 22)
 
                 Text(String(localized: "Coach", comment: "AI analysis section title"))
                     .font(IRFont.eyebrow.weight(.semibold))
-                    .tracking(1.0)
+                    .tracking(IRTracking.eyebrow)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Spacer()
@@ -881,7 +840,7 @@ struct WorkoutDetailView: View {
                 if let analyzedAt = analysisViewModel.analyzedAt, analysisViewModel.analysisText != nil {
                     Text(analyzedAt, style: .relative)
                         .font(IRFont.microLabel.weight(.semibold))
-                        .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                        .foregroundStyle(Color.irTextTertiary)
                 }
             }
 
@@ -921,7 +880,7 @@ struct WorkoutDetailView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .background(Color.irCardBackground)
-                    .cornerRadius(Radius.sm)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
 
                     // CTA button
                     Button {
@@ -934,7 +893,7 @@ struct WorkoutDetailView: View {
                             Text(String(localized: "Unlock Full Analysis", comment: "AI teaser subscribe CTA button"))
                                 .font(IRFont.body.weight(.bold))
                         }
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.md)
                         .background(Color.irPrimaryAccent)
@@ -978,9 +937,14 @@ struct WorkoutDetailView: View {
                         showConsentSheet = true
                     } label: {
                         Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
-                            .font(IRFont.body)
+                            .font(IRFont.body.weight(.bold))
+                            .foregroundStyle(Color.irTextOnAccent)
+                            .padding(.horizontal, Spacing.base)
+                            .padding(.vertical, Spacing.md)
+                            .background(Color.irPrimaryAccent)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.plain)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
@@ -1052,8 +1016,11 @@ struct WorkoutDetailView: View {
                             Image(systemName: "arrow.clockwise")
                                 .font(IRFont.eyebrow.weight(.semibold))
                                 .foregroundStyle(Color.irTextSecondary)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
+                        .accessibilityLabel(String(localized: "Regenerate analysis", comment: "Accessibility label for AI analysis regenerate button"))
                     }
                 }
 
@@ -1076,7 +1043,7 @@ struct WorkoutDetailView: View {
                             Text(String(localized: "Analyze with AI", comment: "Analyze button"))
                                 .font(IRFont.footnote.weight(.bold))
                         }
-                        .foregroundStyle(Color.irCardBackground)
+                        .foregroundStyle(Color.irTextOnAccent)
                         .padding(.horizontal, Spacing.base)
                         .padding(.vertical, Spacing.md)
                         .background(Color.irPrimaryAccent)
@@ -1090,12 +1057,7 @@ struct WorkoutDetailView: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
         .accessibilityIdentifier("workout-ai-analysis")
         .sheet(isPresented: $showSubscriptionPaywall) {
             SubscriptionPaywallView(isInitialFlow: false)
@@ -1112,14 +1074,14 @@ struct WorkoutDetailView: View {
             HStack(spacing: Spacing.md) {
                 ZStack {
                     RoundedRectangle(cornerRadius: Radius.xs)
-                        .fill(Color.irPrimaryAccent.opacity(0.16))
+                        .fill(Color.irAccentSoft)
                         .frame(width: 32, height: 32)
                     Image(systemName: "chart.bar.doc.horizontal")
                         .font(IRFont.bodyEmphasized.weight(.semibold))
                         .foregroundStyle(Color.irPrimaryAccent)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(String(localized: "Compare with similar", comment: "Button to compare with similar workouts"))
                         .font(IRFont.footnote.weight(.semibold))
                         .foregroundStyle(Color.irTextPrimary)
@@ -1133,17 +1095,12 @@ struct WorkoutDetailView: View {
 
                 Image(systemName: "chevron.right")
                     .font(IRFont.eyebrow.weight(.bold))
-                    .foregroundStyle(Color.irTextSecondary.opacity(0.55))
+                    .foregroundStyle(Color.irTextTertiary)
             }
             .padding(.horizontal, Spacing.dash)
             .padding(.vertical, Spacing.md)
             .frame(maxWidth: .infinity)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.md)
-                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
-            )
+            .detailCard()
         }
         .buttonStyle(.plain)
     }
@@ -1154,16 +1111,16 @@ struct WorkoutDetailView: View {
         HStack(spacing: Spacing.xs) {
             Image(systemName: "info.circle")
                 .font(IRFont.microLabel)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.55))
+                .foregroundStyle(Color.irTextTertiary)
 
             Text(String(localized: "workout.detail.source") + " \(workout.sourceName)")
                 .font(IRFont.microLabel)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .foregroundStyle(Color.irTextTertiary)
 
             if let version = workout.sourceVersion {
                 Text(verbatim: "v\(version)")
                     .font(IRFont.monoSM)
-                    .foregroundStyle(Color.irTextSecondary.opacity(0.55))
+                    .foregroundStyle(Color.irTextTertiary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -1240,12 +1197,12 @@ struct MetricInfoSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(String(localized: "Metric", comment: "Metric info eyebrow").uppercased())
                             .font(IRFont.eyebrow.weight(.bold))
-                            .tracking(1.2)
-                            .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                            .tracking(IRTracking.eyebrow)
+                            .foregroundStyle(Color.irTextTertiary)
 
                         Text(metricInfo.title)
                             .font(IRFont.numMD.weight(.heavy))
-                            .kerning(-0.6)
+                            .kerning(IRTracking.title2)
                             .foregroundStyle(Color.irTextPrimary)
                             .lineLimit(2)
                     }
@@ -1277,12 +1234,7 @@ struct MetricInfoSheet: View {
                             .padding(.vertical, Spacing.base)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Radius.md)
-                                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-                        )
+                        .detailCard()
                     } else {
                         Text(metricInfo.recommendedValues)
                             .font(IRFont.body)
@@ -1290,12 +1242,7 @@ struct MetricInfoSheet: View {
                             .foregroundStyle(Color.irTextPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Spacing.cardPadding)
-                            .background(Color.irCardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: Radius.md)
-                                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
-                            )
+                            .detailCard()
                     }
 
                     // Sources
@@ -1306,13 +1253,13 @@ struct MetricInfoSheet: View {
                         HStack(spacing: Spacing.md) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: Radius.xs)
-                                    .fill(Color.irPrimaryAccent.opacity(0.16))
+                                    .fill(Color.irAccentSoft)
                                     .frame(width: 32, height: 32)
                                 Image(systemName: "doc.text.fill")
                                     .font(IRFont.footnote.weight(.semibold))
                                     .foregroundStyle(Color.irPrimaryAccent)
                             }
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(String(localized: "View Medical Sources", comment: "Button to view medical sources from metric sheet"))
                                     .font(IRFont.footnote.weight(.semibold))
                                     .foregroundStyle(Color.irTextPrimary)
@@ -1324,17 +1271,12 @@ struct MetricInfoSheet: View {
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(IRFont.eyebrow.weight(.bold))
-                                .foregroundStyle(Color.irTextSecondary.opacity(0.55))
+                                .foregroundStyle(Color.irTextTertiary)
                         }
                         .padding(.horizontal, Spacing.dash)
                         .padding(.vertical, Spacing.md)
                         .frame(maxWidth: .infinity)
-                        .background(Color.irCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Radius.md)
-                                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-                        )
+                        .detailCard()
                     }
                     .buttonStyle(.plain)
                 }
@@ -1353,7 +1295,10 @@ struct MetricInfoSheet: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(IRFont.title3)
                             .foregroundStyle(Color.irTextSecondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
+                    .accessibilityLabel(String(localized: "Close", comment: "Accessibility label for close button"))
                 }
             }
         }
@@ -1373,58 +1318,7 @@ struct MetricInfoSheet: View {
             .foregroundStyle(Color.irTextPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.cardPadding)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.md)
-                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
-            )
-    }
-}
-
-// MARK: - Info Card Component
-
-struct InfoCard: View {
-    let icon: String
-    let iconColor: Color
-    let title: String
-    let content: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            // Header with icon and title
-            HStack(spacing: Spacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(iconColor.opacity(0.15))
-                        .frame(width: 36, height: 36)
-
-                    Image(systemName: icon)
-                        .font(IRFont.numSM.weight(.semibold))
-                        .foregroundStyle(iconColor)
-                }
-
-                Text(title)
-                    .font(IRFont.headline)
-                    .foregroundStyle(Color.irTextPrimary)
-
-                Spacer()
-            }
-
-            // Content
-            Text(content)
-                .font(IRFont.body)
-                .foregroundStyle(Color.irTextSecondary)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(Spacing.base)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .fill(Color.irCardBackground)
-                .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 2)
-        )
+            .detailCard()
     }
 }
 
@@ -1467,12 +1361,7 @@ struct MetricsCard<Content: View>: View {
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 }
 
@@ -1517,7 +1406,7 @@ struct MetricRow: View {
             if metricInfoKey != nil {
                 Image(systemName: "chevron.right")
                     .font(IRFont.microLabel.weight(.bold))
-                    .foregroundStyle(Color.irTextSecondary.opacity(0.45))
+                    .foregroundStyle(Color.irTextTertiary)
             }
         }
         .padding(.horizontal, Spacing.cardPadding)
@@ -1544,9 +1433,9 @@ struct SplitRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.md) {
-            Text("km \(split.kilometer)")
+            Text(String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), split.kilometer))
                 .font(IRFont.eyebrow.weight(.semibold))
-                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .foregroundStyle(Color.irTextTertiary)
                 .frame(width: 36, alignment: .leading)
 
             Text(split.paceFormatted)
@@ -1559,11 +1448,11 @@ struct SplitRow: View {
                 .frame(maxWidth: .infinity)
 
             if let hr = split.averageHeartRate {
-                HStack(spacing: 3) {
+                HStack(spacing: Spacing.xxs) {
                     Image(systemName: "heart.fill")
                         .font(IRFont.eyebrow)
                         .foregroundStyle(Color.irError)
-                    Text(String(format: "%.0f", hr))
+                    Text(Formatters.integer(Int(hr.rounded())))
                         .font(IRFont.eyebrow.weight(.semibold))
                         .foregroundStyle(Color.irError)
                 }
@@ -1605,107 +1494,6 @@ struct SplitRow: View {
                     )
             }
         }
-    }
-}
-
-// MARK: - Accordion Section Component
-
-struct AccordionSection<Content: View>: View {
-    let title: String
-    let icon: String
-    let iconColor: Color
-    @State var isExpanded: Bool
-    let content: Content
-
-    init(
-        title: String,
-        icon: String,
-        iconColor: Color,
-        isExpanded: Bool = false,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.title = title
-        self.icon = icon
-        self.iconColor = iconColor
-        self._isExpanded = State(initialValue: isExpanded)
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header - always visible
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack {
-                    Image(systemName: icon)
-                        .foregroundStyle(iconColor.gradient)
-                        .font(IRFont.title3)
-
-                    Text(title)
-                        .font(IRFont.headline)
-                        .foregroundStyle(Color.irTextPrimary)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.down")
-                        .font(IRFont.body)
-                        .foregroundStyle(Color.irTextSecondary)
-                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                }
-                .padding()
-                .background(Color.irCardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 20))
-            }
-            .buttonStyle(.plain)
-
-            // Content - collapsible
-            if isExpanded {
-                content
-                    .padding()
-                    .background(Color.irCardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                    .padding(.top, Spacing.xxs)
-            }
-        }
-    }
-}
-
-// MARK: - Compact Metric Card (for grid layout)
-
-struct CompactMetricCard: View {
-    let icon: String
-    let label: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: Spacing.sm) {
-            Image(systemName: icon)
-                .font(IRFont.title3)
-                .foregroundStyle(color.gradient)
-
-            VStack(spacing: Spacing.xxs) {
-                Text(value)
-                    .font(IRFont.numSM.weight(.bold))
-                    .foregroundStyle(Color.irTextPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-
-                Text(label)
-                    .font(IRFont.caption)
-                    .foregroundStyle(Color.irTextSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 100)
-        .padding(.vertical, Spacing.dash)
-        .padding(.horizontal, Spacing.md)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .shadow(color: Color.irBorder.opacity(0.3), radius: 8, y: 4)
     }
 }
 
@@ -1768,6 +1556,14 @@ struct SwipeableChartsView: View {
     }
 }
 
+// MARK: - Chart Axis Helpers
+
+enum ChartAxis {
+    static func kilometerLabel(_ km: Double) -> String {
+        Formatters.distance(km: km, fractionDigits: 1)
+    }
+}
+
 // MARK: - Interactive Heart Rate Chart
 
 struct InteractiveHeartRateChart: View {
@@ -1810,7 +1606,7 @@ struct InteractiveHeartRateChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
+            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
         }
         return nil
     }
@@ -1828,7 +1624,7 @@ struct InteractiveHeartRateChart: View {
                         .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
-                        Text("\(Int(data.value)) \(String(localized: "bpm", comment: "Beats per minute unit"))")
+                        Text(Formatters.heartRate(data.value))
                             .font(IRFont.title2.weight(.bold))
                             .foregroundStyle(Color.irError)
                         Text(data.label)
@@ -1836,16 +1632,16 @@ struct InteractiveHeartRateChart: View {
                             .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minHeartRate, let max = maxHeartRate {
                         HStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(min)) \(String(localized: "bpm", comment: "Beats per minute unit"))")
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(Formatters.heartRate(min))
                                     .font(IRFont.title3.weight(.semibold))
                                     .foregroundStyle(Color.irError)
                                 Text(String(localized: "min", comment: "Minimum label"))
                                     .font(IRFont.microLabel)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(max)) \(String(localized: "bpm", comment: "Beats per minute unit"))")
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(Formatters.heartRate(max))
                                     .font(IRFont.title3.weight(.semibold))
                                     .foregroundStyle(Color.irError)
                                 Text(String(localized: "max", comment: "Maximum label"))
@@ -1916,7 +1712,7 @@ struct InteractiveHeartRateChart: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let km = value.as(Double.self) {
-                                Text(String(format: "%.0f", km))
+                                Text(Formatters.integer(Int(km)))
                                     .font(IRFont.microLabel)
                             }
                         }
@@ -1931,9 +1727,23 @@ struct InteractiveHeartRateChart: View {
                 .frame(height: 240)
             }
         }
-        .padding()
+        .padding(Spacing.base)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Heart rate evolution chart", comment: "Accessibility label for heart rate chart"))
+        .accessibilityValue(heartRateAccessibilityValue)
+    }
+
+    private var heartRateAccessibilityValue: String {
+        guard let min = minHeartRate, let max = maxHeartRate else {
+            return String(localized: "No heart rate data available", comment: "Empty HR chart message")
+        }
+        return String(
+            format: String(localized: "Minimum %1$@, maximum %2$@", comment: "Chart min/max accessibility value"),
+            Formatters.heartRate(min),
+            Formatters.heartRate(max)
+        )
     }
 }
 
@@ -1992,7 +1802,7 @@ struct InteractivePaceChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
+            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
         }
         return nil
     }
@@ -2002,9 +1812,7 @@ struct InteractivePaceChart: View {
     }
 
     func formatPace(_ pace: Double) -> String {
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d'%02d\"", minutes, seconds)
+        Formatters.paceClock(pace * 60.0)
     }
 
     var body: some View {
@@ -2024,7 +1832,7 @@ struct InteractivePaceChart: View {
                             .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minPace, let max = maxPace {
                         HStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(formatPace(min))
                                     .font(IRFont.title3.weight(.semibold))
                                     .foregroundStyle(Color.irSuccess)
@@ -2032,7 +1840,7 @@ struct InteractivePaceChart: View {
                                     .font(IRFont.microLabel)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(formatPace(max))
                                     .font(IRFont.title3.weight(.semibold))
                                     .foregroundStyle(Color.irSuccess)
@@ -2086,7 +1894,7 @@ struct InteractivePaceChart: View {
                     AxisGridLine()
                     AxisValueLabel {
                         if let km = value.as(Double.self) {
-                            Text(String(format: "%.0f", km))
+                            Text(Formatters.integer(Int(km)))
                                 .font(IRFont.microLabel)
                         }
                     }
@@ -2100,9 +1908,23 @@ struct InteractivePaceChart: View {
             }
             .frame(height: 240)
         }
-        .padding()
+        .padding(Spacing.base)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Pace evolution chart", comment: "Accessibility label for pace chart"))
+        .accessibilityValue(paceAccessibilityValue)
+    }
+
+    private var paceAccessibilityValue: String {
+        guard let min = minPace, let max = maxPace else {
+            return String(localized: "No data available", comment: "Empty state message")
+        }
+        return String(
+            format: String(localized: "Best %1$@, slowest %2$@", comment: "Pace chart min/max accessibility value"),
+            Formatters.paceFromMinutesPerKm(min),
+            Formatters.paceFromMinutesPerKm(max)
+        )
     }
 }
 
@@ -2155,7 +1977,7 @@ struct InteractivePowerChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
+            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
         }
         return nil
     }
@@ -2173,7 +1995,7 @@ struct InteractivePowerChart: View {
                         .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
-                        Text("\(Int(data.value)) \(String(localized: "W", comment: "Watts unit"))")
+                        Text("\(Formatters.integer(Int(data.value.rounded()))) \(String(localized: "W", comment: "Watts unit"))")
                             .font(IRFont.title2.weight(.bold))
                             .foregroundStyle(Color.irWarning)
                         Text(data.label)
@@ -2181,16 +2003,16 @@ struct InteractivePowerChart: View {
                             .foregroundStyle(Color.irTextSecondary)
                     } else if showMinMax, let min = minPower, let max = maxPower {
                         HStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(min)) \(String(localized: "W", comment: "Watts unit"))")
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("\(Formatters.integer(Int(min.rounded()))) \(String(localized: "W", comment: "Watts unit"))")
                                     .font(IRFont.title3.weight(.semibold))
                                     .foregroundStyle(Color.irWarning)
                                 Text(String(localized: "min", comment: "Minimum label"))
                                     .font(IRFont.microLabel)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(max)) \(String(localized: "W", comment: "Watts unit"))")
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("\(Formatters.integer(Int(max.rounded()))) \(String(localized: "W", comment: "Watts unit"))")
                                     .font(IRFont.title3.weight(.semibold))
                                     .foregroundStyle(Color.irWarning)
                                 Text(String(localized: "max", comment: "Maximum label"))
@@ -2257,7 +2079,7 @@ struct InteractivePowerChart: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let km = value.as(Double.self) {
-                                Text(String(format: "%.0f", km))
+                                Text(Formatters.integer(Int(km)))
                                     .font(IRFont.microLabel)
                             }
                         }
@@ -2272,9 +2094,23 @@ struct InteractivePowerChart: View {
                 .frame(height: 240)
             }
         }
-        .padding()
+        .padding(Spacing.base)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Power evolution chart", comment: "Accessibility label for power chart"))
+        .accessibilityValue(powerAccessibilityValue)
+    }
+
+    private var powerAccessibilityValue: String {
+        guard let min = minPower, let max = maxPower else {
+            return String(localized: "workout.detail.no_power_data")
+        }
+        return String(
+            format: String(localized: "Minimum %1$@, maximum %2$@", comment: "Chart min/max accessibility value"),
+            "\(Formatters.integer(Int(min.rounded()))) \(String(localized: "W", comment: "Watts unit"))",
+            "\(Formatters.integer(Int(max.rounded()))) \(String(localized: "W", comment: "Watts unit"))"
+        )
     }
 }
 
@@ -2324,7 +2160,7 @@ struct InteractiveElevationChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: String(format: "%@ %.1f", String(localized: "km", comment: "Kilometer abbreviation"), selected.km))
+            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
         }
         return nil
     }
@@ -2342,29 +2178,26 @@ struct InteractiveElevationChart: View {
                         .foregroundStyle(Color.irTextPrimary)
 
                     if let data = displayData {
-                        Text(String(format: "%+.0f %@", data.value, String(localized: "m", comment: "Meters unit abbreviation")))
-                            .font(IRFont.title2)
-                            .fontWeight(.bold)
+                        Text("\(data.value >= 0 ? "+" : "−")\(Formatters.elevation(meters: abs(data.value)))")
+                            .font(IRFont.title2.weight(.bold))
                             .foregroundStyle(Color.irSuccess)
                         Text(data.label)
                             .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                     } else if showTotals {
                         HStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(format: "+%.0f %@", totalGain, String(localized: "m", comment: "Meters unit abbreviation")))
-                                    .font(IRFont.title3)
-                                    .fontWeight(.semibold)
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("+\(Formatters.elevation(meters: totalGain))")
+                                    .font(IRFont.title3.weight(.semibold))
                                     .foregroundStyle(Color.irSuccess)
                                 Text(String(localized: "gain", comment: "Elevation gain label"))
                                     .font(IRFont.microLabel)
                                     .foregroundStyle(Color.irTextSecondary)
                             }
                             if totalLoss > 0 {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(String(format: "-%.0f %@", totalLoss, String(localized: "m", comment: "Meters unit abbreviation")))
-                                        .font(IRFont.title3)
-                                        .fontWeight(.semibold)
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text("−\(Formatters.elevation(meters: totalLoss))")
+                                        .font(IRFont.title3.weight(.semibold))
                                         .foregroundStyle(Color.irPrimaryAccent)
                                     Text(String(localized: "loss", comment: "Elevation loss label"))
                                         .font(IRFont.microLabel)
@@ -2436,7 +2269,7 @@ struct InteractiveElevationChart: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let km = value.as(Double.self) {
-                                Text(String(format: "%.0f", km))
+                                Text(Formatters.integer(Int(km)))
                                     .font(IRFont.microLabel)
                             }
                         }
@@ -2451,9 +2284,23 @@ struct InteractiveElevationChart: View {
                 .frame(height: 240)
             }
         }
-        .padding()
+        .padding(Spacing.base)
         .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Elevation profile chart", comment: "Accessibility label for elevation chart"))
+        .accessibilityValue(elevationAccessibilityValue)
+    }
+
+    private var elevationAccessibilityValue: String {
+        guard totalGain > 0 || totalLoss > 0 else {
+            return String(localized: "No elevation data available", comment: "Empty elevation chart message")
+        }
+        return String(
+            format: String(localized: "Gain %1$@, loss %2$@", comment: "Elevation chart gain/loss accessibility value"),
+            Formatters.elevation(meters: totalGain),
+            Formatters.elevation(meters: totalLoss)
+        )
     }
 }
 
@@ -2736,9 +2583,7 @@ struct SplitsByKmContent: View {
             return "—"
         }
         let halfRange = (worstPace - bestPace) / 2
-        let m = Int(halfRange)
-        let s = Int((halfRange - Double(m)) * 60)
-        return String(format: "±%d'%02d\"", m, s)
+        return "±\(Formatters.paceClock(halfRange * 60.0))"
     }
 
     var body: some View {
@@ -2749,14 +2594,14 @@ struct SplitsByKmContent: View {
                         label: String(localized: "Best", comment: "Best split label"),
                         value: best.paceFormatted,
                         color: Color.irSuccess,
-                        sub: "km \(best.kilometer)"
+                        sub: String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), best.kilometer)
                     )
                     Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 36)
                     summaryCol(
                         label: String(localized: "Slowest", comment: "Slowest split label"),
                         value: worst.paceFormatted,
                         color: Color.irWarning,
-                        sub: "km \(worst.kilometer)"
+                        sub: String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), worst.kilometer)
                     )
                     Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 36)
                     summaryCol(
@@ -2786,20 +2631,15 @@ struct SplitsByKmContent: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private func summaryCol(label: String, value: String, color: Color, sub: String?) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
             Text(label.uppercased())
                 .font(IRFont.microLabel)
-                .tracking(0.8)
-                .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                .tracking(IRTracking.microLabel)
+                .foregroundStyle(Color.irTextTertiary)
             Text(value)
                 .font(IRFont.monoLG.weight(.bold))
                 .foregroundStyle(color)
@@ -2826,12 +2666,7 @@ struct IntervalsSplitsContent: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 }
 
@@ -2894,7 +2729,7 @@ struct IntervalRow: View {
                 HStack(spacing: Spacing.xxs) {
                     Image(systemName: "clock")
                         .font(IRFont.microLabel.weight(.semibold))
-                        .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                        .foregroundStyle(Color.irTextTertiary)
                     Text(interval.durationCompactFormatted)
                         .font(IRFont.monoMD)
                         .foregroundStyle(Color.irTextPrimary)
@@ -2902,7 +2737,7 @@ struct IntervalRow: View {
             }
 
             // Metrics grid 2x2
-            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: Spacing.md) {
                 paceCell
                 hrCell
                 distanceCell
@@ -2917,12 +2752,12 @@ struct IntervalRow: View {
     @ViewBuilder
     private var paceCell: some View {
         if let targetPace = interval.targetPaceRangeFormatted {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Pace", comment: "Pace label"))
                 HStack(spacing: Spacing.xxs) {
                     Image(systemName: "target")
                         .font(IRFont.microLabel)
-                        .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                        .foregroundStyle(Color.irTextTertiary)
                     Text(targetPace)
                         .font(IRFont.monoSM)
                         .foregroundStyle(Color.irTextSecondary)
@@ -2934,7 +2769,7 @@ struct IntervalRow: View {
                 }
             }
         } else if let pace = interval.paceFormatted {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Pace", comment: "Pace label"))
                 Text(pace)
                     .font(IRFont.monoMD.weight(.bold))
@@ -2948,19 +2783,19 @@ struct IntervalRow: View {
     @ViewBuilder
     private var hrCell: some View {
         if let hr = interval.averageHeartRate {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Heart Rate", comment: "HR label"))
                 HStack(spacing: Spacing.xxs) {
                     Image(systemName: "heart.fill")
                         .font(IRFont.microLabel)
                         .foregroundStyle(Color.irError)
-                    HStack(alignment: .lastTextBaseline, spacing: 2) {
-                        Text(String(format: "%.0f", hr))
+                    HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
+                        Text(Formatters.integer(Int(hr.rounded())))
                             .font(IRFont.numXS.weight(.bold))
                             .foregroundStyle(Color.irTextPrimary)
                         Text(String(localized: "bpm", comment: "Heart rate unit"))
                             .font(IRFont.microLabel)
-                            .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                            .foregroundStyle(Color.irTextTertiary)
                     }
                 }
             }
@@ -2972,7 +2807,7 @@ struct IntervalRow: View {
     @ViewBuilder
     private var distanceCell: some View {
         if let distance = interval.distanceFormatted {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Distance", comment: "Distance label"))
                 HStack(spacing: Spacing.xxs) {
                     Image(systemName: "ruler.fill")
@@ -2991,19 +2826,19 @@ struct IntervalRow: View {
     @ViewBuilder
     private var powerCell: some View {
         if let power = interval.averagePower {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Power", comment: "Power label"))
                 HStack(spacing: Spacing.xxs) {
                     Image(systemName: "bolt.fill")
                         .font(IRFont.microLabel)
                         .foregroundStyle(Color.irWarning)
-                    HStack(alignment: .lastTextBaseline, spacing: 2) {
-                        Text(String(format: "%.0f", power))
+                    HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
+                        Text(Formatters.integer(Int(power.rounded())))
                             .font(IRFont.numXS.weight(.bold))
                             .foregroundStyle(Color.irTextPrimary)
                         Text(String(localized: "W", comment: "Power unit (Watts)"))
                             .font(IRFont.microLabel)
-                            .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                            .foregroundStyle(Color.irTextTertiary)
                     }
                 }
             }
@@ -3015,8 +2850,8 @@ struct IntervalRow: View {
     private func cellLabel(_ text: String) -> some View {
         Text(text.uppercased())
             .font(IRFont.microLabel)
-            .tracking(0.8)
-            .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+            .tracking(IRTracking.microLabel)
+            .foregroundStyle(Color.irTextTertiary)
     }
 }
 

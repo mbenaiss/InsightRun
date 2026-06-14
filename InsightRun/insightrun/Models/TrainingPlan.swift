@@ -218,7 +218,7 @@ struct PlannedWorkout: Identifiable, Codable {
 
     var formattedDistance: String {
         guard let distance = targetDistance else { return "" }
-        return String(format: "%.1f km", distance / 1000)
+        return Formatters.distance(km: distance / 1000, fractionDigits: 1)
     }
 
     var targetDurationWithoutCooldown: TimeInterval? {
@@ -309,11 +309,11 @@ enum TrainingPhase: String, Codable, CaseIterable {
 
     var themeColor: Color {
         switch self {
-        case .base: return .blue
-        case .build: return .orange
-        case .peak: return .red
-        case .taper: return .green
-        case .recovery: return .purple
+        case .base: return .irTextSecondary
+        case .build: return .irWarning
+        case .peak: return .irError
+        case .taper: return .irSuccess
+        case .recovery: return .irPurple
         }
     }
 
@@ -408,10 +408,10 @@ enum WorkoutIntensity: String, Codable, CaseIterable {
 
     var themeColor: Color {
         switch self {
-        case .easy: return .green
-        case .moderate: return .orange
-        case .hard: return .orange
-        case .veryHard: return .red
+        case .easy: return .irSuccess
+        case .moderate: return .irWarning
+        case .hard: return .irWarning
+        case .veryHard: return .irError
         }
     }
 }
@@ -443,12 +443,12 @@ enum PlannedStepType: String, Codable, CaseIterable {
 
     var themeColor: Color {
         switch self {
-        case .warmup: return .blue
-        case .work: return .orange
-        case .recovery: return .green
-        case .cooldown: return .cyan
-        case .interval: return .red
-        case .rest: return .gray
+        case .warmup: return .irTextSecondary
+        case .work: return .irWarning
+        case .recovery: return .irSuccess
+        case .cooldown: return .irPrimaryAccent
+        case .interval: return .irError
+        case .rest: return .irTextTertiary
         }
     }
 }

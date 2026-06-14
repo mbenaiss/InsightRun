@@ -26,7 +26,7 @@ struct HistoricalIndexationSheet: View {
                 LinearGradient(
                     colors: [
                         Color.irPrimaryAccent.opacity(0.05),
-                        Color(.systemBackground)
+                        Color.irBackgroundApp
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -132,20 +132,13 @@ struct HistoricalIndexationSheet: View {
 
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(IRFont.numLG)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.irAIAccent)
                     .symbolEffect(.pulse, options: .repeating)
             }
 
             // Title
             Text(String(localized: "Analyzing workouts...", comment: "Loading title during indexation"))
                 .font(IRFont.title3)
-                .fontWeight(.semibold)
                 .foregroundStyle(Color.irTextPrimary)
 
             // Progress bar
@@ -213,7 +206,6 @@ struct HistoricalIndexationSheet: View {
             VStack(spacing: Spacing.sm) {
                 Text(String(localized: "Profile Updated!", comment: "Success title after indexation"))
                     .font(IRFont.title2)
-                    .fontWeight(.bold)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Text(String(localized: "Your athletic profile has been successfully updated with your latest workouts.", comment: "Success message after indexation"))
@@ -230,16 +222,10 @@ struct HistoricalIndexationSheet: View {
                 Text(String(localized: "Continue", comment: "Continue button after successful indexation"))
                     .font(IRFont.body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.dash)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color.irPrimaryAccent)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
             .padding(.horizontal, Spacing.xxl)
@@ -266,7 +252,6 @@ struct HistoricalIndexationSheet: View {
             VStack(spacing: Spacing.sm) {
                 Text(String(localized: "Update Failed", comment: "Error title when indexation fails"))
                     .font(IRFont.title3)
-                    .fontWeight(.semibold)
                     .foregroundStyle(Color.irTextPrimary)
 
                 if case .failed(let errorMessage) = manager.state {
@@ -328,16 +313,10 @@ struct HistoricalIndexationSheet: View {
                     }
                     .font(IRFont.body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.irTextPrimary)
+                    .foregroundStyle(Color.irTextOnAccent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.dash)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color.irPrimaryAccent)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     .opacity(manager.retryDisabled ? 0.5 : 1.0)
                 }

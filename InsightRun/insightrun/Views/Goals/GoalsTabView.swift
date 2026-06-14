@@ -49,9 +49,12 @@ struct GoalsTabView: View {
                                         .font(IRFont.body.weight(.heavy))
                                         .foregroundStyle(Color.irPrimaryAccent)
                                 }
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("goals-add")
+                            .accessibilityLabel(String(localized: "goals.addGoal.accessibility", defaultValue: "Add a goal", comment: "Accessibility label for the add goal button"))
                         }
                         .padding(.top, Spacing.xxs)
 
@@ -62,7 +65,7 @@ struct GoalsTabView: View {
                             comment: "Goals tab title"
                         ))
                         .font(IRFont.title1.weight(.heavy))
-                        .tracking(-1.0)
+                        .tracking(IRTracking.title1)
                         .foregroundStyle(Color.irTextPrimary)
 
                         if !viewModel.activeGoals.isEmpty {
@@ -199,7 +202,7 @@ struct GoalsTabView: View {
                     Text(String(localized: "goals.empty.addButton", defaultValue: "Add a Goal", comment: "Goals tab - add button"))
                 }
                 .font(IRFont.headline)
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .padding(.horizontal, Spacing.xl)
                 .padding(.vertical, Spacing.md)
                 .background(Color.irPrimaryAccent.gradient)
@@ -210,7 +213,7 @@ struct GoalsTabView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 40)
+        .padding(.top, Spacing.xxl)
     }
 }
 
@@ -272,18 +275,13 @@ struct GoalCard: View {
     }
 
     private func formatDistance(_ km: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 1
-        formatter.maximumFractionDigits = 1
-        let value = formatter.string(from: NSNumber(value: km)) ?? "\(km)"
-        return "\(value) km"
+        Formatters.distance(km: km, fractionDigits: 1)
     }
 
     private var formattedDate: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "d MMMM yyyy"
+        formatter.setLocalizedDateFormatFromTemplate("dMMMMyyyy")
         return formatter.string(from: goal.targetDate)
     }
 
@@ -323,10 +321,10 @@ struct GoalCard: View {
                     Text(String(localized: "goals.card.completed", defaultValue: "Completed", comment: "Goal card - completed label"))
                         .font(IRFont.microLabel)
                         .fontWeight(.bold)
-                        .foregroundStyle(Color.irTextPrimary)
+                        .foregroundStyle(Color.irTextOnAccent)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, Spacing.xxs)
-                        .background(Color.irSuccess.gradient)
+                        .background(Color.irSuccess)
                         .clipShape(Capsule())
                 }
             }
@@ -398,30 +396,19 @@ struct GoalCard: View {
         .background(
             LinearGradient(
                 colors: [
-                    Color.irPrimaryAccent.opacity(0.08).blendedOver(Color.irCardBackground),
-                    Color.irTextPrimary.opacity(0.04).blendedOver(Color.irCardBackground)
+                    Color.irPrimaryAccent.opacity(0.08),
+                    Color.irTextPrimary.opacity(0.04)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
         )
+        .background(Color.irCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irPrimaryAccent.opacity(0.30), lineWidth: 0.5)
         )
-    }
-}
-
-// MARK: - Color blending helper (mirrors color-mix oklab over a base)
-
-private extension Color {
-    func blendedOver(_ base: Color) -> Color {
-        // Approximate the visual effect of layering this color on top of `base`.
-        // SwiftUI doesn't expose true blending, so we return `self` and let it
-        // composite via the LinearGradient on the card's background — which already
-        // sits over the card surface. This keeps the API ergonomic.
-        self
     }
 }
 
@@ -435,18 +422,12 @@ struct RaceHistoryCard: View {
     private var formattedDate: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "d MMMM yyyy"
+        formatter.setLocalizedDateFormatFromTemplate("dMMMMyyyy")
         return formatter.string(from: goal.targetDate)
     }
 
     private var formattedDistance: String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale.current
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 1
-        formatter.maximumFractionDigits = 1
-        let value = formatter.string(from: NSNumber(value: goal.raceType.distanceKm)) ?? "\(goal.raceType.distanceKm)"
-        return "\(value) km"
+        Formatters.distance(km: goal.raceType.distanceKm, fractionDigits: 1)
     }
 
     var body: some View {
@@ -487,12 +468,7 @@ struct RaceHistoryCard: View {
             }
         }
         .padding(Spacing.dash)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
         .contextMenu {
             Button(role: .destructive) {
                 showDeleteConfirmation = true

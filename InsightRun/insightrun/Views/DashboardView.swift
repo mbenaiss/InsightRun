@@ -489,13 +489,7 @@ struct DashboardView: View {
         VStack(spacing: Spacing.base) {
             Image(systemName: "sparkles")
                 .font(IRFont.numLG)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .foregroundStyle(LinearGradient.irAIAccent)
 
             VStack(spacing: Spacing.sm) {
                 Text(String(localized: "Unlock AI Coaching", comment: "Subscription CTA title"))
@@ -515,26 +509,15 @@ struct DashboardView: View {
                     Text(String(localized: "Subscribe Now", comment: "Subscribe CTA button"))
                 }
                 .font(IRFont.body.weight(.semibold))
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(
-                    LinearGradient(
-                        colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .background(LinearGradient.irAIAccent)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
         }
-        .padding()
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .padding(Spacing.cardPadding)
+        .detailCard()
     }
 
     // MARK: - Signals grid
@@ -552,7 +535,7 @@ struct DashboardView: View {
                     icon: "waveform.path.ecg",
                     color: Color.irPrimaryAccent,
                     label: String(localized: "HRV at rest", comment: "HRV metric title"),
-                    value: String(format: "%.0f", hrv),
+                    value: Formatters.integer(Int(hrv.rounded())),
                     unit: "ms",
                     status: status.localizedDescription(for: .hrv),
                     statusColor: status.color,
@@ -567,7 +550,7 @@ struct DashboardView: View {
                     icon: "heart.fill",
                     color: .irWarning,
                     label: String(localized: "Resting HR", comment: "Resting heart rate metric title"),
-                    value: String(format: "%.0f", rhr),
+                    value: Formatters.integer(Int(rhr.rounded())),
                     unit: "bpm",
                     status: status.localizedDescription(for: .restingHeartRate),
                     statusColor: status.color,
@@ -582,7 +565,7 @@ struct DashboardView: View {
                     icon: "lungs.fill",
                     color: .irSuccess,
                     label: String(localized: "Respiratory rate", comment: "Respiratory rate metric title"),
-                    value: String(format: "%.1f", resp),
+                    value: Formatters.decimal(resp, fractionDigits: 1),
                     unit: "rpm",
                     status: status.localizedDescription(for: .respiratoryRate),
                     statusColor: status.color,
@@ -597,7 +580,7 @@ struct DashboardView: View {
                     icon: "drop.fill",
                     color: .irPrimaryAccent,
                     label: String(localized: "Oxygen saturation", comment: "SpO2 metric title"),
-                    value: String(format: "%.0f", spo2),
+                    value: Formatters.integer(Int(spo2.rounded())),
                     unit: "%",
                     status: status.localizedDescription(for: .oxygenSaturation),
                     statusColor: status.color,
@@ -633,13 +616,13 @@ struct DashboardView: View {
     @ViewBuilder
     private var caloriesSignalCard: some View {
         if let activity = latestActivityData {
-            let activeKcal = String(format: "%.0f", activity.activeCalories)
+            let activeKcal = Formatters.integer(Int(activity.activeCalories.rounded()))
             let activeLabel = String(localized: "active", comment: "Active calories label")
             SignalCard(
                 icon: "flame.fill",
                 color: .irWarning,
                 label: String(localized: "Calories", comment: "Calories metric title"),
-                value: String(format: "%.0f", activity.totalCalories),
+                value: Formatters.integer(Int(activity.totalCalories.rounded())),
                 unit: "kcal",
                 status: "\(activeKcal) " + activeLabel,
                 statusColor: .irWarning,
@@ -688,17 +671,19 @@ struct DashboardView: View {
             HStack(spacing: Spacing.sm) {
                 Text(formattedDateTitle)
                     .font(IRFont.title2.weight(.bold))
-                    .kerning(-0.3)
+                    .kerning(IRTracking.title2)
                     .foregroundStyle(Color.irTextPrimary)
 
                 Image(systemName: "chevron.down")
                     .font(IRFont.caption.weight(.semibold))
-                    .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                    .foregroundStyle(Color.irTextTertiary)
 
                 Spacer()
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(String(localized: "dashboard.dateHeader.label", defaultValue: "Change date", comment: "Accessibility label for the dashboard date picker button"))
+        .accessibilityValue(formattedDateTitle)
     }
 
     private var formattedDateTitle: String {
@@ -708,13 +693,13 @@ struct DashboardView: View {
         formatter.locale = Locale.current
 
         if calendar.isDateInToday(selected) {
-            formatter.dateFormat = "d MMMM"
+            formatter.setLocalizedDateFormatFromTemplate("d MMMM")
             return String(localized: "Today", comment: "Dashboard date label for today") + ", " + formatter.string(from: selected)
         } else if calendar.isDateInYesterday(selected) {
-            formatter.dateFormat = "d MMMM"
+            formatter.setLocalizedDateFormatFromTemplate("d MMMM")
             return String(localized: "Yesterday", comment: "Dashboard date label for yesterday") + ", " + formatter.string(from: selected)
         } else {
-            formatter.dateFormat = "EEEE, d MMMM"
+            formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
             return formatter.string(from: selected).capitalized
         }
     }
@@ -724,7 +709,7 @@ struct DashboardView: View {
     private var coachTimestampLabel: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM, HH:mm"
+        formatter.setLocalizedDateFormatFromTemplate("d MMM jmm")
         return formatter.string(from: Date())
     }
 
@@ -753,17 +738,17 @@ struct DashboardView: View {
     private var coachingReasons: [String] {
         var reasons: [String] = []
         if let hrv = recoveryVM.recoveryMetrics?.hrvAverage {
-            reasons.append(String(format: "VFC %.0f ms", hrv))
+            reasons.append(String(localized: "dashboard.coach.reason.hrv", defaultValue: "HRV \(Formatters.integer(Int(hrv.rounded()))) ms", comment: "Coach reason chip: resting HRV value in ms"))
         }
         if let rhr = recoveryVM.recoveryMetrics?.restingHeartRate {
-            reasons.append(String(format: "FC repos %.0f", rhr))
+            reasons.append(String(localized: "dashboard.coach.reason.rhr", defaultValue: "Resting HR \(Formatters.heartRate(rhr))", comment: "Coach reason chip: resting heart rate"))
         }
         if let sleep = recoveryVM.recoveryMetrics?.sleepData {
             reasons.append(sleep.formattedTotalSleep)
         }
         let load = trainingLoadService.cardiacLoadScore
         if let load {
-            reasons.append("Charge \(load)")
+            reasons.append(String(localized: "dashboard.coach.reason.load", defaultValue: "Load \(Formatters.integer(load))", comment: "Coach reason chip: cardiac load score"))
         }
         return reasons
     }

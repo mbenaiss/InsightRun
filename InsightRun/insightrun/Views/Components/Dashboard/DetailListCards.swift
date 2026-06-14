@@ -26,6 +26,16 @@ struct DetailComponentsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if !title.isEmpty {
+                Text(title.uppercased())
+                    .font(IRFont.microLabel.weight(.bold))
+                    .tracking(IRTracking.microLabel)
+                    .foregroundStyle(Color.irTextSecondary)
+                    .padding(.horizontal, Spacing.cardPadding)
+                    .padding(.top, Spacing.dash)
+                    .padding(.bottom, Spacing.sm)
+            }
+
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                 if index > 0 {
                     Divider().background(Color.irBorder)
@@ -34,12 +44,7 @@ struct DetailComponentsCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private func rowView(_ row: DetailComponentRow) -> some View {
@@ -130,12 +135,7 @@ struct DetailFormulaCard: View {
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var stackedBar: some View {
@@ -180,12 +180,7 @@ struct DetailReferencesCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 }
 

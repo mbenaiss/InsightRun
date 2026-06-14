@@ -59,6 +59,7 @@ struct RecoveryCalendarView: View {
                             .font(IRFont.title2)
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityLabel(String(localized: "Close", comment: "Accessibility label for sheet close button"))
                 }
             }
         }
@@ -76,22 +77,10 @@ struct RecoveryCalendarView: View {
 
     private var monthHeader: some View {
         HStack {
-            // Month/Year with dropdown
-            Button {
-                // Future: show month picker
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Text(monthYearString)
-                        .font(IRFont.title2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.irTextPrimary)
-
-                    Image(systemName: "chevron.down")
-                        .font(IRFont.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-            }
+            Text(monthYearString)
+                .font(IRFont.title2)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.irTextPrimary)
 
             Spacer()
 
@@ -108,6 +97,7 @@ struct RecoveryCalendarView: View {
                         .background(Color.irCardBackground)
                         .clipShape(Circle())
                 }
+                .accessibilityLabel(String(localized: "Previous month", comment: "Accessibility label for previous month navigation button"))
 
                 Button {
                     goToNextMonth()
@@ -115,12 +105,13 @@ struct RecoveryCalendarView: View {
                     Image(systemName: "chevron.right")
                         .font(IRFont.body)
                         .fontWeight(.semibold)
-                        .foregroundStyle(canGoToNextMonth ? Color.irTextPrimary : Color.irTextSecondary.opacity(0.5))
+                        .foregroundStyle(canGoToNextMonth ? Color.irTextPrimary : Color.irTextTertiary)
                         .frame(width: 40, height: 40)
                         .background(Color.irCardBackground)
                         .clipShape(Circle())
                 }
                 .disabled(!canGoToNextMonth)
+                .accessibilityLabel(String(localized: "Next month", comment: "Accessibility label for next month navigation button"))
             }
         }
     }
@@ -144,7 +135,7 @@ struct RecoveryCalendarView: View {
     private var calendarGrid: some View {
         let days = daysInMonth()
 
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 12) {
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xxs), count: 7), spacing: Spacing.md) {
             ForEach(days, id: \.self) { date in
                 if let date = date {
                     dayCell(for: date)
@@ -198,7 +189,7 @@ struct RecoveryCalendarView: View {
                     Text("\(calendar.component(.day, from: date))")
                         .font(IRFont.body)
                         .fontWeight(isToday ? .bold : .medium)
-                        .foregroundStyle(isFuture ? Color.irTextSecondary.opacity(0.4) : Color.irTextPrimary)
+                        .foregroundStyle(isFuture ? Color.irTextTertiary : Color.irTextPrimary)
                 }
 
                 // Sleep indicator (if score is low, show bed icon)
@@ -216,6 +207,7 @@ struct RecoveryCalendarView: View {
         }
         .buttonStyle(.plain)
         .disabled(isFuture)
+        .accessibilityLabel(dayCellAccessibilityLabel(for: date, score: score, isFuture: isFuture))
     }
 
     // MARK: - Bottom Bar
@@ -243,16 +235,10 @@ struct RecoveryCalendarView: View {
 
             Spacer()
 
-            // Info Button
-            Button {
-                // Future: show info about calendar
-            } label: {
-                Image(systemName: "info.circle")
-                    .font(IRFont.title2)
-                    .foregroundStyle(Color.irTextSecondary)
-                    .frame(width: 50, height: 50)
-                    .background(Color.irCardBackground)
-                    .clipShape(Circle())
+            if isLoadingScores {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel(String(localized: "Loading recovery scores", comment: "Accessibility label for calendar loading indicator"))
             }
         }
     }
@@ -262,7 +248,7 @@ struct RecoveryCalendarView: View {
     private var monthYearString: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "MMMM yyyy"
+        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
         return formatter.string(from: displayedMonth).lowercased()
     }
 
@@ -331,6 +317,15 @@ struct RecoveryCalendarView: View {
         default:
             return Color.irError
         }
+    }
+
+    private func dayCellAccessibilityLabel(for date: Date, score: Int?, isFuture: Bool) -> String {
+        let dateText = date.formatted(.dateTime.weekday(.wide).day().month(.wide))
+        if let score, !isFuture {
+            let format = String(localized: "%@, recovery score %lld out of 100", comment: "Accessibility label for a calendar day with a recovery score")
+            return String(format: format, dateText, score)
+        }
+        return dateText
     }
 
     private func loadRecoveryScores() async {

@@ -191,13 +191,7 @@ struct WorkoutComparisonView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.irPrimaryAccent, Color.irPrimaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.irAIAccent)
                     .font(IRFont.title3)
 
                 Text(String(localized: "AI Comparison", comment: "AI comparison analysis section title"))
@@ -265,9 +259,7 @@ struct WorkoutComparisonView: View {
             }
         }
         .padding()
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .shadow(color: Color.irShadow, radius: 8, y: 4)
+        .detailCard()
     }
 
     private func prepareComparisonAnalysis() async {
@@ -334,9 +326,7 @@ struct WorkoutComparisonView: View {
                 }
             }
             .padding()
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .shadow(color: Color.irShadow, radius: 8, y: 4)
+            .detailCard()
         }
         .buttonStyle(.plain)
     }

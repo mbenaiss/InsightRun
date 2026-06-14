@@ -41,6 +41,7 @@ struct SignalCard: View {
 
                 MicroSparkline(values: trend, color: color)
                     .frame(height: 26)
+                    .accessibilityHidden(true)
 
                 if let status, !status.isEmpty {
                     Text(status)
@@ -50,16 +51,13 @@ struct SignalCard: View {
                         .minimumScaleFactor(0.85)
                 }
             }
-            .padding(Spacing.base - 2)
+            .padding(Spacing.dash)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.irCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.md)
-                    .strokeBorder(Color.irBorder, lineWidth: 0.5)
-            )
+            .detailCard()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label), \(value) \(unit)\(status.map { ", \($0)" } ?? "")")
     }
 
     private var header: some View {
@@ -69,8 +67,8 @@ struct SignalCard: View {
                 .foregroundStyle(color)
                 .frame(width: 22, height: 22)
                 .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(color.opacity(0.16))
+                    RoundedRectangle(cornerRadius: Radius.xs)
+                        .fill(color.opacity(0.14))
                 )
 
             Text(label)
@@ -79,7 +77,7 @@ struct SignalCard: View {
                 .lineLimit(1)
                 .layoutPriority(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: Spacing.xxs)
 
             Image(systemName: "chevron.right")
                 .font(IRFont.eyebrow.weight(.bold))

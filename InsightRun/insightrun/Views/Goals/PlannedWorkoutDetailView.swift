@@ -45,7 +45,7 @@ struct PlannedWorkoutDetailView: View {
                         }
                     }
                 }
-                .padding()
+                .padding(Spacing.base)
             }
             .background(Color.irBackgroundApp)
             .navigationTitle(workout.name)
@@ -59,6 +59,7 @@ struct PlannedWorkoutDetailView: View {
                             .font(IRFont.title2)
                             .foregroundStyle(Color.irTextSecondary)
                     }
+                    .accessibilityLabel(String(localized: "common.close.accessibility", defaultValue: "Close", comment: "Accessibility label for a close button"))
                 }
             }
             .sheet(isPresented: $showExportSuccess) {
@@ -296,7 +297,7 @@ struct PlannedWorkoutDetailView: View {
                                         Text(formatStepDuration(duration))
                                     }
                                     if let distance = step.distance {
-                                        Text(String(format: "%.0f m", distance))
+                                        Text("\(Formatters.decimal(distance, fractionDigits: 0)) \(String(localized: "unit.meters.short", defaultValue: "m", comment: "Short unit label for meters"))")
                                     }
                                 }
                                 .font(IRFont.monoSM)
@@ -313,7 +314,7 @@ struct PlannedWorkoutDetailView: View {
                                 HStack(spacing: Spacing.xxs) {
                                     Image(systemName: "speedometer")
                                         .font(IRFont.microLabel)
-                                    Text(pace + "/km")
+                                    Text(pace + Formatters.paceUnitSuffix())
                                         .font(IRFont.monoSM.weight(.bold))
                                 }
                                 .foregroundStyle(Color.irPrimaryAccent)
@@ -359,7 +360,7 @@ struct PlannedWorkoutDetailView: View {
             } label: {
                 HStack(spacing: Spacing.sm) {
                     if isExporting {
-                        ProgressView().tint(.white)
+                        ProgressView().tint(Color.irTextOnAccent)
                     } else {
                         Image(systemName: "arrow.up.forward.app.fill")
                     }
@@ -369,7 +370,7 @@ struct PlannedWorkoutDetailView: View {
                     )
                 }
                 .font(IRFont.headline)
-                .foregroundStyle(Color.irCardBackground)
+                .foregroundStyle(Color.irTextOnAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
                 .background(Color.irPrimaryAccent.gradient)
@@ -575,7 +576,7 @@ struct PlannedWorkoutDetailView: View {
         if let pace = workout.targetPace {
             metrics.append(MetricData(
                 icon: "speedometer",
-                value: pace + "/km",
+                value: pace + Formatters.paceUnitSuffix(),
                 label: String(localized: "goals.workout.pace", defaultValue: "Pace", comment: "Workout detail - pace")
             ))
         }
@@ -658,7 +659,7 @@ private struct MoveWorkoutSheet: View {
                     .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                    .padding(.horizontal, Spacing.base)
 
                 DatePicker(
                     String(localized: "goals.workout.moveDateLabel", defaultValue: "New date", comment: "Move workout date picker label"),
@@ -666,7 +667,7 @@ private struct MoveWorkoutSheet: View {
                     displayedComponents: .date
                 )
                 .datePickerStyle(.graphical)
-                .padding(.horizontal)
+                .padding(.horizontal, Spacing.base)
 
                 Spacer()
 
@@ -676,7 +677,7 @@ private struct MoveWorkoutSheet: View {
                     } label: {
                         Text(String(localized: "goals.workout.moveConfirm", defaultValue: "Move session", comment: "Move workout confirm button"))
                             .font(IRFont.headline)
-                            .foregroundStyle(Color.irCardBackground)
+                            .foregroundStyle(Color.irTextOnAccent)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.md)
                             .background(Color.irPrimaryAccent.gradient)
@@ -695,8 +696,8 @@ private struct MoveWorkoutSheet: View {
                         }
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom)
+                .padding(.horizontal, Spacing.base)
+                .padding(.bottom, Spacing.base)
             }
             .background(Color.irBackgroundApp)
             .navigationTitle(String(localized: "goals.workout.moveNavTitle", defaultValue: "Reschedule session", comment: "Move workout navigation title"))

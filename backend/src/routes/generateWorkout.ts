@@ -56,6 +56,18 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 4000
 const AI_TEMPERATURE = 0.4
+// iOS aborts this request at 60s; keep two attempts inside that budget (2×25s + margin).
+const OPENROUTER_TIMEOUT_MS = 25_000
+const WORKOUT_FALLBACK_MODEL = 'google/gemini-2.5-flash-lite'
+// Canonical M:SS pace (minutes:seconds, seconds 00-59) after stripping a "/km" suffix.
+const PACE_REGEX = /^\d+:[0-5]\d$/
+
+// Strip an optional "/km" (or "/mi") suffix and validate the remainder is M:SS.
+// Returns the cleaned "M:SS" string, or null when the value is not a valid pace.
+function validatePaceFormat(pace: string): string | null {
+  const cleaned = pace.trim().replace(/\s*\/(km|mi)\s*$/i, '')
+  return PACE_REGEX.test(cleaned) ? cleaned : null
+}
 
 function buildWorkoutGenerationPrompt(
   userQuestion: string,
@@ -107,6 +119,7 @@ PACE RULES:
 - Exact pace (e.g., "5:30/km") → use "targetPace": "5:30"
 - Pace range (e.g., "6:00-6:30/km") → use "targetPaceMin": "6:00", "targetPaceMax": "6:30"
 - Never mix targetPace and targetPaceMin/Max in the same step.
+- Pace values MUST be exactly "M:SS" (minutes:seconds, seconds 00-59). No "/km" suffix, no apostrophes ("4'30"), no decimals ("4.5").
 
 OUTPUT FORMAT:
 {
@@ -127,7 +140,7 @@ OUTPUT FORMAT:
 }
 
 Step types: "warmup", "work", "recovery", "cooldown", "interval"
-Goal types: "distance" (meters), "duration" (seconds), "open"
+Goal types: "distance" (meters), "duration" (seconds), "open". For "open" steps, still include "value": 0.
 
 USER CONTEXT:
 ${userContextStr}`
@@ -170,9 +183,31 @@ function validateWorkoutJSON(data: unknown): data is AIGeneratedWorkout {
         !Number.isInteger(step.repetitions))
     )
       return false
+
+    // Pace fields must be canonical M:SS — the watch cannot interpret "4'30" or "4.5".
+    // Reject (don't silently skip) so a malformed pace triggers a retry, not a bad workout.
+    for (const key of ['targetPace', 'targetPaceMin', 'targetPaceMax'] as const) {
+      const value = step[key]
+      if (value != null) {
+        if (typeof value !== 'string') return false
+        const cleaned = validatePaceFormat(value)
+        if (cleaned === null) return false
+        step[key] = cleaned
+      }
+    }
   }
 
   return true
+}
+
+// The iOS StepGoal.value is a non-optional Double; an "open" step the model emits without
+// a value would crash the strict decoder. Fill 0 so the response is always decodable.
+function fillWorkoutDefaults(workout: AIGeneratedWorkout): void {
+  for (const step of workout.steps) {
+    if (step.goal.type === 'open' && typeof step.goal.value !== 'number') {
+      step.goal.value = 0
+    }
+  }
 }
 
 function paceToSeconds(pace: string): number | null {
@@ -204,6 +239,13 @@ function normalizeWorkoutPaces(workout: AIGeneratedWorkout): void {
   }
 }
 
+class TruncatedResponseError extends Error {
+  constructor() {
+    super('Model response was truncated (finish_reason=length): output exceeds token budget')
+    this.name = 'TruncatedResponseError'
+  }
+}
+
 async function callOpenRouterForWorkout(
   apiKey: string,
   systemPrompt: string,
@@ -212,6 +254,8 @@ async function callOpenRouterForWorkout(
 ): Promise<string> {
   const requestBody = {
     model,
+    // Native OpenRouter fallback: if `model` 429s/5xx, retry transparently on the next entry.
+    models: [model, WORKOUT_FALLBACK_MODEL],
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -222,32 +266,51 @@ async function callOpenRouterForWorkout(
     response_format: { type: 'json_object' }, // Force JSON response (supported by some models)
   }
 
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://insightrun.ai',
-      'X-Title': 'insightRun.ai',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  })
+  let lastError: unknown
+  for (let networkAttempt = 0; networkAttempt < 2; networkAttempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS)
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-  }
+    try {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://insightrun.ai',
+          'X-Title': 'insightRun.ai',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      })
 
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>
-    usage?: {
-      prompt_tokens?: number
-      completion_tokens?: number
-      total_tokens?: number
+      if (!response.ok) {
+        const errorText = await response.text()
+        if (response.status === 429 || response.status >= 500) {
+          lastError = new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
+          continue
+        }
+        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
+      }
+
+      const data = (await response.json()) as {
+        choices: Array<{ message: { content: string }; finish_reason?: string }>
+      }
+
+      if (data.choices[0]?.finish_reason === 'length') {
+        throw new TruncatedResponseError()
+      }
+
+      return data.choices[0]?.message?.content || ''
+    } catch (error) {
+      if (error instanceof TruncatedResponseError) throw error
+      lastError = error
+    } finally {
+      clearTimeout(timer)
     }
   }
 
-  return data.choices[0]?.message?.content || ''
+  throw lastError instanceof Error ? lastError : new Error('OpenRouter request failed')
 }
 
 function cleanJSONResponse(text: string): string {
@@ -320,15 +383,22 @@ app.post('/', async (c) => {
     let workoutJSON: AIGeneratedWorkout | null = null
     let attempts = 0
     const maxAttempts = 2
+    // Carries the previous failure into the next attempt so the model corrects it
+    // instead of re-emitting the exact same broken output.
+    let retryFeedback = ''
 
     while (attempts < maxAttempts && !workoutJSON) {
       attempts++
 
       try {
+        const attemptUserPrompt = retryFeedback
+          ? `${userPrompt}\n\nYour previous output was invalid: ${retryFeedback}\nReturn corrected, complete JSON only.`
+          : userPrompt
+
         const rawResponse = await callOpenRouterForWorkout(
           c.env.OPENROUTER_API_KEY,
           systemPrompt,
-          userPrompt,
+          attemptUserPrompt,
           finalModel
         )
 
@@ -342,6 +412,7 @@ app.post('/', async (c) => {
 
         // Validate structure
         if (validateWorkoutJSON(parsedData)) {
+          fillWorkoutDefaults(parsedData)
           normalizeWorkoutPaces(parsedData)
           workoutJSON = parsedData
           console.log(
@@ -349,12 +420,19 @@ app.post('/', async (c) => {
           )
         } else {
           console.warn(`⚠️ Invalid workout structure on attempt ${attempts}`)
+          retryFeedback =
+            'the JSON did not match the schema. Every step needs a valid "type" and "goal" {type, value}; every pace must be exact "M:SS" format (e.g. "5:30", no "/km", no apostrophes, no decimals).'
           if (attempts >= maxAttempts) {
             throw new Error('Generated workout failed validation')
           }
         }
       } catch (parseError) {
         console.error(`❌ Attempt ${attempts} failed:`, parseError)
+        if (parseError instanceof TruncatedResponseError) {
+          retryFeedback = 'the JSON was cut off. Use fewer steps / shorter instructions.'
+        } else if (parseError instanceof SyntaxError) {
+          retryFeedback = `the response was not valid JSON (${parseError.message}).`
+        }
         if (attempts >= maxAttempts) {
           throw parseError
         }

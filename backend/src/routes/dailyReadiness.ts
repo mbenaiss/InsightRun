@@ -6,7 +6,7 @@ import type {
   PersonalBaselineData,
   RecoveryData,
 } from '../types'
-import { formatPace, getLanguageName } from '../utils'
+import { formatPace, getLanguageName, READINESS_BANDS } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -527,12 +527,12 @@ function calculateReadinessScore(
   return { score, insights }
 }
 
-// Determine status from score (aligned with iOS RecoveryStatus thresholds)
-// Status thresholds adjusted for linear 0-100 scale (baseline day ≈ 50%)
+// Determine status from score using the shared READINESS_BANDS (single source of truth
+// with the chat coach prompt) so a given score maps to the same band everywhere.
 function getStatusFromScore(score: number): ReadinessStatus {
-  if (score >= 67) return 'excellent'
-  if (score >= 50) return 'good'
-  if (score >= 33) return 'fair'
+  if (score >= READINESS_BANDS.excellent) return 'excellent'
+  if (score >= READINESS_BANDS.good) return 'good'
+  if (score >= READINESS_BANDS.fair) return 'fair'
   return 'poor'
 }
 
@@ -684,6 +684,10 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 // `{"summary":...,"detail":...}` into the dashboard card.
 const READINESS_MAX_TOKENS = 600
 const READINESS_TEMPERATURE = 0.6
+// iOS aborts this request at 15s; bound the single upstream call well under that so the
+// route can still fall back to the static recommendation before the client gives up.
+const READINESS_TIMEOUT_MS = 12_000
+const READINESS_FALLBACK_MODEL = 'google/gemini-2.5-flash-lite'
 
 // Build a structured context string from all available readiness data
 function buildReadinessContext(
@@ -849,6 +853,8 @@ Return strictly a JSON object with exactly these two string fields: {"summary": 
 
   const requestBody = {
     model,
+    // Native OpenRouter fallback: if `model` 429s/5xx, retry transparently on the next entry.
+    models: [model, READINESS_FALLBACK_MODEL],
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -859,16 +865,25 @@ Return strictly a JSON object with exactly these two string fields: {"summary": 
     response_format: { type: 'json_object' as const },
   }
 
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://insightrun.ai',
-      'X-Title': 'InsightRun Daily Readiness',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), READINESS_TIMEOUT_MS)
+
+  let response: Response
+  try {
+    response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://insightrun.ai',
+        'X-Title': 'InsightRun Daily Readiness',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (!response.ok) {
     const errorText = await response.text()

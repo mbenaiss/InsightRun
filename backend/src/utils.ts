@@ -121,7 +121,69 @@ export function formatDistance(meters: number): string {
 export function formatPace(pace: number): string {
   const minutes = Math.floor(pace)
   const seconds = Math.floor((pace - minutes) * 60)
-  return `${minutes}'${seconds.toString().padStart(2, '0')}"/km`
+  return `${minutes}:${seconds.toString().padStart(2, '0')}/km`
+}
+
+// Normalize any inbound pace string (e.g. "4:30", "4'30\"", "4.5") to canonical
+// M:SS/km so a single notation reaches the model. Returns the input untouched if
+// it cannot be parsed.
+export function normalizePaceString(raw: string): string {
+  const trimmed = raw.trim()
+  const colon = trimmed.match(/^(\d+):([0-5]?\d)/)
+  if (colon) {
+    return `${colon[1]}:${colon[2].padStart(2, '0')}/km`
+  }
+  const apostrophe = trimmed.match(/^(\d+)'(\d{1,2})/)
+  if (apostrophe) {
+    return `${apostrophe[1]}:${apostrophe[2].padStart(2, '0')}/km`
+  }
+  const decimal = trimmed.match(/^(\d+)(?:\.(\d+))?$/)
+  if (decimal) {
+    return formatPace(parseFloat(trimmed))
+  }
+  return raw
+}
+
+// Readiness score bands — single source of truth shared with the
+// /api/daily-readiness endpoint (getStatusFromScore). Score is a linear 0-100
+// scale where a neutral baseline day sits near 50.
+export const READINESS_BANDS = {
+  excellent: 67, // >= 67 → intense training OK
+  good: 50, // >= 50 → moderate training
+  fair: 33, // >= 33 → easy / recovery
+  // below `fair` → rest required
+} as const
+
+export function readinessBandLine(): string {
+  return `Score: >=${READINESS_BANDS.excellent} = intense training OK | >=${READINESS_BANDS.good} = moderate training | >=${READINESS_BANDS.fair} = easy/recovery | <${READINESS_BANDS.fair} = rest required`
+}
+
+// Maximum heart rate estimated from age (Fox formula). Returns null when age is
+// unknown so callers never present a fabricated zone as fact.
+export function estimateMaxHR(age?: number): number | null {
+  if (!age || age <= 0) return null
+  return 220 - age
+}
+
+// Five heart-rate training zones expressed as % of estimated max HR. Defined
+// once so every prompt references the same reference table.
+export const HR_ZONES_TABLE = [
+  'Zone 1 (Recovery): 50-60% of max HR',
+  'Zone 2 (Aerobic/Endurance): 60-70% of max HR',
+  'Zone 3 (Tempo): 70-80% of max HR',
+  'Zone 4 (Threshold): 80-90% of max HR',
+  'Zone 5 (VO2max): 90-100% of max HR',
+] as const
+
+export function hrZonesReference(): string {
+  return HR_ZONES_TABLE.map((z) => `- ${z}`).join('\n')
+}
+
+// Wrap untrusted, user-supplied free text so the model treats it strictly as
+// data and never as instructions (prompt-injection guard). Works inline or as a
+// block; a global instruction near the top of each prompt explains the tag.
+export function wrapUserData(content: string): string {
+  return `<user_data>${content}</user_data>`
 }
 
 export function cleanJSONResponse(text: string): string {
@@ -158,5 +220,6 @@ const LANGUAGE_NAMES: Record<string, string> = {
 }
 
 export function getLanguageName(langCode: string): string {
-  return LANGUAGE_NAMES[langCode.toLowerCase()] || 'English'
+  const base = langCode.toLowerCase().split('-')[0]
+  return LANGUAGE_NAMES[base] || 'English'
 }

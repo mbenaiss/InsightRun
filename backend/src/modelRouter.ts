@@ -103,6 +103,19 @@ export const PREMIUM_MODEL_QUOTA_CONFIG = {
 }
 
 /**
+ * Premium quota buckets. Plans (large structured generations) and chat (agent
+ * conversation) get independent monthly allowances so a chatty user cannot
+ * starve plan generation and vice-versa.
+ *
+ * Both check (selectModel) and increment (afterModelUsage) MUST use the same
+ * category, otherwise the counter and the gate drift apart. The plan/adapt
+ * routes opt into 'plan' by passing the category to selectModelFromRequest /
+ * afterModelUsage; everything else defaults to 'shared'.
+ */
+export type PremiumQuotaCategory = 'plan' | 'chat' | 'shared'
+const DEFAULT_PREMIUM_QUOTA_CATEGORY: PremiumQuotaCategory = 'shared'
+
+/**
  * Default mapping: RequestType → Model
  * Used as fallback when KV config is not available
  */
@@ -295,9 +308,18 @@ export function getAvailableModels(): Record<string, ModelConfig> {
 }
 
 /**
- * Fallback model when premium quota is exceeded
+ * Default fallback model when premium quota is exceeded
  */
 const PREMIUM_MODEL_FALLBACK: keyof typeof MODELS = 'GROK_4_FAST'
+
+/**
+ * Per-request-type fallback when premium quota is exhausted.
+ * COMPLEX produces large structured JSON (16k-token training plans); Grok fast
+ * truncates/mangles them, so it must degrade to a capable non-premium model.
+ */
+const PREMIUM_FALLBACK_BY_REQUEST_TYPE: Partial<Record<RequestType, keyof typeof MODELS>> = {
+  [RequestType.COMPLEX]: 'GEMINI_FLASH',
+}
 
 /**
  * Select model for request type
@@ -321,7 +343,8 @@ function selectModelForRequestType(
   const selectedModel = allModels[modelKey]
 
   if (selectedModel.requiresQuota && !hasPremiumQuota) {
-    const fallback = allModels[PREMIUM_MODEL_FALLBACK] || MODELS[PREMIUM_MODEL_FALLBACK]
+    const fallbackKey = PREMIUM_FALLBACK_BY_REQUEST_TYPE[requestType] || PREMIUM_MODEL_FALLBACK
+    const fallback = allModels[fallbackKey] || MODELS[fallbackKey]
     console.log(
       `⚠️ ModelRouter: Premium model quota exceeded for ${selectedModel.displayName}, falling back to ${fallback.displayName}`
     )
@@ -345,14 +368,19 @@ interface PremiumModelQuotaStatus {
 
 /**
  * Check if user has premium model quota remaining
+ *
+ * When `userId` is the literal `unknown` (no X-User-ID and no client IP), the
+ * caller should pass a per-IP identifier upstream; here we still namespace by
+ * category so the two premium buckets never collide.
  */
 export async function checkPremiumModelQuota(
   kv: KVNamespace,
-  userId: string
+  userId: string,
+  category: PremiumQuotaCategory = DEFAULT_PREMIUM_QUOTA_CATEGORY
 ): Promise<PremiumModelQuotaStatus> {
   const now = Date.now()
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
-  const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
+  const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${category}:${userId}:${currentMonth}`
 
   // Short cache TTL for quota (30s minimum for Cloudflare KV)
   const value = await kv.get(quotaKey, { cacheTtl: 30 })
@@ -378,10 +406,14 @@ export async function checkPremiumModelQuota(
 /**
  * Increment premium model usage counter
  */
-export async function incrementPremiumModelQuota(kv: KVNamespace, userId: string): Promise<void> {
+export async function incrementPremiumModelQuota(
+  kv: KVNamespace,
+  userId: string,
+  category: PremiumQuotaCategory = DEFAULT_PREMIUM_QUOTA_CATEGORY
+): Promise<void> {
   const now = Date.now()
   const currentMonth = new Date(now).toISOString().slice(0, 7) // YYYY-MM
-  const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${userId}:${currentMonth}`
+  const quotaKey = `${PREMIUM_MODEL_QUOTA_CONFIG.quotaKeyPrefix}${category}:${userId}:${currentMonth}`
 
   const value = await kv.get(quotaKey)
   const used = value ? Number.parseInt(value, 10) : 0
@@ -410,7 +442,8 @@ export async function incrementPremiumModelQuota(kv: KVNamespace, userId: string
 export async function selectModel(
   requestType: RequestType,
   kv: KVNamespace,
-  userId?: string
+  userId?: string,
+  quotaCategory: PremiumQuotaCategory = DEFAULT_PREMIUM_QUOTA_CATEGORY
 ): Promise<{ model: ModelConfig; premiumQuotaStatus?: PremiumModelQuotaStatus }> {
   // Single cached call instead of separate getModelMapping + getAllModels (was reading KV 3x, now 2x max)
   const { mapping: modelMapping, allModels } = await getModelConfigCached(kv)
@@ -419,7 +452,7 @@ export async function selectModel(
   let hasPremiumQuota = false
 
   if (userId) {
-    premiumQuotaStatus = await checkPremiumModelQuota(kv, userId)
+    premiumQuotaStatus = await checkPremiumModelQuota(kv, userId, quotaCategory)
     hasPremiumQuota = premiumQuotaStatus.hasQuota
   }
 
@@ -439,11 +472,12 @@ export async function selectModel(
 export async function afterModelUsage(
   modelConfig: ModelConfig,
   kv: KVNamespace,
-  userId?: string
+  userId?: string,
+  quotaCategory: PremiumQuotaCategory = DEFAULT_PREMIUM_QUOTA_CATEGORY
 ): Promise<void> {
   // Increment premium model quota if premium model was used
   if (modelConfig.requiresQuota && userId) {
-    await incrementPremiumModelQuota(kv, userId)
+    await incrementPremiumModelQuota(kv, userId, quotaCategory)
   }
 }
 
@@ -451,27 +485,42 @@ export async function afterModelUsage(
  * Helper to select model from request parameters
  * Handles requestType, manual model override, and defaults
  * Returns modelId and modelConfig for quota tracking
+ *
+ * `allowedRequestTypes` is the server-side whitelist of request types this route
+ * may serve. A client-supplied requestType outside the whitelist is rejected and
+ * the route default is used instead, so a client cannot force a premium tier
+ * (e.g. COMPLEX) on a cheap endpoint to drain quota / inflate cost.
  */
 export async function selectModelFromRequest(
   requestType: string | undefined,
   manualModel: string | undefined,
   kv: KVNamespace,
   userId: string,
-  defaultRequestType: RequestType = RequestType.MODERATE
+  defaultRequestType: RequestType = RequestType.MODERATE,
+  allowedRequestTypes?: RequestType[],
+  quotaCategory: PremiumQuotaCategory = DEFAULT_PREMIUM_QUOTA_CATEGORY
 ): Promise<{ modelId: string; modelConfig: ModelConfig | null }> {
-  const modelType = requestType || defaultRequestType
+  const whitelist = allowedRequestTypes ?? [defaultRequestType]
+  const requested = requestType as RequestType | undefined
 
-  // Validate and use requestType (uses dynamic mapping from KV)
-  if (Object.values(RequestType).includes(modelType as RequestType)) {
-    const selection = await selectModel(modelType as RequestType, kv, userId)
+  // Use the client requestType only if it is a valid enum AND allowed for this route
+  if (requested && whitelist.includes(requested)) {
+    const selection = await selectModel(requested, kv, userId, quotaCategory)
     return {
       modelId: selection.model.modelId,
       modelConfig: selection.model,
     }
   }
 
-  // Fallback to manual model if provided
-  if (manualModel) {
+  if (requestType && requested !== defaultRequestType) {
+    console.warn(
+      `⚠️ ModelRouter: requestType "${requestType}" not allowed for this route, using ${defaultRequestType}`
+    )
+  }
+
+  // Manual model override is only honoured when no requestType was supplied,
+  // to keep an explicit escape hatch without letting clients bypass the whitelist.
+  if (!requestType && manualModel) {
     console.log(`⚠️ Using manual model override: ${manualModel}`)
     return {
       modelId: manualModel,
@@ -479,9 +528,7 @@ export async function selectModelFromRequest(
     }
   }
 
-  // Final fallback to default (uses dynamic mapping from KV)
-  console.warn(`⚠️ Invalid requestType "${modelType}", using default: ${defaultRequestType}`)
-  const selection = await selectModel(defaultRequestType, kv, userId)
+  const selection = await selectModel(defaultRequestType, kv, userId, quotaCategory)
   return {
     modelId: selection.model.modelId,
     modelConfig: selection.model,

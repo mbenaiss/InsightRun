@@ -103,6 +103,12 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 2000
 const AI_TEMPERATURE = 0.7
 const MAX_PROMPT_LENGTH = 5000
+// Resilient fallback when the COMPLEX premium model 429s/5xx (handled natively by
+// OpenRouter's `models` array — no mid-stream retry needed).
+const AGENT_FALLBACK_MODEL = 'google/gemini-2.5-flash'
+// iOS aborts this request at 120s. Bound how long we wait for the upstream stream to
+// START (headers); once streaming begins the client consumes tokens directly.
+const AGENT_CONNECT_TIMEOUT_MS = 100_000
 
 // Build the agentic system prompt
 function buildAgentSystemPrompt(data: ChatDataPayload, language: string): string {
@@ -136,8 +142,48 @@ When the user is just asking a question about training (not requesting a specifi
   return basePrompt + agentInstructions
 }
 
+// Localized labels for the deterministic workout-step descriptions. The agent path is
+// minutes-based (the iOS AgentWorkoutResult card renders "<n> min"); we keep that unit and
+// only align the step TYPES with the iOS AgentWorkoutStep color/icon map (warmup, cooldown,
+// intervals, tempo, and the workout type for steady efforts) plus localize the text so the
+// card never shows hardcoded English next to a French conversation.
+interface StepLabels {
+  warmup: string
+  cooldown: string
+  intervals: (reps: number) => string
+  tempo: string
+  steady: string
+  main: string
+}
+
+const STEP_LABELS: { fr: StepLabels; en: StepLabels } = {
+  fr: {
+    warmup: 'Footing facile pour échauffer',
+    cooldown: 'Footing léger et étirements',
+    intervals: (reps: number) => `${reps} × 400m rapides avec 90s de récupération`,
+    tempo: 'Effort soutenu à allure tempo',
+    steady: 'Allure facile à modérée, focus sur le temps de course',
+    main: 'Segment principal de la séance',
+  },
+  en: {
+    warmup: 'Easy jog to warm up',
+    cooldown: 'Easy jog and stretching',
+    intervals: (reps: number) => `${reps} x 400m fast with 90s recovery`,
+    tempo: 'Sustained effort at tempo pace',
+    steady: 'Easy to moderate pace, focus on time on feet',
+    main: 'Main workout segment',
+  },
+}
+
+function stepLabels(language: string): StepLabels {
+  return language.toLowerCase().split('-')[0] === 'fr' ? STEP_LABELS.fr : STEP_LABELS.en
+}
+
 // Process function call results
-function processFunctionCall(functionCall: FunctionCall): {
+function processFunctionCall(
+  functionCall: FunctionCall,
+  language: string
+): {
   result: unknown
   displayMessage: string
 } {
@@ -160,17 +206,23 @@ function processFunctionCall(functionCall: FunctionCall): {
         targetPace?: string
         notes?: string
       }
+      // iOS AgentWorkoutResult.duration is a non-optional Int; coerce so a float from the
+      // model (e.g. 45.5) doesn't make the whole workout card silently fail to decode.
+      const durationMin = Math.max(1, Math.round(Number(workoutArgs.duration) || 0))
       const workout = {
         type: workoutArgs.workoutType,
-        duration: workoutArgs.duration,
+        duration: durationMin,
         distance: workoutArgs.distance,
         targetPace: workoutArgs.targetPace,
         notes: workoutArgs.notes,
-        steps: generateWorkoutSteps(workoutArgs),
+        steps: generateWorkoutSteps(
+          { ...workoutArgs, duration: durationMin },
+          stepLabels(language)
+        ),
       }
       return {
         result: workout,
-        displayMessage: `Generated a ${workoutArgs.workoutType.replace('_', ' ')} workout (${workoutArgs.duration} min)`,
+        displayMessage: `Generated a ${workoutArgs.workoutType.replace('_', ' ')} workout (${durationMin} min)`,
       }
     }
 
@@ -182,20 +234,25 @@ function processFunctionCall(functionCall: FunctionCall): {
   }
 }
 
-// Generate workout steps based on type
-function generateWorkoutSteps(args: {
-  workoutType: string
-  duration: number
-  targetPace?: string
-}) {
-  const steps = []
+// Generate workout steps based on type. Durations are in MINUTES (Int) to match the iOS
+// AgentWorkoutResult card. Step types align with the iOS AgentWorkoutStep color/icon map.
+function generateWorkoutSteps(
+  args: { workoutType: string; duration: number; targetPace?: string },
+  labels: StepLabels
+) {
+  const steps: Array<{
+    type: string
+    duration: number
+    description: string
+    targetPace?: string
+  }> = []
 
   // Warmup (10% of duration, min 5 min)
   const warmupDuration = Math.max(5, Math.round(args.duration * 0.1))
   steps.push({
     type: 'warmup',
     duration: warmupDuration,
-    description: 'Easy jog to warm up',
+    description: labels.warmup,
   })
 
   const mainDuration = Math.max(1, args.duration - warmupDuration - 5) // 5 min cooldown
@@ -205,7 +262,7 @@ function generateWorkoutSteps(args: {
       steps.push({
         type: 'intervals',
         duration: mainDuration,
-        description: `${Math.floor(mainDuration / 5)} x 400m fast with 90s recovery`,
+        description: labels.intervals(Math.max(1, Math.floor(mainDuration / 5))),
         targetPace: args.targetPace,
       })
       break
@@ -214,7 +271,7 @@ function generateWorkoutSteps(args: {
       steps.push({
         type: 'tempo',
         duration: mainDuration,
-        description: 'Sustained effort at tempo pace',
+        description: labels.tempo,
         targetPace: args.targetPace,
       })
       break
@@ -223,7 +280,7 @@ function generateWorkoutSteps(args: {
       steps.push({
         type: 'steady',
         duration: mainDuration,
-        description: 'Easy to moderate pace, focus on time on feet',
+        description: labels.steady,
       })
       break
 
@@ -231,7 +288,7 @@ function generateWorkoutSteps(args: {
       steps.push({
         type: 'main',
         duration: mainDuration,
-        description: 'Main workout segment',
+        description: labels.main,
         targetPace: args.targetPace,
       })
   }
@@ -240,7 +297,7 @@ function generateWorkoutSteps(args: {
   steps.push({
     type: 'cooldown',
     duration: 5,
-    description: 'Easy jog and stretching',
+    description: labels.cooldown,
   })
 
   return steps
@@ -313,25 +370,36 @@ app.post('/chat', async (c) => {
 
     messages.push({ role: 'user', content: body.userQuestion })
 
-    // Call OpenRouter with function calling
-    const openRouterResponse = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${c.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://insightrun.ai',
-        'X-Title': 'insightRun.ai',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: MAX_TOKENS,
-        temperature: AI_TEMPERATURE,
-        tools: AGENT_FUNCTIONS.map((fn) => ({ type: 'function' as const, function: fn })),
-        tool_choice: 'auto',
-        stream: true,
-      }),
-    })
+    // Call OpenRouter with function calling. Bound the connection so a hung upstream
+    // doesn't hold the request past the iOS budget; the `models` array gives a native
+    // fallback if the primary model is rate-limited or 5xx.
+    const connectController = new AbortController()
+    const connectTimer = setTimeout(() => connectController.abort(), AGENT_CONNECT_TIMEOUT_MS)
+    let openRouterResponse: Response
+    try {
+      openRouterResponse = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${c.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://insightrun.ai',
+          'X-Title': 'insightRun.ai',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          models: [model, AGENT_FALLBACK_MODEL],
+          messages,
+          max_tokens: MAX_TOKENS,
+          temperature: AI_TEMPERATURE,
+          tools: AGENT_FUNCTIONS.map((fn) => ({ type: 'function' as const, function: fn })),
+          tool_choice: 'auto',
+          stream: true,
+        }),
+        signal: connectController.signal,
+      })
+    } finally {
+      clearTimeout(connectTimer)
+    }
 
     if (!openRouterResponse.ok) {
       const errorText = await openRouterResponse.text()
@@ -374,7 +442,7 @@ app.post('/chat', async (c) => {
               if (dataStr === '[DONE]') {
                 // If we had a function call, process it
                 if (functionCall) {
-                  const result = processFunctionCall(functionCall)
+                  const result = processFunctionCall(functionCall, body.language)
                   await stream.writeSSE({
                     data: JSON.stringify({
                       type: 'function_result',

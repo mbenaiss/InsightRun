@@ -59,7 +59,8 @@ final class WeeklyCoachingService {
         guard ConsentService.shared.hasConsentedToAIDataSharing else { return nil }
 
         let key = cacheKey(weekStart: snapshot.weekStart, language: snapshot.language)
-        if let cached = loadCachedInsight(forKey: key) {
+        let isCompletedWeek = isWeekCompleted(weekStart: snapshot.weekStart)
+        if let cached = loadCachedInsight(forKey: key, requireFreshForToday: !isCompletedWeek) {
             return cached
         }
 
@@ -77,6 +78,13 @@ final class WeeklyCoachingService {
         return parsed
     }
 
+    /// A week is complete once its end (Sunday night for Monday-first locales) has passed.
+    private func isWeekCompleted(weekStart: Date) -> Bool {
+        let calendar = Calendar.current
+        guard let weekEnd = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart) else { return false }
+        return Date() >= weekEnd
+    }
+
     // MARK: - Cache
 
     private func cacheKey(weekStart: Date, language: String) -> String {
@@ -87,13 +95,30 @@ final class WeeklyCoachingService {
         return "\(cachePrefix)\(year)-W\(week)-\(language)"
     }
 
-    private func loadCachedInsight(forKey key: String) -> WeeklyCoachingInsight? {
+    /// Cache envelope tracking when an insight was generated. The current week's
+    /// recap is only valid for the day it was produced, so an early-week ("0 runs")
+    /// insight isn't served frozen for the rest of the week as runs accumulate.
+    private struct CachedEnvelope: Codable {
+        let insight: WeeklyCoachingInsight
+        let generatedAt: Date
+    }
+
+    private func loadCachedInsight(forKey key: String, requireFreshForToday: Bool) -> WeeklyCoachingInsight? {
         guard let data = cacheDefaults.data(forKey: key) else { return nil }
+        if let envelope = try? JSONDecoder().decode(CachedEnvelope.self, from: data) {
+            if requireFreshForToday, !Calendar.current.isDateInToday(envelope.generatedAt) {
+                return nil
+            }
+            return envelope.insight
+        }
+        // Backward compatibility with entries written by older app versions.
+        guard !requireFreshForToday else { return nil }
         return try? JSONDecoder().decode(WeeklyCoachingInsight.self, from: data)
     }
 
     private func cacheInsight(_ insight: WeeklyCoachingInsight, forKey key: String) {
-        guard let data = try? JSONEncoder().encode(insight) else { return }
+        let envelope = CachedEnvelope(insight: insight, generatedAt: Date())
+        guard let data = try? JSONEncoder().encode(envelope) else { return }
         cacheDefaults.set(data, forKey: key)
     }
 

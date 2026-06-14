@@ -45,6 +45,7 @@ class RecoveryViewModel: ObservableObject {
     }
 
     private let healthKitManager = HealthKitManager.shared
+    private var preloadTasks: [Task<Void, Never>] = []
 
     var recoveryMetrics: RecoveryMetrics? {
         let dateKey = Calendar.current.startOfDay(for: selectedDate)
@@ -132,30 +133,40 @@ class RecoveryViewModel: ObservableObject {
     }
     
     private func preloadAdjacentDays(for date: Date) async {
+        // Cancel any in-flight preloads from a previous selected date so they don't
+        // pile up (e.g. when the user swipes quickly through days).
+        cancelPreloadTasks()
+
         let prevDay = Calendar.current.date(byAdding: .day, value: -1, to: date) ?? date
         let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date
-        
+
         // Check cache before loading
         let prevKey = Calendar.current.startOfDay(for: prevDay)
         if metricsCache[prevKey] == nil {
-            Task {
-                try? await loadRecoveryMetricsWithoutSideEffects(for: prevDay)
-            }
+            preloadTasks.append(Task { [weak self] in
+                try? await self?.loadRecoveryMetricsWithoutSideEffects(for: prevDay)
+            })
         }
-        
+
         // Only preload next day if it's not in future (assuming we don't predict future recovery)
         if nextDay <= Date() {
             let nextKey = Calendar.current.startOfDay(for: nextDay)
             if metricsCache[nextKey] == nil {
-                Task {
-                    try? await loadRecoveryMetricsWithoutSideEffects(for: nextDay)
-                }
+                preloadTasks.append(Task { [weak self] in
+                    try? await self?.loadRecoveryMetricsWithoutSideEffects(for: nextDay)
+                })
             }
         }
+    }
+
+    private func cancelPreloadTasks() {
+        preloadTasks.forEach { $0.cancel() }
+        preloadTasks.removeAll()
     }
     
     private func loadRecoveryMetricsWithoutSideEffects(for date: Date) async throws {
         let metrics = try await healthKitManager.fetchRecoveryMetrics(for: date)
+        try Task.checkCancellation()
         let dateKey = Calendar.current.startOfDay(for: date)
         metricsCache[dateKey] = metrics
     }
@@ -171,6 +182,7 @@ class RecoveryViewModel: ObservableObject {
     }
 
     func refresh() async {
+        cancelPreloadTasks()
         metricsCache.removeAll() // Clear cache on pull-to-refresh
         await loadRecoveryMetrics()
     }
@@ -224,7 +236,7 @@ class RecoveryViewModel: ObservableObject {
         } else if Calendar.current.isDateInYesterday(selectedDate) {
             return String(localized: "Yesterday", comment: "Label for yesterday's date")
         } else {
-            formatter.dateFormat = "EEEE d MMMM yyyy"
+            formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM yyyy")
             return formatter.string(from: selectedDate).capitalized
         }
     }
@@ -235,15 +247,15 @@ class RecoveryViewModel: ObservableObject {
         formatter.locale = Locale.current
 
         if Calendar.current.isDateInToday(selectedDate) {
-            formatter.dateFormat = "d MMMM"
+            formatter.setLocalizedDateFormatFromTemplate("d MMMM")
             let dateString = formatter.string(from: selectedDate)
             return String(localized: "Today, \(dateString)", comment: "Today with date format")
         } else if Calendar.current.isDateInYesterday(selectedDate) {
-            formatter.dateFormat = "d MMMM"
+            formatter.setLocalizedDateFormatFromTemplate("d MMMM")
             let dateString = formatter.string(from: selectedDate)
             return String(localized: "Yesterday, \(dateString)", comment: "Yesterday with date format")
         } else {
-            formatter.dateFormat = "EEEE, d MMMM"
+            formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
             return formatter.string(from: selectedDate).capitalized
         }
     }

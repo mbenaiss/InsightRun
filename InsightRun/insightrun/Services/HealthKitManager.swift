@@ -197,16 +197,14 @@ class HealthKitManager: ObservableObject {
             }
         }
 
-        // Migration: Check if existing user has workout data (means they authorized before)
+        // Migration: a successful query (even with zero workouts) means HealthKit
+        // answered without error → access is granted. Only treat a thrown error as
+        // "no access"; an empty history must not loop the permission screen for an
+        // authorized user who simply has no runs yet.
         do {
-            let workouts = try await fetchRunningWorkouts()
-            if !workouts.isEmpty {
-                // User has workout data, so they authorized before - set the flag
-                hasCompletedHealthKitSetup = true
-                return true
-            }
-            // No workouts and no flag = new user who hasn't authorized
-            return false
+            _ = try await fetchRunningWorkouts()
+            hasCompletedHealthKitSetup = true
+            return true
         } catch {
             return false
         }
@@ -397,7 +395,9 @@ class HealthKitManager: ObservableObject {
                         averageHeartRate: avgHR,
                         maxHeartRate: maxHR,
                         elevationGain: nil,
-                        hasRoute: workout.workoutActivities.contains { $0.allStatistics[.init(.distanceWalkingRunning)] != nil }
+                        // A recorded distance is not a route: treadmill runs have distance but no GPS.
+                        // Outdoor workouts (indoor flag false/absent) carry an HKWorkoutRoute.
+                        hasRoute: (workout.metadata?[HKMetadataKeyIndoorWorkout] as? Bool) == false
                     )
                 }
 
@@ -2345,9 +2345,14 @@ class HealthKitManager: ObservableObject {
     // MARK: - Weather Data
 
     private func extractWeatherData(from workout: HKWorkout) async -> (temperature: Double?, humidity: Double?) {
-        // Weather data can be stored in workout metadata
-        let temperature = workout.metadata?[HKMetadataKeyWeatherTemperature] as? Double
-        let humidity = workout.metadata?[HKMetadataKeyWeatherHumidity] as? Double
+        // HealthKit stores weather metadata as HKQuantity, not Double — a direct
+        // `as? Double` cast always fails. Read the quantities in their documented
+        // units and return temperature in °C (HK stores it in °F).
+        let temperature = (workout.metadata?[HKMetadataKeyWeatherTemperature] as? HKQuantity)?
+            .doubleValue(for: .degreeCelsius())
+        // HK stores humidity as a 0...1 fraction; the model field is a percentage.
+        let humidity = (workout.metadata?[HKMetadataKeyWeatherHumidity] as? HKQuantity)
+            .map { $0.doubleValue(for: .percent()) * 100 }
         return (temperature, humidity)
     }
 
@@ -2407,6 +2412,18 @@ class HealthKitManager: ObservableObject {
         } catch {
             return (nil, nil, nil)
         }
+    }
+
+    /// Per-night average HRV across a set of sleep sessions, mirroring the night-only
+    /// window used by `fetchNightHRVStatistics`. Used to build a night-aligned HRV baseline.
+    private func fetchNightHRVAverages(for sleepList: [SleepData]) async -> [Double] {
+        var averages: [Double] = []
+        for sleep in sleepList {
+            if let avg = await fetchNightHRVStatistics(for: sleep).average {
+                averages.append(avg)
+            }
+        }
+        return averages
     }
 
     func fetchRecoveryMetrics(for date: Date = Date()) async throws -> RecoveryMetrics {
@@ -2593,55 +2610,34 @@ class HealthKitManager: ObservableObject {
 
         guard let session = targetSession, !session.isEmpty else { return nil }
 
-        // Calculate sleep metrics from the complete session
-        var totalSleep: TimeInterval = 0
-        var timeInBed: TimeInterval = 0
+        // Calculate sleep metrics from the complete session.
+        // iPhone and Apple Watch can both record overlapping samples for the same
+        // night; summing raw sample durations double-counts and can push
+        // sleepEfficiency above 100%. Merge overlapping intervals per stage first.
         var deepSleep: TimeInterval = 0
         var coreSleep: TimeInterval = 0
         var remSleep: TimeInterval = 0
         var awake: TimeInterval = 0
+        var totalSleep: TimeInterval
+        var timeInBed: TimeInterval
 
-        for sample in session {
-            let duration = sample.endDate.timeIntervalSince(sample.startDate)
-
-            if #available(iOS 16.0, *) {
-                switch sample.value {
-                case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-                     HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-                     HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-                     HKCategoryValueSleepAnalysis.asleepREM.rawValue:
-                    totalSleep += duration
-                default:
-                    break
-                }
-
-                switch sample.value {
-                case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
-                    deepSleep += duration
-                case HKCategoryValueSleepAnalysis.asleepCore.rawValue:
-                    coreSleep += duration
-                case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
-                    remSleep += duration
-                case HKCategoryValueSleepAnalysis.awake.rawValue:
-                    awake += duration
-                case HKCategoryValueSleepAnalysis.inBed.rawValue:
-                    timeInBed += duration
-                default:
-                    break
-                }
-            } else {
-                // iOS 15 and earlier
-                switch sample.value {
-                case HKCategoryValueSleepAnalysis.asleep.rawValue:
-                    totalSleep += duration
-                case HKCategoryValueSleepAnalysis.inBed.rawValue:
-                    timeInBed += duration
-                case HKCategoryValueSleepAnalysis.awake.rawValue:
-                    awake += duration
-                default:
-                    break
-                }
-            }
+        if #available(iOS 16.0, *) {
+            let asleepValues: Set<Int> = [
+                HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                HKCategoryValueSleepAnalysis.asleepREM.rawValue
+            ]
+            totalSleep = Self.mergedDuration(of: session.filter { asleepValues.contains($0.value) })
+            deepSleep = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue })
+            coreSleep = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue })
+            remSleep = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue })
+            awake = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.awake.rawValue })
+            timeInBed = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.inBed.rawValue })
+        } else {
+            totalSleep = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.asleep.rawValue })
+            timeInBed = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.inBed.rawValue })
+            awake = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.awake.rawValue })
         }
 
         // If timeInBed wasn't recorded, use total sleep + awake time
@@ -2675,13 +2671,47 @@ class HealthKitManager: ObservableObject {
         )
     }
 
+    /// Total time covered by the given samples, counting overlapping intervals once.
+    /// Multi-source nights (iPhone + Watch) produce overlapping samples; a raw sum
+    /// would double-count and can drive sleepEfficiency above 100%.
+    private static func mergedDuration(of samples: [HKCategorySample]) -> TimeInterval {
+        guard !samples.isEmpty else { return 0 }
+        let intervals = samples
+            .map { ($0.startDate, $0.endDate) }
+            .filter { $0.1 > $0.0 }
+            .sorted { $0.0 < $1.0 }
+        guard !intervals.isEmpty else { return 0 }
+
+        var total: TimeInterval = 0
+        var currentStart = intervals[0].0
+        var currentEnd = intervals[0].1
+        for (start, end) in intervals.dropFirst() {
+            if start <= currentEnd {
+                currentEnd = max(currentEnd, end)
+            } else {
+                total += currentEnd.timeIntervalSince(currentStart)
+                currentStart = start
+                currentEnd = end
+            }
+        }
+        total += currentEnd.timeIntervalSince(currentStart)
+        return total
+    }
+
     // MARK: - Health Profile
 
     func fetchHealthProfile(for date: Date = Date()) async throws -> HealthProfile {
         if DemoMode.isEnabled { return MockData.sampleHealthProfile }
 
-        // Fetch user characteristics
-        let age = try? healthStore.dateOfBirthComponents().year.map { Calendar.current.component(.year, from: Date()) - $0 }
+        // Fetch user characteristics. Compute age from the full birthday, not a
+        // year-minus-year subtraction (which is off by one for half the year and
+        // shifts the derived max HR).
+        let calendar = Calendar.current
+        let age: Int? = {
+            guard let dob = try? healthStore.dateOfBirthComponents(),
+                  let birthDate = calendar.date(from: dob) else { return nil }
+            return calendar.dateComponents([.year], from: birthDate, to: Date()).year
+        }()
         let biologicalSex = try? healthStore.biologicalSex().biologicalSex
 
         // Fetch all metrics but don't fail if some are unavailable
@@ -2695,7 +2725,6 @@ class HealthKitManager: ObservableObject {
         async let respRate = fetchLatestQuantitySafe(for: .respiratoryRate, before: date, unit: HKUnit.count().unitDivided(by: .minute()))
 
         // Fetch daily activity
-        let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
@@ -3077,12 +3106,6 @@ class HealthKitManager: ObservableObject {
             end: endDate,
             unit: HKUnit.count().unitDivided(by: .minute())
         )
-        async let hrvHistory = fetchQuantityHistory(
-            for: .heartRateVariabilitySDNN,
-            start: startDate,
-            end: endDate,
-            unit: .secondUnit(with: .milli)
-        )
         async let walkingHRHistory = fetchQuantityHistory(
             for: .walkingHeartRateAverage,
             start: startDate,
@@ -3103,9 +3126,14 @@ class HealthKitManager: ObservableObject {
         )
         async let sleepHistory = fetchSleepHistory(start: startDate, end: endDate)
 
-        let (rhr, hrv, whr, resp, spo2, sleep) = await (
-            rhrHistory, hrvHistory, walkingHRHistory, respRateHistory, spO2History, sleepHistory
+        let (rhr, whr, resp, spo2, sleep) = await (
+            rhrHistory, walkingHRHistory, respRateHistory, spO2History, sleepHistory
         )
+
+        // HRV baseline must use the same population as the daily comparison value
+        // (night-only). Aggregating day+night SDNN here while comparing a night-only
+        // value biases the recovery z-score, since night HRV runs higher than day.
+        let hrv = await fetchNightHRVAverages(for: sleep)
 
         // Compute statistics
         let rhrStats = computeStatistics(rhr)

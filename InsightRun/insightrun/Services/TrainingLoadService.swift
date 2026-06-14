@@ -123,9 +123,12 @@ final class TrainingLoadService: ObservableObject {
             let thisWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: weekStart, to: today)
             let thisWeekVolume = thisWeekWorkouts.compactMap { $0.distance }.reduce(0, +)
 
-            // Previous week's range (same days of the week for fair comparison)
+            // Previous week's range (same elapsed days for fair comparison).
+            // Use the actual day delta from weekStart — `.weekday` (1=Sunday) yields a
+            // negative offset on Sunday for Monday-first locales, which zeroed the
+            // previous-week volume and produced a false +100% overtraining alert.
             guard let prevWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart) else { return }
-            let daysIntoWeek = calendar.component(.weekday, from: today) - calendar.component(.weekday, from: weekStart)
+            let daysIntoWeek = calendar.dateComponents([.day], from: weekStart, to: today).day ?? 0
             guard let prevWeekEnd = calendar.date(byAdding: .day, value: daysIntoWeek, to: prevWeekStart) else { return }
             let prevWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: prevWeekStart, to: prevWeekEnd)
             let prevWeekVolume = prevWeekWorkouts.compactMap { $0.distance }.reduce(0, +)

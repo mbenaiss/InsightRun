@@ -48,65 +48,67 @@ struct HealthProfile: Identifiable {
         return nil
     }
 
+    private var notAvailable: String {
+        String(localized: "common.notAvailable", defaultValue: "N/A", comment: "Fallback when a metric value is unavailable")
+    }
+
     var formattedAge: String {
-        guard let age = age else { return "N/A" }
+        guard let age = age else { return notAvailable }
         return String(localized: "\(age) years", comment: "User age in years")
     }
 
     var formattedBodyMass: String {
-        guard let mass = bodyMass else { return "N/A" }
-        return String(format: "%.1f kg", mass)
+        guard let mass = bodyMass else { return notAvailable }
+        return "\(Formatters.decimal(mass, fractionDigits: 1)) kg"
     }
 
     var formattedBodyFat: String {
-        guard let fat = bodyFatPercentage else { return "N/A" }
-        return String(format: "%.1f%%", fat)
+        guard let fat = bodyFatPercentage else { return notAvailable }
+        return Formatters.percent(fat, fractionDigits: 1)
     }
 
     var formattedLeanMass: String {
-        guard let lean = leanBodyMass else { return "N/A" }
-        return String(format: "%.1f kg", lean)
+        guard let lean = leanBodyMass else { return notAvailable }
+        return "\(Formatters.decimal(lean, fractionDigits: 1)) kg"
     }
 
     var formattedSpO2: String {
-        guard let spo2 = oxygenSaturation else { return "N/A" }
-        return String(format: "%.1f%%", spo2)
+        guard let spo2 = oxygenSaturation else { return notAvailable }
+        return Formatters.percent(spo2, fractionDigits: 1)
     }
 
     var formattedTemperature: String {
-        guard let temp = bodyTemperature else { return "N/A" }
-        return String(format: "%.1f°C", temp)
+        guard let temp = bodyTemperature else { return notAvailable }
+        return "\(Formatters.decimal(temp, fractionDigits: 1)) °C"
     }
 
     var formattedRespiratoryRate: String {
-        guard let rate = respiratoryRate else { return "N/A" }
-        return String(format: "%.0f /min", rate)
+        guard let rate = respiratoryRate else { return notAvailable }
+        return "\(Formatters.integer(Int(rate.rounded()))) /min"
     }
 
     var formattedExerciseTime: String {
-        guard let time = exerciseTime else { return "N/A" }
-        return String(format: "%.0f min", time)
+        guard let time = exerciseTime else { return notAvailable }
+        return "\(Formatters.integer(Int(time.rounded()))) min"
     }
 
     var formattedStandTime: String {
-        guard let time = standTime else { return "N/A" }
-        return String(format: "%.0f min", time)
+        guard let time = standTime else { return notAvailable }
+        return "\(Formatters.integer(Int(time.rounded()))) min"
     }
 
     var formattedCyclingDistance: String {
-        guard let distance = cyclingDistance else { return "N/A" }
-        let km = distance / 1000.0
-        return String(format: "%.1f km", km)
+        guard let distance = cyclingDistance else { return notAvailable }
+        return Formatters.distance(km: distance / 1000.0, fractionDigits: 1)
     }
 
     var formattedSwimmingDistance: String {
-        guard let distance = swimmingDistance else { return "N/A" }
-        let km = distance / 1000.0
-        return String(format: "%.1f km", km)
+        guard let distance = swimmingDistance else { return notAvailable }
+        return Formatters.distance(km: distance / 1000.0, fractionDigits: 1)
     }
 
     var biologicalSexString: String {
-        guard let sex = biologicalSex else { return "N/A" }
+        guard let sex = biologicalSex else { return notAvailable }
         switch sex {
         case .female:
             return String(localized: "Female", comment: "Biological sex - female")
@@ -133,7 +135,7 @@ struct HealthProfile: Identifiable {
 
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM"
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
         return formatter.string(from: date)
     }
 }

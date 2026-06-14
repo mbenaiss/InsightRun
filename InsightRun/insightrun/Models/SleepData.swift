@@ -97,11 +97,12 @@ struct SleepData: Identifiable {
         formatDuration(timeInBed)
     }
 
-    // Format sleep session time range
+    // Format sleep session time range (locale-aware 12/24h)
     var formattedSleepTime: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "HH:mm"
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
 
         let startTime = formatter.string(from: sleepStart)
         let endTime = formatter.string(from: sleepEnd)

@@ -70,6 +70,12 @@ extension Color {
     /// Expressive purple — DS `--ir-purple` (#BF5AF2).
     static let irPurple          = Color.universal(0xBF5AF2)
 
+    /// Canonical ink for text/icons sitting on an accent fill.
+    /// The accent is lime (#96FF70) in both light and dark, so a fixed very-dark
+    /// ink keeps AA contrast in every appearance — do not use white/black/text
+    /// tokens directly on accent.
+    static let irTextOnAccent    = Color.universal(0x0A0E07)
+
     // MARK: Text — DS `--ir-text`, `--ir-text-2`, `--ir-text-3`
     static let irTextPrimary     = Color.adaptive(light: 0x1C1E21, dark: 0xFFFFFF)
     /// rgba(235,235,245,0.60) in dark.
@@ -107,6 +113,41 @@ extension Color {
         light: 0x000000, dark: 0xFFFFFF,
         lightAlpha: 0.12, darkAlpha: 0.09
     )
+}
+
+// MARK: - Brand colors (third-party / platform branding, non-adaptive by design)
+//
+// Official brand hex values — these must stay constant across appearances so
+// providers remain recognizable. Use these instead of inline literals.
+
+extension Color {
+    static let brandStrava       = Color.universal(0xFC5200)
+    static let brandSuunto       = Color.universal(0xE84545)
+    static let brandHealthKit    = Color.universal(0xFF6B00)
+    static let brandAppleWatch   = Color.universal(0xFF2D55)
+    static let brandGarmin       = Color.universal(0x007CC3)
+    static let brandPolar        = Color.universal(0xD32F2F)
+    static let brandCoros        = Color.universal(0xFF9500)
+}
+
+// MARK: - AI gradient token
+
+extension LinearGradient {
+    /// Canonical AI gradient: lime accent → lavender end-stop.
+    /// Replaces degenerate `[irPrimaryAccent, irPrimaryAccent]` gradients.
+    static let irAIAccent = LinearGradient(
+        colors: [Color.irPrimaryAccent, Color.irAIAccentSecondary],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
+// MARK: - Animation tokens
+
+enum IRAnimation {
+    static let standard = Animation.easeInOut(duration: 0.3)
+    static let quick = Animation.easeInOut(duration: 0.2)
+    static let spring = Animation.spring(response: 0.35, dampingFraction: 0.8)
 }
 
 // MARK: - Spacing — DS 4pt grid
@@ -149,67 +190,98 @@ enum Radius {
 //   --ir-font-mono: SF Mono — allures, dates abrégées, eyebrows numérotés
 
 enum IRFont {
+    // MARK: Scaling core
+    //
+    // Dynamic Type keystone: every style maps a fixed DS base size to a
+    // reference `UIFont.TextStyle`, then lets `UIFontMetrics` scale it with the
+    // user's accessibility text size. Base sizes below stay identical to the DS
+    // spec at the default content size; only the scaling behavior is added.
+
+    private static func scaled(
+        size: CGFloat,
+        weight: UIFont.Weight,
+        relativeTo textStyle: UIFont.TextStyle,
+        design: UIFontDescriptor.SystemDesign = .default,
+        monospacedDigit: Bool = false
+    ) -> Font {
+        var base = UIFont.systemFont(ofSize: size, weight: weight)
+        if monospacedDigit {
+            base = UIFont.monospacedDigitSystemFont(ofSize: size, weight: weight)
+        }
+        if design != .default, let descriptor = base.fontDescriptor.withDesign(design) {
+            base = UIFont(descriptor: descriptor, size: size)
+        }
+        return Font(UIFontMetrics(forTextStyle: textStyle).scaledFont(for: base))
+    }
+
     // MARK: Échelle textuelle (DS section 03)
     /// 56 / 800 / -0.04em — titres de page (rare).
-    static let display          = Font.system(size: 56, weight: .heavy)
+    static let display          = scaled(size: 56, weight: .heavy, relativeTo: .largeTitle)
     /// 34 / 800 / -0.03em — titre d'écran (Objectifs, Statistiques).
-    static let title1           = Font.system(size: 34, weight: .heavy)
+    static let title1           = scaled(size: 34, weight: .heavy, relativeTo: .largeTitle)
     /// 26 / 700 / -0.02em — hero numérique, date du jour.
-    static let title2           = Font.system(size: 26, weight: .bold)
+    static let title2           = scaled(size: 26, weight: .bold, relativeTo: .title1)
     /// 22 / 800 / -0.02em — titre de card hero.
-    static let title3           = Font.system(size: 22, weight: .heavy)
+    static let title3           = scaled(size: 22, weight: .heavy, relativeTo: .title2)
     /// 17 / 700 / -0.01em — section dans un screen long.
-    static let headline         = Font.system(size: 17, weight: .bold)
+    static let headline         = scaled(size: 17, weight: .bold, relativeTo: .headline)
     /// 15 / 600 — item principal de liste.
-    static let bodyEmphasized   = Font.system(size: 15, weight: .semibold)
+    static let bodyEmphasized   = scaled(size: 15, weight: .semibold, relativeTo: .body)
     /// 14 / 500 — texte courant, descriptions.
-    static let body             = Font.system(size: 14, weight: .medium)
+    static let body             = scaled(size: 14, weight: .medium, relativeTo: .callout)
     /// 13 / 600 — tabs, boutons secondaires.
-    static let footnote         = Font.system(size: 13, weight: .semibold)
+    static let footnote         = scaled(size: 13, weight: .semibold, relativeTo: .subheadline)
     /// 12 / 500 — sous-titres, descriptions sous icône.
-    static let caption          = Font.system(size: 12, weight: .medium)
+    static let caption          = scaled(size: 12, weight: .medium, relativeTo: .caption1)
     /// 11 / 700 / 0.12em uppercase — sections, en-têtes numérotés.
-    static let eyebrow          = Font.system(size: 11, weight: .bold)
+    static let eyebrow          = scaled(size: 11, weight: .bold, relativeTo: .caption2)
     /// 10 / 700 / 0.14em uppercase — labels sous KPI, metadata.
-    static let microLabel       = Font.system(size: 10, weight: .bold)
+    static let microLabel       = scaled(size: 10, weight: .bold, relativeTo: .caption2)
 
     // MARK: Numéros (SF Pro Rounded — toujours tabular-nums)
     /// 64 / 700 — `.num-xl` (DS).
-    static let numXL = Font.system(size: 64, weight: .bold, design: .rounded)
-        .monospacedDigit()
+    static let numXL = scaled(size: 64, weight: .bold, relativeTo: .largeTitle, design: .rounded, monospacedDigit: true)
     /// 44 / 700 — `.num-lg`.
-    static let numLG = Font.system(size: 44, weight: .bold, design: .rounded)
-        .monospacedDigit()
+    static let numLG = scaled(size: 44, weight: .bold, relativeTo: .largeTitle, design: .rounded, monospacedDigit: true)
     /// 28 / 700 — `.num-md`.
-    static let numMD = Font.system(size: 28, weight: .bold, design: .rounded)
-        .monospacedDigit()
+    static let numMD = scaled(size: 28, weight: .bold, relativeTo: .title1, design: .rounded, monospacedDigit: true)
     /// 18 / 600 — `.num-sm`.
-    static let numSM = Font.system(size: 18, weight: .semibold, design: .rounded)
-        .monospacedDigit()
+    static let numSM = scaled(size: 18, weight: .semibold, relativeTo: .title3, design: .rounded, monospacedDigit: true)
     /// 14 / 600 — nombres compacts dans les micro-cards.
-    static let numXS = Font.system(size: 14, weight: .semibold, design: .rounded)
-        .monospacedDigit()
+    static let numXS = scaled(size: 14, weight: .semibold, relativeTo: .callout, design: .rounded, monospacedDigit: true)
 
     static func numeric(size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        Font.system(size: size, weight: weight, design: .rounded)
-            .monospacedDigit()
+        scaled(size: size, weight: uiWeight(weight), relativeTo: .body, design: .rounded, monospacedDigit: true)
     }
 
     // MARK: Mono (SF Mono — allures, eyebrows numérotés)
-    static let monoSM = Font.system(size: 11, weight: .semibold, design: .monospaced)
-    static let monoMD = Font.system(size: 13, weight: .semibold, design: .monospaced)
-    static let monoLG = Font.system(size: 18, weight: .semibold, design: .monospaced)
-        .monospacedDigit()
-    static let monoXL = Font.system(size: 22, weight: .semibold, design: .monospaced)
-        .monospacedDigit()
+    static let monoSM = scaled(size: 11, weight: .semibold, relativeTo: .caption2, design: .monospaced)
+    static let monoMD = scaled(size: 13, weight: .semibold, relativeTo: .subheadline, design: .monospaced)
+    static let monoLG = scaled(size: 18, weight: .semibold, relativeTo: .title3, design: .monospaced, monospacedDigit: true)
+    static let monoXL = scaled(size: 22, weight: .semibold, relativeTo: .title2, design: .monospaced, monospacedDigit: true)
 
     // MARK: Responsive / symbols
     static func text(size: CGFloat, weight: Font.Weight = .medium) -> Font {
-        Font.system(size: size, weight: weight)
+        scaled(size: size, weight: uiWeight(weight), relativeTo: .body)
     }
 
     static func icon(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Font.system(size: size, weight: weight)
+        scaled(size: size, weight: uiWeight(weight), relativeTo: .body)
+    }
+
+    private static func uiWeight(_ weight: Font.Weight) -> UIFont.Weight {
+        switch weight {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
+        case .regular: return .regular
+        case .medium: return .medium
+        case .semibold: return .semibold
+        case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
+        default: return .regular
+        }
     }
 
     static func markdownHeader(for level: Int) -> Font {

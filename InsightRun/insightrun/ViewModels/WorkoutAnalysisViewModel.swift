@@ -157,29 +157,30 @@ class WorkoutAnalysisViewModel: ObservableObject {
         let question = getAnalysisPrompt()
 
         // ModelRouter will automatically select appropriate model based on request complexity
-        // Backend builds context from structured workout data
+        // Backend builds context from structured workout data.
+        // askQuestion only returns once the stream is fully consumed, so the final
+        // text is available synchronously on aiService.streamedResponse afterwards.
         await aiService.askQuestion(
             question: question,
             mode: .singleWorkout(workout, metrics)
         )
 
-        // Wait for streaming to complete by observing isStreaming
-        var attempts = 0
-        let maxAttempts = 60 // 30 seconds max
-
-        while aiService.isStreaming && attempts < maxAttempts {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-            attempts += 1
-        }
-
         isLoading = false
 
-        // Check if we got a response (analysisText is already set by Combine observer)
-        guard let finalAnalysis = analysisText, !finalAnalysis.isEmpty, aiService.error == nil else {
+        // Read the authoritative final text from the service rather than analysisText,
+        // which is delivered through an async Combine sink that may lag a runloop tick.
+        let finalAnalysis = aiService.streamedResponse
+
+        // Only persist a complete analysis; a stream cut short by a transient failure
+        // would otherwise be cached and displayed as a final, truncated synthesis.
+        guard aiService.error == nil, Self.isCompleteAnalysis(finalAnalysis) else {
+            analysisText = nil
             error = aiService.error ?? String(localized: "Error during analysis")
-            print("❌ WorkoutAnalysisViewModel: No response received")
+            print("❌ WorkoutAnalysisViewModel: No valid response received")
             return
         }
+
+        analysisText = finalAnalysis
 
         print("✅ WorkoutAnalysisViewModel: Streaming complete, saving to SwiftData (\(finalAnalysis.count) chars)")
         print("🔍 WorkoutAnalysisViewModel: Saving with workoutId: \(workout.id)")
@@ -202,6 +203,17 @@ class WorkoutAnalysisViewModel: ObservableObject {
             self.error = String(localized: "Error saving: \(error.localizedDescription)")
             print("❌ WorkoutAnalysisViewModel: Save failed: \(error)")
         }
+    }
+
+    // MARK: - Completeness
+
+    /// A streamed analysis is complete when it has substantive content and ends on
+    /// terminal punctuation. A bare prefix or a sentence cut mid-word fails this check.
+    static func isCompleteAnalysis(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 40 else { return false }
+        let lastChar = trimmed.last
+        return lastChar == "." || lastChar == "!" || lastChar == "?" || lastChar == "\u{2026}"
     }
 
     // MARK: - Cache Management

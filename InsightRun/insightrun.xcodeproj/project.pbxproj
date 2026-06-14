@@ -523,8 +523,6 @@
 				INFOPLIST_FILE = insightrun/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "InsightRun enregistre dans Santé les entraînements importés depuis des fichiers FIT (Suunto, Garmin) avec fréquence cardiaque, parcours GPS, puissance et cadence.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -568,8 +566,6 @@
 				INFOPLIST_FILE = insightrun/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Cette app a besoin d'accéder à vos données de santé pour analyser vos entraînements de course, suivre vos métriques de mobilité (stabilité, asymétrie, contact au sol), et vous fournir des conseils personnalisés basés sur votre condition physique.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "InsightRun enregistre dans Santé les entraînements importés depuis des fichiers FIT (Suunto, Garmin) avec fréquence cardiaque, parcours GPS, puissance et cadence.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -270,7 +270,7 @@ struct CacheStats {
     let cacheSize: Double // in MB
 
     var formattedSize: String {
-        return String(format: "%.1f MB", cacheSize)
+        return "\(Formatters.decimal(cacheSize, fractionDigits: 1)) MB"
     }
 
     var dateRange: String? {
@@ -280,7 +280,7 @@ struct CacheStats {
 
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale.current
 
         return "\(formatter.string(from: oldest)) → \(formatter.string(from: latest))"
     }

@@ -74,6 +74,7 @@ class BatchIndexationManager: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
     private let backendClient = BackendAPIClient.shared
     private let storage = HistoricalSummaryStorage.shared
+    private static let iso8601Formatter = ISO8601DateFormatter()
 
     private init() {}
 
@@ -81,7 +82,7 @@ class BatchIndexationManager: ObservableObject {
 
     /// Start the indexation process
     func startIndexation() async throws {
-        guard state != .loading(progress: 0.0) else {
+        guard !state.isActive else {
             print("⚠️ BatchIndexationManager: Indexation already in progress")
             return
         }
@@ -516,7 +517,7 @@ class BatchIndexationManager: ObservableObject {
             let safeCalories = workout.totalEnergyBurned.flatMap { $0.isFinite ? max($0, 0) : nil }
 
             let workoutData = WorkoutData(
-                date: ISO8601DateFormatter().string(from: workout.startDate),
+                date: Self.iso8601Formatter.string(from: workout.startDate),
                 duration: workout.duration,
                 distance: safeDistance,
                 calories: safeCalories,

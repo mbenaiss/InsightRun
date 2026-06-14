@@ -28,13 +28,13 @@ enum SuuntoImportError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .fileReadError(let error):
-            return "Could not read file: \(error.localizedDescription)"
+            return String(localized: "suunto.error.fileRead", defaultValue: "Couldn't read the file: \(error.localizedDescription)", comment: "Suunto import error - file read failed")
         case .parseError(let error):
-            return "Could not parse Suunto data: \(error.localizedDescription)"
+            return String(localized: "suunto.error.parse", defaultValue: "Couldn't read the Suunto data: \(error.localizedDescription)", comment: "Suunto import error - parse failed")
         case .healthKitNotAvailable:
-            return "HealthKit is not available"
+            return String(localized: "suunto.error.healthKitUnavailable", defaultValue: "HealthKit isn't available.", comment: "Suunto import error - HealthKit unavailable")
         case .saveFailed(let error):
-            return "Could not save workout: \(error.localizedDescription)"
+            return String(localized: "suunto.error.saveFailed", defaultValue: "Couldn't save the workout: \(error.localizedDescription)", comment: "Suunto import error - save failed")
         }
     }
 }
@@ -381,7 +381,7 @@ class SuuntoImportService: ObservableObject {
         do {
             try saveToCache(parsed, fileName: fileName)
         } catch {
-            let warningMessage = "Workout imported but cache save failed: \(error.localizedDescription)"
+            let warningMessage = String(localized: "suunto.warning.cacheSaveFailed", defaultValue: "Workout imported but couldn't be cached: \(error.localizedDescription)", comment: "Suunto import warning - cache save failed but import succeeded")
             print("⚠️ \(warningMessage)")
             cacheSaveWarning = warningMessage
         }

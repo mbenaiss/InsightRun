@@ -146,15 +146,15 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // Inject shared ModelContext into cache singletons
-            // This ensures all caches use the unified persistent container
-            Task { @MainActor in
-                StravaCache.shared.setModelContext(modelContext)
-                UnifiedWorkoutCache.shared.setModelContext(modelContext)
-                SuuntoImportService.shared.setModelContext(modelContext)
-                GoalStorage.shared.setModelContext(modelContext)
-                GoalStorage.shared.migrateFromUserDefaultsIfNeeded()
-            }
+            // Inject shared ModelContext into cache singletons synchronously.
+            // onAppear already runs on the main actor; wrapping this in a Task
+            // deferred the injection past the tabs' .task bodies, so an early
+            // GoalStorage.addGoal could hit a nil context and silently drop the goal.
+            StravaCache.shared.setModelContext(modelContext)
+            UnifiedWorkoutCache.shared.setModelContext(modelContext)
+            SuuntoImportService.shared.setModelContext(modelContext)
+            GoalStorage.shared.setModelContext(modelContext)
+            GoalStorage.shared.migrateFromUserDefaultsIfNeeded()
         }
         .task {
             // Check if we should prompt for App Store review

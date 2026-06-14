@@ -307,11 +307,44 @@ struct WorkoutGenerationResponse: Decodable {
         let targetHeartRateZone: Int?
         let repetitions: Int?
         let instructions: String?
+
+        private enum CodingKeys: String, CodingKey {
+            case type, goal, targetPace, targetPaceMin, targetPaceMax, targetHeartRateZone, repetitions, instructions
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.type = (try c.decodeIfPresent(String.self, forKey: .type)) ?? "work"
+            self.goal = (try c.decodeIfPresent(StepGoal.self, forKey: .goal)) ?? StepGoal(type: "open", value: 0)
+            self.targetPace = try c.decodeIfPresent(String.self, forKey: .targetPace)
+            self.targetPaceMin = try c.decodeIfPresent(String.self, forKey: .targetPaceMin)
+            self.targetPaceMax = try c.decodeIfPresent(String.self, forKey: .targetPaceMax)
+            self.targetHeartRateZone = try c.decodeIfPresent(Int.self, forKey: .targetHeartRateZone)
+            self.repetitions = try c.decodeIfPresent(Int.self, forKey: .repetitions)
+            self.instructions = try c.decodeIfPresent(String.self, forKey: .instructions)
+        }
     }
 
+    // Backend omits `value` for "open" steps; decode tolerantly (default 0) so a single
+    // open step doesn't fail decoding of the whole generated workout.
     struct StepGoal: Decodable {
         let type: String // "distance", "duration", "open"
-        let value: Double // meters for distance, seconds for duration
+        let value: Double // meters for distance, seconds for duration; 0 for "open"
+
+        init(type: String, value: Double) {
+            self.type = type
+            self.value = value
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case type, value
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.type = (try c.decodeIfPresent(String.self, forKey: .type)) ?? "open"
+            self.value = (try c.decodeIfPresent(Double.self, forKey: .value)) ?? 0
+        }
     }
 
     struct GenerationMetadata: Decodable {
@@ -371,6 +404,24 @@ struct TrainingPlanGenerationResponse: Decodable {
         let targetPace: String?
         let intensity: String
         let steps: [GeneratedStepData]?
+
+        private enum CodingKeys: String, CodingKey {
+            case type, name, description, targetDuration, targetDistance, targetPace, intensity, steps
+        }
+
+        // Backend tolerates an absent `description`; decode defensively so the whole
+        // plan stays decodable instead of failing and wasting the premium quota.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.type = (try c.decodeIfPresent(String.self, forKey: .type)) ?? "easy"
+            self.name = (try c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.description = (try c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+            self.targetDuration = try c.decodeIfPresent(Double.self, forKey: .targetDuration)
+            self.targetDistance = try c.decodeIfPresent(Double.self, forKey: .targetDistance)
+            self.targetPace = try c.decodeIfPresent(String.self, forKey: .targetPace)
+            self.intensity = (try c.decodeIfPresent(String.self, forKey: .intensity)) ?? "moderate"
+            self.steps = try c.decodeIfPresent([GeneratedStepData].self, forKey: .steps)
+        }
     }
 
     struct GeneratedStepData: Decodable {
@@ -380,6 +431,20 @@ struct TrainingPlanGenerationResponse: Decodable {
         let targetPace: String?
         let repetitions: Int?
         let description: String
+
+        private enum CodingKeys: String, CodingKey {
+            case type, duration, distance, targetPace, repetitions, description
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.type = (try c.decodeIfPresent(String.self, forKey: .type)) ?? "work"
+            self.duration = try c.decodeIfPresent(Double.self, forKey: .duration)
+            self.distance = try c.decodeIfPresent(Double.self, forKey: .distance)
+            self.targetPace = try c.decodeIfPresent(String.self, forKey: .targetPace)
+            self.repetitions = try c.decodeIfPresent(Int.self, forKey: .repetitions)
+            self.description = (try c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+        }
     }
 
     struct TrainingPlanMetadata: Decodable {
@@ -467,5 +532,19 @@ struct AdaptTrainingPlanResponse: Decodable {
         let adjustments: String
         let goalAchievable: Bool
         let confidenceLevel: String
+
+        private enum CodingKeys: String, CodingKey {
+            case assessment, adjustments, goalAchievable, confidenceLevel
+        }
+
+        // Backend may omit `adjustments`/`confidenceLevel`; tolerate to keep the
+        // adapted plan decodable.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.assessment = (try c.decodeIfPresent(String.self, forKey: .assessment)) ?? ""
+            self.adjustments = (try c.decodeIfPresent(String.self, forKey: .adjustments)) ?? ""
+            self.goalAchievable = (try c.decodeIfPresent(Bool.self, forKey: .goalAchievable)) ?? true
+            self.confidenceLevel = (try c.decodeIfPresent(String.self, forKey: .confidenceLevel)) ?? "medium"
+        }
     }
 }

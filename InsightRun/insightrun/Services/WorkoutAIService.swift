@@ -419,13 +419,12 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         )
     }
 
-    private func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+    // ISO 8601 keeps WorkoutData.date machine-parseable on the backend (no localized format).
+    private static let isoDateFormatter = ISO8601DateFormatter()
 
+    private func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
         return WorkoutData(
-            date: formatter.string(from: workout.startDate),
+            date: Self.isoDateFormatter.string(from: workout.startDate),
             duration: workout.duration,
             distance: workout.distance ?? 0,
             calories: workout.totalEnergyBurned,

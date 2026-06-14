@@ -22,6 +22,54 @@ class BackendAPIClient {
 
     private init() {}
 
+    // MARK: - HTTP Status Handling
+
+    /// Centralized HTTP status mapping so every endpoint maps 401/403/429/5xx consistently.
+    /// `data` is optional (unavailable for streaming responses) and only used for the unknown-error preview.
+    private func validate(_ response: URLResponse, data: Data?) throws {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BackendError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            return
+        case 401:
+            throw BackendError.unauthorized
+        case 403:
+            throw BackendError.blocked
+        case 429:
+            throw BackendError.rateLimitExceeded(retryAfter: Self.retryAfter(from: httpResponse))
+        case 500...599:
+            throw BackendError.serverError
+        default:
+            throw BackendError.unknownError(code: httpResponse.statusCode,
+                                            body: data.flatMap { BackendError.bodyPreview(from: $0) })
+        }
+    }
+
+    /// Extract a retry delay (seconds) from a 429 response. Supports `Retry-After`
+    /// (seconds or HTTP-date) and the backend's `X-RateLimit-Reset` epoch header.
+    private static func retryAfter(from response: HTTPURLResponse) -> TimeInterval? {
+        if let raw = response.value(forHTTPHeaderField: "Retry-After") {
+            if let seconds = TimeInterval(raw.trimmingCharacters(in: .whitespaces)) {
+                return seconds
+            }
+            let httpDate = DateFormatter()
+            httpDate.locale = Locale(identifier: "en_US_POSIX")
+            httpDate.timeZone = TimeZone(identifier: "GMT")
+            httpDate.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+            if let date = httpDate.date(from: raw) {
+                return max(0, date.timeIntervalSinceNow)
+            }
+        }
+        if let resetRaw = response.value(forHTTPHeaderField: "X-RateLimit-Reset"),
+           let resetEpoch = TimeInterval(resetRaw.trimmingCharacters(in: .whitespaces)) {
+            return max(0, Date(timeIntervalSince1970: resetEpoch).timeIntervalSinceNow)
+        }
+        return nil
+    }
+
     // MARK: - Chat (Non-streaming)
 
     /// Simple classification using RequestType (no hardcoded model)
@@ -44,23 +92,7 @@ class BackendAPIClient {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let responseText = json["response"] as? String else {
@@ -89,25 +121,7 @@ class BackendAPIClient {
             Task {
                 do {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
-
-                    guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish()
-                        return
-                    }
-
-                    // Check for errors
-                    switch httpResponse.statusCode {
-                    case 200...299:
-                        break
-                    case 401:
-                        throw BackendError.unauthorized
-                    case 429:
-                        throw BackendError.rateLimitExceeded
-                    case 500...599:
-                        throw BackendError.serverError
-                    default:
-                        throw BackendError.unknownError(code: httpResponse.statusCode, body: nil)
-                    }
+                    try self.validate(response, data: nil)
 
                     for try await line in bytes.lines {
                         // Parse SSE format: data: {...}
@@ -167,24 +181,7 @@ class BackendAPIClient {
             Task {
                 do {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
-
-                    guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish(throwing: BackendError.invalidResponse)
-                        return
-                    }
-
-                    switch httpResponse.statusCode {
-                    case 200...299:
-                        break
-                    case 401:
-                        throw BackendError.unauthorized
-                    case 429:
-                        throw BackendError.rateLimitExceeded
-                    case 500...599:
-                        throw BackendError.serverError
-                    default:
-                        throw BackendError.unknownError(code: httpResponse.statusCode, body: nil)
-                    }
+                    try self.validate(response, data: nil)
 
                     for try await line in bytes.lines {
                         if line.hasPrefix("data: ") {
@@ -259,23 +256,7 @@ class BackendAPIClient {
         print("📊 BackendAPIClient: Analyzing batch \(batchIndex) (\(workouts.count) workouts)...")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         let batchResponse = try decoder.decode(BatchAnalysisResponse.self, from: data)
@@ -310,23 +291,7 @@ class BackendAPIClient {
         print("📊 BackendAPIClient: Consolidating \(batchSummaries.count) batch summaries...")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         let consolidationResponse = try decoder.decode(ConsolidationResponse.self, from: data)
@@ -346,11 +311,7 @@ class BackendAPIClient {
         request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw BackendError.serverError
-        }
+        try validate(response, data: data)
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let remaining = json["requestsRemaining"] as? Int,
@@ -376,7 +337,7 @@ class BackendAPIClient {
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         request.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60 // Increased timeout for AI generation (parsing + generation)
+        request.timeoutInterval = 90 // Backend runs up to 2 generation attempts with no per-attempt timeout
 
         let requestBody = WorkoutGenerationRequest(
             userQuestion: userQuestion,
@@ -390,23 +351,7 @@ class BackendAPIClient {
         request.httpBody = try encoder.encode(requestBody)
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         do {
@@ -454,23 +399,7 @@ class BackendAPIClient {
         print("✨ BackendAPIClient: Generating smart workout suggestion...")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         let suggestionResponse = try decoder.decode(SmartSuggestionResponse.self, from: data)
@@ -484,35 +413,25 @@ class BackendAPIClient {
 
     /// Generate a multi-week training plan for a race goal
     func generateTrainingPlan(request: TrainingPlanGenerationRequest) async throws -> TrainingPlanGenerationResponse {
+        // Anti-double-submission: a long, premium-quota generation must not run twice concurrently.
+        let key = "generate-plan:\(request.raceType):\(request.targetDate)"
+        guard await InFlightGuard.shared.begin(key) else { throw RequestInProgressError() }
+        defer { Task { await InFlightGuard.shared.end(key) } }
+
         let url = URL(string: "\(baseURL)/api/generate-training-plan")!
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        urlRequest.setValue(key, forHTTPHeaderField: "Idempotency-Key")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 120 // Training plans are large, needs more time
+        urlRequest.timeoutInterval = 185 // Backend may run 2x90s attempts; client must outlast it
 
         let encoder = JSONEncoder()
         urlRequest.httpBody = try encoder.encode(request)
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         return try decoder.decode(TrainingPlanGenerationResponse.self, from: data)
@@ -521,35 +440,24 @@ class BackendAPIClient {
     // MARK: - Training Plan Adaptation
 
     func adaptTrainingPlan(request: AdaptTrainingPlanRequest) async throws -> AdaptTrainingPlanResponse {
+        let key = "adapt-plan:\(request.originalPlanName):\(request.currentWeekNumber)"
+        guard await InFlightGuard.shared.begin(key) else { throw RequestInProgressError() }
+        defer { Task { await InFlightGuard.shared.end(key) } }
+
         let url = URL(string: "\(baseURL)/api/adapt-training-plan")!
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        urlRequest.setValue(key, forHTTPHeaderField: "Idempotency-Key")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 120
+        urlRequest.timeoutInterval = 185 // Backend may run 2x90s attempts; client must outlast it
 
         let encoder = JSONEncoder()
         urlRequest.httpBody = try encoder.encode(request)
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         return try decoder.decode(AdaptTrainingPlanResponse.self, from: data)
@@ -568,25 +476,7 @@ class BackendAPIClient {
         request.timeoutInterval = 10 // Short timeout for config fetch
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 403:
-            throw BackendError.blocked
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         let config = try decoder.decode(RemoteConfig.self, from: data)
@@ -606,7 +496,7 @@ class BackendAPIClient {
         urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 15
+        urlRequest.timeoutInterval = 30
 
         let encoder = JSONEncoder()
         urlRequest.httpBody = try encoder.encode(request)
@@ -614,23 +504,7 @@ class BackendAPIClient {
         print("📊 BackendAPIClient: Fetching daily readiness...")
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BackendError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401:
-            throw BackendError.unauthorized
-        case 429:
-            throw BackendError.rateLimitExceeded
-        case 500...599:
-            throw BackendError.serverError
-        default:
-            throw BackendError.unknownError(code: httpResponse.statusCode, body: BackendError.bodyPreview(from: data))
-        }
+        try validate(response, data: data)
 
         let decoder = JSONDecoder()
         let readinessResponse = try decoder.decode(DailyReadinessResponse.self, from: data)
@@ -664,7 +538,7 @@ struct RateLimitStats {
 enum BackendError: LocalizedError {
     case unauthorized
     case blocked
-    case rateLimitExceeded
+    case rateLimitExceeded(retryAfter: TimeInterval?)
     case serverError
     case invalidResponse
     case unknownError(code: Int, body: String?)
@@ -675,7 +549,13 @@ enum BackendError: LocalizedError {
             return String(localized: "Unauthorized - Invalid app key", comment: "Backend error: unauthorized")
         case .blocked:
             return String(localized: "Your account has been blocked. Please contact support.", comment: "Backend error: account blocked")
-        case .rateLimitExceeded:
+        case .rateLimitExceeded(let retryAfter):
+            if let retryAfter, retryAfter > 0 {
+                let minutes = max(1, Int((retryAfter / 60).rounded(.up)))
+                return String(localized: "backend.error.rateLimit.retryAfter",
+                              defaultValue: "Rate limit exceeded. Try again in \(minutes) min.",
+                              comment: "Backend error: rate limit with retry delay in minutes")
+            }
             return String(localized: "Rate limit exceeded. Please try again later.", comment: "Backend error: rate limit")
         case .serverError:
             return String(localized: "Server error. Please try again.", comment: "Backend error: server error")
@@ -686,9 +566,42 @@ enum BackendError: LocalizedError {
         }
     }
 
+    /// Seconds to wait before retrying, if the server provided a hint (429 only).
+    var retryAfterSeconds: TimeInterval? {
+        if case .rateLimitExceeded(let retryAfter) = self { return retryAfter }
+        return nil
+    }
+
     /// Truncate a response body to a preview suitable for analytics.
     static func bodyPreview(from data: Data, maxBytes: Int = 500) -> String? {
         guard !data.isEmpty else { return nil }
         return String(data: data.prefix(maxBytes), encoding: .utf8)
+    }
+}
+
+// MARK: - In-Flight Guard
+
+/// Thrown when a long generation is already running for the same key (anti-double-submission).
+struct RequestInProgressError: LocalizedError {
+    var errorDescription: String? {
+        String(localized: "backend.error.alreadyInProgress",
+               defaultValue: "This request is already in progress. Please wait.",
+               comment: "Error: a long generation is already running")
+    }
+}
+
+/// Serializes long, quota-consuming requests by key: rejects a second call while one with the
+/// same key is still running, so a double-tap or retry doesn't double-charge the premium quota.
+actor InFlightGuard {
+    static let shared = InFlightGuard()
+
+    private var keys: Set<String> = []
+
+    func begin(_ key: String) -> Bool {
+        keys.insert(key).inserted
+    }
+
+    func end(_ key: String) {
+        keys.remove(key)
     }
 }

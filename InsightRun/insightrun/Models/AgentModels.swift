@@ -16,6 +16,41 @@ struct AgentWorkoutResult: Codable {
     let targetPace: String?
     let notes: String?
     let steps: [AgentWorkoutStep]
+
+    private enum CodingKeys: String, CodingKey {
+        case type, duration, distance, targetPace, notes, steps
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.type = try c.decode(String.self, forKey: .type)
+        // LLM may emit a fractional duration (e.g. 45.5); tolerate Double then round.
+        self.duration = try c.decodeFlexibleInt(forKey: .duration) ?? 0
+        self.distance = try c.decodeIfPresent(Double.self, forKey: .distance)
+        self.targetPace = try c.decodeIfPresent(String.self, forKey: .targetPace)
+        self.notes = try c.decodeIfPresent(String.self, forKey: .notes)
+        self.steps = (try c.decodeIfPresent([AgentWorkoutStep].self, forKey: .steps)) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(type, forKey: .type)
+        try c.encode(duration, forKey: .duration)
+        try c.encodeIfPresent(distance, forKey: .distance)
+        try c.encodeIfPresent(targetPace, forKey: .targetPace)
+        try c.encodeIfPresent(notes, forKey: .notes)
+        try c.encode(steps, forKey: .steps)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    /// Decode an integer that the source may have encoded as a Double or numeric String.
+    func decodeFlexibleInt(forKey key: Key) throws -> Int? {
+        if let i = try? decodeIfPresent(Int.self, forKey: key) { return i }
+        if let d = try? decodeIfPresent(Double.self, forKey: key) { return Int(d.rounded()) }
+        if let s = try? decodeIfPresent(String.self, forKey: key), let d = Double(s) { return Int(d.rounded()) }
+        return nil
+    }
 }
 
 struct AgentWorkoutStep: Codable, Identifiable {
@@ -33,8 +68,8 @@ struct AgentWorkoutStep: Codable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = UUID()
         self.type = try container.decode(String.self, forKey: .type)
-        self.duration = try container.decode(Int.self, forKey: .duration)
-        self.description = try container.decode(String.self, forKey: .description)
+        self.duration = try container.decodeFlexibleInt(forKey: .duration) ?? 0
+        self.description = (try container.decodeIfPresent(String.self, forKey: .description)) ?? ""
         self.targetPace = try container.decodeIfPresent(String.self, forKey: .targetPace)
     }
 

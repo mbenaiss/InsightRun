@@ -13,7 +13,7 @@ import HealthKit
 @Model
 class CachedUnifiedWorkout {
     @Attribute(.unique) var id: String
-    var source: String  // "healthKit", "strava", "merged"
+    var source: String  // WorkoutSource.rawValue: "HealthKit", "Strava", "Suunto", "Merged"
     var startDate: Date
     var endDate: Date
     var duration: TimeInterval
@@ -68,9 +68,10 @@ class CachedUnifiedWorkout {
     // Note: This creates a fallback UnifiedWorkout from cached data only
     // The original WorkoutModel/StravaActivity objects are NOT preserved
     func toUnifiedWorkout() -> UnifiedWorkout {
-        // Reconstruct based on original source type
-        switch source {
-        case "strava":
+        // Reconstruct based on original source type. Compare via the enum so the
+        // canonical rawValue casing ("HealthKit"/"Strava"/"Merged") is honored.
+        switch WorkoutSource(rawValue: source) {
+        case .strava:
             // Create minimal StravaActivity for Strava-only workouts
             let stravaId = stravaActivityId ?? Int64(id.hashValue)
             let stravaActivity = StravaActivity(
@@ -92,8 +93,8 @@ class CachedUnifiedWorkout {
             )
             return UnifiedWorkout(from: stravaActivity)
 
-        case "healthKit", "merged":
-            // Create minimal WorkoutModel for HealthKit or merged workouts
+        case .healthKit, .merged, .suunto:
+            // Create minimal WorkoutModel for HealthKit, merged or Suunto workouts.
             // Use originalSourceName to preserve the device name (e.g., "Apple Watch")
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
             let displaySourceName = originalSourceName ?? "Apple Watch"
@@ -104,7 +105,7 @@ class CachedUnifiedWorkout {
                     "display_name": name,
                     "name": name
                 ]
-                if source == "merged" || stravaActivityId != nil {
+                if source == WorkoutSource.merged.rawValue || stravaActivityId != nil {
                     metadata?["strava_name"] = name
                     if let stravaActivityId {
                         metadata?["strava_id"] = String(stravaActivityId)
@@ -130,7 +131,7 @@ class CachedUnifiedWorkout {
             )
             return UnifiedWorkout(from: fallbackWorkout)
 
-        default:
+        case nil:
             // Unknown source, use originalSourceName if available
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
             let displaySourceName = originalSourceName ?? "Apple Watch"

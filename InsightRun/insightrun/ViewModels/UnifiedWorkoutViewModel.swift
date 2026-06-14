@@ -100,10 +100,12 @@ class UnifiedWorkoutViewModel: ObservableObject {
             syncStatus = .loadingHealthKit
             print("📱 Loading HealthKit workouts...")
             var healthKitWorkouts: [WorkoutModel] = []
+            var healthKitFailed = false
             do {
                 healthKitWorkouts = try await loadHealthKitWorkouts()
                 print("✅ Loaded \(healthKitWorkouts.count) HealthKit workouts")
             } catch {
+                healthKitFailed = true
                 print("⚠️ HealthKit loading failed (continuing with Strava only): \(error.localizedDescription)")
             }
 
@@ -123,9 +125,19 @@ class UnifiedWorkoutViewModel: ObservableObject {
             syncStatus = .merging
             print("🔄 Merging workouts...")
             let merged = mergeWorkouts(healthKit: healthKitWorkouts, strava: stravaActivities)
+            let sortedMerged = merged.sorted { $0.startDate > $1.startDate }
+
+            // Never wipe the UI/cache on a transient HealthKit failure: if the
+            // only source failed and produced nothing, keep whatever we have.
+            if healthKitFailed, sortedMerged.isEmpty {
+                print("⚠️ HealthKit failed and no workouts available — not overwriting cache/UI")
+                syncStatus = .completed
+                isLoading = false
+                return
+            }
 
             // STEP 5: Update UI
-            unifiedWorkouts = merged.sorted { $0.startDate > $1.startDate }
+            unifiedWorkouts = sortedMerged
             updateStats()
             syncStatus = .completed
 
@@ -194,9 +206,11 @@ class UnifiedWorkoutViewModel: ObservableObject {
 
         // Load fresh data from sources (non-fatal for HealthKit)
         var healthKitWorkouts: [WorkoutModel] = []
+        var healthKitFailed = false
         do {
             healthKitWorkouts = try await loadHealthKitWorkouts()
         } catch {
+            healthKitFailed = true
             print("⚠️ Background HealthKit sync failed: \(error.localizedDescription)")
         }
 
@@ -213,10 +227,17 @@ class UnifiedWorkoutViewModel: ObservableObject {
         let merged = mergeWorkouts(healthKit: healthKitWorkouts, strava: stravaActivities)
         let sortedMerged = merged.sorted { $0.startDate > $1.startDate }
 
-        // Check if data changed
-        let cacheChanged = sortedMerged.count != unifiedWorkouts.count
+        // Guard against a transient source failure (e.g. locked phone) producing
+        // an empty or shrunk result: never overwrite the displayed list or the
+        // cache when HealthKit errored and the fresh result is empty/smaller.
+        if healthKitFailed, sortedMerged.count < unifiedWorkouts.count {
+            print("⚠️ Background sync aborted: HealthKit failed, keeping \(unifiedWorkouts.count) cached workouts")
+            return
+        }
 
-        if cacheChanged {
+        // Check if the content changed (not only the count): a renamed run or a
+        // simultaneous add+remove keeps the count identical.
+        if hasContentChanged(from: unifiedWorkouts, to: sortedMerged) {
             // Update UI
             unifiedWorkouts = sortedMerged
             updateStats()
@@ -229,6 +250,26 @@ class UnifiedWorkoutViewModel: ObservableObject {
             try? unifiedCache.saveWorkouts(sortedMerged)
             print("✅ Background sync complete: no changes")
         }
+    }
+
+    /// Content-level comparison used by the background sync. Detects added,
+    /// removed and mutated workouts — not only a difference in count.
+    private func hasContentChanged(from old: [UnifiedWorkout], to new: [UnifiedWorkout]) -> Bool {
+        guard old.count == new.count else { return true }
+
+        func signature(_ workout: UnifiedWorkout) -> String {
+            [
+                workout.id,
+                workout.name,
+                String(workout.duration),
+                String(workout.distance ?? -1),
+                workout.source.rawValue
+            ].joined(separator: "|")
+        }
+
+        let oldSignatures = Set(old.map(signature))
+        let newSignatures = Set(new.map(signature))
+        return oldSignatures != newSignatures
     }
 
     // MARK: - Private Methods
@@ -311,8 +352,13 @@ class UnifiedWorkoutViewModel: ObservableObject {
         for suunto in suuntoWorkouts {
             let isMatched = result.contains { workout in
                 let timeDiff = abs(workout.startDate.timeIntervalSince(suunto.startDate))
+                guard timeDiff < 5 * 60 else { return false }
+                if let dist = workout.distance, dist > 0, suunto.distance > 0 {
+                    let distanceDiff = abs(dist - suunto.distance) / max(dist, suunto.distance)
+                    return distanceDiff < 0.05
+                }
                 let durationDiff = abs(workout.duration - suunto.duration) / max(workout.duration, suunto.duration)
-                return timeDiff < 5 * 60 && durationDiff < 0.05
+                return durationDiff < 0.05
             }
 
             if !isMatched {
@@ -339,12 +385,16 @@ class UnifiedWorkoutViewModel: ObservableObject {
 
         for suunto in suuntoWorkouts {
             let timeDiff = abs(healthKitWorkout.startDate.timeIntervalSince(suunto.startDate))
-            if timeDiff < tolerance {
-                // Check duration similarity (within 5%)
+            guard timeDiff < tolerance else { continue }
+
+            // Prefer distance similarity (stable across sources); fall back to
+            // duration only when distance is unavailable.
+            if let dist = healthKitWorkout.distance, dist > 0, suunto.distance > 0 {
+                let distanceDiff = abs(dist - suunto.distance) / max(dist, suunto.distance)
+                if distanceDiff < 0.05 { return suunto }
+            } else {
                 let durationDiff = abs(healthKitWorkout.duration - suunto.duration) / max(healthKitWorkout.duration, suunto.duration)
-                if durationDiff < 0.05 {
-                    return suunto
-                }
+                if durationDiff < 0.05 { return suunto }
             }
         }
         return nil
@@ -436,10 +486,17 @@ class UnifiedWorkoutViewModel: ObservableObject {
         unifiedWorkouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
     }
 
+    /// Canonical average pace (min/km): sum(durations) / sum(distances).
     var averagePace: Double? {
-        let paces = unifiedWorkouts.compactMap { $0.averagePace }
-        guard !paces.isEmpty else { return nil }
-        return paces.reduce(0, +) / Double(paces.count)
+        var totalDurationSeconds = 0.0
+        var totalDistanceMeters = 0.0
+        for workout in unifiedWorkouts {
+            guard let distance = workout.distance, distance > 0, workout.duration > 0 else { continue }
+            totalDurationSeconds += workout.duration
+            totalDistanceMeters += distance
+        }
+        guard totalDistanceMeters > 0, totalDurationSeconds > 0 else { return nil }
+        return (totalDurationSeconds / 60.0) / (totalDistanceMeters / 1000.0)
     }
 
     var averageDistance: Double {
@@ -479,8 +536,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
     // MARK: - Formatting Helpers
 
     func formatDistance(_ distance: Double) -> String {
-        let km = distance / 1000.0
-        return String(format: "%.1f km", km)
+        Formatters.distance(km: distance / 1000.0, fractionDigits: 1)
     }
 
     func formatDuration(_ duration: TimeInterval) -> String {
@@ -495,15 +551,13 @@ class UnifiedWorkoutViewModel: ObservableObject {
     }
 
     func formatPace(_ pace: Double?) -> String {
-        guard let pace = pace else { return "N/A" }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d:%02d /km", minutes, seconds)
+        guard let pace = pace else { return String(localized: "common.value.notAvailable") }
+        return Formatters.paceFromMinutesPerKm(pace)
     }
 
     func formatHeartRate(_ hr: Double?) -> String {
-        guard let hr = hr else { return "N/A" }
-        return String(format: "%.0f bpm", hr)
+        guard let hr = hr else { return String(localized: "common.value.notAvailable") }
+        return Formatters.heartRate(hr)
     }
 }
 

@@ -100,9 +100,7 @@ struct Split: Identifiable {
     }
 
     var paceFormatted: String {
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d'%02d\"", minutes, seconds)
+        Formatters.paceFromMinutesPerKm(pace)
     }
 }
 
@@ -214,33 +212,32 @@ struct WorkoutInterval: Identifiable {
 
     var paceFormatted: String? {
         guard let pace = pace else { return nil }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d'%02d\"/km", minutes, seconds)
+        return Formatters.paceFromMinutesPerKm(pace)
     }
 
     var targetPaceRangeFormatted: String? {
         guard let minPace = targetPaceMin, let maxPace = targetPaceMax else { return nil }
-        let minMinutes = Int(minPace)
-        let minSeconds = Int((minPace - Double(minMinutes)) * 60)
 
         // If min == max (threshold), show single value
         if abs(minPace - maxPace) < 0.01 {
-            return String(format: "%d'%02d\"/km", minMinutes, minSeconds)
+            return Formatters.paceFromMinutesPerKm(minPace)
         }
 
-        // Otherwise show range
-        let maxMinutes = Int(maxPace)
-        let maxSeconds = Int((maxPace - Double(maxMinutes)) * 60)
-        return String(format: "%d'%02d\"-%d'%02d\"/km", minMinutes, minSeconds, maxMinutes, maxSeconds)
+        // Otherwise show range: two clocks sharing one localized unit suffix.
+        // Convert each bound to the preferred system (min/km -> min/mi).
+        let unit = UnitPreference.current
+        let factor = unit.usesImperial ? 1.0 / Formatters.kmToMiles : 1.0
+        let minClock = Formatters.paceClock(minPace * 60 * factor)
+        let maxClock = Formatters.paceClock(maxPace * 60 * factor)
+        return "\(minClock)-\(maxClock) \(Formatters.paceUnitSuffix(unit))"
     }
 
     var distanceFormatted: String? {
         guard let distance = distance else { return nil }
         if distance >= 1000 {
-            return String(format: "%.2f km", distance / 1000)
+            return Formatters.distance(km: distance / 1000)
         }
-        return String(format: "%.0f m", distance)
+        return Formatters.elevation(meters: distance)
     }
 }
 

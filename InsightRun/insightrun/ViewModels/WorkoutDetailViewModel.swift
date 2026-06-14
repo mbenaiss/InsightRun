@@ -31,21 +31,24 @@ class WorkoutDetailViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
-        // Check if workout comes from Strava (not in HealthKit)
-        let isStravaWorkout = workout.sourceName.lowercased().contains("strava") ||
-                              workout.metadata?["strava_id"] != nil
+        let stravaId: Int64? = (workout.metadata?["strava_id"] as? String).flatMap { Int64($0) }
 
-        if isStravaWorkout {
-            // For Strava workouts, first create basic metrics, then fetch detailed data
+        // A Strava-only workout was reconstructed with sourceName "Strava" and has
+        // no HealthKit backing. A merged workout carries a strava_id but keeps its
+        // HealthKit source (e.g. "Apple Watch"), so we must still load HK route,
+        // intervals and HR samples on top of the Strava detail.
+        let isStravaOnly = workout.sourceName.lowercased().contains("strava")
+        let isMerged = !isStravaOnly && stravaId != nil
+
+        if isStravaOnly {
+            // For Strava-only workouts, first create basic metrics, then fetch detailed data
             metrics = createMetricsFromWorkout()
 
-            // Fetch detailed Strava data in background
-            if let stravaIdString = workout.metadata?["strava_id"] as? String,
-               let stravaId = Int64(stravaIdString) {
+            if let stravaId {
                 await loadStravaDetailedData(activityId: stravaId)
             }
         } else {
-            // For HealthKit workouts, fetch detailed metrics
+            // For HealthKit-backed workouts (incl. merged), fetch detailed HK metrics
             do {
                 metrics = try await healthKitManager.fetchWorkoutMetrics(for: workout)
             } catch let error as HealthKitError {
@@ -63,6 +66,11 @@ class WorkoutDetailViewModel: ObservableObject {
                 // Fallback to basic metrics for any error
                 metrics = createMetricsFromWorkout()
             }
+
+            // Merged workout: layer Strava splits/elevation on top of HK metrics.
+            if isMerged, let stravaId {
+                await loadStravaDetailedData(activityId: stravaId)
+            }
         }
 
         // Enrich with Suunto data if available (fills gaps where HealthKit has no data)
@@ -70,8 +78,11 @@ class WorkoutDetailViewModel: ObservableObject {
 
         isLoading = false
 
-        // Retry if metrics are incomplete (e.g. opened from notification before HealthKit sync)
-        if !isStravaWorkout && metricsIncomplete && retryCount < maxRetries {
+        // Retry if metrics are incomplete (e.g. opened from notification before
+        // HealthKit sync). Skip the retry for runs that simply never recorded HR
+        // (no watch): retrying re-fetches everything twice for nothing.
+        let canHaveHeartRate = workout.averageHeartRate != nil || workout.maxHeartRate != nil
+        if !isStravaOnly && metricsIncomplete && canHaveHeartRate && retryCount < maxRetries {
             retryCount += 1
             do {
                 try await Task.sleep(for: .seconds(10))
@@ -309,8 +320,9 @@ class WorkoutDetailViewModel: ObservableObject {
         // Convert maxSpeed from m/s to km/h for display
         let maxSpeedKmh: Double? = maxSpeed.map { $0 * 3.6 }
 
-        // Use averageSpeed from metadata if available (more accurate for Strava)
-        let avgSpeed = avgSpeedFromMetadata ?? workout.averageSpeed
+        // Strava metadata speeds are in m/s; convert to km/h to match the
+        // WorkoutMetrics.averageSpeed contract. workout.averageSpeed is already km/h.
+        let avgSpeed = avgSpeedFromMetadata.map { $0 * 3.6 } ?? workout.averageSpeed
 
         return WorkoutMetrics(
             workout: workout,
@@ -345,26 +357,24 @@ class WorkoutDetailViewModel: ObservableObject {
     // MARK: - Formatting Helpers
 
     func formatPace(_ pace: Double) -> String {
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d'%02d\"/km", minutes, seconds)
+        Formatters.paceFromMinutesPerKm(pace)
     }
 
     func formatSpeed(_ speed: Double) -> String {
-        return String(format: "%.1f km/h", speed)
+        // speed is already km/h; Formatters.speed expects m/s.
+        Formatters.speed(metersPerSecond: speed / 3.6)
     }
 
     func formatHeartRate(_ hr: Double) -> String {
-        return String(format: "%.0f bpm", hr)
+        Formatters.heartRate(hr)
     }
 
     func formatDistance(_ meters: Double) -> String {
-        let km = meters / 1000.0
-        return String(format: "%.2f km", km)
+        Formatters.distance(km: meters / 1000.0)
     }
 
     func formatElevation(_ meters: Double) -> String {
-        return String(format: "%.0f m", meters)
+        Formatters.elevation(meters: meters)
     }
 
     func formatPower(_ watts: Double) -> String {
@@ -372,7 +382,7 @@ class WorkoutDetailViewModel: ObservableObject {
     }
 
     func formatCadence(_ spm: Double) -> String {
-        return String(format: "%.0f spm", spm)
+        Formatters.cadence(spm)
     }
 
     func formatStrideLength(_ meters: Double) -> String {

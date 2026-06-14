@@ -19,6 +19,15 @@ class RevenueCatManager: NSObject, ObservableObject {
     @Published var customerInfo: CustomerInfo?
     @Published var isConfigured: Bool = false
 
+    /// True once both the TestFlight environment check and the first RevenueCat
+    /// customer-info fetch have completed. Until then, paywall/free-request decisions
+    /// should wait: showing the paywall to a TestFlight tester or a subscriber while
+    /// `isSubscriptionActive`/`isTestFlightEnvironment` are still their default `false`
+    /// would burn free requests and flash the wrong UI.
+    @Published private(set) var isSubscriptionStatusResolved: Bool = false
+    private var testFlightResolved = false
+    private var customerInfoResolved = false
+
     // Track if user has seen the initial paywall after HealthKit authorization
     @Published var hasSeenInitialPaywall: Bool = false
 
@@ -54,6 +63,7 @@ class RevenueCatManager: NSObject, ObservableObject {
     private func detectTestFlightEnvironment() async {
         if DemoMode.isEnabled {
             cachedTestFlightStatus = false
+            markTestFlightResolved()
             return
         }
 
@@ -78,12 +88,30 @@ class RevenueCatManager: NSObject, ObservableObject {
 
             await MainActor.run {
                 self.cachedTestFlightStatus = isTestFlight
+                self.markTestFlightResolved()
             }
         } catch {
             // If no transaction available (e.g., fresh install), assume not TestFlight
             await MainActor.run {
                 self.cachedTestFlightStatus = false
+                self.markTestFlightResolved()
             }
+        }
+    }
+
+    private func markTestFlightResolved() {
+        testFlightResolved = true
+        updateSubscriptionStatusResolved()
+    }
+
+    private func markCustomerInfoResolved() {
+        customerInfoResolved = true
+        updateSubscriptionStatusResolved()
+    }
+
+    private func updateSubscriptionStatusResolved() {
+        if testFlightResolved && customerInfoResolved && !isSubscriptionStatusResolved {
+            isSubscriptionStatusResolved = true
         }
     }
 
@@ -150,6 +178,7 @@ class RevenueCatManager: NSObject, ObservableObject {
         if DemoMode.isEnabled {
             isConfigured = true
             isSubscriptionActive = true
+            markCustomerInfoResolved()
             return
         }
 
@@ -199,9 +228,11 @@ class RevenueCatManager: NSObject, ObservableObject {
             await MainActor.run {
                 self.customerInfo = info
                 self.isSubscriptionActive = !info.entitlements.active.isEmpty
+                self.markCustomerInfoResolved()
             }
         } catch {
             print("Error fetching customer info: \(error.localizedDescription)")
+            await MainActor.run { self.markCustomerInfoResolved() }
         }
     }
 

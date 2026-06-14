@@ -105,14 +105,17 @@ class StravaViewModel: ObservableObject {
 
             let newActivities = response.activities.map { $0.toStravaActivity() }
 
-            // Check if data changed
-            if newActivities.count != activities.count {
-                activities = newActivities
-                try? cache.saveActivities(activities)
+            // Upsert into the cache rather than replacing the visible list: the
+            // backend page is capped at `limit`, so overwriting `activities` would
+            // drop older entries when the user has more than `limit` activities.
+            // The cache merges by id, then we reload the visible window from it.
+            try? cache.saveActivities(newActivities)
+            let merged = (try? cache.fetchActivities(limit: 100, offset: 0)) ?? newActivities
+
+            if Self.activitiesDiffer(merged, activities) {
+                activities = merged
                 print("✅ Background sync: \(activities.count) activities (updated)")
             } else {
-                // Just refresh cache timestamps
-                try? cache.saveActivities(newActivities)
                 print("✅ Background sync: no changes")
             }
         } catch {
@@ -177,6 +180,19 @@ class StravaViewModel: ObservableObject {
         }
     }
 
+    /// True when the two activity lists differ in a way the user should see.
+    /// Compares by id plus the fields the backend can change (name, distance,
+    /// moving time, start date) — count equality alone misses renames and swaps.
+    private static func activitiesDiffer(_ lhs: [StravaActivity], _ rhs: [StravaActivity]) -> Bool {
+        guard lhs.count == rhs.count else { return true }
+        func fingerprint(_ list: [StravaActivity]) -> [String] {
+            list
+                .sorted { $0.id < $1.id }
+                .map { "\($0.id)|\($0.name)|\($0.distance)|\($0.movingTime)|\($0.startDate)" }
+        }
+        return fingerprint(lhs) != fingerprint(rhs)
+    }
+
     // MARK: - Infinite Scroll (Load More)
 
     /// Load next page of activities when user scrolls to bottom
@@ -184,13 +200,6 @@ class StravaViewModel: ObservableObject {
     func loadMoreActivities() async {
         // Don't load if already loading or no more activities
         guard !isLoadingMore && hasMoreActivities else {
-            return
-        }
-
-        // Safety: Check rate limits before making request
-        guard apiClient.canMakeRequest() else {
-            errorMessage = String(localized: "Rate limit reached. Please wait a few minutes.")
-            print("⚠️ Rate limit safety check failed")
             return
         }
 
@@ -205,15 +214,19 @@ class StravaViewModel: ObservableObject {
                 perPage: initialPageSize
             )
 
-            // Append to existing list
-            activities.append(contentsOf: newActivities)
+            // Dedup: the visible list may have come from cache, so a fresh page can
+            // overlap with what's already shown — appending blindly duplicates rows.
+            let existingIds = Set(activities.map { $0.id })
+            let uniqueNew = newActivities.filter { !existingIds.contains($0.id) }
+            activities.append(contentsOf: uniqueNew)
 
-            // Check if there are more pages
+            // Check if there are more pages (based on the raw page size, not the
+            // deduped count, so a fully-overlapping page doesn't stop pagination early).
             hasMoreActivities = newActivities.count == initialPageSize
 
             rateLimits = apiClient.currentRateLimits
 
-            print("✅ Loaded \(newActivities.count) more activities (total: \(activities.count))")
+            print("✅ Loaded \(uniqueNew.count) new activities (total: \(activities.count))")
         } catch {
             errorMessage = String(localized: "Failed to load more: \(error.localizedDescription)")
             currentPage -= 1 // Reset page on error
@@ -237,15 +250,9 @@ class StravaViewModel: ObservableObject {
 
         print("🔄 Starting backfill with per_page=200 (optimized for quota)")
 
+        // Rate limiting is enforced server-side; the client just reacts to 429s
+        // surfaced as errors below (the old client-side 15-min wait was dead code).
         while shouldContinue {
-            // Safety: Check rate limits
-            guard apiClient.canMakeRequest() else {
-                print("⚠️ Backfill paused due to rate limits")
-                // Wait 15 minutes before retrying
-                try? await Task.sleep(nanoseconds: 15 * 60 * 1_000_000_000)
-                continue
-            }
-
             do {
                 let newActivities = try await apiClient.fetchActivities(
                     page: page,
@@ -303,10 +310,13 @@ class StravaViewModel: ObservableObject {
         activities.reduce(0) { $0 + $1.movingTime }
     }
 
+    /// Canonical average pace = total moving time / total distance (min/km),
+    /// not the arithmetic mean of per-activity paces.
     var averagePace: Double? {
-        let paces = activities.compactMap { $0.averagePace }
-        guard !paces.isEmpty else { return nil }
-        return paces.reduce(0, +) / Double(paces.count)
+        let totalSeconds = activities.reduce(0.0) { $0 + Double($1.movingTime) }
+        let totalKm = activities.reduce(0.0) { $0 + $1.distanceKm }
+        guard totalKm > 0, totalSeconds > 0 else { return nil }
+        return (totalSeconds / 60.0) / totalKm
     }
 
     var activityCount: Int {
@@ -315,13 +325,17 @@ class StravaViewModel: ObservableObject {
 
     // MARK: - Grouping (by month)
 
+    private static let monthYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
+        return formatter
+    }()
+
     var groupedActivities: [(String, [StravaActivity])] {
         let grouped = Dictionary(grouping: activities) { activity -> String in
             guard let date = activity.startDateParsed else { return "Unknown" }
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM yyyy"
-            formatter.locale = Locale.current
-            return formatter.string(from: date).capitalized
+            return Self.monthYearFormatter.string(from: date).capitalized
         }
 
         return grouped.sorted { first, second in

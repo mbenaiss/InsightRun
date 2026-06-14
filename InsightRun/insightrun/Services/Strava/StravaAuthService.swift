@@ -325,23 +325,23 @@ enum StravaAuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid Strava URL"
+            return String(localized: "strava.auth.error.invalidURL", defaultValue: "Invalid Strava URL.", comment: "Strava auth error - invalid URL")
         case .authenticationFailed(let reason):
-            return "Authentication failed: \(reason)"
+            return String(localized: "strava.auth.error.failed", defaultValue: "Strava connection failed: \(reason)", comment: "Strava auth error - authentication failed with reason")
         case .userCancelled:
-            return "Strava authentication was cancelled"
+            return String(localized: "strava.auth.error.cancelled", defaultValue: "Strava connection cancelled.", comment: "Strava auth error - user cancelled")
         case .noCallbackURL:
-            return "No callback URL received"
+            return String(localized: "strava.auth.error.noCallback", defaultValue: "Strava didn't return a valid response. Try again.", comment: "Strava auth error - no callback URL")
         case .invalidCode:
-            return "Invalid authorization code"
+            return String(localized: "strava.auth.error.invalidCode", defaultValue: "Strava authorization is invalid. Try again.", comment: "Strava auth error - invalid authorization code")
         case .tokenExchangeFailed:
-            return "Failed to exchange code for token"
+            return String(localized: "strava.auth.error.exchangeFailed", defaultValue: "Couldn't complete the Strava connection. Try again.", comment: "Strava auth error - token exchange failed")
         case .notAuthenticated:
-            return "Not authenticated with Strava"
+            return String(localized: "strava.auth.error.notAuthenticated", defaultValue: "You're not connected to Strava.", comment: "Strava auth error - not authenticated")
         case .noRefreshToken:
-            return "No refresh token available"
+            return String(localized: "strava.auth.error.noRefreshToken", defaultValue: "Your Strava session expired. Reconnect to continue.", comment: "Strava auth error - no refresh token")
         case .refreshFailed:
-            return "Failed to refresh token. Please re-authenticate."
+            return String(localized: "strava.auth.error.refreshFailed", defaultValue: "Your Strava session expired. Reconnect to continue.", comment: "Strava auth error - token refresh failed")
         }
     }
 }

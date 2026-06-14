@@ -139,9 +139,18 @@ class GoalsViewModel: ObservableObject {
 
     // MARK: - Day Completion
 
+    /// Validate that (weekIndex, dayIndex) still point inside the plan. Indices can
+    /// go stale after a plan adaptation shortens the schedule; indexing blindly would crash.
+    private func hasValidDayIndex(_ goalIdx: Int, weekIndex: Int, dayIndex: Int) -> Bool {
+        guard let plan = goals[goalIdx].trainingPlan,
+              plan.weeks.indices.contains(weekIndex),
+              plan.weeks[weekIndex].days.indices.contains(dayIndex) else { return false }
+        return true
+    }
+
     func toggleDayCompletion(goalId: UUID, weekIndex: Int, dayIndex: Int) {
         guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
-              goals[goalIdx].trainingPlan != nil else { return }
+              hasValidDayIndex(goalIdx, weekIndex: weekIndex, dayIndex: dayIndex) else { return }
 
         goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isCompleted.toggle()
         if goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isCompleted {
@@ -152,7 +161,7 @@ class GoalsViewModel: ObservableObject {
 
     func toggleDaySkipped(goalId: UUID, weekIndex: Int, dayIndex: Int) {
         guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
-              goals[goalIdx].trainingPlan != nil else { return }
+              hasValidDayIndex(goalIdx, weekIndex: weekIndex, dayIndex: dayIndex) else { return }
 
         goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isSkipped.toggle()
         if goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].isSkipped {
@@ -166,7 +175,7 @@ class GoalsViewModel: ObservableObject {
     /// Pass `nil` to clear an existing override.
     func setDayDateOverride(goalId: UUID, weekIndex: Int, dayIndex: Int, newDate: Date?) {
         guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
-              goals[goalIdx].trainingPlan != nil else { return }
+              hasValidDayIndex(goalIdx, weekIndex: weekIndex, dayIndex: dayIndex) else { return }
 
         let normalized = newDate.map { Calendar.current.startOfDay(for: $0) }
         goals[goalIdx].trainingPlan!.weeks[weekIndex].days[dayIndex].dateOverride = normalized

@@ -167,12 +167,16 @@ class WorkoutListViewModel: ObservableObject {
 
     // MARK: - Computed Properties
 
+    private static let monthYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
+        return formatter
+    }()
+
     var groupedWorkouts: [(String, [WorkoutModel])] {
         let grouped = Dictionary(grouping: workouts) { workout -> String in
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM yyyy"
-            formatter.locale = Locale.current
-            return formatter.string(from: workout.startDate).capitalized
+            Self.monthYearFormatter.string(from: workout.startDate).capitalized
         }
         return grouped.sorted { $0.value.first!.startDate > $1.value.first!.startDate }
     }
@@ -193,10 +197,14 @@ class WorkoutListViewModel: ObservableObject {
         workouts.count
     }
 
+    /// Canonical average pace = total duration / total distance (min/km), computed
+    /// only over workouts that have a usable distance — not the arithmetic mean of paces.
     var averagePace: Double? {
-        let paces = workouts.compactMap { $0.averagePace }
-        guard !paces.isEmpty else { return nil }
-        return paces.reduce(0, +) / Double(paces.count)
+        let withDistance = workouts.filter { ($0.distance ?? 0) > 0 }
+        let totalSeconds = withDistance.reduce(0.0) { $0 + $1.duration }
+        let totalKm = withDistance.reduce(0.0) { $0 + ($1.distance ?? 0) / 1000.0 }
+        guard totalKm > 0, totalSeconds > 0 else { return nil }
+        return (totalSeconds / 60.0) / totalKm
     }
 
     var averageDistance: Double {
@@ -228,8 +236,12 @@ class WorkoutListViewModel: ObservableObject {
         let distance = workouts.compactMap { $0.distance }.reduce(0, +)
         let duration = workouts.map { $0.duration }.reduce(0, +)
         let calories = workouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
-        let paces = workouts.compactMap { $0.averagePace }
-        let avgPace = !paces.isEmpty ? paces.reduce(0, +) / Double(paces.count) : nil
+
+        // Canonical average pace = total duration / total distance over this group.
+        let withDistance = workouts.filter { ($0.distance ?? 0) > 0 }
+        let paceSeconds = withDistance.reduce(0.0) { $0 + $1.duration }
+        let paceKm = withDistance.reduce(0.0) { $0 + ($1.distance ?? 0) / 1000.0 }
+        let avgPace: Double? = (paceKm > 0 && paceSeconds > 0) ? (paceSeconds / 60.0) / paceKm : nil
 
         return GroupStats(
             count: workouts.count,
@@ -251,8 +263,7 @@ class WorkoutListViewModel: ObservableObject {
     // MARK: - Formatting
 
     func formatTotalDistance() -> String {
-        let km = totalDistance / 1000.0
-        return String(format: "%.1f km", km)
+        return Formatters.distance(km: totalDistance / 1000.0, fractionDigits: 1)
     }
 
     func formatTotalDuration() -> String {
@@ -262,15 +273,12 @@ class WorkoutListViewModel: ObservableObject {
     }
 
     func formatAveragePace() -> String {
-        guard let pace = averagePace else { return "N/A" }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d:%02d min/km", minutes, seconds)
+        guard let pace = averagePace else { return String(localized: "common.notAvailable", defaultValue: "N/A", comment: "Placeholder shown when a value is unavailable") }
+        return Formatters.paceFromMinutesPerKm(pace)
     }
 
     func formatAverageDistance() -> String {
-        let km = averageDistance / 1000.0
-        return String(format: "%.1f km", km)
+        return Formatters.distance(km: averageDistance / 1000.0, fractionDigits: 1)
     }
 
     func formatAverageDuration() -> String {
@@ -279,8 +287,7 @@ class WorkoutListViewModel: ObservableObject {
     }
 
     func formatDistance(_ distance: Double) -> String {
-        let km = distance / 1000.0
-        return String(format: "%.1f km", km)
+        return Formatters.distance(km: distance / 1000.0, fractionDigits: 1)
     }
 
     func formatDuration(_ duration: TimeInterval) -> String {
@@ -294,9 +301,7 @@ class WorkoutListViewModel: ObservableObject {
     }
 
     func formatPace(_ pace: Double?) -> String {
-        guard let pace = pace else { return "N/A" }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d:%02d", minutes, seconds)
+        guard let pace = pace else { return String(localized: "common.notAvailable", defaultValue: "N/A", comment: "Placeholder shown when a value is unavailable") }
+        return Formatters.paceClock(pace * 60.0)
     }
 }

@@ -61,16 +61,20 @@ class StravaAPIClient {
     ///   - page: Page number (starts at 1)
     ///   - perPage: Number of activities per page (max 200)
     /// - Returns: List of activities for this page
-    func fetchActivities(page: Int = 1, perPage: Int = 30) async throws -> [StravaActivity] {
+    func fetchActivities(page: Int = 1, perPage: Int = 30, after timestamp: Int? = nil) async throws -> [StravaActivity] {
         guard authService.isAuthenticated else {
             throw StravaAPIError.unauthorized
         }
 
         var components = URLComponents(string: "\(backendURL)/activities")!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "page", value: "\(page)"),
             URLQueryItem(name: "per_page", value: "\(perPage)")
         ]
+        if let timestamp {
+            queryItems.append(URLQueryItem(name: "after", value: "\(timestamp)"))
+        }
+        components.queryItems = queryItems
 
         guard let url = components.url else {
             throw StravaAPIError.invalidURL
@@ -133,12 +137,13 @@ class StravaAPIClient {
         return try await fetchActivities(page: 1, perPage: 30)
     }
 
-    /// Fetch activities since a specific date (INCREMENTAL SYNC)
-    /// This is handled by the backend automatically
-    /// - Parameter after: Unix timestamp (seconds since epoch)
+    /// Fetch activities created after a specific date (INCREMENTAL SYNC).
+    /// - Parameter after: Unix timestamp (seconds since epoch). Forwarded to the
+    ///   backend as `after` so only newer activities come back, instead of silently
+    ///   re-fetching the full first page.
     /// - Returns: Only activities created after this date
     func fetchActivitiesSince(after timestamp: Int) async throws -> [StravaActivity] {
-        return try await fetchActivities(page: 1, perPage: 200)
+        return try await fetchActivities(page: 1, perPage: 200, after: timestamp)
     }
 
     /// Fetch activity detail by ID
@@ -178,8 +183,9 @@ class StravaAPIClient {
 
     // MARK: - Rate Limit Monitoring (Legacy - now handled by backend)
 
-    /// Check if we can make more requests safely
-    /// Backend now handles all rate limiting
+    /// Rate limiting is enforced entirely server-side now: the client never tracks
+    /// the 15-min / daily Strava windows, so this always returns true. Kept only for
+    /// source compatibility — callers no longer gate on it (429s surface from the API).
     func canMakeRequest() -> Bool {
         return true
     }
@@ -454,17 +460,17 @@ enum StravaAPIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid Strava API URL"
+            return String(localized: "strava.error.invalidURL", defaultValue: "Invalid Strava URL.", comment: "Strava API error - invalid URL")
         case .invalidResponse:
-            return "Invalid response from Strava"
+            return String(localized: "strava.error.invalidResponse", defaultValue: "Invalid response from Strava.", comment: "Strava API error - invalid response")
         case .unauthorized:
-            return "Unauthorized - Please re-authenticate with Strava"
+            return String(localized: "strava.error.unauthorized", defaultValue: "Your Strava session expired. Reconnect to continue.", comment: "Strava API error - unauthorized")
         case .rateLimitExceeded:
-            return "Strava rate limit exceeded. Please try again later."
+            return String(localized: "strava.error.rateLimit", defaultValue: "Strava rate limit reached. Try again in a few minutes.", comment: "Strava API error - rate limit exceeded")
         case .serverError:
-            return "Strava server error. Please try again."
+            return String(localized: "strava.error.server", defaultValue: "Strava server error. Try again.", comment: "Strava API error - server error")
         case .unknownError(let code):
-            return "Unknown error (HTTP \(code))"
+            return String(localized: "strava.error.unknown", defaultValue: "Strava error (code \(code)).", comment: "Strava API error - unknown with HTTP status code")
         }
     }
 }

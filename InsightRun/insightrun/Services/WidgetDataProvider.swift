@@ -17,6 +17,15 @@ class WidgetDataProvider {
     private let encoder = JSONEncoder()
     private var reloadTask: Task<Void, Never>?
 
+    /// Locale-aware time formatter (respects the user's 12/24h preference) for the
+    /// sleep start/end strings shown in the widget.
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate("j:mm")
+        return formatter
+    }()
+
     private init() {
         defaults = UserDefaults(suiteName: WidgetDataKeys.suiteName)
     }
@@ -24,17 +33,25 @@ class WidgetDataProvider {
     // MARK: - Readiness
 
     func updateReadiness(from recovery: RecoveryMetrics) {
-        let statusKey: String
+        let localStatusKey: String
         switch recovery.recoveryStatus {
-        case .excellent: statusKey = "excellent"
-        case .good: statusKey = "good"
-        case .fair: statusKey = "fair"
-        case .poor: statusKey = "poor"
+        case .excellent: localStatusKey = "excellent"
+        case .good: localStatusKey = "good"
+        case .fair: localStatusKey = "fair"
+        case .poor: localStatusKey = "poor"
         }
 
+        // The dashboard shows the backend readiness score frozen each morning, not
+        // the local RecoveryMetrics score. Prefer that frozen value so the widget and
+        // the app agree; fall back to the local score only when today's backend score
+        // isn't cached yet (and only when the recovery sample is actually today's).
+        let frozen = Calendar.current.isDateInToday(recovery.date)
+            ? DailyMetricsCache.shared.getCachedScoreForToday()
+            : nil
+
         let data = WidgetReadinessData(
-            score: recovery.recoveryScore,
-            status: statusKey,
+            score: frozen?.score ?? recovery.recoveryScore,
+            status: frozen?.status ?? localStatusKey,
             date: recovery.date,
             hrvValue: recovery.hrvAverage,
             rhrValue: recovery.restingHeartRate
@@ -56,8 +73,12 @@ class WidgetDataProvider {
         let totalDuration = thisWeekWorkouts.map { $0.duration }.reduce(0, +)
         let totalCalories = thisWeekWorkouts.compactMap { $0.totalEnergyBurned }.reduce(0, +)
 
-        let paces = thisWeekWorkouts.compactMap { $0.averagePace }
-        let avgPace = paces.isEmpty ? nil : paces.reduce(0, +) / Double(paces.count)
+        // Canonical average pace (min/km) = total duration / total distance over the
+        // week, not the arithmetic mean of per-workout paces.
+        let paceWorkouts = thisWeekWorkouts.filter { ($0.distance ?? 0) > 0 }
+        let paceSeconds = paceWorkouts.reduce(0.0) { $0 + $1.duration }
+        let paceKm = paceWorkouts.reduce(0.0) { $0 + ($1.distance ?? 0) / 1000.0 }
+        let avgPace: Double? = (paceKm > 0 && paceSeconds > 0) ? (paceSeconds / 60.0) / paceKm : nil
 
         // Bucket distances by weekday (ordered by Calendar.firstWeekday)
         var dailyKm = Array(repeating: 0.0, count: 7)
@@ -129,9 +150,6 @@ class WidgetDataProvider {
     // MARK: - Sleep
 
     func updateSleep(from sleep: SleepData) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-
         let data = WidgetSleepQualityData(
             date: sleep.date,
             totalSleepHours: sleep.totalSleepDuration / 3600.0,
@@ -139,8 +157,8 @@ class WidgetDataProvider {
             qualityScore: sleep.qualityScore,
             deepSleepHours: sleep.deepSleepDuration.map { $0 / 3600.0 },
             remSleepHours: sleep.remSleepDuration.map { $0 / 3600.0 },
-            sleepStartTime: formatter.string(from: sleep.sleepStart),
-            sleepEndTime: formatter.string(from: sleep.sleepEnd)
+            sleepStartTime: Self.timeFormatter.string(from: sleep.sleepStart),
+            sleepEndTime: Self.timeFormatter.string(from: sleep.sleepEnd)
         )
         save(data, forKey: WidgetDataKeys.sleepQuality)
         reloadWidgets()

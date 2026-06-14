@@ -39,6 +39,15 @@ class UnifiedWorkoutCache {
 
     /// Save unified workouts to cache (upsert + delete stale entries)
     func saveWorkouts(_ workouts: [UnifiedWorkout]) throws {
+        // Guardrail: an empty set almost always means a transient source failure
+        // (locked phone, HealthKit error), not a genuine "user has no workouts".
+        // Treat it as a no-op so the delete-stale pass never wipes the cache.
+        // Use clearAll() for an intentional reset.
+        guard !workouts.isEmpty else {
+            print("⚠️ saveWorkouts called with empty set — skipping to avoid cache wipe")
+            return
+        }
+
         let context = try getContext()
 
         // Get all cached workouts once
@@ -134,7 +143,7 @@ class UnifiedWorkoutCache {
 
         // Filter Strava-related workouts manually
         let stravaRelated = allWorkouts.filter { workout in
-            workout.source == "strava" || workout.source == "merged"
+            workout.source == WorkoutSource.strava.rawValue || workout.source == WorkoutSource.merged.rawValue
         }
 
         // Delete
@@ -157,9 +166,9 @@ class UnifiedWorkoutCache {
         )
         let allWorkouts = try context.fetch(allDescriptor)
 
-        let healthKitCount = allWorkouts.filter { $0.source == "healthKit" }.count
-        let stravaCount = allWorkouts.filter { $0.source == "strava" }.count
-        let mergedCount = allWorkouts.filter { $0.source == "merged" }.count
+        let healthKitCount = allWorkouts.filter { $0.source == WorkoutSource.healthKit.rawValue }.count
+        let stravaCount = allWorkouts.filter { $0.source == WorkoutSource.strava.rawValue }.count
+        let mergedCount = allWorkouts.filter { $0.source == WorkoutSource.merged.rawValue }.count
         let total = allWorkouts.count
 
         // Get date range
@@ -194,7 +203,7 @@ struct UnifiedCacheStats {
 
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale.current
 
         return "\(formatter.string(from: oldest)) → \(formatter.string(from: latest))"
     }

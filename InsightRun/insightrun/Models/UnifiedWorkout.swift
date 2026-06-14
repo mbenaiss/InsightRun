@@ -107,10 +107,8 @@ struct UnifiedWorkout: Identifiable {
     }
 
     var paceFormatted: String {
-        guard let pace = averagePace else { return "N/A" }
-        let minutes = Int(pace)
-        let seconds = Int((pace - Double(minutes)) * 60)
-        return String(format: "%d:%02d /km", minutes, seconds)
+        guard let pace = averagePace else { return String(localized: "common.value.notAvailable") }
+        return Formatters.paceFromMinutesPerKm(pace)
     }
 
     var speedKmh: Double? {
@@ -119,13 +117,13 @@ struct UnifiedWorkout: Identifiable {
     }
 
     var caloriesFormatted: String {
-        guard let calories = totalEnergyBurned else { return "N/A" }
-        return String(format: "%.0f kcal", calories)
+        guard let calories = totalEnergyBurned else { return String(localized: "common.value.notAvailable") }
+        return Formatters.calories(calories)
     }
 
     var elevationFormatted: String {
-        guard let elevation = totalElevationGain else { return "N/A" }
-        return String(format: "%.0f m", elevation)
+        guard let elevation = totalElevationGain else { return String(localized: "common.value.notAvailable") }
+        return Formatters.elevation(meters: elevation)
     }
 
     // MARK: - Merge Quality Indicators
@@ -347,26 +345,28 @@ struct UnifiedWorkout: Identifiable {
 // MARK: - Duplicate Detection
 
 extension UnifiedWorkout {
-    /// Check if this workout is likely a duplicate of another
-    /// Uses time, distance, and duration as matching criteria
+    /// Check if this workout is likely a duplicate of another.
+    /// Primary criteria are start time + distance, which are stable across
+    /// sources. Duration is intentionally NOT used as a strict gate: Strava
+    /// reports moving time (excludes pauses) while HealthKit reports total
+    /// elapsed time, so a run with pauses can differ by far more than 5 % and
+    /// would otherwise show up twice.
     func isDuplicateOf(_ other: UnifiedWorkout, tolerance: DuplicateTolerance = .default) -> Bool {
         // 1. Time check: Start dates within tolerance
         let timeDiff = abs(startDate.timeIntervalSince(other.startDate))
         guard timeDiff < tolerance.timeWindow else { return false }
 
-        // 2. Duration check: Within percentage tolerance
-        let durationDiff = abs(duration - other.duration) / max(duration, other.duration)
-        guard durationDiff < tolerance.durationPercentage else { return false }
-
-        // 3. Distance check: Within percentage tolerance (if both have distance)
-        if let dist1 = distance, let dist2 = other.distance {
-            guard dist1 > 0 && dist2 > 0 else { return false }
+        // 2. Distance check: Within percentage tolerance when both have distance.
+        if let dist1 = distance, let dist2 = other.distance, dist1 > 0, dist2 > 0 {
             let distanceDiff = abs(dist1 - dist2) / max(dist1, dist2)
-            guard distanceDiff < tolerance.distancePercentage else { return false }
+            return distanceDiff < tolerance.distancePercentage
         }
 
-        // All checks passed - likely duplicate
-        return true
+        // 3. No usable distance on at least one side: fall back to duration,
+        // comparing against the larger (elapsed) value so pauses don't inflate
+        // the relative gap.
+        let durationDiff = abs(duration - other.duration) / max(duration, other.duration)
+        return durationDiff < tolerance.durationPercentage
     }
 }
 

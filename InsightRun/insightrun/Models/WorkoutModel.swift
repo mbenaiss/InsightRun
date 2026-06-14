@@ -47,7 +47,7 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         case id, workoutType, startDate, endDate, duration
         case distance, totalEnergyBurned, sourceName, sourceVersion
         case averageHeartRate, maxHeartRate, elevationGain, hasRoute, isIndoor
-        case metadataJSON, effortScore, effortIsEstimated
+        case metadataJSON, metadataData, effortScore, effortIsEstimated
     }
 
     func encode(to encoder: Encoder) throws {
@@ -69,11 +69,14 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(effortScore, forKey: .effortScore)
         try container.encode(effortIsEstimated, forKey: .effortIsEstimated)
 
-        // Encode metadata as JSON string (simplified, only stores string values)
+        // Encode metadata as JSON data so non-String values (Double, Int, arrays
+        // such as suunto_splits) survive the round-trip. HKQuantity and other
+        // non-JSON values are dropped by isValidJSONObject filtering.
         if let metadata = metadata {
-            let metadataStrings = metadata.compactMapValues { $0 as? String }
-            if !metadataStrings.isEmpty {
-                try container.encode(metadataStrings, forKey: .metadataJSON)
+            let jsonSafe = metadata.filter { JSONSerialization.isValidJSONObject([$0.value]) }
+            if !jsonSafe.isEmpty,
+               let data = try? JSONSerialization.data(withJSONObject: jsonSafe) {
+                try container.encode(data, forKey: .metadataData)
             }
         }
     }
@@ -98,8 +101,12 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         effortScore = try container.decodeIfPresent(Double.self, forKey: .effortScore)
         effortIsEstimated = try container.decodeIfPresent(Bool.self, forKey: .effortIsEstimated) ?? false
 
-        // Decode metadata from JSON string
-        if let metadataStrings = try container.decodeIfPresent([String: String].self, forKey: .metadataJSON) {
+        // Decode metadata, preferring the JSON-data representation that preserves
+        // non-String values. Fall back to the legacy string-only payload.
+        if let data = try container.decodeIfPresent(Data.self, forKey: .metadataData),
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            metadata = object
+        } else if let metadataStrings = try container.decodeIfPresent([String: String].self, forKey: .metadataJSON) {
             metadata = metadataStrings
         } else {
             metadata = nil
@@ -155,14 +162,13 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
     }
 
     var distanceFormatted: String {
-        guard let distance = distance else { return "N/A" }
-        let km = distance / 1000.0
-        return String(format: "%.2f km", km)
+        guard let distance = distance else { return String(localized: "common.value.notAvailable") }
+        return Formatters.distance(km: distance / 1000.0)
     }
 
     var caloriesFormatted: String {
-        guard let calories = totalEnergyBurned else { return "N/A" }
-        return String(format: "%.0f kcal", calories)
+        guard let calories = totalEnergyBurned else { return String(localized: "common.value.notAvailable") }
+        return Formatters.calories(calories)
     }
 
     nonisolated var averagePace: Double? {
@@ -221,9 +227,19 @@ extension WorkoutModel {
 }
 
 extension Array where Element == WorkoutModel {
+    /// Canonical average pace (min/km): sum(durations) / sum(distances).
+    /// Never an arithmetic mean of per-workout paces.
     nonisolated var averagePace: Double? {
-        let paces = compactMap { $0.averagePace }
-        guard !paces.isEmpty else { return nil }
-        return paces.reduce(0, +) / Double(paces.count)
+        var totalDurationSeconds = 0.0
+        var totalDistanceMeters = 0.0
+        for workout in self {
+            guard let distance = workout.distance, distance > 0, workout.duration > 0 else { continue }
+            totalDurationSeconds += workout.duration
+            totalDistanceMeters += distance
+        }
+        guard totalDistanceMeters > 0, totalDurationSeconds > 0 else { return nil }
+        let minutes = totalDurationSeconds / 60.0
+        let kilometers = totalDistanceMeters / 1000.0
+        return minutes / kilometers
     }
 }

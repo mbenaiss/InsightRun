@@ -118,8 +118,9 @@ final class MonthlyCoachInsightViewModel: ObservableObject {
         body = nil
 
         let prompt = monthlyInsightPrompt()
-        // We feed the LLM both months so it can compute the delta narrative itself.
-        let workouts = thisMonthWorkouts + lastMonthWorkouts
+        // Only this month's sessions: the previous month is provided as aggregate
+        // figures inside the prompt, so the model can't conflate the two.
+        let workouts = thisMonthWorkouts
 
         // askQuestion only returns once the stream is fully consumed, so the final
         // text is available synchronously on aiService.streamedResponse afterwards.
@@ -176,32 +177,58 @@ final class MonthlyCoachInsightViewModel: ObservableObject {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM"
-        return "\(f.string(from: Date()))-\(AppLanguage.current)"
+        // -v2: prompt now feeds exact per-month aggregates; invalidates pre-fix caches.
+        return "\(f.string(from: Date()))-\(AppLanguage.current)-v2"
     }
 
     // MARK: - Prompt
 
+    /// Neutral, pre-computed one-line aggregate so the model echoes exact numbers
+    /// that match the stats cards instead of re-summing the raw session list.
+    private func monthAggregateLine(_ workouts: [WorkoutModel]) -> String {
+        let distanceKm = workouts.compactMap { $0.distance }.reduce(0, +) / 1000.0
+        let totalMinutes = Int((workouts.map(\.duration).reduce(0, +) / 60).rounded())
+        let durationText = totalMinutes >= 60
+            ? "\(totalMinutes / 60)h\(String(format: "%02d", totalMinutes % 60))"
+            : "\(totalMinutes)min"
+        let paceText = workouts.averagePace.map { Formatters.paceClock($0 * 60) } ?? "n/a"
+        return "\(workouts.count) runs · \(String(format: "%.1f", distanceKm)) km · \(durationText) · \(paceText)/km"
+    }
+
     private func monthlyInsightPrompt() -> String {
+        let current = monthAggregateLine(thisMonthWorkouts)
+        let previous = lastMonthWorkouts.isEmpty ? nil : monthAggregateLine(lastMonthWorkouts)
+
         if AppLanguage.current == "fr" {
+            let stats = previous.map { "- Mois en cours : \(current)\n            - Mois précédent : \($0)" }
+                ?? "- Mois en cours : \(current)"
             return """
-            Tu écris la « Lecture du mois » : un résumé d'une seule phrase, factuel, qui compare le mois en cours au mois précédent en t'appuyant sur les séances fournies.
+            Tu écris la « Lecture du mois » : un résumé d'une seule phrase, factuel, qui compare le mois en cours au mois précédent.
+
+            CHIFFRES (utilise EXACTEMENT ces valeurs, ne recompte jamais depuis une liste de séances) :
+            \(stats)
 
             Règles strictes :
             - Une seule phrase, 25 mots maximum, sans titre ni liste.
             - Ton neutre et factuel. Pas d'emojis, pas d'exclamations, pas de superlatifs creux.
-            - Quantifie au moins une variable saillante (volume, allure, durée, fréquence) avec un signe et une unité explicite — ex. « −21 % vs mars » ou « +12"/km ».
+            - Quantifie au moins une variable saillante (volume, allure, durée, fréquence) avec un signe et une unité explicite — ex. « −21 % vs mois précédent » ou « +12"/km ».
             - Si une donnée manque pour comparer, mentionne uniquement ce qui est mesurable. N'invente rien, ne signale jamais une donnée manquante.
             - Termine par une lecture qualitative concise (ex. « tu cours moins, mais mieux »), sans conseil prescriptif.
             - Réponds uniquement par la phrase finale, sans préambule ni guillemets.
             """
         }
+        let stats = previous.map { "- Current month: \(current)\n        - Previous month: \($0)" }
+            ?? "- Current month: \(current)"
         return """
-        Write the "Read of the month": a single, factual sentence that compares the current month with the previous one using the workouts provided.
+        Write the "Read of the month": a single, factual sentence that compares the current month with the previous one.
+
+        FIGURES (use these EXACT values, never recompute from a session list):
+        \(stats)
 
         Strict rules:
         - One sentence only, 25 words max, no heading, no list.
         - Neutral, factual tone. No emojis, no exclamations, no empty superlatives.
-        - Quantify at least one salient variable (volume, pace, duration, frequency) with a sign and explicit unit — e.g. "−21% vs March" or "+12\"/km".
+        - Quantify at least one salient variable (volume, pace, duration, frequency) with a sign and explicit unit — e.g. "−21% vs previous month" or "+12\"/km".
         - If a data point is missing, mention only what is measurable. Do not invent, do not flag missing data.
         - Close with a concise qualitative read (e.g. "you ran less but better") — no prescriptive advice.
         - Answer with the final sentence only, no preamble, no surrounding quotes.

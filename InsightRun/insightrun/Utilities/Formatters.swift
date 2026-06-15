@@ -34,6 +34,34 @@ enum Formatters {
         .imperial: "mi",
     ]
 
+    // MARK: Cached number formatters
+
+    private struct FormatterKey: Hashable {
+        let localeID: String
+        let minFraction: Int
+        let maxFraction: Int
+    }
+
+    private static let formatterLock = NSLock()
+    private static var decimalFormatters: [FormatterKey: NumberFormatter] = [:]
+
+    // NumberFormatter is costly to allocate and these helpers run per row / per
+    // chart tick. Formatting on a shared NumberFormatter is thread-safe on iOS;
+    // the lock only guards the cache dictionary.
+    private static func cachedDecimalFormatter(locale: Locale, min: Int, max: Int) -> NumberFormatter {
+        let key = FormatterKey(localeID: locale.identifier, minFraction: min, maxFraction: max)
+        formatterLock.lock()
+        defer { formatterLock.unlock() }
+        if let existing = decimalFormatters[key] { return existing }
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = locale
+        f.minimumFractionDigits = min
+        f.maximumFractionDigits = max
+        decimalFormatters[key] = f
+        return f
+    }
+
     // MARK: Decimal (locale-aware separator)
 
     /// `value` formatted with the locale decimal separator (e.g. `5,2` in fr).
@@ -51,20 +79,13 @@ enum Formatters {
         maxFractionDigits: Int,
         locale: Locale = .current
     ) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = locale
-        f.minimumFractionDigits = minFractionDigits
-        f.maximumFractionDigits = maxFractionDigits
+        let f = cachedDecimalFormatter(locale: locale, min: minFractionDigits, max: maxFractionDigits)
         return f.string(from: value as NSNumber) ?? "\(value)"
     }
 
     /// Integer formatted with the locale grouping separator (e.g. `1 234`).
     static func integer(_ value: Int, locale: Locale = .current) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = locale
-        f.maximumFractionDigits = 0
+        let f = cachedDecimalFormatter(locale: locale, min: 0, max: 0)
         return f.string(from: value as NSNumber) ?? "\(value)"
     }
 
@@ -129,13 +150,24 @@ enum Formatters {
 
     /// Canonical average pace = total duration / total distance.
     /// Never average the individual paces — always weight by distance via this.
+    /// Canonical average pace in seconds-per-km (total duration / total distance).
+    /// Numeric core — use this when the value is needed (sorting, comparison,
+    /// storage); format for display with `paceFromSecondsPerKm`.
+    static func averagePaceValue(totalDurationSeconds: Double, totalDistanceKm: Double) -> Double? {
+        guard totalDistanceKm > 0, totalDurationSeconds > 0 else { return nil }
+        return totalDurationSeconds / totalDistanceKm
+    }
+
     static func averagePace(
         totalDurationSeconds: Double,
         totalDistanceKm: Double,
         unit: UnitPreference = .current
     ) -> String? {
-        guard totalDistanceKm > 0, totalDurationSeconds > 0 else { return nil }
-        return paceFromSecondsPerKm(totalDurationSeconds / totalDistanceKm, unit: unit)
+        guard let secondsPerKm = averagePaceValue(
+            totalDurationSeconds: totalDurationSeconds,
+            totalDistanceKm: totalDistanceKm
+        ) else { return nil }
+        return paceFromSecondsPerKm(secondsPerKm, unit: unit)
     }
 
     /// `M:SS` clock for a per-unit pace expressed in seconds (no unit suffix).

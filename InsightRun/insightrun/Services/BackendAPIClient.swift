@@ -50,16 +50,20 @@ class BackendAPIClient {
 
     /// Extract a retry delay (seconds) from a 429 response. Supports `Retry-After`
     /// (seconds or HTTP-date) and the backend's `X-RateLimit-Reset` epoch header.
+    private static let httpDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter
+    }()
+
     private static func retryAfter(from response: HTTPURLResponse) -> TimeInterval? {
         if let raw = response.value(forHTTPHeaderField: "Retry-After") {
             if let seconds = TimeInterval(raw.trimmingCharacters(in: .whitespaces)) {
                 return seconds
             }
-            let httpDate = DateFormatter()
-            httpDate.locale = Locale(identifier: "en_US_POSIX")
-            httpDate.timeZone = TimeZone(identifier: "GMT")
-            httpDate.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-            if let date = httpDate.date(from: raw) {
+            if let date = httpDateFormatter.date(from: raw) {
                 return max(0, date.timeIntervalSinceNow)
             }
         }

@@ -295,8 +295,9 @@ class StatisticsViewModel: ObservableObject {
 
     /// Canonical bucket pace (decimal min/km) = duration / distance; nil if either is zero.
     private static func canonicalPace(distanceMeters: Double, duration: TimeInterval) -> Double? {
-        guard distanceMeters > 0, duration > 0 else { return nil }
-        return (duration / 60.0) / (distanceMeters / 1000.0)
+        // Helper returns seconds/km; divide by 60 for the min/km used downstream.
+        Formatters.averagePaceValue(totalDurationSeconds: duration, totalDistanceKm: distanceMeters / 1000.0)
+            .map { $0 / 60.0 }
     }
 
     // MARK: - Header Subtitle (editorial)
@@ -371,9 +372,9 @@ class StatisticsViewModel: ObservableObject {
     var averagePace: Double? {
         let runs = filteredWorkouts.filter { ($0.distance ?? 0) > 0 && $0.duration > 0 }
         let totalDistanceKm = runs.compactMap { $0.distance }.reduce(0, +) / 1000.0
-        let totalDurationMin = runs.map { $0.duration }.reduce(0, +) / 60.0
-        guard totalDistanceKm > 0, totalDurationMin > 0 else { return nil }
-        return totalDurationMin / totalDistanceKm
+        let totalDurationSeconds = runs.map { $0.duration }.reduce(0, +)
+        return Formatters.averagePaceValue(totalDurationSeconds: totalDurationSeconds, totalDistanceKm: totalDistanceKm)
+            .map { $0 / 60.0 }
     }
 
     // MARK: - Performance Metrics

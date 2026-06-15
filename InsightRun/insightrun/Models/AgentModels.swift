@@ -31,16 +31,6 @@ struct AgentWorkoutResult: Codable {
         self.notes = try c.decodeIfPresent(String.self, forKey: .notes)
         self.steps = (try c.decodeIfPresent([AgentWorkoutStep].self, forKey: .steps)) ?? []
     }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(type, forKey: .type)
-        try c.encode(duration, forKey: .duration)
-        try c.encodeIfPresent(distance, forKey: .distance)
-        try c.encodeIfPresent(targetPace, forKey: .targetPace)
-        try c.encodeIfPresent(notes, forKey: .notes)
-        try c.encode(steps, forKey: .steps)
-    }
 }
 
 private extension KeyedDecodingContainer {

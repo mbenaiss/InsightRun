@@ -495,8 +495,8 @@ class UnifiedWorkoutViewModel: ObservableObject {
             totalDurationSeconds += workout.duration
             totalDistanceMeters += distance
         }
-        guard totalDistanceMeters > 0, totalDurationSeconds > 0 else { return nil }
-        return (totalDurationSeconds / 60.0) / (totalDistanceMeters / 1000.0)
+        return Formatters.averagePaceValue(totalDurationSeconds: totalDurationSeconds, totalDistanceKm: totalDistanceMeters / 1000.0)
+            .map { $0 / 60.0 }
     }
 
     var averageDistance: Double {

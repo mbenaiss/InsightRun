@@ -81,7 +81,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         guard let cached = Self.defaults.string(forKey: key) else { return nil }
         // Defensive: discard caches written by older builds that may have stored a
         // truncated chunk (e.g. interrupted streaming). Re-fetch a fresh analysis instead.
-        if !isCompleteAnalysis(cached) {
+        if !AIResponseValidator.isComplete(cached) {
             Self.defaults.removeObject(forKey: key)
             return nil
         }
@@ -89,20 +89,10 @@ class ScoreAnalysisViewModel: ObservableObject {
     }
 
     private static func saveAnalysis(_ text: String, for identifier: String, value: String) {
-        guard isCompleteAnalysis(text) else { return }
+        guard AIResponseValidator.isComplete(text) else { return }
         let key = cacheKey(for: identifier, value: value)
         Self.defaults.set(text, forKey: key)
         cleanOldCache(currentKey: key, identifier: identifier)
-    }
-
-    /// A streamed analysis is considered complete when it has substantive content
-    /// AND ends with terminal punctuation. A bare prefix like "Votre score d'eff"
-    /// or a single sentence cut mid-word fails this check.
-    static func isCompleteAnalysis(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 40 else { return false }
-        let lastChar = trimmed.last
-        return lastChar == "." || lastChar == "!" || lastChar == "?" || lastChar == "\u{2026}"
     }
 
     private static func cleanOldCache(currentKey: String, identifier: String) {
@@ -169,7 +159,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         }
 
         let text = aiService.streamedResponse
-        if aiService.error == nil, Self.isCompleteAnalysis(text) {
+        if aiService.error == nil, AIResponseValidator.isComplete(text) {
             analysisText = text
             Self.saveAnalysis(text, for: identifier, value: valueKey)
         } else if aiService.error == nil {
@@ -238,7 +228,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         }
 
         let text = aiService.streamedResponse
-        if aiService.error == nil, Self.isCompleteAnalysis(text) {
+        if aiService.error == nil, AIResponseValidator.isComplete(text) {
             analysisText = text
             Self.saveAnalysis(text, for: identifier, value: valueKey)
         } else if aiService.error == nil {

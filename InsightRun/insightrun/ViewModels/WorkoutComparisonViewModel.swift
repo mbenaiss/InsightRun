@@ -200,9 +200,7 @@ final class WorkoutComparisonViewModel: ObservableObject {
     }
 
     private static func formatDistanceDelta(_ meters: Double) -> String {
-        let km = meters / 1000.0
-        let sign = km >= 0 ? "+" : ""
-        return "\(sign)\(Formatters.distance(km: km, fractionDigits: 2))"
+        signed(meters / 1000.0) { Formatters.distance(km: $0, fractionDigits: 2) }
     }
 
     private static func formatDuration(_ seconds: TimeInterval) -> String {

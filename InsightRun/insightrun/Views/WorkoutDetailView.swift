@@ -1556,14 +1556,6 @@ struct SwipeableChartsView: View {
     }
 }
 
-// MARK: - Chart Axis Helpers
-
-enum ChartAxis {
-    static func kilometerLabel(_ km: Double) -> String {
-        Formatters.distance(km: km, fractionDigits: 1)
-    }
-}
-
 // MARK: - Interactive Heart Rate Chart
 
 struct InteractiveHeartRateChart: View {
@@ -1606,7 +1598,7 @@ struct InteractiveHeartRateChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
+            return (value: selected.value, label: Formatters.distance(km: selected.km, fractionDigits: 1))
         }
         return nil
     }
@@ -1802,7 +1794,7 @@ struct InteractivePaceChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
+            return (value: selected.value, label: Formatters.distance(km: selected.km, fractionDigits: 1))
         }
         return nil
     }
@@ -1977,7 +1969,7 @@ struct InteractivePowerChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
+            return (value: selected.value, label: Formatters.distance(km: selected.km, fractionDigits: 1))
         }
         return nil
     }
@@ -2160,7 +2152,7 @@ struct InteractiveElevationChart: View {
 
     var displayData: (value: Double, label: String)? {
         if let selected = selectedData {
-            return (value: selected.value, label: ChartAxis.kilometerLabel(selected.km))
+            return (value: selected.value, label: Formatters.distance(km: selected.km, fractionDigits: 1))
         }
         return nil
     }

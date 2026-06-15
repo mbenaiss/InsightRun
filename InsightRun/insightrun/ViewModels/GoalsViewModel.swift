@@ -143,9 +143,8 @@ class GoalsViewModel: ObservableObject {
     /// go stale after a plan adaptation shortens the schedule; indexing blindly would crash.
     private func hasValidDayIndex(_ goalIdx: Int, weekIndex: Int, dayIndex: Int) -> Bool {
         guard let plan = goals[goalIdx].trainingPlan,
-              plan.weeks.indices.contains(weekIndex),
-              plan.weeks[weekIndex].days.indices.contains(dayIndex) else { return false }
-        return true
+              plan.weeks.indices.contains(weekIndex) else { return false }
+        return plan.weeks[weekIndex].days.indices.contains(dayIndex)
     }
 
     func toggleDayCompletion(goalId: UUID, weekIndex: Int, dayIndex: Int) {

@@ -396,7 +396,7 @@ class WorkoutDetailViewModel: ObservableObject {
     }
 
     func formatPercentage(_ value: Double) -> String {
-        return String(format: "%.1f%%", value)
+        Formatters.percent(value, fractionDigits: 1)
     }
 
     // MARK: - Suunto Cache Lookup

@@ -172,11 +172,9 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
     }
 
     nonisolated var averagePace: Double? {
-        guard let distance = distance, distance > 0, duration > 0 else { return nil }
-        // Pace in minutes per kilometer
-        let minutes = duration / 60.0
-        let kilometers = distance / 1000.0
-        return minutes / kilometers
+        // Helper returns seconds/km; divide by 60 for minutes per kilometer.
+        Formatters.averagePaceValue(totalDurationSeconds: duration, totalDistanceKm: (distance ?? 0) / 1000.0)
+            .map { $0 / 60.0 }
     }
 
     nonisolated var averageSpeed: Double? {
@@ -237,9 +235,8 @@ extension Array where Element == WorkoutModel {
             totalDurationSeconds += workout.duration
             totalDistanceMeters += distance
         }
-        guard totalDistanceMeters > 0, totalDurationSeconds > 0 else { return nil }
-        let minutes = totalDurationSeconds / 60.0
-        let kilometers = totalDistanceMeters / 1000.0
-        return minutes / kilometers
+        // Helper returns seconds/km; divide by 60 for minutes per kilometer.
+        return Formatters.averagePaceValue(totalDurationSeconds: totalDurationSeconds, totalDistanceKm: totalDistanceMeters / 1000.0)
+            .map { $0 / 60.0 }
     }
 }

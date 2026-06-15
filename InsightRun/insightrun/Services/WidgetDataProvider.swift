@@ -78,7 +78,8 @@ class WidgetDataProvider {
         let paceWorkouts = thisWeekWorkouts.filter { ($0.distance ?? 0) > 0 }
         let paceSeconds = paceWorkouts.reduce(0.0) { $0 + $1.duration }
         let paceKm = paceWorkouts.reduce(0.0) { $0 + ($1.distance ?? 0) / 1000.0 }
-        let avgPace: Double? = (paceKm > 0 && paceSeconds > 0) ? (paceSeconds / 60.0) / paceKm : nil
+        let avgPace = Formatters.averagePaceValue(totalDurationSeconds: paceSeconds, totalDistanceKm: paceKm)
+            .map { $0 / 60.0 }
 
         // Bucket distances by weekday (ordered by Calendar.firstWeekday)
         var dailyKm = Array(repeating: 0.0, count: 7)

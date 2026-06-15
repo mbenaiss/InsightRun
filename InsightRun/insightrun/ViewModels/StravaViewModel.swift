@@ -315,8 +315,8 @@ class StravaViewModel: ObservableObject {
     var averagePace: Double? {
         let totalSeconds = activities.reduce(0.0) { $0 + Double($1.movingTime) }
         let totalKm = activities.reduce(0.0) { $0 + $1.distanceKm }
-        guard totalKm > 0, totalSeconds > 0 else { return nil }
-        return (totalSeconds / 60.0) / totalKm
+        return Formatters.averagePaceValue(totalDurationSeconds: totalSeconds, totalDistanceKm: totalKm)
+            .map { $0 / 60.0 }
     }
 
     var activityCount: Int {
@@ -325,17 +325,10 @@ class StravaViewModel: ObservableObject {
 
     // MARK: - Grouping (by month)
 
-    private static let monthYearFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
-        return formatter
-    }()
-
     var groupedActivities: [(String, [StravaActivity])] {
         let grouped = Dictionary(grouping: activities) { activity -> String in
             guard let date = activity.startDateParsed else { return "Unknown" }
-            return Self.monthYearFormatter.string(from: date).capitalized
+            return DateFormatter.monthYear.string(from: date).capitalized
         }
 
         return grouped.sorted { first, second in

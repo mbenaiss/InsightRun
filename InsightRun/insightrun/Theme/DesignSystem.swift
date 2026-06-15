@@ -134,7 +134,6 @@ extension Color {
 
 extension LinearGradient {
     /// Canonical AI gradient: lime accent → lavender end-stop.
-    /// Replaces degenerate `[irPrimaryAccent, irPrimaryAccent]` gradients.
     static let irAIAccent = LinearGradient(
         colors: [Color.irPrimaryAccent, Color.irAIAccentSecondary],
         startPoint: .topLeading,

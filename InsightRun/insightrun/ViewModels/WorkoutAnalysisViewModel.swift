@@ -157,7 +157,6 @@ class WorkoutAnalysisViewModel: ObservableObject {
         let question = getAnalysisPrompt()
 
         // ModelRouter will automatically select appropriate model based on request complexity
-        // Backend builds context from structured workout data.
         // askQuestion only returns once the stream is fully consumed, so the final
         // text is available synchronously on aiService.streamedResponse afterwards.
         await aiService.askQuestion(

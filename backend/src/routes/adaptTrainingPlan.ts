@@ -504,7 +504,7 @@ app.post('/', async (c) => {
     // Build prompt
     const { system: systemPrompt, user: userPrompt } = buildAdaptationPrompt(body)
 
-    // Select model. 'plan' quota bucket: adaptation shares the plan allowance, not chat.
+    // 'plan' quota bucket: adaptation shares the plan allowance, not chat.
     const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
       'COMPLEX',
       undefined,

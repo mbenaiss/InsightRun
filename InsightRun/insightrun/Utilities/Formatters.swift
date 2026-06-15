@@ -148,9 +148,8 @@ enum Formatters {
         paceFromSecondsPerKm(minutesPerKm * 60, unit: unit)
     }
 
-    /// Canonical average pace = total duration / total distance.
-    /// Never average the individual paces — always weight by distance via this.
-    /// Canonical average pace in seconds-per-km (total duration / total distance).
+    /// Canonical average pace in seconds-per-km: total duration / total distance.
+    /// Never the arithmetic mean of per-workout paces — always weight by distance.
     /// Numeric core — use this when the value is needed (sorting, comparison,
     /// storage); format for display with `paceFromSecondsPerKm`.
     static func averagePaceValue(totalDurationSeconds: Double, totalDistanceKm: Double) -> Double? {

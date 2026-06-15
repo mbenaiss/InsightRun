@@ -41,14 +41,12 @@ class WorkoutDetailViewModel: ObservableObject {
         let isMerged = !isStravaOnly && stravaId != nil
 
         if isStravaOnly {
-            // For Strava-only workouts, first create basic metrics, then fetch detailed data
             metrics = createMetricsFromWorkout()
 
             if let stravaId {
                 await loadStravaDetailedData(activityId: stravaId)
             }
         } else {
-            // For HealthKit-backed workouts (incl. merged), fetch detailed HK metrics
             do {
                 metrics = try await healthKitManager.fetchWorkoutMetrics(for: workout)
             } catch let error as HealthKitError {

@@ -283,12 +283,7 @@ struct GoalDetailView: View {
                 endPoint: .bottom
             )
         )
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
+        .detailCard()
     }
 
     private var formattedHeroDate: String {

@@ -282,9 +282,8 @@ class WeeklySummaryViewModel: ObservableObject {
         }
         bestPace = paces.min()
 
-        if totalDistance > 0, totalDuration > 0 {
-            averagePace = (totalDuration / 60.0) / (totalDistance / 1000.0)
-        }
+        averagePace = Formatters.averagePaceValue(totalDurationSeconds: totalDuration, totalDistanceKm: totalDistance / 1000.0)
+            .map { $0 / 60.0 }
 
         // WHO-adjusted minutes: vigorous intensity counts double
         // WHO (2020): 150 min moderate-intensity OR 75 min vigorous-intensity per week

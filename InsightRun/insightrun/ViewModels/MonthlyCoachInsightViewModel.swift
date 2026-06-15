@@ -137,7 +137,7 @@ final class MonthlyCoachInsightViewModel: ObservableObject {
 
         // Only persist a complete sentence; a stream cut short by a transient failure
         // would otherwise be cached and shown as a final, truncated insight.
-        guard aiService.error == nil, Self.isCompleteAnalysis(cleaned) else {
+        guard aiService.error == nil, AIResponseValidator.isComplete(cleaned) else {
             body = nil
             error = aiService.error ?? String(localized: "Error during analysis", comment: "Generic AI failure error")
             return
@@ -156,17 +156,6 @@ final class MonthlyCoachInsightViewModel: ObservableObject {
         } catch {
             self.error = String(localized: "Error saving: \(error.localizedDescription)", comment: "SwiftData save error")
         }
-    }
-
-    // MARK: - Completeness
-
-    /// A streamed insight is complete when it has substantive content and ends on
-    /// terminal punctuation. A bare prefix or a sentence cut mid-word fails this check.
-    static func isCompleteAnalysis(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 40 else { return false }
-        let lastChar = trimmed.last
-        return lastChar == "." || lastChar == "!" || lastChar == "?" || lastChar == "\u{2026}"
     }
 
     // MARK: - Cache

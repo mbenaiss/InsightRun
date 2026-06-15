@@ -173,7 +173,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         // Only persist a complete analysis; a stream cut short by a transient failure
         // would otherwise be cached and displayed as a final, truncated synthesis.
-        guard aiService.error == nil, Self.isCompleteAnalysis(finalAnalysis) else {
+        guard aiService.error == nil, AIResponseValidator.isComplete(finalAnalysis) else {
             analysisText = nil
             error = aiService.error ?? String(localized: "Error during analysis")
             print("❌ WorkoutAnalysisViewModel: No valid response received")
@@ -203,17 +203,6 @@ class WorkoutAnalysisViewModel: ObservableObject {
             self.error = String(localized: "Error saving: \(error.localizedDescription)")
             print("❌ WorkoutAnalysisViewModel: Save failed: \(error)")
         }
-    }
-
-    // MARK: - Completeness
-
-    /// A streamed analysis is complete when it has substantive content and ends on
-    /// terminal punctuation. A bare prefix or a sentence cut mid-word fails this check.
-    static func isCompleteAnalysis(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 40 else { return false }
-        let lastChar = trimmed.last
-        return lastChar == "." || lastChar == "!" || lastChar == "?" || lastChar == "\u{2026}"
     }
 
     // MARK: - Cache Management

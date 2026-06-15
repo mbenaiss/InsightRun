@@ -167,16 +167,9 @@ class WorkoutListViewModel: ObservableObject {
 
     // MARK: - Computed Properties
 
-    private static let monthYearFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
-        return formatter
-    }()
-
     var groupedWorkouts: [(String, [WorkoutModel])] {
         let grouped = Dictionary(grouping: workouts) { workout -> String in
-            Self.monthYearFormatter.string(from: workout.startDate).capitalized
+            DateFormatter.monthYear.string(from: workout.startDate).capitalized
         }
         return grouped.sorted { $0.value.first!.startDate > $1.value.first!.startDate }
     }
@@ -203,8 +196,8 @@ class WorkoutListViewModel: ObservableObject {
         let withDistance = workouts.filter { ($0.distance ?? 0) > 0 }
         let totalSeconds = withDistance.reduce(0.0) { $0 + $1.duration }
         let totalKm = withDistance.reduce(0.0) { $0 + ($1.distance ?? 0) / 1000.0 }
-        guard totalKm > 0, totalSeconds > 0 else { return nil }
-        return (totalSeconds / 60.0) / totalKm
+        return Formatters.averagePaceValue(totalDurationSeconds: totalSeconds, totalDistanceKm: totalKm)
+            .map { $0 / 60.0 }
     }
 
     var averageDistance: Double {
@@ -241,7 +234,8 @@ class WorkoutListViewModel: ObservableObject {
         let withDistance = workouts.filter { ($0.distance ?? 0) > 0 }
         let paceSeconds = withDistance.reduce(0.0) { $0 + $1.duration }
         let paceKm = withDistance.reduce(0.0) { $0 + ($1.distance ?? 0) / 1000.0 }
-        let avgPace: Double? = (paceKm > 0 && paceSeconds > 0) ? (paceSeconds / 60.0) / paceKm : nil
+        let avgPace = Formatters.averagePaceValue(totalDurationSeconds: paceSeconds, totalDistanceKm: paceKm)
+            .map { $0 / 60.0 }
 
         return GroupStats(
             count: workouts.count,
@@ -302,6 +296,16 @@ class WorkoutListViewModel: ObservableObject {
 
     func formatPace(_ pace: Double?) -> String {
         guard let pace = pace else { return String(localized: "common.notAvailable", defaultValue: "N/A", comment: "Placeholder shown when a value is unavailable") }
-        return Formatters.paceClock(pace * 60.0)
+        return Formatters.paceFromMinutesPerKm(pace)
     }
+}
+
+extension DateFormatter {
+    /// Shared "MMMM yyyy" formatter used to group workouts/activities by month.
+    static let monthYear: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
+        return formatter
+    }()
 }

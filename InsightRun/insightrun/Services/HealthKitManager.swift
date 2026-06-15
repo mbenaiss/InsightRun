@@ -386,7 +386,7 @@ class HealthKitManager: ObservableObject {
                         workoutType: workout.workoutActivityType,
                         startDate: workout.startDate,
                         endDate: workout.endDate,
-                        duration: workout.duration,
+                        duration: workout.activeDuration,
                         distance: workout.totalDistance?.doubleValue(for: .meter()),
                         totalEnergyBurned: energyBurned,
                         sourceName: workout.sourceRevision.source.name,
@@ -654,8 +654,8 @@ class HealthKitManager: ObservableObject {
         let steps = await stepCountData
 
         let cadence: Double? = {
-            guard let steps = steps, workout.duration > 0 else { return nil }
-            return Double(steps) / (workout.duration / 60.0)
+            guard let steps = steps, workout.activeDuration > 0 else { return nil }
+            return Double(steps) / (workout.activeDuration / 60.0)
         }()
 
         return ProgressionDataPoint(
@@ -735,7 +735,7 @@ class HealthKitManager: ObservableObject {
         let intervals = await intervalsData
 
         // Calculate cadence from steps
-        let cadence = calculateCadence(steps: steps, duration: workout.duration)
+        let cadence = calculateCadence(steps: steps, duration: workout.activeDuration)
 
         // Calculate elevation from route if not available
         let finalElevation: (ascent: Double?, descent: Double?)
@@ -786,7 +786,7 @@ class HealthKitManager: ObservableObject {
             temperature: weather.temperature,
             humidity: weather.humidity,
             movingTime: calculateMovingTime(for: workout),
-            pausedTime: nil
+            pausedTime: workout.pausedDuration
         )
     }
 
@@ -797,7 +797,7 @@ class HealthKitManager: ObservableObject {
         guard let workout = try? await findWorkout(with: uuid) else { return nil }
 
         let distance = workout.totalDistance?.doubleValue(for: .meter()) ?? 0
-        let duration = workout.duration
+        let duration = workout.activeDuration
         let pace = distance > 0 ? (duration / 60) / (distance / 1000) : nil // min/km
 
         // Fetch average heart rate
@@ -906,8 +906,8 @@ class HealthKitManager: ObservableObject {
         } catch {
             print("⚠️ Pace data fetch failed: \(error.localizedDescription)")
             // Fall back to calculated pace from workout totals
-            let avgPace = workout.duration > 0 && workout.totalDistance != nil
-                ? (workout.duration / 60.0) / (workout.totalDistance!.doubleValue(for: .meter()) / 1000.0)
+            let avgPace = workout.activeDuration > 0 && workout.totalDistance != nil
+                ? (workout.activeDuration / 60.0) / (workout.totalDistance!.doubleValue(for: .meter()) / 1000.0)
                 : nil
             return (avgPace, nil, nil, nil)
         }
@@ -1555,8 +1555,8 @@ class HealthKitManager: ObservableObject {
     ) {
         // Always calculate average pace from total duration and distance
         // This matches the calculation used by Apple Health app
-        let avgPace = workout.duration > 0 && workout.totalDistance != nil
-            ? (workout.duration / 60.0) / (workout.totalDistance!.doubleValue(for: .meter()) / 1000.0)
+        let avgPace = workout.activeDuration > 0 && workout.totalDistance != nil
+            ? (workout.activeDuration / 60.0) / (workout.totalDistance!.doubleValue(for: .meter()) / 1000.0)
             : nil
 
         guard let speedType = HKQuantityType.quantityType(forIdentifier: .runningSpeed) else {
@@ -2024,14 +2024,14 @@ class HealthKitManager: ObservableObject {
 
         // If we have route data, calculate accurate splits
         if let routePoints = routePoints, routePoints.count > 1 {
-            return await calculateSplitsFromRoute(routePoints: routePoints, totalDuration: workout.duration, workout: workout)
+            return await calculateSplitsFromRoute(routePoints: routePoints, totalDuration: workout.activeDuration, workout: workout)
         }
 
         // Otherwise, calculate approximate splits (for indoor workouts without GPS)
         let kilometers = Int(distance / 1000.0)
         guard kilometers > 0 else { return nil }
 
-        let averagePacePerKm = (workout.duration / 60.0) / (distance / 1000.0)
+        let averagePacePerKm = (workout.activeDuration / 60.0) / (distance / 1000.0)
         let timePerKm = averagePacePerKm * 60.0 // seconds per km
 
         // Build splits with HR data for each km
@@ -2196,9 +2196,7 @@ class HealthKitManager: ObservableObject {
     // MARK: - Moving Time
 
     private func calculateMovingTime(for workout: HKWorkout) -> TimeInterval? {
-        // This would require analyzing speed data to determine when the user was stationary
-        // For now, return total duration
-        return workout.duration
+        workout.activeDuration
     }
 
     // MARK: - Split-specific metrics
@@ -3079,7 +3077,7 @@ class HealthKitManager: ObservableObject {
         )
 
         // Calculate cadence from steps
-        let cadence = calculateCadence(steps: steps, duration: workout.duration)
+        let cadence = calculateCadence(steps: steps, duration: workout.activeDuration)
 
         return (
             heartRate: (avg: hr.average, min: hr.min, max: hr.max),

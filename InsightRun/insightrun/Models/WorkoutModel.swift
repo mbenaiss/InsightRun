@@ -193,7 +193,7 @@ extension WorkoutModel {
         self.workoutType = workout.workoutActivityType
         self.startDate = workout.startDate
         self.endDate = workout.endDate
-        self.duration = workout.duration
+        self.duration = workout.activeDuration
         self.distance = workout.totalDistance?.doubleValue(for: .meter())
         self.totalEnergyBurned = workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
         self.sourceName = workout.sourceRevision.source.name

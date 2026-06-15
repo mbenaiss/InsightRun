@@ -2080,7 +2080,7 @@ class HealthKitManager: ObservableObject {
                 let kmEndIndex = i
                 let splitPoints = Array(routePoints[kmStartIndex...kmEndIndex])
 
-                let splitDuration = splitPoints.last!.timestamp.timeIntervalSince(splitPoints.first!.timestamp)
+                let splitDuration = max(0, splitPoints.last!.timestamp.timeIntervalSince(splitPoints.first!.timestamp) - workout.pausedDuration(overlapping: splitPoints.first!.timestamp...splitPoints.last!.timestamp))
                 let splitDistance = Double(currentKm) * 1000.0 - Double(currentKm - 1) * 1000.0
                 let pace = (splitDuration / 60.0) / (splitDistance / 1000.0)
 
@@ -2129,7 +2129,7 @@ class HealthKitManager: ObservableObject {
 
             // Only create split if we have meaningful distance (> 10 meters)
             if partialDistance > 10 {
-                let splitDuration = lastSplitPoints.last!.timestamp.timeIntervalSince(lastSplitPoints.first!.timestamp)
+                let splitDuration = max(0, lastSplitPoints.last!.timestamp.timeIntervalSince(lastSplitPoints.first!.timestamp) - workout.pausedDuration(overlapping: lastSplitPoints.first!.timestamp...lastSplitPoints.last!.timestamp))
                 let pace = splitDuration > 0 ? (splitDuration / 60.0) / (partialDistance / 1000.0) : 0
 
                 // Calculate elevation

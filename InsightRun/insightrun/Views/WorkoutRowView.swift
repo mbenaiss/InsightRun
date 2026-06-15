@@ -118,8 +118,8 @@ private enum RowWorkoutSource {
         case .suunto: return .brandSuunto
         case .garmin: return .brandGarmin
         case .polar: return .brandPolar
-        case .coros: return .brandHealthKit
-        case .imported: return .brandCoros
+        case .coros: return .brandCoros
+        case .imported: return .brandHealthKit
         case .other: return Color.irPrimaryAccent
         }
     }

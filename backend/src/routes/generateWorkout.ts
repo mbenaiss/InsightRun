@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
+import { callOpenRouterWithRetry, TruncatedResponseError } from '../openrouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { estimateTokenCount, getLanguageName } from '../utils'
 
@@ -53,7 +54,6 @@ interface AIGeneratedWorkout {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 4000
 const AI_TEMPERATURE = 0.4
 // iOS aborts this request at 60s; keep two attempts inside that budget (2×25s + margin).
@@ -239,78 +239,31 @@ function normalizeWorkoutPaces(workout: AIGeneratedWorkout): void {
   }
 }
 
-class TruncatedResponseError extends Error {
-  constructor() {
-    super('Model response was truncated (finish_reason=length): output exceeds token budget')
-    this.name = 'TruncatedResponseError'
-  }
-}
-
 async function callOpenRouterForWorkout(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
   model: string
 ): Promise<string> {
-  const requestBody = {
+  const { content } = await callOpenRouterWithRetry({
+    apiKey,
     model,
-    // Native OpenRouter fallback: if `model` 429s/5xx, retry transparently on the next entry.
-    models: [model, WORKOUT_FALLBACK_MODEL],
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    max_tokens: MAX_TOKENS,
-    temperature: AI_TEMPERATURE,
-    stream: false,
-    response_format: { type: 'json_object' }, // Force JSON response (supported by some models)
-  }
-
-  let lastError: unknown
-  for (let networkAttempt = 0; networkAttempt < 2; networkAttempt++) {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS)
-
-    try {
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://insightrun.ai',
-          'X-Title': 'insightRun.ai',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        if (response.status === 429 || response.status >= 500) {
-          lastError = new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-          continue
-        }
-        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-      }
-
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string }; finish_reason?: string }>
-      }
-
-      if (data.choices[0]?.finish_reason === 'length') {
-        throw new TruncatedResponseError()
-      }
-
-      return data.choices[0]?.message?.content || ''
-    } catch (error) {
-      if (error instanceof TruncatedResponseError) throw error
-      lastError = error
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('OpenRouter request failed')
+    fallbackModel: WORKOUT_FALLBACK_MODEL,
+    body: {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: MAX_TOKENS,
+      temperature: AI_TEMPERATURE,
+      stream: false,
+      response_format: { type: 'json_object' }, // Force JSON response (supported by some models)
+    },
+    timeoutMs: OPENROUTER_TIMEOUT_MS,
+    title: 'insightRun.ai',
+    throwOnTruncation: true,
+  })
+  return content
 }
 
 function cleanJSONResponse(text: string): string {

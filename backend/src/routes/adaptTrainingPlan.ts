@@ -1,11 +1,14 @@
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
+import { callOpenRouterWithRetry, TruncatedResponseError } from '../openrouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import {
   cleanJSONResponse,
   estimateTokenCount,
+  fillPlanWorkoutDefaults,
   getLanguageName,
   getRaceDistance,
+  raceWorkoutType,
   wrapUserData,
 } from '../utils'
 
@@ -120,7 +123,6 @@ interface AdaptedTrainingPlan {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 16000
 const AI_TEMPERATURE = 0.3
 // iOS aborts this request at 120s; keep two attempts inside that budget (2×55s + parsing margin).
@@ -128,25 +130,6 @@ const OPENROUTER_TIMEOUT_MS = 55_000
 const PLAN_FALLBACK_MODEL = 'google/gemini-2.5-flash'
 // Upper bound for interval repetitions — see generateTrainingPlan for rationale.
 const MAX_REPETITIONS = 30
-
-// Planned-workout type prescribed for the race itself, so the model never invents
-// an out-of-enum "race" type (which would fail validation and trigger a 500/retry).
-function raceWorkoutType(raceType: string): string {
-  switch (raceType) {
-    case '5k':
-    case '10k':
-      return 'tempo'
-    default:
-      return 'long_run'
-  }
-}
-
-class TruncatedResponseError extends Error {
-  constructor() {
-    super('Model response was truncated (finish_reason=length): output exceeds token budget')
-    this.name = 'TruncatedResponseError'
-  }
-}
 
 function formatCompletedWeeks(weeks: CompletedWeekData[]): string {
   return weeks
@@ -329,65 +312,25 @@ async function callOpenRouterForAdaptation(
   userPrompt: string,
   model: string
 ): Promise<string> {
-  const requestBody = {
+  const { content } = await callOpenRouterWithRetry({
+    apiKey,
     model,
-    // Native OpenRouter fallback: if `model` 429s/5xx, retry transparently on the next entry.
-    models: [model, PLAN_FALLBACK_MODEL],
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    max_tokens: MAX_TOKENS,
-    temperature: AI_TEMPERATURE,
-    stream: false,
-    response_format: { type: 'json_object' },
-  }
-
-  let lastError: unknown
-  for (let networkAttempt = 0; networkAttempt < 2; networkAttempt++) {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS)
-
-    try {
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://insightrun.ai',
-          'X-Title': 'insightRun.ai',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        if (response.status === 429 || response.status >= 500) {
-          lastError = new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-          continue
-        }
-        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-      }
-
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string }; finish_reason?: string }>
-      }
-
-      if (data.choices[0]?.finish_reason === 'length') {
-        throw new TruncatedResponseError()
-      }
-
-      return data.choices[0]?.message?.content || ''
-    } catch (error) {
-      if (error instanceof TruncatedResponseError) throw error
-      lastError = error
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('OpenRouter request failed')
+    fallbackModel: PLAN_FALLBACK_MODEL,
+    body: {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: MAX_TOKENS,
+      temperature: AI_TEMPERATURE,
+      stream: false,
+      response_format: { type: 'json_object' },
+    },
+    timeoutMs: OPENROUTER_TIMEOUT_MS,
+    title: 'insightRun.ai',
+    throwOnTruncation: true,
+  })
+  return content
 }
 
 function validateAdaptedPlanJSON(
@@ -514,23 +457,7 @@ function fillAdaptedPlanDefaults(plan: AdaptedTrainingPlan): void {
   ) {
     plan.adaptation.confidenceLevel = 'medium'
   }
-  for (const week of plan.weeks) {
-    for (const workout of week.workouts) {
-      if (!workout.description || typeof workout.description !== 'string') {
-        workout.description = workout.name
-      }
-      if (Array.isArray(workout.steps)) {
-        for (const step of workout.steps) {
-          if (!step.type) step.type = 'work'
-          if (!step.description || typeof step.description !== 'string') {
-            step.description = step.type
-          }
-        }
-      } else {
-        workout.steps = []
-      }
-    }
-  }
+  fillPlanWorkoutDefaults(plan.weeks)
 }
 
 // POST /api/adapt-training-plan
@@ -573,13 +500,15 @@ app.post('/', async (c) => {
     // Build prompt
     const { system: systemPrompt, user: userPrompt } = buildAdaptationPrompt(body)
 
-    // Select model
+    // Select model. 'plan' quota bucket: adaptation shares the plan allowance, not chat.
     const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
       'COMPLEX',
       undefined,
       c.env.RATE_LIMITER,
       userId,
-      RequestType.COMPLEX
+      RequestType.COMPLEX,
+      undefined,
+      'plan'
     )
 
     console.log(
@@ -648,9 +577,9 @@ app.post('/', async (c) => {
 
     const generationTime = Date.now() - startTime
 
-    // Increment quota
+    // Increment quota (same 'plan' bucket used at selection above).
     if (modelConfig) {
-      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId)
+      await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId, 'plan')
     }
 
     // PostHog analytics

@@ -152,7 +152,7 @@ enum Formatters {
     /// Never the arithmetic mean of per-workout paces — always weight by distance.
     /// Numeric core — use this when the value is needed (sorting, comparison,
     /// storage); format for display with `paceFromSecondsPerKm`.
-    static func averagePaceValue(totalDurationSeconds: Double, totalDistanceKm: Double) -> Double? {
+    nonisolated static func averagePaceValue(totalDurationSeconds: Double, totalDistanceKm: Double) -> Double? {
         guard totalDistanceKm > 0, totalDurationSeconds > 0 else { return nil }
         return totalDurationSeconds / totalDistanceKm
     }

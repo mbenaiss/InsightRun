@@ -15,7 +15,7 @@ import UIKit
 // MARK: - Helper: adaptive Color from sRGB hex
 
 private extension UIColor {
-    convenience init(rgb: UInt32, alpha: CGFloat = 1.0) {
+    nonisolated convenience init(rgb: UInt32, alpha: CGFloat = 1.0) {
         self.init(
             red: CGFloat((rgb >> 16) & 0xFF) / 255,
             green: CGFloat((rgb >> 8) & 0xFF) / 255,
@@ -27,7 +27,7 @@ private extension UIColor {
 
 extension Color {
     /// Adaptive color: hex `0xRRGGBB` per appearance, optional alpha.
-    static func adaptive(
+    nonisolated static func adaptive(
         light: UInt32,
         dark: UInt32,
         lightAlpha: CGFloat = 1.0,
@@ -41,7 +41,7 @@ extension Color {
     }
 
     /// Adaptive color, single hex value reused for both appearances.
-    static func universal(_ rgb: UInt32, alpha: CGFloat = 1.0) -> Color {
+    nonisolated static func universal(_ rgb: UInt32, alpha: CGFloat = 1.0) -> Color {
         Color(UIColor(rgb: rgb, alpha: alpha))
     }
 }
@@ -57,7 +57,7 @@ extension Color {
 
     // MARK: Accent — DS `--ir-accent` (Lime), `--ir-accent-soft`
     /// Primary accent: iOS green in light, Lime #96FF70 in dark.
-    static let irPrimaryAccent   = Color.adaptive(light: 0x4FBF35, dark: 0x96FF70)
+    nonisolated static let irPrimaryAccent   = Color.adaptive(light: 0x4FBF35, dark: 0x96FF70)
     /// Soft accent fill (14% alpha).
     static let irAccentSoft      = Color.adaptive(
         light: 0x4FBF35, dark: 0x96FF70,
@@ -66,7 +66,7 @@ extension Color {
     /// AI accent — alias of primary accent in current Lime variant.
     static let irAIAccent        = Color.universal(0x96FF70)
     /// AI gradient end-stop (lavender).
-    static let irAIAccentSecondary = Color.universal(0xB48DFF)
+    nonisolated static let irAIAccentSecondary = Color.universal(0xB48DFF)
     /// Expressive purple — DS `--ir-purple` (#BF5AF2).
     static let irPurple          = Color.universal(0xBF5AF2)
 

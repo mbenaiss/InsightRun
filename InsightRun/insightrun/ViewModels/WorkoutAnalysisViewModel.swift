@@ -170,16 +170,17 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // which is delivered through an async Combine sink that may lag a runloop tick.
         let finalAnalysis = aiService.streamedResponse
 
-        // Only persist a complete analysis; a stream cut short by a transient failure
-        // would otherwise be cached and displayed as a final, truncated synthesis.
-        guard aiService.error == nil, AIResponseValidator.isComplete(finalAnalysis) else {
+        guard aiService.error == nil, !finalAnalysis.isEmpty else {
             analysisText = nil
             error = aiService.error ?? String(localized: "Error during analysis")
-            print("❌ WorkoutAnalysisViewModel: No valid response received")
             return
         }
 
         analysisText = finalAnalysis
+
+        // Don't persist a stream truncated mid-sentence: showing it once is fine,
+        // caching it as the final analysis is not.
+        guard AIResponseValidator.isComplete(finalAnalysis) else { return }
 
         print("✅ WorkoutAnalysisViewModel: Streaming complete, saving to SwiftData (\(finalAnalysis.count) chars)")
         print("🔍 WorkoutAnalysisViewModel: Saving with workoutId: \(workout.id)")

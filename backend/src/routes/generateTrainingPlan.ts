@@ -1,5 +1,10 @@
 import { Hono } from 'hono'
-import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
+import {
+  afterModelUsage,
+  PLAN_FALLBACK_MODEL_ID,
+  RequestType,
+  selectModelFromRequest,
+} from '../modelRouter'
 import { callOpenRouterWithRetry, TruncatedResponseError } from '../openrouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import {
@@ -87,9 +92,6 @@ const MAX_TOKENS = 16000 // Training plans are large
 const AI_TEMPERATURE = 0.3 // Lower temperature for more consistent plans
 // iOS aborts this request at 120s; keep two attempts inside that budget (2×55s + parsing margin).
 const OPENROUTER_TIMEOUT_MS = 55_000
-// Resilient structured-output fallback when the primary model 429s/5xx — handled natively
-// by OpenRouter's `models` array so we never silently drop a 16k-token plan to a low-capacity model.
-const PLAN_FALLBACK_MODEL = 'google/gemini-2.5-flash'
 
 function buildTrainingPlanPrompt(
   request: TrainingPlanRequest,
@@ -359,7 +361,7 @@ async function callOpenRouterForPlan(
   const { content } = await callOpenRouterWithRetry({
     apiKey,
     model,
-    fallbackModel: PLAN_FALLBACK_MODEL,
+    fallbackModel: PLAN_FALLBACK_MODEL_ID,
     body: {
       messages: [
         { role: 'system', content: systemPrompt },

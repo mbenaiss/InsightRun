@@ -91,7 +91,15 @@ const MODELS: Record<string, ModelConfig> = {
     description: 'Fast and cost-effective for structured generation',
     requiresQuota: false,
   },
+  GPT_5_4_NANO: {
+    modelId: 'openai/gpt-5.4-nano',
+    displayName: 'GPT 5.4 nano',
+    description: 'Fallback for structured plan generation',
+    requiresQuota: false,
+  },
 }
+
+export const PLAN_FALLBACK_MODEL_ID = MODELS.GPT_5_4_NANO.modelId
 
 /**
  * Premium model quota configuration

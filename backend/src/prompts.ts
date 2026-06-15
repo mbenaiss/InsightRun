@@ -695,9 +695,8 @@ function buildLanguageBlock(langName: string): string {
 `
 }
 
-// Main function to build the complete system prompt. Layout is cache-friendly:
-// all static guidance comes first (stable prefix), the dynamic runner data is
-// appended last so the prefix can be reused across turns.
+// Layout is cache-friendly: all static guidance comes first (stable prefix), the
+// dynamic runner data is appended last so the prefix can be reused across turns.
 export function buildWorkoutCoachPrompt(data: ChatDataPayload, language: string): string {
   const langName = getLanguageName(language)
   const isEnglish = language.toLowerCase().split('-')[0] === 'en'

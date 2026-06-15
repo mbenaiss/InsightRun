@@ -2610,7 +2610,6 @@ class HealthKitManager: ObservableObject {
 
         guard let session = targetSession, !session.isEmpty else { return nil }
 
-        // Calculate sleep metrics from the complete session.
         // iPhone and Apple Watch can both record overlapping samples for the same
         // night; summing raw sample durations double-counts and can push
         // sleepEfficiency above 100%. Merge overlapping intervals per stage first.

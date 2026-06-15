@@ -488,7 +488,6 @@ app.post('/api/chat', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
-    // Select model using requestType or manual model.
     // /api/chat accepts a client-supplied systemPrompt, so it must never reach a
     // premium (quota-backed) model: restrict the whitelist to cheap tiers and
     // ignore any manual model override here.

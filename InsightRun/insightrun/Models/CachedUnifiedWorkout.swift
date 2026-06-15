@@ -68,8 +68,8 @@ class CachedUnifiedWorkout {
     // Note: This creates a fallback UnifiedWorkout from cached data only
     // The original WorkoutModel/StravaActivity objects are NOT preserved
     func toUnifiedWorkout() -> UnifiedWorkout {
-        // Reconstruct based on original source type. Compare via the enum so the
-        // canonical rawValue casing ("HealthKit"/"Strava"/"Merged") is honored.
+        // Compare via the enum so the canonical rawValue casing
+        // ("HealthKit"/"Strava"/"Merged") is honored.
         switch WorkoutSource(rawValue: source) {
         case .strava:
             // Create minimal StravaActivity for Strava-only workouts

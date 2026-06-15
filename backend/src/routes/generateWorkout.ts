@@ -257,7 +257,7 @@ async function callOpenRouterForWorkout(
       max_tokens: MAX_TOKENS,
       temperature: AI_TEMPERATURE,
       stream: false,
-      response_format: { type: 'json_object' }, // Force JSON response (supported by some models)
+      response_format: { type: 'json_object' },
     },
     timeoutMs: OPENROUTER_TIMEOUT_MS,
     title: 'insightRun.ai',

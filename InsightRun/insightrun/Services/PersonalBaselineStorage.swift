@@ -45,7 +45,6 @@ class PersonalBaselineStorage {
         }
     }
 
-    /// Check if baseline needs to be refreshed.
     /// Refresh only when missing or older than 24h. An unreliable baseline is NOT
     /// refreshed on every call: that made a single dashboard load recompute the
     /// baseline 14× (once per recovery-metrics fetch) for users without enough

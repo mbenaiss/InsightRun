@@ -88,8 +88,8 @@ interface GeneratedTrainingPlan {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-const MAX_TOKENS = 16000 // Training plans are large
-const AI_TEMPERATURE = 0.3 // Lower temperature for more consistent plans
+const MAX_TOKENS = 16000
+const AI_TEMPERATURE = 0.3
 // iOS aborts this request at 120s; keep two attempts inside that budget (2×55s + parsing margin).
 const OPENROUTER_TIMEOUT_MS = 55_000
 
@@ -442,7 +442,6 @@ app.post('/', async (c) => {
     // Build prompt
     const { system: systemPrompt, user: userPrompt } = buildTrainingPlanPrompt(body, maxWeeks)
 
-    // Select model - use COMPLEX for training plans (large structured output).
     // 'plan' quota bucket keeps plan generation from sharing the chat allowance.
     const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
       'COMPLEX',

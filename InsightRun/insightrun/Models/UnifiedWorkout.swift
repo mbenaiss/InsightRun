@@ -345,7 +345,6 @@ struct UnifiedWorkout: Identifiable {
 // MARK: - Duplicate Detection
 
 extension UnifiedWorkout {
-    /// Check if this workout is likely a duplicate of another.
     /// Primary criteria are start time + distance, which are stable across
     /// sources. Duration is intentionally NOT used as a strict gate: Strava
     /// reports moving time (excludes pauses) while HealthKit reports total

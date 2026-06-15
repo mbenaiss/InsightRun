@@ -130,18 +130,21 @@ final class MonthlyCoachInsightViewModel: ObservableObject {
 
         isLoading = false
 
-        // Strip stray markdown / surrounding quotes the model sometimes adds.
         let cleaned = aiService.streamedResponse
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "\"“”"))
 
-        // Only persist a complete sentence; a stream cut short by a transient failure
-        // would otherwise be cached and shown as a final, truncated insight.
-        guard aiService.error == nil, AIResponseValidator.isComplete(cleaned) else {
+        guard aiService.error == nil, !cleaned.isEmpty else {
             body = nil
             error = aiService.error ?? String(localized: "Error during analysis", comment: "Generic AI failure error")
             return
         }
+
+        body = cleaned
+
+        // Don't persist a stream truncated mid-sentence: showing it once is fine,
+        // caching it as the month's final insight is not.
+        guard AIResponseValidator.isComplete(cleaned) else { return }
 
         let cache = MonthlyStatsAnalysis(
             monthKey: currentMonthKey(),
@@ -152,7 +155,6 @@ final class MonthlyCoachInsightViewModel: ObservableObject {
         do {
             try modelContext.save()
             analyzedAt = cache.analyzedAt
-            body = cleaned
         } catch {
             self.error = String(localized: "Error saving: \(error.localizedDescription)", comment: "SwiftData save error")
         }

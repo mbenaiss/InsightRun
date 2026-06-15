@@ -338,8 +338,9 @@ app.post('/chat', async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || 'unknown'
     const traceId = crypto.randomUUID()
 
-    // Select model for complex requests
-    const selection = await selectModel(RequestType.COMPLEX, c.env.RATE_LIMITER, userId)
+    // Select model for complex requests. 'chat' quota bucket so the conversational
+    // agent draws from its own premium allowance, independent of plan generation.
+    const selection = await selectModel(RequestType.COMPLEX, c.env.RATE_LIMITER, userId, 'chat')
     const model = selection.model.modelId
 
     // Build agentic system prompt
@@ -481,7 +482,7 @@ app.post('/chat', async (c) => {
                   )
                 }
 
-                await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId)
+                await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId, 'chat')
                 return
               }
 

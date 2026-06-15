@@ -223,3 +223,52 @@ export function getLanguageName(langCode: string): string {
   const base = langCode.toLowerCase().split('-')[0]
   return LANGUAGE_NAMES[base] || 'English'
 }
+
+export type RaceType = 'marathon' | 'half_marathon' | '10k' | '5k' | 'ultra'
+
+// Planned-workout type prescribed for the race itself, so the model never invents
+// an out-of-enum "race" type (which would fail validation and trigger a 500/retry).
+// 5k/10k race as a sustained tempo effort; longer distances as a long run.
+export function raceWorkoutType(raceType: RaceType | string): 'tempo' | 'long_run' {
+  switch (raceType) {
+    case '5k':
+    case '10k':
+      return 'tempo'
+    default:
+      return 'long_run'
+  }
+}
+
+// Minimal structural view of a generated plan week, shared by generate/adapt routes
+// which each declare richer (and slightly divergent) week/workout interfaces.
+interface PlanWorkoutLike {
+  name: string
+  description?: string
+  steps?: Array<{ type?: string; description?: string }>
+}
+interface PlanWeekLike {
+  workouts: PlanWorkoutLike[]
+}
+
+// Backfill the fields a strict iOS decoder requires but a model occasionally omits
+// (workout/step descriptions, step.type). Filling defaults here keeps an otherwise
+// valid plan decodable client-side instead of failing the whole response.
+export function fillPlanWorkoutDefaults(weeks: PlanWeekLike[]): void {
+  for (const week of weeks) {
+    for (const workout of week.workouts) {
+      if (!workout.description || typeof workout.description !== 'string') {
+        workout.description = workout.name
+      }
+      if (Array.isArray(workout.steps)) {
+        for (const step of workout.steps) {
+          if (!step.type) step.type = 'work'
+          if (!step.description || typeof step.description !== 'string') {
+            step.description = step.type
+          }
+        }
+      } else {
+        workout.steps = []
+      }
+    }
+  }
+}

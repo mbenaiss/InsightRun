@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
+import { callOpenRouterWithRetry } from '../openrouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import type { ChatRequestV2 } from '../types'
 import { estimateTokenCount, getLanguageName, wrapUserData } from '../utils'
@@ -18,7 +19,6 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MAX_TOKENS = 4000 // Increased for full workout generation
 // Lowered from 0.7: the output is a strict title+phases format, so determinism helps.
 const AI_TEMPERATURE = 0.5
@@ -135,59 +135,24 @@ async function callModelForSuggestion(
   userPrompt: string,
   model: string
 ): Promise<string> {
-  const requestBody = {
+  const { content } = await callOpenRouterWithRetry({
+    apiKey,
     model,
-    // Native OpenRouter fallback: if `model` 429s/5xx, retry transparently on the next entry.
-    models: [model, SUGGESTION_FALLBACK_MODEL],
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    max_tokens: MAX_TOKENS,
-    temperature: AI_TEMPERATURE,
-    stream: false,
-  }
-
-  let lastError: unknown
-  for (let networkAttempt = 0; networkAttempt < 2; networkAttempt++) {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS)
-
-    try {
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://insightrun.ai',
-          'X-Title': 'InsightRun Smart Suggestion',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        if (response.status === 429 || response.status >= 500) {
-          lastError = new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-          continue
-        }
-        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-      }
-
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>
-      }
-
-      return (data.choices[0]?.message?.content || '').trim()
-    } catch (error) {
-      lastError = error
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('OpenRouter request failed')
+    fallbackModel: SUGGESTION_FALLBACK_MODEL,
+    body: {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: MAX_TOKENS,
+      temperature: AI_TEMPERATURE,
+      stream: false,
+    },
+    timeoutMs: OPENROUTER_TIMEOUT_MS,
+    // Free-text suggestion (no JSON), so truncation isn't a parse failure to retry.
+    title: 'InsightRun Smart Suggestion',
+  })
+  return content.trim()
 }
 
 // POST /api/workout/smart-suggestion

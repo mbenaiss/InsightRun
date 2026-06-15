@@ -2022,7 +2022,13 @@ class HealthKitManager: ObservableObject {
             return nil
         }
 
-        // If we have route data, calculate accurate splits
+        // Prefer Apple's fused distance for km boundaries: raw GPS straight-line sums
+        // over-count, making splits read ~6s/km faster than Apple Fitness.
+        if let splits = await calculateSplitsFromDistanceSamples(workout: workout, totalDistance: distance, routePoints: routePoints) {
+            return splits
+        }
+
+        // Fallback: raw GPS route (e.g. Strava imports without HK distance samples).
         if let routePoints = routePoints, routePoints.count > 1 {
             return await calculateSplitsFromRoute(routePoints: routePoints, totalDuration: workout.activeDuration, workout: workout)
         }
@@ -2058,6 +2064,96 @@ class HealthKitManager: ObservableObject {
         }
 
         return splits
+    }
+
+    private func calculateSplitsFromDistanceSamples(workout: HKWorkout, totalDistance: Double, routePoints: [RoutePoint]?) async -> [Split]? {
+        let samples = await fetchDistanceSamples(for: workout)
+        guard samples.count > 1 else { return nil }
+
+        let sampledTotal = samples.reduce(0) { $0 + $1.meters }
+        // Distrust sparse or double-counted samples; the GPS route fallback handles those.
+        guard sampledTotal >= totalDistance * 0.9, sampledTotal <= totalDistance * 1.1 else { return nil }
+
+        // Timestamp at each 1000 m of fused distance, interpolated within the spanning sample.
+        var boundaries: [Date] = [samples.first!.start]
+        var cumulative = 0.0
+        var nextMark = 1000.0
+        for sample in samples {
+            let meters = sample.meters
+            guard meters > 0 else { continue }
+            let span = sample.end.timeIntervalSince(sample.start)
+            while nextMark <= cumulative + meters {
+                let fraction = (nextMark - cumulative) / meters
+                boundaries.append(sample.start.addingTimeInterval(fraction * span))
+                nextMark += 1000
+            }
+            cumulative += meters
+        }
+
+        let fullKilometers = boundaries.count - 1
+        guard fullKilometers >= 1 else { return nil }
+
+        var splits: [Split] = []
+        for km in 1...fullKilometers {
+            splits.append(await makeSplit(kilometer: km, distance: 1000.0, from: boundaries[km - 1], to: boundaries[km], workout: workout, routePoints: routePoints))
+        }
+
+        // Partial final km from the sampled distance (same basis as the boundaries),
+        // so it is never negative and the splits stay self-consistent.
+        let partialDistance = sampledTotal - Double(fullKilometers) * 1000.0
+        if partialDistance > 10 {
+            let lastEnd = samples.map { $0.end }.max() ?? boundaries.last!
+            splits.append(await makeSplit(kilometer: fullKilometers + 1, distance: partialDistance, from: boundaries.last!, to: lastEnd, workout: workout, routePoints: routePoints))
+        }
+
+        return splits
+    }
+
+    private func makeSplit(kilometer: Int, distance: Double, from start: Date, to end: Date, workout: HKWorkout, routePoints: [RoutePoint]?) async -> Split {
+        let lower = min(start, end)
+        let upper = max(start, end)
+        let active = max(0, upper.timeIntervalSince(lower) - workout.pausedDuration(overlapping: lower...upper))
+        let pace = distance > 0 && active > 0 ? (active / 60.0) / (distance / 1000.0) : 0
+
+        async let heartRate = fetchAverageHeartRate(for: workout, startDate: lower, endDate: upper)
+        async let power = fetchAveragePower(for: workout, startDate: lower, endDate: upper)
+        let windowPoints = routePoints?.filter { $0.timestamp >= lower && $0.timestamp <= upper } ?? []
+
+        return Split(
+            kilometer: kilometer,
+            distance: distance,
+            time: active,
+            pace: pace,
+            averageHeartRate: await heartRate,
+            averagePower: await power,
+            elevationGain: calculateElevationGain(for: windowPoints),
+            elevationLoss: calculateElevationLoss(for: windowPoints)
+        )
+    }
+
+    private func fetchDistanceSamples(for workout: HKWorkout) async -> [(start: Date, end: Date, meters: Double)] {
+        guard let distanceType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) else {
+            return []
+        }
+
+        let predicate = HKQuery.predicateForObjects(from: workout)
+        let sortDescriptors = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: distanceType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: sortDescriptors
+            ) { _, samples, _ in
+                let result = (samples as? [HKQuantitySample])?.map {
+                    (start: $0.startDate, end: $0.endDate, meters: $0.quantity.doubleValue(for: .meter()))
+                } ?? []
+                continuation.resume(returning: result)
+            }
+
+            healthStore.execute(query)
+        }
     }
 
     private func calculateSplitsFromRoute(routePoints: [RoutePoint], totalDuration: TimeInterval, workout: HKWorkout) async -> [Split] {

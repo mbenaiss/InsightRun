@@ -1,42 +1,69 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "NSHealthShareUsageDescription": {
-      "comment": "HealthKit read-access permission prompt (first popup the user sees)",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insight Run reads your workout data to provide personalized training insights and recovery recommendations."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insight Run lit tes données d'entraînement pour analyser tes courses, suivre tes métriques de mobilité (stabilité, asymétrie, contact au sol) et te proposer des conseils personnalisés selon ta condition physique."
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Insight Run"
           }
         }
       }
     },
-    "NSHealthUpdateUsageDescription": {
-      "comment": "HealthKit write-access permission prompt (importing FIT files into Apple Health)",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insight Run saves imported workouts to Apple Health so they appear alongside your other activities."
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "insightrun"
+          }
+        }
+      }
+    },
+    "FIT Activity File" : {
+
+    },
+    "NSHealthShareUsageDescription" : {
+      "comment" : "HealthKit read-access permission prompt (first popup the user sees)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insight Run reads your workout data to provide personalized training insights and recovery recommendations."
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insight Run enregistre dans Santé les entraînements que tu importes depuis des fichiers FIT (Suunto, Garmin), avec fréquence cardiaque, parcours GPS, puissance et cadence."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insight Run lit tes données d'entraînement pour analyser tes courses, suivre tes métriques de mobilité (stabilité, asymétrie, contact au sol) et te proposer des conseils personnalisés selon ta condition physique."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription" : {
+      "comment" : "HealthKit write-access permission prompt (importing FIT files into Apple Health)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insight Run saves imported workouts to Apple Health so they appear alongside your other activities."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insight Run enregistre dans Santé les entraînements que tu importes depuis des fichiers FIT (Suunto, Garmin), avec fréquence cardiaque, parcours GPS, puissance et cadence."
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

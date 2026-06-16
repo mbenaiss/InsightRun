@@ -253,7 +253,7 @@ export interface ChatRequestV2 {
 
 // Zod schema for BatchAnalysisRequest validation
 export const batchAnalysisRequestSchema = z.object({
-  workouts: z.array(workoutDataSchema).min(1).max(50),
+  workouts: z.array(workoutDataSchema).min(1).max(200),
   batchIndex: z.number().int().min(0),
   language: z.string().min(2).max(5),
   requestType: z.string().optional(), // e.g., 'BATCH_PROCESSING'

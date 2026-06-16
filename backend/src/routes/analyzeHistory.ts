@@ -40,6 +40,14 @@ const BATCH_TIMEOUT = 30000 // 30s timeout for batch analysis
 const CONSOLIDATE_TIMEOUT = 60000 // 60s timeout for consolidation
 const MAX_BATCH_TOKENS = 1000 // Max tokens for batch summary (concise)
 const MAX_CONSOLIDATE_TOKENS = 3000 // Max tokens for final consolidated summary
+const IDEMPOTENCY_TTL_SECONDS = 7 * 24 * 60 * 60 // 7d: a retried/resumed request returns instantly without re-paying the LLM
+
+// Stable cache key for an LLM result, scoped per user so summaries never leak across users.
+async function idempotencyKey(prefix: string, userId: string, payload: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload))
+  const hash = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  return `idem:${prefix}:${userId}:${hash}`
+}
 
 // Helper to build health profile context
 function buildHealthProfileContext(profile: HealthProfileData): string {
@@ -372,6 +380,25 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     // Get user ID for quota management
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
 
+    // Idempotency: a retried/resumed batch with identical workouts returns the
+    // cached summary instantly, skipping the LLM call and the quota charge.
+    const batchCacheKey = await idempotencyKey(
+      'batch',
+      userId,
+      `${language}|${JSON.stringify(workouts)}`
+    )
+    const cachedBatch = await c.env.RATE_LIMITER.get(batchCacheKey)
+    if (cachedBatch) {
+      const parsed = JSON.parse(cachedBatch) as { partialSummary: string; workoutCount: number }
+      console.log(`⚡ Batch ${batchIndex}: idempotency cache hit (${workouts.length} workouts)`)
+      return c.json({
+        batchIndex,
+        partialSummary: parsed.partialSummary,
+        workoutCount: parsed.workoutCount,
+        tokenCount: estimateTokenCount(parsed.partialSummary),
+      } satisfies BatchAnalysisResponse)
+    }
+
     // Select model using helper
     const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
       requestType,
@@ -422,6 +449,15 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
 
     console.log(
       `✅ Batch summary generated: ${finalTokenCount} tokens, ${workouts.length} workouts, ${latency.toFixed(2)}s`
+    )
+
+    // Cache the finished summary so an identical retry/resume is free.
+    c.executionCtx.waitUntil(
+      c.env.RATE_LIMITER.put(
+        batchCacheKey,
+        JSON.stringify({ partialSummary: summary, workoutCount: workouts.length }),
+        { expirationTtl: IDEMPOTENCY_TTL_SECONDS }
+      )
     )
 
     // Log to PostHog (optional, async)
@@ -529,6 +565,23 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     // Get user ID for quota management
     const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
 
+    // Idempotency: re-consolidating the same batch summaries returns instantly.
+    const consolidateCacheKey = await idempotencyKey(
+      'consolidate',
+      userId,
+      `${language}|${JSON.stringify(profile ?? null)}|${batchSummaries.join('')}`
+    )
+    const cachedConsolidate = await c.env.RATE_LIMITER.get(consolidateCacheKey)
+    if (cachedConsolidate) {
+      const parsed = JSON.parse(cachedConsolidate) as { summary: string }
+      console.log(`⚡ Consolidation: idempotency cache hit (${batchSummaries.length} batches)`)
+      return c.json({
+        summary: parsed.summary,
+        workoutCount: totalWorkouts,
+        tokenCount: estimateTokenCount(parsed.summary),
+      } satisfies ConsolidateResponse)
+    }
+
     // Select model using helper
     const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
       requestType,
@@ -582,6 +635,13 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
 
     console.log(
       `✅ Consolidated summary generated: ${finalTokenCount} tokens, ${batchSummaries.length} batches, ${latency.toFixed(2)}s`
+    )
+
+    // Cache the finished summary so an identical retry/resume is free.
+    c.executionCtx.waitUntil(
+      c.env.RATE_LIMITER.put(consolidateCacheKey, JSON.stringify({ summary }), {
+        expirationTtl: IDEMPOTENCY_TTL_SECONDS,
+      })
     )
 
     // Log to PostHog (optional, async)

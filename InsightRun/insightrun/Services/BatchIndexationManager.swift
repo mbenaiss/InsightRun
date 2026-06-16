@@ -8,6 +8,7 @@
 
 import Foundation
 import Combine
+import CryptoKit
 import HealthKit
 import UIKit
 
@@ -33,9 +34,16 @@ enum IndexationState: Equatable {
 // MARK: - Configuration
 
 struct BatchIndexationConfig {
-    static let batchSize = 50
+    static let batchSize = 100
     static let maxWorkouts = 365
     static let checkCancellationEvery = 5
+
+    /// Concurrency caps. Per-workout HealthKit fetches overlap their I/O; batch
+    /// uploads overlap their network + LLM latency. Bounded so we neither flood
+    /// HealthKit with hundreds of simultaneous queries nor trip the backend's
+    /// per-IP rate limit.
+    static let metricsConcurrency = 6
+    static let uploadConcurrency = 3
 
     // Progress weights (total = 100%)
     static let batchProcessingWeight = 0.70  // 0-70%
@@ -61,6 +69,7 @@ class BatchIndexationManager: ObservableObject {
     @Published var needsManualHealthKitSetup: Bool = false
     @Published var needsGuidedAccessDisabled: Bool = false
     @Published var skippedWorkoutCount: Int = 0
+    @Published var isResuming: Bool = false // Resuming a previously interrupted run
 
     // MARK: - Private Properties
 
@@ -74,7 +83,19 @@ class BatchIndexationManager: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
     private let backendClient = BackendAPIClient.shared
     private let storage = HistoricalSummaryStorage.shared
+    private let progressStore = IndexationProgressStore.shared
     private static let iso8601Formatter = ISO8601DateFormatter()
+
+    // Progress accounting (drives the continuous progress bar across the
+    // concurrent metric-fetch and upload phases, including resumed work).
+    private var metricsFetchedCount = 0
+    private var uploadedBatchCount = 0
+    private var resumedWorkoutCount = 0
+    private var resumedBatchCount = 0
+
+    // Background task assertion so a brief backgrounding doesn't kill an
+    // in-flight batch before it can finish and persist.
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
 
     private init() {}
 
@@ -112,6 +133,16 @@ class BatchIndexationManager: ObservableObject {
         totalWorkoutCount = 0
         lastBatchWorkoutCount = 0
         skippedWorkoutCount = 0
+        metricsFetchedCount = 0
+        uploadedBatchCount = 0
+        resumedWorkoutCount = 0
+        resumedBatchCount = 0
+        isResuming = false
+
+        // Keep indexation alive for a short grace period if the user briefly
+        // backgrounds the app, so an in-flight batch can finish and persist.
+        beginBackgroundTask()
+        defer { endBackgroundTask() }
 
         do {
             // Step 0: Verify HealthKit availability and authorization
@@ -120,7 +151,10 @@ class BatchIndexationManager: ObservableObject {
                 throw IndexationError.healthKitNotAvailable
             }
 
-            if !healthKitManager.isHealthKitAuthorized {
+            // Only present the system permission sheet if setup was never completed.
+            // Re-requesting on every retry re-probes HealthKit needlessly (iOS never
+            // re-shows the dialog) and pollutes permission analytics.
+            if !healthKitManager.hasCompletedHealthKitSetup {
                 try await healthKitManager.requestAuthorization()
             }
 
@@ -136,13 +170,13 @@ class BatchIndexationManager: ObservableObject {
 
             // Limit to max workouts and sort by date (most recent first)
             let allCandidates = Array(allWorkouts.prefix(BatchIndexationConfig.maxWorkouts))
-            totalWorkoutCount = allCandidates.count
 
             // Backend Zod enforces `duration > 0` on every workout. Third-party
             // imports (Strava/Garmin/manual entries) occasionally land in
             // HealthKit with zero or NaN duration — drop them pre-flight so one
-            // malformed record doesn't reject a whole 50-workout batch.
+            // malformed record doesn't reject a whole batch.
             let workoutsToProcess = allCandidates.filter { $0.duration.isFinite && $0.duration > 0 }
+            totalWorkoutCount = workoutsToProcess.count
             let preflightDropped = allCandidates.count - workoutsToProcess.count
             if preflightDropped > 0 {
                 skippedWorkoutCount += preflightDropped
@@ -161,6 +195,7 @@ class BatchIndexationManager: ObservableObject {
                     dateRangeEnd: Date()
                 )
                 storage.save(emptySummary)
+                progressStore.clearAll()
                 progress = 1.0
                 state = .completed
                 print("✅ BatchIndexationManager: No workouts found, saved empty summary")
@@ -171,79 +206,60 @@ class BatchIndexationManager: ObservableObject {
 
             // Step 2: Calculate batches
             totalBatches = Int(ceil(Double(workoutsToProcess.count) / Double(BatchIndexationConfig.batchSize)))
-            print("📊 BatchIndexationManager: Will process \(totalBatches) batches, then consolidate")
 
-            // Track indexation started
+            let language = AppLanguage.current
+            let userId = UserIdentityService.shared.userID
+            let signature = Self.datasetSignature(for: workoutsToProcess)
+            let batchRequestType = RequestType.batchProcessing.rawValue // Backend selects optimal model
+
+            // Resume any still-valid partial run for this exact dataset; otherwise
+            // wipe stale state and start fresh.
+            var batchSummaries = loadResumableSummaries(userId: userId, signature: signature)
+            resumedBatchCount = batchSummaries.count
+            resumedWorkoutCount = batchSummaries.keys.reduce(0) { $0 + batchRange($1, total: totalWorkoutCount).count }
+            if resumedBatchCount > 0 {
+                isResuming = true
+                print("♻️ BatchIndexationManager: Resuming — \(resumedBatchCount)/\(totalBatches) batches already done")
+            } else {
+                progressStore.clearAll()
+            }
+            print("📊 BatchIndexationManager: \(totalBatches) batches (\(batchSummaries.count) reused), then consolidate")
+
             AnalyticsService.shared.trackIndexationStarted(
                 workoutsCount: workoutsToProcess.count,
                 totalBatches: totalBatches
             )
+            recomputeBatchProgress()
 
-            var batchSummaries: [String] = []
-            var lastSkippedError: BackendError?
-            let batchRequestType = RequestType.batchProcessing.rawValue // Backend selects optimal model
-            let consolidationRequestType = RequestType.moderate.rawValue // Backend selects optimal model
-            let language = AppLanguage.current
+            let missingBatches = (0..<totalBatches).filter { batchSummaries[$0] == nil }
 
-            // Step 3: Process batches
-            for batchIndex in 0..<totalBatches {
-                guard !isCancelled else {
-                    state = .cancelled
-                    return
-                }
+            // Step 3a: Fetch per-workout metrics concurrently (HealthKit I/O bound).
+            currentPhase = "fetch_metrics"
+            let workoutDataByBatch = await fetchWorkoutData(forBatches: missingBatches, in: workoutsToProcess)
 
-                currentBatch = batchIndex + 1
-                currentPhase = "batch_\(currentBatch)_of_\(totalBatches)"
-                print("📊 BatchIndexationManager: Processing batch \(currentBatch)/\(totalBatches) with requestType: \(batchRequestType)...")
-
-                let startIndex = batchIndex * BatchIndexationConfig.batchSize
-                let endIndex = min(startIndex + BatchIndexationConfig.batchSize, workoutsToProcess.count)
-                let batchWorkouts = Array(workoutsToProcess[startIndex..<endIndex])
-
-                // Convert batch workouts to WorkoutData
-                let batchData = try await processBatch(batchWorkouts)
-                lastBatchWorkoutCount = batchData.count
-
-                do {
-                    let batchResponse = try await backendClient.analyzeBatch(
-                        workouts: batchData,
-                        batchIndex: batchIndex,
-                        requestType: batchRequestType,
-                        model: nil, // Backend will select model
-                        language: language
-                    )
-                    batchSummaries.append(batchResponse.partialSummary)
-                } catch let backendError as BackendError where Self.isClient4xx(backendError) {
-                    // Client-side rejection (typically a malformed workout).
-                    // Skip the batch, track for diagnostics, keep indexing —
-                    // a partial summary beats a hard failure for the user.
-                    skippedWorkoutCount += batchWorkouts.count
-                    lastSkippedError = backendError
-                    AnalyticsService.shared.track(
-                        .indexationFailed,
-                        properties: indexationDebugInfo(error: backendError, categorizedMessage: "skipped_batch_4xx")
-                    )
-                    print("⚠️ BatchIndexationManager: Batch \(currentBatch) skipped (\(backendError.localizedDescription)) — \(batchWorkouts.count) workouts excluded")
-                }
-
-                // Update progress (0-70%) regardless of success/skip
-                let batchProgress = Double(currentBatch) / Double(totalBatches)
-                progress = batchProgress * BatchIndexationConfig.batchProcessingWeight
-                state = .loading(progress: progress)
-
-                AnalyticsService.shared.trackIndexationBatchProcessed(
-                    batchNumber: currentBatch,
-                    totalBatches: totalBatches,
-                    progress: progress
-                )
-
-                print("📊 BatchIndexationManager: Batch \(currentBatch) completed (\(Int(progress * 100))%)")
+            guard !isCancelled else {
+                state = .cancelled
+                return
             }
+
+            // Step 3b: Upload batches concurrently (network/LLM bound), persisting each.
+            currentPhase = "upload_batches"
+            let uploadResult = try await uploadBatches(
+                workoutDataByBatch,
+                workoutsToProcess: workoutsToProcess,
+                requestType: batchRequestType,
+                language: language,
+                userId: userId,
+                signature: signature
+            )
+            batchSummaries.merge(uploadResult.summaries) { _, new in new }
+            let lastSkippedError = uploadResult.lastSkippedError
 
             // If every batch was rejected by the server, surface the last
             // error so the user sees something — otherwise we'd consolidate
             // an empty list and fail in a more confusing way.
-            if batchSummaries.isEmpty, let lastSkippedError {
+            let orderedSummaries = (0..<totalBatches).compactMap { batchSummaries[$0] }
+            if orderedSummaries.isEmpty, let lastSkippedError {
                 throw lastSkippedError
             }
 
@@ -260,16 +276,20 @@ class BatchIndexationManager: ObservableObject {
 
             let indexedWorkoutCount = workoutsToProcess.count - skippedWorkoutCount
             try await consolidateAndSave(
-                batchSummaries: batchSummaries,
+                batchSummaries: orderedSummaries,
                 totalWorkouts: indexedWorkoutCount,
-                requestType: consolidationRequestType,
-                language: language
+                requestType: RequestType.moderate.rawValue,
+                language: language,
+                dateRangeStart: workoutsToProcess.last?.startDate ?? Date(),
+                dateRangeEnd: workoutsToProcess.first?.startDate ?? Date()
             )
 
-            // Step 5: Complete
+            // Step 5: Complete — drop the now-consumed partial-run state.
+            progressStore.clearAll()
             currentPhase = "completed"
             progress = 1.0
             state = .completed
+            isResuming = false
 
             let duration = indexationStartTime.map { Date().timeIntervalSince($0) } ?? 0
             AnalyticsService.shared.trackIndexationCompleted(
@@ -354,7 +374,7 @@ class BatchIndexationManager: ObservableObject {
 
     /// HTTP 4xx client errors (excluding 408 Timeout and 429 Rate Limit) —
     /// retrying the same payload yields the same result.
-    static func isClient4xx(_ error: BackendError) -> Bool {
+    nonisolated static func isClient4xx(_ error: BackendError) -> Bool {
         if case .unknownError(let code, _) = error {
             return (400..<500).contains(code) && code != 408 && code != 429
         }
@@ -383,7 +403,8 @@ class BatchIndexationManager: ObservableObject {
         return nonRetryableKeywords.contains { lowered.contains($0) }
     }
 
-    /// Reset state
+    /// Reset in-memory state. Deliberately does NOT clear the persisted
+    /// progress store — that is what lets an interrupted run resume.
     func reset() {
         isCancelled = false
         progress = 0.0
@@ -399,6 +420,11 @@ class BatchIndexationManager: ObservableObject {
         totalWorkoutCount = 0
         lastBatchWorkoutCount = 0
         skippedWorkoutCount = 0
+        isResuming = false
+        metricsFetchedCount = 0
+        uploadedBatchCount = 0
+        resumedWorkoutCount = 0
+        resumedBatchCount = 0
     }
 
     // MARK: - Private Methods
@@ -495,66 +521,197 @@ class BatchIndexationManager: ObservableObject {
         return error.localizedDescription
     }
 
-    /// Process a batch of workouts
-    private func processBatch(_ workouts: [WorkoutModel]) async throws -> [WorkoutData] {
-        var workoutDataArray: [WorkoutData] = []
+    // MARK: - Concurrent Batch Processing
 
-        for (index, workout) in workouts.enumerated() {
-            // Check cancellation every N workouts
-            if index % BatchIndexationConfig.checkCancellationEvery == 0 {
-                guard !isCancelled else {
-                    throw IndexationError.cancelled
-                }
-            }
+    /// Build the upload payload for a single workout. Never throws — a failed
+    /// metric fetch degrades to nil fields rather than dropping the workout.
+    private func makeWorkoutData(for workout: WorkoutModel) async -> WorkoutData {
+        let metrics = try? await healthKitManager.fetchEssentialMetrics(for: workout)
 
-            // Fetch essential metrics (use try? to continue on error)
-            let metrics = try? await healthKitManager.fetchEssentialMetrics(for: workout)
+        // Clamp numeric fields to what the backend Zod schema accepts:
+        // `distance` must be >= 0, any number must be finite (NaN/Inf from
+        // third-party imports gets serialized to null and rejected).
+        let safeDistance = max(workout.distance ?? 0, 0)
+        let safeCalories = workout.totalEnergyBurned.flatMap { $0.isFinite ? max($0, 0) : nil }
 
-            // Clamp numeric fields to what the backend Zod schema accepts:
-            // `distance` must be >= 0, any number must be finite (NaN/Inf from
-            // third-party imports gets serialized to null and rejected).
-            let safeDistance = max(workout.distance ?? 0, 0)
-            let safeCalories = workout.totalEnergyBurned.flatMap { $0.isFinite ? max($0, 0) : nil }
-
-            let workoutData = WorkoutData(
-                date: Self.iso8601Formatter.string(from: workout.startDate),
-                duration: workout.duration,
-                distance: safeDistance,
-                calories: safeCalories,
-                pace: workout.averagePace,
-                speed: workout.averageSpeed,
-                heartRate: metrics?.heartRate.map { hr in
-                    HeartRateData(
-                        avg: hr.avg.map { Int($0.rounded()) },
-                        min: hr.min.map { Int($0.rounded()) },
-                        max: hr.max.map { Int($0.rounded()) }
-                    )
-                },
-                minPace: nil,
-                cadence: metrics?.cadence,
-                strideLength: nil,
-                runningPower: nil,
-                vo2Max: metrics?.vo2Max,
-                elevationGain: metrics?.elevation,
-                groundContactTime: nil,
-                verticalOscillation: nil,
-                mobility: nil,
-                splits: nil
-            )
-
-            workoutDataArray.append(workoutData)
-        }
-
-        return workoutDataArray
+        return WorkoutData(
+            date: Self.iso8601Formatter.string(from: workout.startDate),
+            duration: workout.duration,
+            distance: safeDistance,
+            calories: safeCalories,
+            pace: workout.averagePace,
+            speed: workout.averageSpeed,
+            heartRate: metrics?.heartRate.map { hr in
+                HeartRateData(
+                    avg: hr.avg.map { Int($0.rounded()) },
+                    min: hr.min.map { Int($0.rounded()) },
+                    max: hr.max.map { Int($0.rounded()) }
+                )
+            },
+            minPace: nil,
+            cadence: metrics?.cadence,
+            strideLength: nil,
+            runningPower: nil,
+            vo2Max: metrics?.vo2Max,
+            elevationGain: metrics?.elevation,
+            groundContactTime: nil,
+            verticalOscillation: nil,
+            mobility: nil,
+            splits: nil
+        )
     }
 
-    /// Consolidate all batch summaries and save final summary
-    private func consolidateAndSave(batchSummaries: [String], totalWorkouts: Int, requestType: String, language: String) async throws {
+    /// Fetch metrics for every workout of the missing batches in bounded waves.
+    /// HealthKit query latency overlaps within a wave; the actor-isolated glue
+    /// (counters, progress) runs between waves so nothing races.
+    private func fetchWorkoutData(forBatches missing: [Int], in workouts: [WorkoutModel]) async -> [Int: [WorkoutData]] {
+        struct Slot { let batch: Int; let position: Int; let workout: WorkoutModel }
+
+        var slots: [Slot] = []
+        var buffers: [Int: [WorkoutData?]] = [:]
+        for batch in missing {
+            let range = batchRange(batch, total: workouts.count)
+            buffers[batch] = Array(repeating: nil, count: range.count)
+            for (position, index) in range.enumerated() {
+                slots.append(Slot(batch: batch, position: position, workout: workouts[index]))
+            }
+        }
+        guard !slots.isEmpty else { return [:] }
+
+        let limit = max(1, BatchIndexationConfig.metricsConcurrency)
+        for start in stride(from: 0, to: slots.count, by: limit) {
+            if isCancelled { break }
+            let wave = slots[start..<min(start + limit, slots.count)]
+            let results = await withTaskGroup(of: (Int, Int, WorkoutData).self) { group in
+                for slot in wave {
+                    group.addTask {
+                        (slot.batch, slot.position, await self.makeWorkoutData(for: slot.workout))
+                    }
+                }
+                var collected: [(Int, Int, WorkoutData)] = []
+                for await result in group { collected.append(result) }
+                return collected
+            }
+
+            for (batch, position, data) in results {
+                buffers[batch]?[position] = data
+            }
+            metricsFetchedCount += results.count
+            recomputeBatchProgress()
+        }
+
+        return buffers.mapValues { $0.compactMap { $0 } }
+    }
+
+    /// Upload the missing batches in bounded waves. Each successful batch is
+    /// persisted immediately so an interruption resumes instead of restarting.
+    /// A 4xx rejection skips that batch (a partial summary beats a hard failure);
+    /// any other error propagates and fails the run with progress preserved.
+    private func uploadBatches(
+        _ dataByBatch: [Int: [WorkoutData]],
+        workoutsToProcess: [WorkoutModel],
+        requestType: String,
+        language: String,
+        userId: String,
+        signature: String
+    ) async throws -> (summaries: [Int: String], lastSkippedError: BackendError?) {
+        var summaries: [Int: String] = [:]
+        var lastSkippedError: BackendError?
+        let batches = dataByBatch.keys.sorted()
+        guard !batches.isEmpty else { return ([:], nil) }
+
+        let limit = max(1, BatchIndexationConfig.uploadConcurrency)
+        for start in stride(from: 0, to: batches.count, by: limit) {
+            if isCancelled { break }
+            let wave = batches[start..<min(start + limit, batches.count)]
+            let results = try await withThrowingTaskGroup(of: (Int, BatchAnalysisResponse?, BackendError?).self) { group in
+                for batch in wave {
+                    let workouts = dataByBatch[batch] ?? []
+                    group.addTask {
+                        do {
+                            let response = try await self.backendClient.analyzeBatch(
+                                workouts: workouts,
+                                batchIndex: batch,
+                                requestType: requestType,
+                                model: nil,
+                                language: language
+                            )
+                            return (batch, response, nil)
+                        } catch let backendError as BackendError where Self.isClient4xx(backendError) {
+                            return (batch, nil, backendError)
+                        }
+                    }
+                }
+                var collected: [(Int, BatchAnalysisResponse?, BackendError?)] = []
+                for try await result in group { collected.append(result) }
+                return collected
+            }
+
+            for (batch, response, skipError) in results {
+                if let response {
+                    summaries[batch] = response.partialSummary
+                    uploadedBatchCount += 1
+                    lastBatchWorkoutCount = response.workoutCount
+                    persistBatch(batch, summary: response.partialSummary, workoutsToProcess: workoutsToProcess, userId: userId, signature: signature)
+                } else if let skipError {
+                    skippedWorkoutCount += dataByBatch[batch]?.count ?? 0
+                    lastSkippedError = skipError
+                    AnalyticsService.shared.track(
+                        .indexationFailed,
+                        properties: indexationDebugInfo(error: skipError, categorizedMessage: "skipped_batch_4xx")
+                    )
+                    print("⚠️ BatchIndexationManager: Batch \(batch) skipped (\(skipError.localizedDescription))")
+                }
+
+                recomputeBatchProgress()
+                AnalyticsService.shared.trackIndexationBatchProcessed(
+                    batchNumber: resumedBatchCount + uploadedBatchCount,
+                    totalBatches: totalBatches,
+                    progress: progress
+                )
+            }
+        }
+        return (summaries, lastSkippedError)
+    }
+
+    /// Persist a completed batch (summary + run cursor) so it survives an
+    /// interruption and is reused on the next attempt.
+    private func persistBatch(_ batch: Int, summary: String, workoutsToProcess: [WorkoutModel], userId: String, signature: String) {
+        let range = batchRange(batch, total: workoutsToProcess.count)
+        let slice = workoutsToProcess[range]
+        let batchSummary = BatchSummary(
+            batchNumber: batch,
+            totalBatches: totalBatches,
+            summary: summary,
+            workoutCount: range.count,
+            dateRangeStart: slice.last?.startDate ?? Date(),
+            dateRangeEnd: slice.first?.startDate ?? Date(),
+            userId: userId,
+            status: .completed
+        )
+        progressStore.saveBatchSummary(batchSummary)
+        progressStore.saveProgress(
+            totalBatches: totalBatches,
+            lastCompletedBatch: resumedBatchCount + uploadedBatchCount,
+            batchStatuses: [:],
+            userId: userId,
+            datasetSignature: signature
+        )
+    }
+
+    /// Consolidate all batch summaries and save the final summary.
+    private func consolidateAndSave(
+        batchSummaries: [String],
+        totalWorkouts: Int,
+        requestType: String,
+        language: String,
+        dateRangeStart: Date,
+        dateRangeEnd: Date
+    ) async throws {
         guard !batchSummaries.isEmpty else {
             throw IndexationError.noWorkoutsToConsolidate
         }
 
-        // Update progress
         progress = 0.75
         state = .loading(progress: progress)
 
@@ -578,11 +735,9 @@ class BatchIndexationManager: ObservableObject {
             )
         }
 
-        // Update progress
-        progress = 0.80
+        progress = 0.85
         state = .loading(progress: progress)
 
-        // Call backend for consolidation
         print("📊 BatchIndexationManager: Consolidating \(batchSummaries.count) batch summaries with requestType: \(requestType)...")
 
         let response = try await backendClient.consolidateBatches(
@@ -594,32 +749,80 @@ class BatchIndexationManager: ObservableObject {
             language: language
         )
 
-        // Update progress
-        progress = 0.90
-        state = .loading(progress: progress)
-
-        // Get date range from HealthKit workouts
-        let allWorkouts = try await healthKitManager.fetchRunningWorkouts()
-        let workoutsToIndex = Array(allWorkouts.prefix(totalWorkouts))
-
-        let dateRangeStart = workoutsToIndex.last?.startDate ?? Date() // Oldest
-        let dateRangeEnd = workoutsToIndex.first?.startDate ?? Date() // Most recent
-
-        // Create and save summary
         let summary = HistoricalSummary(
             summary: response.summary,
             workoutCount: response.workoutCount,
             dateRangeStart: dateRangeStart,
             dateRangeEnd: dateRangeEnd
         )
-
         storage.save(summary)
 
-        // Update progress
         progress = 1.0
         state = .loading(progress: progress)
 
         print("✅ BatchIndexationManager: Summary saved successfully")
+    }
+
+    // MARK: - Resume & Progress Helpers
+
+    /// Workout index range covered by a batch.
+    private func batchRange(_ batch: Int, total: Int) -> Range<Int> {
+        let start = batch * BatchIndexationConfig.batchSize
+        let end = min(start + BatchIndexationConfig.batchSize, total)
+        return start..<max(start, end)
+    }
+
+    /// Reuse completed batch summaries from a previous run, but only when they
+    /// belong to the exact same dataset (signature) and batch layout — otherwise
+    /// the slices wouldn't line up.
+    private func loadResumableSummaries(userId: String, signature: String) -> [Int: String] {
+        guard let saved = progressStore.loadProgress(forUserId: userId),
+              saved.datasetSignature == signature,
+              saved.totalBatches == totalBatches,
+              !saved.isComplete else {
+            return [:]
+        }
+        var summaries: [Int: String] = [:]
+        for batch in progressStore.loadBatchSummaries(forUserId: userId)
+        where batch.status == .completed && batch.batchNumber >= 0 && batch.batchNumber < totalBatches {
+            summaries[batch.batchNumber] = batch.summary
+        }
+        return summaries
+    }
+
+    /// Drive the 0–70% band continuously: 30% weight on metric fetching, 70% on
+    /// batch uploads, counting resumed work as already done so a resumed run
+    /// starts mid-bar instead of at zero.
+    private func recomputeBatchProgress() {
+        guard totalWorkoutCount > 0, totalBatches > 0 else { return }
+        let metricsFraction = Double(resumedWorkoutCount + metricsFetchedCount) / Double(totalWorkoutCount)
+        let uploadFraction = Double(resumedBatchCount + uploadedBatchCount) / Double(totalBatches)
+        let combined = 0.3 * metricsFraction + 0.7 * uploadFraction
+        progress = min(BatchIndexationConfig.batchProcessingWeight, BatchIndexationConfig.batchProcessingWeight * combined)
+        currentBatch = resumedBatchCount + uploadedBatchCount
+        state = .loading(progress: progress)
+    }
+
+    /// Stable fingerprint of the dataset so resumed batch slices line up exactly.
+    private static func datasetSignature(for workouts: [WorkoutModel]) -> String {
+        let joined = workouts.map { $0.id.uuidString }.joined(separator: ",")
+        let digest = SHA256.hash(data: Data(joined.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: - Background Task
+
+    private func beginBackgroundTask() {
+        endBackgroundTask()
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "WorkoutIndexation") { [weak self] in
+            self?.endBackgroundTask()
+        }
+    }
+
+    private func endBackgroundTask() {
+        guard backgroundTaskID != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+        backgroundTaskID = .invalid
     }
 }
 

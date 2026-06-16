@@ -110,6 +110,10 @@ class IndexationProgressStore {
         let userId: String
         let startedAt: Date
         let lastUpdatedAt: Date
+        /// Fingerprint of the workout set this run covers. Resume only when it
+        /// still matches, so partial batch slices stay aligned. Optional for
+        /// backward-compatibility with progress saved before this field existed.
+        var datasetSignature: String?
 
         /// Check if progress is still valid (not older than 24 hours)
         var isValid: Bool {
@@ -134,7 +138,8 @@ class IndexationProgressStore {
         totalBatches: Int,
         lastCompletedBatch: Int,
         batchStatuses: [Int: BatchSummary.BatchStatus],
-        userId: String
+        userId: String,
+        datasetSignature: String? = nil
     ) {
         let existingProgress = loadProgress()
         let startedAt = existingProgress?.startedAt ?? Date()
@@ -145,7 +150,8 @@ class IndexationProgressStore {
             batchStatuses: batchStatuses,
             userId: userId,
             startedAt: startedAt,
-            lastUpdatedAt: Date()
+            lastUpdatedAt: Date(),
+            datasetSignature: datasetSignature
         )
 
         do {

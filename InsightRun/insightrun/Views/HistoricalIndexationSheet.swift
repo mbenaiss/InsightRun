@@ -370,6 +370,9 @@ struct HistoricalIndexationSheet: View {
         case .idle:
             return String(localized: "Ready", comment: "Status: ready")
         case .loading(let progress):
+            if manager.isResuming && progress < 0.70 {
+                return String(localized: "Resuming…", comment: "Status: resuming a previously interrupted run")
+            }
             if progress < 0.70 {
                 return String(localized: "Analyzing workouts...", comment: "Status: analyzing")
             } else {

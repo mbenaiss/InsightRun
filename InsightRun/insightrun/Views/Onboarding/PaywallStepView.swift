@@ -14,6 +14,7 @@ struct PaywallStepView: View {
     var stepNumber: Int = 4
 
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
+    @State private var pendingPurchasePrice = "unknown"
 
     var body: some View {
         Group {
@@ -23,8 +24,24 @@ struct PaywallStepView: View {
             } else {
                 // User is not subscribed - show paywall
                 PaywallView()
-                    .onPurchaseCompleted { customerInfo in
-                        // Purchase completed successfully
+                    .onPurchaseStarted { package in
+                        pendingPurchasePrice = package.storeProduct.localizedPriceString
+                        AnalyticsService.shared.trackSubscriptionPurchaseStarted(
+                            productId: package.storeProduct.productIdentifier,
+                            price: package.storeProduct.localizedPriceString,
+                            billingPeriod: String(describing: package.packageType)
+                        )
+                    }
+                    .onPurchaseCompleted { transaction, customerInfo in
+                        if let entitlement = customerInfo.entitlements.active.values.first {
+                            AnalyticsService.shared.trackSubscriptionPurchaseCompleted(
+                                productId: transaction?.productIdentifier ?? entitlement.productIdentifier,
+                                revenue: pendingPurchasePrice,
+                                isTrial: entitlement.periodType == .trial,
+                                source: "onboarding"
+                            )
+                        }
+                        revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                         Task {
                             await revenueCatManager.fetchCustomerInfo()
                         }
@@ -32,7 +49,11 @@ struct PaywallStepView: View {
                         onContinue()
                     }
                     .onRestoreCompleted { customerInfo in
-                        // Restore completed successfully
+                        AnalyticsService.shared.trackSubscriptionRestored(
+                            productId: customerInfo.entitlements.active.values.first?.productIdentifier,
+                            source: "onboarding"
+                        )
+                        revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                         Task {
                             await revenueCatManager.fetchCustomerInfo()
                         }

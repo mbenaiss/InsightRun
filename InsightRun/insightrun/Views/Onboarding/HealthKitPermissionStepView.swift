@@ -18,7 +18,9 @@ struct HealthKitPermissionStepView: View {
 
     var body: some View {
         OnboardingScaffold(
-            primaryTitle: String(localized: "Continue", comment: "Onboarding HealthKit authorize button"),
+            primaryTitle: isRequesting
+                ? String(localized: "Syncing your latest run…", comment: "Onboarding HealthKit synchronization status")
+                : String(localized: "Continue", comment: "Onboarding HealthKit authorize button"),
             primaryAction: requestHealthKitAuthorization,
             isPrimaryLoading: isRequesting,
             secondaryTitle: String(localized: "Skip for now", comment: "Onboarding HealthKit skip button"),
@@ -123,6 +125,10 @@ struct HealthKitPermissionStepView: View {
 
     private func skipHealthKit() {
         AnalyticsService.shared.track(.healthKitPermissionSkipped)
+        AnalyticsService.shared.trackActivationStarted(source: "sample_workout")
+        let sample = MockData.activationWorkout
+        NotificationRouter.shared.routeToActivationWorkout(sample)
+        AnalyticsService.shared.trackActivationWorkoutReady(isSample: true)
         onSkip()
     }
 
@@ -134,11 +140,22 @@ struct HealthKitPermissionStepView: View {
             do {
                 let hasAccess = try await HealthKitManager.shared.requestAuthorization()
 
-                await MainActor.run {
-                    isRequesting = false
-                    if hasAccess {
+                if hasAccess {
+                    AnalyticsService.shared.trackActivationStarted(source: "healthkit")
+                    let latestResult = try? await HealthKitManager.shared.fetchRunningWorkouts(limit: 1)
+                    let latestWorkout = latestResult?.workouts.first
+                    let workout = latestWorkout ?? MockData.activationWorkout
+
+                    await MainActor.run {
+                        isRequesting = false
+                        NotificationRouter.shared.routeToActivationWorkout(workout)
+                        AnalyticsService.shared.trackActivationWorkoutReady(isSample: latestWorkout == nil)
+                        WorkoutSyncService.shared.startObserving()
                         onContinue()
-                    } else {
+                    }
+                } else {
+                    await MainActor.run {
+                        isRequesting = false
                         errorMessage = String(localized: "You can grant access later in Settings. Some features won't be available without HealthKit.", comment: "Onboarding HealthKit denied message")
                         showError = true
                     }

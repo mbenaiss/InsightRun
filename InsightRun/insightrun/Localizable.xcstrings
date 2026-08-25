@@ -1,6 +1,149 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Analyze my latest run" : {
+      "comment" : "Dashboard latest run activation button",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyser ma dernière course"
+          }
+        }
+      }
+    },
+    "Connect Apple Health to turn your latest run into a clear next action." : {
+      "comment" : "Dashboard HealthKit activation description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez Apple Santé pour transformer votre dernière course en prochaine action claire."
+          }
+        }
+      }
+    },
+    "Enable useful alerts" : {
+      "comment" : "Post-analysis notification enable button",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer les alertes utiles"
+          }
+        }
+      }
+    },
+    "Get the next useful update" : {
+      "comment" : "Post-analysis notification prompt title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recevez la prochaine information utile"
+          }
+        }
+      }
+    },
+    "Import from Apple Health" : {
+      "comment" : "HealthKit import button",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis Apple Santé"
+          }
+        }
+      }
+    },
+    "Next action" : {
+      "comment" : "Dashboard activation section title",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prochaine action"
+          }
+        }
+      }
+    },
+    "No run found yet. See how InsightRun analyzes a complete workout." : {
+      "comment" : "Dashboard sample workout activation description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune course trouvée. Découvrez comment InsightRun analyse une séance complète."
+          }
+        }
+      }
+    },
+    "Not now" : {
+      "comment" : "Post-analysis notification dismiss button",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas maintenant"
+          }
+        }
+      }
+    },
+    "Open your latest run and get one concrete recommendation." : {
+      "comment" : "Dashboard latest run activation description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrez votre dernière course et obtenez une recommandation concrète."
+          }
+        }
+      }
+    },
+    "Sample workout — connect Apple Health anytime to analyze your own runs." : {
+      "comment" : "Banner shown on the activation sample workout",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séance fictive — connectez Apple Santé à tout moment pour analyser vos courses."
+          }
+        }
+      }
+    },
+    "Syncing your latest run…" : {
+      "comment" : "Onboarding HealthKit synchronization status",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation de votre dernière course…"
+          }
+        }
+      }
+    },
+    "Try with a sample workout" : {
+      "comment" : "Sample workout activation button",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Essayer avec une séance fictive"
+          }
+        }
+      }
+    },
+    "We’ll notify you when a new run is ready to analyze and send one weekly summary." : {
+      "comment" : "Post-analysis notification prompt description",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nous vous préviendrons lorsqu’une nouvelle course sera prête à analyser et enverrons un résumé hebdomadaire."
+          }
+        }
+      }
+    },
     "" : {
       "localizations" : {
         "fr" : {
@@ -3878,7 +4021,6 @@
     },
     "dashboard.coach.reason.hrv" : {
       "comment" : "Coach reason chip: resting HRV value in ms",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3896,7 +4038,6 @@
     },
     "dashboard.coach.reason.load" : {
       "comment" : "Coach reason chip: cardiac load score",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3914,7 +4055,6 @@
     },
     "dashboard.coach.reason.rhr" : {
       "comment" : "Coach reason chip: resting heart rate",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -12418,6 +12558,9 @@
           }
         }
       }
+    },
+    "Resuming…" : {
+      "comment" : "Status: resuming a previously interrupted run"
     },
     "Retry" : {
       "comment" : "Retry button\nRetry button after indexation failure\nRetry export authorization button",

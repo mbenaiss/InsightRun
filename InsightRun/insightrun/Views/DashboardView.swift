@@ -38,6 +38,8 @@ struct DashboardView: View {
     @State private var caloriesTotalTrend: [TrendDataPoint] = []
     @State private var caloriesBreakdownTrend: [CaloriesBreakdownPoint] = []
     @State private var todaySession: (goal: RaceGoal, day: TrainingDay)?
+    @State private var latestWorkout: WorkoutModel?
+    @State private var isActivationLoading = false
 
     // MARK: - Body
 
@@ -177,6 +179,7 @@ struct DashboardView: View {
             .task {
                 await refreshAll()
                 await loadTrendData()
+                await loadLatestWorkout()
                 loadTodaySession()
 
                 if let recovery = recoveryVM.recoveryMetrics {
@@ -280,6 +283,10 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 dateHeader
                     .padding(.horizontal)
+
+                section(title: String(localized: "Next action", comment: "Dashboard activation section title")) {
+                    activationActionCard
+                }
 
                 // Disponibilité
                 section(title: String(localized: "Availability", comment: "Dashboard section: availability")) {
@@ -444,6 +451,119 @@ struct DashboardView: View {
 
     private func navigateToGoalSession(_ goal: RaceGoal) {
         notificationRouter.pendingGoalId = goal.id
+    }
+
+    private var activationActionCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(activationActionDescription)
+                .font(IRFont.body)
+                .foregroundStyle(Color.irTextSecondary)
+
+            Button {
+                performPrimaryActivationAction()
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    if isActivationLoading {
+                        ProgressView()
+                            .tint(Color.irTextOnAccent)
+                    } else {
+                        Image(systemName: activationActionIcon)
+                    }
+                    Text(activationActionTitle)
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+                .font(IRFont.body.weight(.bold))
+                .foregroundStyle(Color.irTextOnAccent)
+                .padding(Spacing.md)
+                .background(Color.irPrimaryAccent)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+            }
+            .buttonStyle(.plain)
+            .disabled(isActivationLoading)
+            .accessibilityIdentifier("dashboard-activation-primary")
+
+            if latestWorkout == nil && !HealthKitManager.shared.hasCompletedHealthKitSetup {
+                Button {
+                    routeToSampleWorkout(source: "dashboard_sample")
+                } label: {
+                    Label(String(localized: "Try with a sample workout", comment: "Sample workout activation button"), systemImage: "sparkles")
+                        .font(IRFont.footnote.weight(.semibold))
+                        .foregroundStyle(Color.irPrimaryAccent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("dashboard-activation-sample")
+            }
+        }
+        .padding(Spacing.cardPadding)
+        .detailCard()
+    }
+
+    private var activationActionTitle: String {
+        if latestWorkout != nil {
+            return String(localized: "Analyze my latest run", comment: "Dashboard latest run activation button")
+        }
+        if HealthKitManager.shared.hasCompletedHealthKitSetup {
+            return String(localized: "Try with a sample workout", comment: "Sample workout activation button")
+        }
+        return String(localized: "Import from Apple Health", comment: "HealthKit import button")
+    }
+
+    private var activationActionDescription: String {
+        if latestWorkout != nil {
+            return String(localized: "Open your latest run and get one concrete recommendation.", comment: "Dashboard latest run activation description")
+        }
+        if HealthKitManager.shared.hasCompletedHealthKitSetup {
+            return String(localized: "No run found yet. See how InsightRun analyzes a complete workout.", comment: "Dashboard sample workout activation description")
+        }
+        return String(localized: "Connect Apple Health to turn your latest run into a clear next action.", comment: "Dashboard HealthKit activation description")
+    }
+
+    private var activationActionIcon: String {
+        latestWorkout == nil ? "heart.text.square.fill" : "figure.run"
+    }
+
+    private func performPrimaryActivationAction() {
+        if let latestWorkout {
+            routeToWorkout(latestWorkout, source: "dashboard_latest")
+        } else if HealthKitManager.shared.hasCompletedHealthKitSetup {
+            routeToSampleWorkout(source: "dashboard_sample")
+        } else {
+            Task { await importLatestWorkout() }
+        }
+    }
+
+    @MainActor
+    private func importLatestWorkout() async {
+        isActivationLoading = true
+        defer { isActivationLoading = false }
+
+        guard (try? await HealthKitManager.shared.requestAuthorization()) == true else { return }
+        await loadLatestWorkout()
+        if let latestWorkout {
+            routeToWorkout(latestWorkout, source: "dashboard_healthkit")
+        }
+    }
+
+    @MainActor
+    private func loadLatestWorkout() async {
+        guard HealthKitManager.shared.hasCompletedHealthKitSetup else {
+            latestWorkout = nil
+            return
+        }
+        latestWorkout = (try? await HealthKitManager.shared.fetchRunningWorkouts(limit: 1))?.workouts.first
+    }
+
+    private func routeToWorkout(_ workout: WorkoutModel, source: String) {
+        AnalyticsService.shared.trackActivationStarted(source: source)
+        AnalyticsService.shared.trackActivationWorkoutReady(isSample: false)
+        notificationRouter.routeToActivationWorkout(workout)
+    }
+
+    private func routeToSampleWorkout(source: String) {
+        AnalyticsService.shared.trackActivationStarted(source: source)
+        AnalyticsService.shared.trackActivationWorkoutReady(isSample: true)
+        notificationRouter.routeToActivationWorkout(MockData.activationWorkout)
     }
 
     // MARK: - Day Navigation

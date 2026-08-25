@@ -782,7 +782,7 @@ struct WorkoutPlanView: View {
             Button(action: {
                 Task {
                     do {
-                        try await revenueCatManager.restorePurchases()
+                        try await revenueCatManager.restorePurchases(source: "workout_plan")
                     } catch {
                         print("Error restoring purchases: \(error.localizedDescription)")
                     }

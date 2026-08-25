@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var showSplash = !DemoMode.isEnabled
     @State private var showingAIAssistant = false
     @State private var showAIConsentSheet = false
+    @AppStorage("hasViewedWorkoutDetail") private var hasViewedWorkoutDetail = false
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
@@ -75,8 +76,10 @@ struct ContentView: View {
             }
 
             // Floating AI Button (global across all tabs)
-            FloatingAIButton(showingAIAssistant: $showingAIAssistant)
-                .environmentObject(revenueCatManager)
+            if hasViewedWorkoutDetail && selectedTab != 1 {
+                FloatingAIButton(showingAIAssistant: $showingAIAssistant)
+                    .environmentObject(revenueCatManager)
+            }
         }
         .sheet(isPresented: $showingAIAssistant) {
             WorkoutAIAssistantView(

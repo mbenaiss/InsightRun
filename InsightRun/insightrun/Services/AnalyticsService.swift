@@ -16,6 +16,9 @@ final class AnalyticsService {
 
     private var sessionID: String
     private var isFirstLaunch: Bool
+    private var isConfigured = false
+    private var isTrackingEnabled = true
+    private var pendingEvents: [(AnalyticsEvent, [String: Any])] = []
 
     private init() {
         // Generate unique session ID
@@ -34,29 +37,37 @@ final class AnalyticsService {
     /// Call this once at app launch before tracking any events
     /// Non-blocking: errors are logged but don't crash the app
     func configure() {
-        Task.detached {
-            do {
-                guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_API_KEY") as? String,
-                      let host = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_HOST") as? String else {
-                    print("❌ AnalyticsService: Missing POSTHOG_API_KEY or POSTHOG_HOST in Info.plist")
-                    return
-                }
+        guard !isConfigured else { return }
 
-                let config = PostHogConfig(apiKey: apiKey, host: host)
-
-                #if DEBUG
-                config.debug = true
-                #endif
-
-                PostHogSDK.shared.setup(config)
-
-                // Identify user with UUID from UserIdentityService
-                let userID = await UserIdentityService.shared.userID
-                PostHogSDK.shared.identify(userID)
-
-                print("✅ PostHog: Configured with user ID \(userID)")
-            }
+        isTrackingEnabled = !shouldExcludeFromAnalytics
+        guard isTrackingEnabled else {
+            isConfigured = true
+            pendingEvents.removeAll()
+            print("ℹ️ PostHog: Disabled for internal, debug, demo, or TestFlight builds")
+            return
         }
+
+        guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_API_KEY") as? String,
+              let host = Bundle.main.object(forInfoDictionaryKey: "POSTHOG_HOST") as? String else {
+            print("❌ AnalyticsService: Missing POSTHOG_API_KEY or POSTHOG_HOST in Info.plist")
+            return
+        }
+
+        let config = PostHogConfig(projectToken: apiKey, host: host)
+        PostHogSDK.shared.setup(config)
+
+        let userID = UserIdentityService.shared.userID
+        PostHogSDK.shared.identify(userID, userProperties: [
+            "is_internal_user": false,
+            "distribution_channel": "app_store"
+        ])
+
+        isConfigured = true
+        let queuedEvents = pendingEvents
+        pendingEvents.removeAll()
+        queuedEvents.forEach { capture($0.0, properties: $0.1) }
+
+        print("✅ PostHog: Configured with user ID \(userID)")
     }
 
     // MARK: - Core Tracking Method
@@ -64,23 +75,27 @@ final class AnalyticsService {
     /// Track an analytics event with optional properties
     /// Non-blocking: runs in background and doesn't crash the app if PostHog fails
     func track(_ event: AnalyticsEvent, properties: [String: Any] = [:]) {
-        Task.detached { @MainActor in
-            var enrichedProperties = properties
-
-            // Add global properties to every event
-            enrichedProperties["session_id"] = self.sessionID
-            enrichedProperties["app_version"] = self.appVersion
-            enrichedProperties["ios_version"] = UIDevice.current.systemVersion
-            enrichedProperties["device_model"] = self.deviceModel
-            enrichedProperties["locale"] = Locale.current.identifier
-            enrichedProperties["subscription_status"] = self.subscriptionStatus
-
-            #if DEBUG
-            print("📊 Analytics: \(event.rawValue) - \(enrichedProperties)")
-            #endif
-
-            PostHogSDK.shared.capture(event.rawValue, properties: enrichedProperties)
+        guard isTrackingEnabled else { return }
+        guard isConfigured else {
+            pendingEvents.append((event, properties))
+            return
         }
+
+        capture(event, properties: properties)
+    }
+
+    private func capture(_ event: AnalyticsEvent, properties: [String: Any]) {
+        var enrichedProperties = properties
+        enrichedProperties["session_id"] = sessionID
+        enrichedProperties["app_version"] = appVersion
+        enrichedProperties["ios_version"] = UIDevice.current.systemVersion
+        enrichedProperties["device_model"] = deviceModel
+        enrichedProperties["locale"] = Locale.current.identifier
+        enrichedProperties["subscription_status"] = subscriptionStatus
+        enrichedProperties["distribution_channel"] = "app_store"
+        enrichedProperties["is_internal_user"] = false
+
+        PostHogSDK.shared.capture(event.rawValue, properties: enrichedProperties)
     }
 
     // MARK: - Computed Global Properties
@@ -106,6 +121,18 @@ final class AnalyticsService {
         } else {
             return "free"
         }
+    }
+
+    private var shouldExcludeFromAnalytics: Bool {
+        if DemoMode.isEnabled || UserDefaults.standard.bool(forKey: "com.insightrun.analytics.internalUser") {
+            return true
+        }
+
+        #if DEBUG
+        return true
+        #else
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        #endif
     }
 
     // MARK: - Lifecycle Events
@@ -329,12 +356,21 @@ final class AnalyticsService {
         ])
     }
 
-    func trackSubscriptionPurchaseCompleted(productId: String, revenue: String, isTrial: Bool) {
+    func trackSubscriptionPurchaseCompleted(productId: String, revenue: String, isTrial: Bool, source: String) {
         track(.subscriptionPurchaseCompleted, properties: [
             "product_id": productId,
             "revenue": revenue,
-            "is_trial": isTrial
+            "is_trial": isTrial,
+            "source": source
         ])
+    }
+
+    func trackSubscriptionRestored(productId: String?, source: String) {
+        var properties: [String: Any] = ["source": source]
+        if let productId {
+            properties["product_id"] = productId
+        }
+        track(.subscriptionRestored, properties: properties)
     }
 
     func trackSubscriptionPurchaseFailed(errorCode: String, errorMessage: String) {
@@ -344,12 +380,28 @@ final class AnalyticsService {
         ])
     }
 
-    func trackSubscriptionCancelled() {
-        track(.subscriptionCancelled)
+    func trackSubscriptionCancelled(productId: String?) {
+        var properties: [String: Any] = [:]
+        if let productId {
+            properties["product_id"] = productId
+        }
+        track(.subscriptionCancelled, properties: properties)
     }
 
-    func trackSubscriptionRenewed() {
-        track(.subscriptionRenewed)
+    func trackSubscriptionRenewed(productId: String) {
+        track(.subscriptionRenewed, properties: ["product_id": productId])
+    }
+
+    func trackActivationStarted(source: String) {
+        track(.activationStarted, properties: ["source": source])
+    }
+
+    func trackActivationWorkoutReady(isSample: Bool) {
+        track(.activationWorkoutReady, properties: ["is_sample": isSample])
+    }
+
+    func trackWorkoutAnalysisCompleted(isSample: Bool) {
+        track(.workoutAnalysisCompleted, properties: ["is_sample": isSample])
     }
 
     // MARK: - Strava Integration Events
@@ -564,8 +616,14 @@ enum AnalyticsEvent: String {
     case subscriptionPurchaseStarted = "subscription_purchase_started"
     case subscriptionPurchaseCompleted = "subscription_purchase_completed"
     case subscriptionPurchaseFailed = "subscription_purchase_failed"
+    case subscriptionRestored = "subscription_restored"
     case subscriptionCancelled = "subscription_cancelled"
     case subscriptionRenewed = "subscription_renewed"
+
+    // Activation
+    case activationStarted = "activation_started"
+    case activationWorkoutReady = "activation_workout_ready"
+    case workoutAnalysisCompleted = "workout_analysis_completed"
 
     // Workout Generation
     case workoutGenerationRequested = "workout_generation_requested"

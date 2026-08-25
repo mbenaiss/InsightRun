@@ -22,6 +22,8 @@ struct WorkoutDetailView: View {
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
+    @ObservedObject private var notificationManager = NotificationManager.shared
+    @AppStorage("hasDismissedPostAnalysisNotificationPrompt") private var dismissedNotificationPrompt = false
     @State private var showComparisonSheet = false
     @State private var similarWorkouts: [WorkoutModel] = []
 
@@ -68,6 +70,10 @@ struct WorkoutDetailView: View {
                         } else if let metrics = viewModel.metrics {
                             // Editorial hero
                             headerSection(metrics: metrics)
+
+                            if isSampleWorkout {
+                                sampleWorkoutBanner
+                            }
 
                             if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
                                 ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
@@ -153,6 +159,8 @@ struct WorkoutDetailView: View {
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            await notificationManager.checkPermissionStatus()
+
             // Compute similar workouts once instead of on every render
             similarWorkouts = SimilarWorkoutFinder.findSimilar(to: workout, from: allWorkouts)
 
@@ -167,6 +175,7 @@ struct WorkoutDetailView: View {
         .onAppear {
             // Track workout detail viewed
             AnalyticsService.shared.trackWorkoutDetailViewed()
+            UserDefaults.standard.set(true, forKey: "hasViewedWorkoutDetail")
 
             // Update context provider with selected workout for unified AI assistant
             contextProvider.currentPage = .workoutDetail
@@ -818,6 +827,10 @@ struct WorkoutDetailView: View {
     @State private var showConsentSheet = false
     @State private var hasTrackedTeaser = false
 
+    private var isSampleWorkout: Bool {
+        workout.metadata?["is_sample"] as? Bool == true
+    }
+
     private var aiAnalysisSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.md) {
@@ -1001,7 +1014,7 @@ struct WorkoutDetailView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .onAppear {
                             if lastTrackedAnalysis != analysis {
-                                ReviewManager.shared.recordAIEngagement()
+                                ReviewManager.shared.recordAIEngagement(workoutID: workout.id)
                                 lastTrackedAnalysis = analysis
                             }
                         }
@@ -1021,6 +1034,10 @@ struct WorkoutDetailView: View {
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel(String(localized: "Regenerate analysis", comment: "Accessibility label for AI analysis regenerate button"))
+                    }
+
+                    if notificationManager.authorizationStatus == .notDetermined && !dismissedNotificationPrompt {
+                        postAnalysisNotificationCard
                     }
                 }
 
@@ -1063,6 +1080,56 @@ struct WorkoutDetailView: View {
             SubscriptionPaywallView(isInitialFlow: false)
                 .environmentObject(revenueCatManager)
         }
+    }
+
+    private var sampleWorkoutBanner: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "sparkles")
+                .foregroundStyle(Color.irPrimaryAccent)
+            Text(String(localized: "Sample workout — connect Apple Health anytime to analyze your own runs.", comment: "Banner shown on the activation sample workout"))
+                .font(IRFont.caption)
+                .foregroundStyle(Color.irTextSecondary)
+        }
+        .padding(Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .detailCard()
+    }
+
+    private var postAnalysisNotificationCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(String(localized: "Get the next useful update", comment: "Post-analysis notification prompt title"))
+                .font(IRFont.body.weight(.bold))
+                .foregroundStyle(Color.irTextPrimary)
+
+            Text(String(localized: "We’ll notify you when a new run is ready to analyze and send one weekly summary.", comment: "Post-analysis notification prompt description"))
+                .font(IRFont.caption)
+                .foregroundStyle(Color.irTextSecondary)
+
+            HStack(spacing: Spacing.sm) {
+                Button(String(localized: "Enable useful alerts", comment: "Post-analysis notification enable button")) {
+                    Task {
+                        let granted = await notificationManager.requestPermissions()
+                        if granted {
+                            notificationManager.scheduleWeeklySummary()
+                            AnalyticsService.shared.trackNotificationPermissionGranted()
+                        } else {
+                            AnalyticsService.shared.trackNotificationPermissionDenied()
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button(String(localized: "Not now", comment: "Post-analysis notification dismiss button")) {
+                    dismissedNotificationPrompt = true
+                    AnalyticsService.shared.trackNotificationPermissionSkipped()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.irTextSecondary)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.irAccentSoft)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
     }
 
     // MARK: - Compare With Similar Section

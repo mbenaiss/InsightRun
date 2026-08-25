@@ -335,7 +335,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 320;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -362,7 +362,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 320;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -516,12 +516,13 @@
 				CODE_SIGN_ENTITLEMENTS = insightrun/insightrun.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 320;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = insightrun/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -559,12 +560,13 @@
 				CODE_SIGN_ENTITLEMENTS = insightrun/insightrun.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 320;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = insightrun/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Insight Run";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -601,7 +603,7 @@
 				CODE_SIGN_ENTITLEMENTS = InsightRunWidgets/InsightRunWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 320;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InsightRunWidgets/Info.plist;
@@ -636,7 +638,7 @@
 				CODE_SIGN_ENTITLEMENTS = InsightRunWidgets/InsightRunWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 320;
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InsightRunWidgets/Info.plist;

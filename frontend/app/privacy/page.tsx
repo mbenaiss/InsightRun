@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { APP_NAME, APP_URL, LAST_UPDATED_DATE, SUPPORT_EMAIL } from '@/app/lib/constants'
+import { APP_NAME, APP_URL, PRIVACY_LAST_UPDATED_DATE, SUPPORT_EMAIL } from '@/app/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy - Insight Run',
@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Privacy Policy for Insight Run</h1>
 
         <div className="prose prose-lg max-w-none">
-          <p className="text-gray-600 mb-8">Last updated: {LAST_UPDATED_DATE}</p>
+          <p className="text-gray-600 mb-8">Last updated: {PRIVACY_LAST_UPDATED_DATE}</p>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Data Collection</h2>
@@ -51,6 +51,20 @@ export default function PrivacyPolicy() {
               <li>Profile information (athlete name, avatar)</li>
               <li>Activity statistics and achievements</li>
             </ul>
+            <p className="text-gray-700 mt-4 mb-4">
+              To operate subscriptions and improve the app, Insight Run also processes:
+            </p>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>
+                A randomly generated account identifier used for entitlements, rate limiting, and
+                analytics
+              </li>
+              <li>Subscription status and purchase history processed by RevenueCat</li>
+              <li>
+                Product interactions and technical diagnostics processed by PostHog, including app
+                version, device model, operating system version, and locale
+              </li>
+            </ul>
           </section>
 
           <section className="mb-8">
@@ -58,8 +72,9 @@ export default function PrivacyPolicy() {
             <p className="text-gray-700 mb-4">Your health data is:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
-                <strong>Stored locally on your device</strong> - All your health data remains on
-                your iPhone
+                <strong>Stored locally on your device</strong> - HealthKit data remains on your
+                iPhone except for the workout metrics sent for an AI request with your explicit
+                consent and optional Strava data described below
               </li>
               <li>
                 <strong>Never sold or rented</strong> - We do not sell, rent, or trade your personal
@@ -155,19 +170,18 @@ export default function PrivacyPolicy() {
             <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">Data protection</h3>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
-                No personally identifiable information (name, email, location, etc.) is transmitted
-                to the AI service
+                Insight Run does not add your name, email address, account identifier, or route
+                coordinates to AI requests. Text you enter in the AI chat is transmitted as part of
+                the request.
               </li>
-              <li>
-                Only anonymized workout metrics are sent — your data cannot be traced back to you
-              </li>
+              <li>Workout metrics are sent without direct account identifiers</li>
               <li>
                 Data is not permanently stored by OpenRouter or the AI model providers — it is used
                 only to generate a response
               </li>
               <li>Your data is never sold, rented, or used for advertising purposes</li>
               <li>AI responses and conversation history are not stored on our servers</li>
-              <li>All communication is encrypted end-to-end using HTTPS/TLS</li>
+              <li>All communication is encrypted in transit using HTTPS/TLS</li>
               <li>
                 Rate limiting is applied (a limited number of requests per hour) to prevent abuse
                 and ensure fair usage
@@ -198,8 +212,15 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Data Storage and Security</h2>
             <p className="text-gray-700 mb-4">We take your privacy seriously:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
-              <li>All health data is stored exclusively in Apple's HealthKit on your device</li>
-              <li>We do not maintain any databases of user health information</li>
+              <li>
+                Source HealthKit records remain in Apple Health on your device. Selected metrics are
+                transmitted only when needed for an AI request and with your explicit consent.
+              </li>
+              <li>
+                We do not maintain a server-side database of raw HealthKit records. Optional Strava
+                synchronization data, pseudonymous analytics, and subscription records are handled
+                as described in this policy.
+              </li>
               <li>All network communications use industry-standard encryption (HTTPS/TLS)</li>
               <li>We implement security best practices following Apple's App Store guidelines</li>
             </ul>
@@ -208,8 +229,9 @@ export default function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">HealthKit Permissions</h2>
             <p className="text-gray-700 mb-4">
-              Insight Run requests permission to read specific health data types. You have full
-              control over which data types to share:
+              Insight Run requests permission to read specific health data types and, when you
+              explicitly import a compatible workout file, to add that workout to HealthKit. You
+              have full control over which data types to share:
             </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>You can grant or deny access to individual data types</li>
@@ -217,7 +239,10 @@ export default function PrivacyPolicy() {
               <li>
                 The app will function with partial permissions, though some features may be limited
               </li>
-              <li>Insight Run does not write or modify any data in HealthKit - it is read-only</li>
+              <li>
+                Insight Run does not modify existing HealthKit records. It only writes a workout
+                when you explicitly choose to import it.
+              </li>
             </ul>
           </section>
 
@@ -251,16 +276,23 @@ export default function PrivacyPolicy() {
               </li>
               <li>
                 <strong>Cloudflare Workers</strong> - Our backend infrastructure that securely
-                handles API requests between the app and AI services without permanently storing
-                user data.
+                handles API requests between the app and AI services and stores optional Strava
+                synchronization data.
               </li>
               <li>
                 <strong>Apple HealthKit</strong> - Native iOS framework for accessing health data
                 with your permission.
               </li>
               <li>
-                <strong>Analytics services</strong> - Used to improve app performance and user
-                experience. Only anonymized usage data is collected.
+                <strong>PostHog</strong> - Processes a pseudonymous account identifier, product
+                interactions, and technical diagnostics for analytics and app functionality. This
+                data is not used for advertising or cross-app tracking.
+              </li>
+              <li>
+                <strong>RevenueCat</strong> - Processes a pseudonymous account identifier,
+                subscription status, and purchase history to validate purchases, unlock
+                entitlements, prevent fraud, and provide subscription analytics. Payment card
+                details are handled by Apple and are never available to Insight Run or RevenueCat.
               </li>
             </ul>
             <p className="text-gray-700 mt-4">
@@ -276,15 +308,20 @@ export default function PrivacyPolicy() {
                 Health data remains in Apple HealthKit and is governed by Apple's privacy policy
               </li>
               <li>
-                Strava data is synchronized periodically and cached locally on your device. You can
-                disconnect your Strava account at any time.
+                Optional Strava activities and authentication tokens are stored securely on our
+                Cloudflare infrastructure until you disconnect Strava, which removes the associated
+                server-side synchronization data.
               </li>
               <li>
                 App preferences and settings are stored locally on your device using iOS's
                 UserDefaults (not backed up to our servers)
               </li>
               <li>
-                We do not retain any user data on our servers beyond the duration of an AI request
+                Health and workout metrics sent for an AI request are not retained by our backend
+              </li>
+              <li>
+                PostHog and RevenueCat retain pseudonymous analytics and subscription records under
+                their respective retention policies
               </li>
               <li>
                 AI conversation history is stored locally on your device and never synced to the
@@ -297,7 +334,9 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Data Deletion</h2>
             <p className="text-gray-700 mb-4">You have complete control over your data:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
-              <li>You can delete all app data by uninstalling Insight Run from your device</li>
+              <li>
+                You can delete locally stored app data by uninstalling Insight Run from your device
+              </li>
               <li>
                 You can disconnect your Strava account at any time from the app settings, which will
                 remove all cached Strava data
@@ -308,7 +347,8 @@ export default function PrivacyPolicy() {
               </li>
               <li>You can manage HealthKit data directly in the Apple Health app</li>
               <li>
-                Since we don't store user data on our servers, there is no remote data to delete
+                You can contact us at {SUPPORT_EMAIL} to request deletion of pseudonymous analytics
+                or subscription data associated with your app identifier
               </li>
             </ul>
           </section>
@@ -340,7 +380,7 @@ export default function PrivacyPolicy() {
               <li>
                 Access the data we process about you (which is minimal as data stays on your device)
               </li>
-              <li>Request deletion of any data we might hold (we don't hold user-specific data)</li>
+              <li>Request deletion of pseudonymous data associated with your app identifier</li>
               <li>Withdraw HealthKit permissions at any time through iOS Settings</li>
               <li>
                 Revoke AI data sharing consent at any time in the app settings, immediately stopping
@@ -392,9 +432,9 @@ export default function PrivacyPolicy() {
 
           <div className="mt-12 pt-8 border-t border-gray-200">
             <p className="text-sm text-gray-500">
-              This privacy policy is effective as of February 23, 2026 and will remain in effect
-              except with respect to any changes in its provisions in the future, which will be in
-              effect immediately after being posted on this page.
+              This privacy policy is effective as of {PRIVACY_LAST_UPDATED_DATE} and will remain in
+              effect except with respect to any changes in its provisions in the future, which will
+              be in effect immediately after being posted on this page.
             </p>
           </div>
         </div>

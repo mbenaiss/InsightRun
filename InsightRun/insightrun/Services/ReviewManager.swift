@@ -19,10 +19,13 @@ final class ReviewManager {
         static let lastReviewRequestDate = "reviewManager_lastReviewRequestDate"
         static let reviewRequestCount = "reviewManager_reviewRequestCount"
         static let lastPositiveAIAnalysis = "reviewManager_lastPositiveAIAnalysis"
+        static let analysisEngagementCount = "reviewManager_analysisEngagementCount"
+        static let analyzedWorkoutIDs = "reviewManager_analyzedWorkoutIDs"
     }
 
     private static let appStoreID = "6754607965"
     private static let minimumWorkouts = 3
+    private static let minimumAnalyses = 2
     private static let minimumDaysSinceInstall = 2
     private static let minimumDaysBetweenRequests = 30
     private static let maximumRequests = 3
@@ -52,7 +55,15 @@ final class ReviewManager {
 
     /// Call this after the user views a positive AI analysis
     /// Triggers a review prompt if all other conditions are met
-    func recordAIEngagement() {
+    func recordAIEngagement(workoutID: UUID? = nil) {
+        if let workoutID {
+            var identifiers = Set(defaults.stringArray(forKey: Keys.analyzedWorkoutIDs) ?? [])
+            guard identifiers.insert(workoutID.uuidString).inserted else { return }
+            defaults.set(Array(identifiers), forKey: Keys.analyzedWorkoutIDs)
+            defaults.set(identifiers.count, forKey: Keys.analysisEngagementCount)
+        } else {
+            defaults.set(analysisEngagementCount + 1, forKey: Keys.analysisEngagementCount)
+        }
         defaults.set(Date(), forKey: Keys.lastPositiveAIAnalysis)
         checkAndRequestReview()
     }
@@ -79,6 +90,7 @@ final class ReviewManager {
 
         let workoutCount = HistoricalSummaryStorage.shared.load()?.workoutCount ?? 0
         guard workoutCount >= Self.minimumWorkouts else { return false }
+        guard analysisEngagementCount >= Self.minimumAnalyses else { return false }
 
         // Require a recent positive AI analysis (within last 7 days)
         guard let lastPositive = defaults.object(forKey: Keys.lastPositiveAIAnalysis) as? Date,
@@ -90,6 +102,10 @@ final class ReviewManager {
 
     private var reviewRequestCount: Int {
         defaults.integer(forKey: Keys.reviewRequestCount)
+    }
+
+    private var analysisEngagementCount: Int {
+        defaults.integer(forKey: Keys.analysisEngagementCount)
     }
 
     private func daysSince(_ date: Date) -> Int {

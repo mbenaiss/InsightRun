@@ -31,6 +31,12 @@ class WorkoutDetailViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
+        if workout.metadata?["is_sample"] as? Bool == true {
+            metrics = createMetricsFromWorkout()
+            isLoading = false
+            return
+        }
+
         let stravaId: Int64? = (workout.metadata?["strava_id"] as? String).flatMap { Int64($0) }
 
         // A Strava-only workout was reconstructed with sourceName "Strava" and has

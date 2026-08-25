@@ -18,7 +18,6 @@ struct WorkoutListView: View {
     @StateObject private var healthKitViewModel = WorkoutListViewModel()
     @StateObject private var unifiedViewModel = UnifiedWorkoutViewModel()
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
-    @State private var showInitialPaywall = false
     @State private var showIndexationBanner = false
     @State private var showIndexationSheet = false
     @State private var selectedMonth: Date = Calendar.current.startOfMonth(for: Date())
@@ -32,6 +31,7 @@ struct WorkoutListView: View {
     @ObservedObject private var notificationRouter = NotificationRouter.shared
     @State private var navigationPath = NavigationPath()
     @State private var didTrackListViewed = false
+    @State private var showSubscriptionPaywall = false
 
     private var viewModel: WorkoutListViewModel { healthKitViewModel }
 
@@ -106,13 +106,6 @@ struct WorkoutListView: View {
                         viewModel.refreshAuthorizationStatus()
                     }
                 }
-                .onChange(of: viewModel.authorizationStatus) { oldValue, newValue in
-                    if oldValue == .notDetermined && newValue == .authorized &&
-                       !revenueCatManager.isSubscriptionActive &&
-                       !revenueCatManager.hasSeenInitialPaywall {
-                        showInitialPaywall = true
-                    }
-                }
                 .onChange(of: revenueCatManager.isSubscriptionActive) { _, _ in
                     if viewModel.authorizationStatus == .authorized {
                         Task {
@@ -149,6 +142,9 @@ struct WorkoutListView: View {
                 .onAppear {
                     if canShowWorkouts { handleWorkoutsVisible() }
                     updateContextProvider()
+                    if let workout = notificationRouter.pendingActivationWorkout {
+                        navigateToActivationWorkout(workout)
+                    }
                 }
                 .onDisappear {
                     // Re-arm so the next appearance logs a fresh impression.
@@ -157,6 +153,10 @@ struct WorkoutListView: View {
                 .onChange(of: notificationRouter.pendingWorkoutUUID) { _, uuid in
                     guard let uuid else { return }
                     navigateToWorkout(uuid: uuid)
+                }
+                .onChange(of: notificationRouter.pendingActivationWorkout) { _, workout in
+                    guard let workout else { return }
+                    navigateToActivationWorkout(workout)
                 }
                 .onChange(of: displayWorkouts) { _, _ in
                     trackListViewedIfReady()
@@ -168,12 +168,12 @@ struct WorkoutListView: View {
                     WorkoutDetailView(workout: workout, allWorkouts: displayWorkouts)
                 }
         }
-        .fullScreenCover(isPresented: $showInitialPaywall) {
-            SubscriptionPaywallView(isInitialFlow: true)
-                .environmentObject(revenueCatManager)
-        }
         .sheet(isPresented: $showIndexationSheet) {
             HistoricalIndexationSheet()
+        }
+        .fullScreenCover(isPresented: $showSubscriptionPaywall) {
+            SubscriptionPaywallView(isInitialFlow: false)
+                .environmentObject(revenueCatManager)
         }
     }
 
@@ -212,6 +212,11 @@ struct WorkoutListView: View {
             return
         }
         notificationRouter.pendingWorkoutUUID = nil
+        navigationPath.append(workout)
+    }
+
+    private func navigateToActivationWorkout(_ workout: WorkoutModel) {
+        notificationRouter.pendingActivationWorkout = nil
         navigationPath.append(workout)
     }
 
@@ -307,13 +312,11 @@ struct WorkoutListView: View {
 
             VStack(spacing: Spacing.base) {
                 Button {
-                    Task {
-                        await viewModel.requestAuthorization()
-                    }
+                    importFromAppleHealth()
                 } label: {
                     HStack {
                         Image(systemName: "heart.text.square.fill")
-                        Text(String(localized: "Connect HealthKit", comment: "HealthKit permission button"))
+                        Text(String(localized: "Import from Apple Health", comment: "HealthKit import button"))
                     }
                     .font(IRFont.headline)
                     .foregroundStyle(Color.irTextOnAccent)
@@ -323,7 +326,20 @@ struct WorkoutListView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                     .shadow(color: Color.brandHealthKit.opacity(0.3), radius: 10, y: 5)
                 }
-                .accessibilityLabel(String(localized: "Connect HealthKit", comment: "HealthKit permission button"))
+                .accessibilityLabel(String(localized: "Import from Apple Health", comment: "HealthKit import button"))
+
+                Button {
+                    openSampleWorkout()
+                } label: {
+                    Label(String(localized: "Try with a sample workout", comment: "Sample workout activation button"), systemImage: "sparkles")
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irPrimaryAccent)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.irAccentSoft)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                }
+                .accessibilityIdentifier("sample-workout-button")
 
                 if remoteConfig.isFeatureEnabled(.strava) {
                     Button {
@@ -390,6 +406,15 @@ struct WorkoutListView: View {
             }
             .padding(.horizontal, Spacing.xxl)
 
+            Button {
+                openSampleWorkout()
+            } label: {
+                Label(String(localized: "Try with a sample workout", comment: "Sample workout activation button"), systemImage: "sparkles")
+                    .font(IRFont.headline)
+                    .foregroundStyle(Color.irPrimaryAccent)
+            }
+            .accessibilityIdentifier("sample-workout-button")
+
             Spacer()
         }
         .padding()
@@ -430,10 +455,55 @@ struct WorkoutListView: View {
                     .multilineTextAlignment(.center)
             }
 
+            VStack(spacing: Spacing.sm) {
+                Button {
+                    importFromAppleHealth()
+                } label: {
+                    Label(String(localized: "Import from Apple Health", comment: "HealthKit import button"), systemImage: "heart.text.square.fill")
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irTextOnAccent)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.brandHealthKit.gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                }
+
+                Button {
+                    openSampleWorkout()
+                } label: {
+                    Label(String(localized: "Try with a sample workout", comment: "Sample workout activation button"), systemImage: "sparkles")
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irPrimaryAccent)
+                }
+                .accessibilityIdentifier("sample-workout-button")
+            }
+            .padding(.horizontal, Spacing.xxl)
+
             Spacer()
         }
         .padding()
         .background(Color.irBackgroundApp)
+    }
+
+    private func importFromAppleHealth() {
+        Task {
+            if viewModel.authorizationStatus == .authorized {
+                await viewModel.refresh()
+            } else {
+                await viewModel.requestAuthorization()
+            }
+
+            guard let workout = viewModel.workouts.first else { return }
+            AnalyticsService.shared.trackActivationStarted(source: "workout_list_healthkit")
+            AnalyticsService.shared.trackActivationWorkoutReady(isSample: false)
+            navigateToActivationWorkout(workout)
+        }
+    }
+
+    private func openSampleWorkout() {
+        AnalyticsService.shared.trackActivationStarted(source: "workout_list_sample")
+        AnalyticsService.shared.trackActivationWorkoutReady(isSample: true)
+        navigateToActivationWorkout(MockData.activationWorkout)
     }
 
     // MARK: - Workout List (Pulse-Ring layout)
@@ -878,7 +948,7 @@ struct WorkoutListView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
-                showInitialPaywall = true
+                showSubscriptionPaywall = true
             } label: {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "sparkles")

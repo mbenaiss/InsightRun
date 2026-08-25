@@ -38,6 +38,15 @@ class RevenueCatManager: NSObject, ObservableObject {
 
     // Cache TestFlight environment status
     private var cachedTestFlightStatus: Bool?
+    private var entitlementSnapshot: EntitlementSnapshot?
+    private let entitlementSnapshotKey = "com.insightrun.revenuecat.entitlementSnapshot"
+
+    private struct EntitlementSnapshot: Codable {
+        let productIdentifier: String
+        let latestPurchaseDate: Date?
+        let willRenew: Bool
+        let unsubscribeDetectedAt: Date?
+    }
 
     // Debug override for TestFlight environment (only used in DEBUG builds)
     #if DEBUG
@@ -49,6 +58,9 @@ class RevenueCatManager: NSObject, ObservableObject {
         // Load persisted values
         self.hasSeenInitialPaywall = UserDefaults.standard.bool(forKey: "hasSeenInitialPaywall")
         self.freeAIRequestsUsed = UserDefaults.standard.integer(forKey: freeRequestsKey)
+        if let data = UserDefaults.standard.data(forKey: entitlementSnapshotKey) {
+            self.entitlementSnapshot = try? JSONDecoder().decode(EntitlementSnapshot.self, from: data)
+        }
 
         // Detect TestFlight environment on initialization
         Task {
@@ -210,11 +222,7 @@ class RevenueCatManager: NSObject, ObservableObject {
         do {
             let (customerInfo, created) = try await Purchases.shared.logIn(userID)
             print("✅ RevenueCat: Linked user identity \(userID) (created: \(created))")
-
-            await MainActor.run {
-                self.customerInfo = customerInfo
-                self.isSubscriptionActive = !customerInfo.entitlements.active.isEmpty
-            }
+            applyCustomerInfo(customerInfo, trackLifecycleChanges: true)
         } catch {
             print("❌ RevenueCat: Failed to link user identity: \(error.localizedDescription)")
             // Continue without user identity link - not critical for first launch
@@ -225,20 +233,17 @@ class RevenueCatManager: NSObject, ObservableObject {
     func fetchCustomerInfo() async {
         do {
             let info = try await Purchases.shared.customerInfo()
-            await MainActor.run {
-                self.customerInfo = info
-                self.isSubscriptionActive = !info.entitlements.active.isEmpty
-                self.markCustomerInfoResolved()
-            }
+            applyCustomerInfo(info, trackLifecycleChanges: true)
+            markCustomerInfoResolved()
         } catch {
             print("Error fetching customer info: \(error.localizedDescription)")
-            await MainActor.run { self.markCustomerInfoResolved() }
+            markCustomerInfoResolved()
         }
     }
 
     /// Restore previous purchases and sync user identity
     /// If purchases are found with a different UUID, update local identity
-    func restorePurchases() async throws {
+    func restorePurchases(source: String) async throws {
         let info = try await Purchases.shared.restorePurchases()
 
         // Check if the restored account has a different app user ID
@@ -254,16 +259,53 @@ class RevenueCatManager: NSObject, ObservableObject {
             // Re-login with the restored user ID to sync
             let (updatedInfo, _) = try await Purchases.shared.logIn(restoredUserID)
 
-            await MainActor.run {
-                self.customerInfo = updatedInfo
-                self.isSubscriptionActive = !updatedInfo.entitlements.active.isEmpty
-            }
+            applyCustomerInfo(updatedInfo, trackLifecycleChanges: false)
         } else {
-            await MainActor.run {
-                self.customerInfo = info
-                self.isSubscriptionActive = !info.entitlements.active.isEmpty
-            }
+            applyCustomerInfo(info, trackLifecycleChanges: false)
         }
+
+        AnalyticsService.shared.trackSubscriptionRestored(
+            productId: customerInfo?.entitlements.active.values.first?.productIdentifier,
+            source: source
+        )
+    }
+
+    func applyCustomerInfo(_ info: CustomerInfo, trackLifecycleChanges: Bool) {
+        let previous = entitlementSnapshot
+        let current = info.entitlements.active.values.first.map {
+            EntitlementSnapshot(
+                productIdentifier: $0.productIdentifier,
+                latestPurchaseDate: $0.latestPurchaseDate,
+                willRenew: $0.willRenew,
+                unsubscribeDetectedAt: $0.unsubscribeDetectedAt
+            )
+        }
+
+        customerInfo = info
+        isSubscriptionActive = current != nil
+        entitlementSnapshot = current
+        persistEntitlementSnapshot(current)
+
+        guard trackLifecycleChanges, let previous, let current else { return }
+
+        if previous.willRenew && !current.willRenew && current.unsubscribeDetectedAt != nil {
+            AnalyticsService.shared.trackSubscriptionCancelled(productId: current.productIdentifier)
+        }
+
+        if previous.productIdentifier == current.productIdentifier,
+           let previousPurchase = previous.latestPurchaseDate,
+           let currentPurchase = current.latestPurchaseDate,
+           currentPurchase > previousPurchase {
+            AnalyticsService.shared.trackSubscriptionRenewed(productId: current.productIdentifier)
+        }
+    }
+
+    private func persistEntitlementSnapshot(_ snapshot: EntitlementSnapshot?) {
+        guard let snapshot, let data = try? JSONEncoder().encode(snapshot) else {
+            UserDefaults.standard.removeObject(forKey: entitlementSnapshotKey)
+            return
+        }
+        UserDefaults.standard.set(data, forKey: entitlementSnapshotKey)
     }
 }
 
@@ -271,20 +313,7 @@ class RevenueCatManager: NSObject, ObservableObject {
 extension RevenueCatManager: PurchasesDelegate {
     nonisolated func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
         Task { @MainActor in
-            let wasActive = self.isSubscriptionActive
-            let isNowActive = !customerInfo.entitlements.active.isEmpty
-
-            self.customerInfo = customerInfo
-            self.isSubscriptionActive = isNowActive
-
-            // Track subscription state changes
-            if wasActive && !isNowActive {
-                // Subscription was cancelled
-                AnalyticsService.shared.trackSubscriptionCancelled()
-            } else if !wasActive && isNowActive {
-                // Subscription was renewed/activated
-                AnalyticsService.shared.trackSubscriptionRenewed()
-            }
+            self.applyCustomerInfo(customerInfo, trackLifecycleChanges: true)
         }
     }
 }

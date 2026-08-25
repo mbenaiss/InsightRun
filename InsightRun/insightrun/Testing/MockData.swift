@@ -169,6 +169,26 @@ enum MockData {
         ),
     ]
 
+    static var activationWorkout: WorkoutModel {
+        WorkoutModel(
+            id: UUID(),
+            workoutType: .running,
+            startDate: date(daysAgo: 1, hour: 7, minute: 30),
+            endDate: date(daysAgo: 1, hour: 8, minute: 18),
+            duration: 2880,
+            distance: 10000,
+            totalEnergyBurned: 620,
+            sourceName: "Insight Run Sample",
+            sourceVersion: nil,
+            metadata: ["is_sample": true],
+            averageHeartRate: 154,
+            maxHeartRate: 176,
+            elevationGain: 42,
+            hasRoute: false,
+            isIndoor: false
+        )
+    }
+
     // MARK: - Sample Sleep Data
 
     static let sampleSleepData: SleepData = sampleSleep(daysAgo: 0)
@@ -306,11 +326,17 @@ enum MockData {
     private static let sampleWorkoutAnalysisEN = """
     ## Summary
     Strong 10K at 4'47"/km showing excellent aerobic fitness. Heart rate averaged 172 bpm (Zone 4) with high intensity sustained well, and a negative split that reflects good pacing discipline.
+
+    ## Next action
+    Make the next session an easy 35-minute recovery run, keeping the effort conversational.
     """
 
     private static let sampleWorkoutAnalysisFR = """
     ## Synthèse
     Excellent 10K à 4'47"/km, très bonne condition aérobie. Fréquence cardiaque moyenne de 172 bpm (Zone 4), haute intensité bien maintenue, et une fin de course plus rapide qui traduit une bonne gestion de l'allure.
+
+    ## Prochaine action
+    Fais une sortie de récupération facile de 35 minutes en gardant une intensité qui permet de parler.
     """
 
     // MARK: - Sample Monthly Coach Insight (Demo Mode)

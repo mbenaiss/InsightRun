@@ -24,6 +24,10 @@ class WorkoutAnalysisViewModel: ObservableObject {
     private let aiService: WorkoutAIService
     private var cancellables = Set<AnyCancellable>()
 
+    private var isSampleWorkout: Bool {
+        workout.metadata?["is_sample"] as? Bool == true
+    }
+
     init(workout: WorkoutModel, metrics: WorkoutMetrics?, modelContext: ModelContext) {
         self.workout = workout
         self.metrics = metrics
@@ -75,6 +79,13 @@ class WorkoutAnalysisViewModel: ObservableObject {
             return
         }
 
+        if isSampleWorkout {
+            analysisText = MockData.sampleWorkoutAnalysis
+            analyzedAt = Date()
+            AnalyticsService.shared.trackWorkoutAnalysisCompleted(isSample: true)
+            return
+        }
+
         // First, try to load from local cache
         if let cached = fetchCachedAnalysis() {
             print("✅ WorkoutAnalysisViewModel: Found cached analysis")
@@ -112,6 +123,9 @@ class WorkoutAnalysisViewModel: ObservableObject {
             ## Synthèse
             2 à 3 phrases qui qualifient la séance en s'appuyant sur les métriques clés disponibles (intensité, allure, fréquence cardiaque, technique).
 
+            ## Prochaine action
+            Une action précise et réaliste pour la prochaine séance ou la récupération du coureur.
+
             Règles strictes :
             - Ton neutre, précis, factuel. Pas d'emojis, pas d'exclamations, pas de superlatifs creux.
             - N'utilise que les métriques effectivement présentes dans les données. Ne signale jamais une donnée manquante.
@@ -123,6 +137,9 @@ class WorkoutAnalysisViewModel: ObservableObject {
             ## Summary
             2 to 3 sentences characterizing the session based on the available key metrics (intensity, pace, heart rate, form).
 
+            ## Next action
+            One specific, realistic action for the runner's next session or recovery.
+
             Strict rules:
             - Neutral, precise, factual tone. No emojis, no exclamations, no empty superlatives.
             - Only use metrics actually present in the data. Never flag missing data.
@@ -132,6 +149,13 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
     /// Generate new AI analysis and save to SwiftData
     func generateAnalysis() async {
+        if isSampleWorkout {
+            analysisText = MockData.sampleWorkoutAnalysis
+            analyzedAt = Date()
+            AnalyticsService.shared.trackWorkoutAnalysisCompleted(isSample: true)
+            return
+        }
+
         guard ConsentService.shared.hasConsentedToAIDataSharing else {
             needsConsent = true
             return
@@ -181,6 +205,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // Don't persist a stream truncated mid-sentence: showing it once is fine,
         // caching it as the final analysis is not.
         guard AIResponseValidator.isComplete(finalAnalysis) else { return }
+        AnalyticsService.shared.trackWorkoutAnalysisCompleted(isSample: false)
 
         print("✅ WorkoutAnalysisViewModel: Streaming complete, saving to SwiftData (\(finalAnalysis.count) chars)")
         print("🔍 WorkoutAnalysisViewModel: Saving with workoutId: \(workout.id)")

@@ -17,6 +17,7 @@ class NotificationManager: ObservableObject {
     @Published var isNotificationsEnabled: Bool = false
     @Published var isDailyReadinessEnabled: Bool = false
     @Published var isWeeklySummaryEnabled: Bool = false
+    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
     private let userDefaults = UserDefaults.standard
     private let dailyReadinessKey = "com.insightrun.dailyReadinessNotification"
@@ -41,6 +42,7 @@ class NotificationManager: ObservableObject {
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
             self.isNotificationsEnabled = granted
+            self.authorizationStatus = granted ? .authorized : .denied
             return granted
         } catch {
             print("⚠️ NotificationManager: Failed to request permissions: \(error)")
@@ -52,6 +54,7 @@ class NotificationManager: ObservableObject {
     func checkPermissionStatus() async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
+        self.authorizationStatus = settings.authorizationStatus
         self.isNotificationsEnabled = settings.authorizationStatus == .authorized
     }
 

@@ -15,6 +15,7 @@ class NotificationRouter: NSObject, ObservableObject {
 
     @Published var pendingTab: Int?
     @Published var pendingWorkoutUUID: String?
+    @Published var pendingActivationWorkout: WorkoutModel?
     @Published var pendingGoalId: UUID?
     @Published var showWeeklySummary = false
 
@@ -24,6 +25,11 @@ class NotificationRouter: NSObject, ObservableObject {
 
     func setup() {
         UNUserNotificationCenter.current().delegate = self
+    }
+
+    func routeToActivationWorkout(_ workout: WorkoutModel) {
+        pendingActivationWorkout = workout
+        pendingTab = 1
     }
 }
 

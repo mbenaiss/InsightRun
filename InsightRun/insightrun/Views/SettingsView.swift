@@ -139,7 +139,7 @@ struct SettingsView: View {
                 ) {
                     Task {
                         do {
-                            try await revenueCatManager.restorePurchases()
+                            try await revenueCatManager.restorePurchases(source: "settings")
                         } catch {
                             print("Error restoring purchases: \(error.localizedDescription)")
                         }

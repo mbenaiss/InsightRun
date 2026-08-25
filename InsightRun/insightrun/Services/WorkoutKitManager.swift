@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import WorkoutKit
+@preconcurrency import WorkoutKit
 import HealthKit
 import Combine
 
@@ -260,8 +260,10 @@ class WorkoutKitManager: ObservableObject {
     /// Check current authorization status
     func checkAuthorizationStatus() async -> Bool {
         if DemoMode.isEnabled { return true }
-        let authState = await WorkoutScheduler.shared.authorizationState
-        return authState == .authorized
+        return await Task.detached {
+            let authState = await WorkoutScheduler.shared.authorizationState
+            return authState == .authorized
+        }.value
     }
 
     /// Request authorization to export workouts to Fitness app

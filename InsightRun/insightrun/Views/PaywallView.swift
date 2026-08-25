@@ -20,6 +20,7 @@ struct SubscriptionPaywallView: View {
     @State private var paywallAppearTime: Date?
     @State private var showConsentSheet = false
     @State private var hasConsented = false
+    @State private var pendingPurchasePrice = "unknown"
 
     var body: some View {
         Group {
@@ -50,21 +51,27 @@ struct SubscriptionPaywallView: View {
 
     private var actualPaywallView: some View {
         PaywallView()
-            .onPurchaseCompleted { customerInfo in
-                // Track purchase completed
+            .onPurchaseStarted { package in
+                pendingPurchasePrice = package.storeProduct.localizedPriceString
+                AnalyticsService.shared.trackSubscriptionPurchaseStarted(
+                    productId: package.storeProduct.productIdentifier,
+                    price: package.storeProduct.localizedPriceString,
+                    billingPeriod: String(describing: package.packageType)
+                )
+            }
+            .onPurchaseCompleted { transaction, customerInfo in
                 let activeEntitlements = customerInfo.entitlements.active.values
-                if let entitlement = activeEntitlements.first,
-                   let productId = entitlement.productIdentifier as String? {
+                if let entitlement = activeEntitlements.first {
                     let isTrial = entitlement.periodType == .trial
-
                     AnalyticsService.shared.trackSubscriptionPurchaseCompleted(
-                        productId: productId,
-                        revenue: "unknown",
-                        isTrial: isTrial
+                        productId: transaction?.productIdentifier ?? entitlement.productIdentifier,
+                        revenue: pendingPurchasePrice,
+                        isTrial: isTrial,
+                        source: isInitialFlow ? "onboarding" : "locked_content"
                     )
                 }
 
-                // Purchase completed successfully
+                revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                 Task {
                     await revenueCatManager.fetchCustomerInfo()
                 }
@@ -77,7 +84,12 @@ struct SubscriptionPaywallView: View {
                 }
             }
             .onRestoreCompleted { customerInfo in
-                // Restore completed successfully
+                let productId = customerInfo.entitlements.active.values.first?.productIdentifier
+                AnalyticsService.shared.trackSubscriptionRestored(
+                    productId: productId,
+                    source: isInitialFlow ? "onboarding" : "locked_content"
+                )
+                revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                 Task {
                     await revenueCatManager.fetchCustomerInfo()
                 }

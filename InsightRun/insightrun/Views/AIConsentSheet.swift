@@ -118,6 +118,7 @@ struct AIConsentSheet: View {
                         .background(Color.irCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }
+                .accessibilityIdentifier("ai-consent-decline")
 
                 Button {
                     ConsentService.shared.grantAIConsent()
@@ -132,6 +133,7 @@ struct AIConsentSheet: View {
                         .background(Color.irPrimaryAccent)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }
+                .accessibilityIdentifier("ai-consent-allow")
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.bottom, Spacing.xxl)

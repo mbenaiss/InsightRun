@@ -11,7 +11,7 @@ import PostHog
 
 /// Centralized analytics service for tracking user events with PostHog
 @MainActor
-final class AnalyticsService {
+final class AnalyticsService: WorkoutAnalysisTracking {
     static let shared = AnalyticsService()
 
     private var sessionID: String
@@ -401,7 +401,44 @@ final class AnalyticsService {
     }
 
     func trackWorkoutAnalysisCompleted(isSample: Bool) {
-        track(.workoutAnalysisCompleted, properties: ["is_sample": isSample])
+        guard !isSample else { return }
+        track(.workoutAnalysisCompleted, properties: [
+            "is_sample": false,
+            "analysis_source": WorkoutAnalysisSource.generated.rawValue
+        ])
+    }
+
+    func trackWorkoutAnalysisStarted() {
+        track(.workoutAnalysisStarted)
+    }
+
+    func trackWorkoutAnalysisViewed(source: WorkoutAnalysisSource) {
+        track(.workoutAnalysisViewed, properties: [
+            "analysis_source": source.rawValue,
+            "is_sample": source == .sample
+        ])
+    }
+
+    func trackWorkoutAnalysisFailed(reason: WorkoutAnalysisFailureReason) {
+        track(.workoutAnalysisFailed, properties: ["reason": reason.rawValue])
+    }
+
+    func trackWorkoutAnalysisConsentShown() {
+        track(.workoutAnalysisConsentShown)
+    }
+
+    func trackWorkoutAnalysisConsentResult(_ result: WorkoutAnalysisConsentResult) {
+        track(.workoutAnalysisConsentResult, properties: ["result": result.rawValue])
+    }
+
+    func trackAnalysisConfidenceShown(_ confidence: WorkoutAnalysisConfidence, isIndoor: Bool) {
+        track(.analysisConfidenceShown, properties: [
+            "level": confidence.level.rawValue,
+            "coverage_percentage": Int((confidence.coverage * 100).rounded()),
+            "available_signals": confidence.availableSignals.map(\.rawValue),
+            "missing_signals": confidence.missingSignals.map(\.rawValue),
+            "is_indoor": isIndoor
+        ])
     }
 
     // MARK: - Strava Integration Events
@@ -624,6 +661,12 @@ enum AnalyticsEvent: String {
     case activationStarted = "activation_started"
     case activationWorkoutReady = "activation_workout_ready"
     case workoutAnalysisCompleted = "workout_analysis_completed"
+    case workoutAnalysisStarted = "workout_analysis_started"
+    case workoutAnalysisViewed = "workout_analysis_viewed"
+    case workoutAnalysisFailed = "workout_analysis_failed"
+    case workoutAnalysisConsentShown = "workout_analysis_consent_shown"
+    case workoutAnalysisConsentResult = "workout_analysis_consent_result"
+    case analysisConfidenceShown = "analysis_confidence_shown"
 
     // Workout Generation
     case workoutGenerationRequested = "workout_generation_requested"
@@ -684,6 +727,34 @@ enum AnalyticsEvent: String {
 }
 
 // MARK: - Supporting Types
+
+@MainActor
+protocol WorkoutAnalysisTracking: AnyObject {
+    func trackWorkoutAnalysisStarted()
+    func trackWorkoutAnalysisViewed(source: WorkoutAnalysisSource)
+    func trackWorkoutAnalysisFailed(reason: WorkoutAnalysisFailureReason)
+    func trackWorkoutAnalysisCompleted(isSample: Bool)
+}
+
+enum WorkoutAnalysisSource: String {
+    case sample
+    case cache
+    case generated
+}
+
+enum WorkoutAnalysisFailureReason: String {
+    case serviceError = "service_error"
+    case emptyResponse = "empty_response"
+    case incompleteResponse = "incomplete_response"
+    case cacheReadFailed = "cache_read_failed"
+    case cacheSaveFailed = "cache_save_failed"
+}
+
+enum WorkoutAnalysisConsentResult: String {
+    case accepted
+    case declined
+    case dismissed
+}
 
 enum AIContextType: String {
     case workout

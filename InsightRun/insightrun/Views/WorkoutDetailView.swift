@@ -16,6 +16,8 @@ struct WorkoutDetailView: View {
     @State private var lastTrackedAnalysis: String?
     let workout: WorkoutModel
     let allWorkouts: [WorkoutModel]
+    private let initialMetrics: WorkoutMetrics?
+    @State private var hasLoadedInitialAnalysis = false
     @StateObject private var viewModel: WorkoutDetailViewModel
     @Environment(\.modelContext) private var modelContext
     @StateObject private var analysisViewModel: WorkoutAnalysisViewModel
@@ -26,16 +28,24 @@ struct WorkoutDetailView: View {
     @AppStorage("hasDismissedPostAnalysisNotificationPrompt") private var dismissedNotificationPrompt = false
     @State private var showComparisonSheet = false
     @State private var similarWorkouts: [WorkoutModel] = []
+    @State private var isAnalysisConfidenceExpanded = false
+    @State private var trackedAnalysisConfidence: String?
 
-    init(workout: WorkoutModel, allWorkouts: [WorkoutModel] = []) {
+    init(
+        workout: WorkoutModel,
+        allWorkouts: [WorkoutModel] = [],
+        analysisViewModel: WorkoutAnalysisViewModel? = nil,
+        initialMetrics: WorkoutMetrics? = nil
+    ) {
         self.workout = workout
         self.allWorkouts = allWorkouts
+        self.initialMetrics = initialMetrics
         _viewModel = StateObject(wrappedValue: WorkoutDetailViewModel(workout: workout))
 
         guard let container = InsightRunApp.shared else {
             fatalError("ModelContainer not initialized before WorkoutDetailView")
         }
-        _analysisViewModel = StateObject(wrappedValue: WorkoutAnalysisViewModel(
+        _analysisViewModel = StateObject(wrappedValue: analysisViewModel ?? WorkoutAnalysisViewModel(
             workout: workout,
             metrics: nil,
             modelContext: container.mainContext
@@ -79,14 +89,13 @@ struct WorkoutDetailView: View {
                                 ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
                             }
 
-                            // 2x2 KPI hero
-                            mainMetricsGrid(metrics: metrics)
-
                             // Coach narratif
                             VStack(alignment: .leading, spacing: Spacing.md) {
                                 DashboardEyebrow(title: String(localized: "Coach verdict", comment: "Workout detail coach section eyebrow"))
                                 aiAnalysisSection
                             }
+
+                            mainMetricsGrid(metrics: metrics)
 
                             // Compare similar
                             if similarWorkouts.count >= 2 {
@@ -164,13 +173,12 @@ struct WorkoutDetailView: View {
             // Compute similar workouts once instead of on every render
             similarWorkouts = SimilarWorkoutFinder.findSimilar(to: workout, from: allWorkouts)
 
-            await viewModel.loadMetrics()
-            // Update metrics in analysisViewModel after loading
-            analysisViewModel.updateMetrics(viewModel.metrics)
-            // Load cached analysis only if user has AI access (subscribed or TestFlight)
-            if revenueCatManager.hasAIAccess {
-                await analysisViewModel.loadAnalysis()
+            if let initialMetrics {
+                viewModel.metrics = initialMetrics
+            } else {
+                await viewModel.loadMetrics()
             }
+            await loadInitialAnalysis()
         }
         .onAppear {
             // Track workout detail viewed
@@ -186,6 +194,7 @@ struct WorkoutDetailView: View {
             // Update selected workout when loading completes
             if !isLoading {
                 contextProvider.setSelectedWorkout(workout, metrics: viewModel.metrics)
+                Task { await loadInitialAnalysis() }
             }
         }
         .onDisappear {
@@ -193,6 +202,39 @@ struct WorkoutDetailView: View {
             contextProvider.clearSelectedWorkout()
             contextProvider.currentPage = .workouts
         }
+        .sheet(isPresented: $showSubscriptionPaywall) {
+            SubscriptionPaywallView(isInitialFlow: false)
+                .environmentObject(revenueCatManager)
+        }
+        .sheet(isPresented: $showConsentSheet, onDismiss: resumeAfterConsent) {
+            AIConsentSheet(
+                onConsent: {
+                    consentResult = .accepted
+                    AnalyticsService.shared.trackWorkoutAnalysisConsentResult(.accepted)
+                    resumeAnalysisAfterConsent = true
+                    showConsentSheet = false
+                },
+                onDecline: {
+                    consentResult = .declined
+                    AnalyticsService.shared.trackWorkoutAnalysisConsentResult(.declined)
+                    showConsentSheet = false
+                }
+            )
+            .onAppear {
+                AnalyticsService.shared.trackWorkoutAnalysisConsentShown()
+            }
+        }
+        .indexationGate(isPresented: $analysisViewModel.needsIndexation) {
+            await analysisViewModel.generateAnalysis()
+        }
+    }
+
+    private func loadInitialAnalysis() async {
+        guard viewModel.metrics != nil else { return }
+        analysisViewModel.updateMetrics(viewModel.metrics)
+        guard !hasLoadedInitialAnalysis else { return }
+        hasLoadedInitialAnalysis = true
+        await analysisViewModel.loadAnalysis(allowGeneration: isSampleWorkout || revenueCatManager.hasAIAccess)
     }
 
     // MARK: - Header Section (editorial hero)
@@ -826,6 +868,8 @@ struct WorkoutDetailView: View {
     @State private var showSubscriptionPaywall = false
     @State private var showConsentSheet = false
     @State private var hasTrackedTeaser = false
+    @State private var consentResult: WorkoutAnalysisConsentResult?
+    @State private var resumeAnalysisAfterConsent = false
 
     private var isSampleWorkout: Bool {
         workout.metadata?["is_sample"] as? Bool == true
@@ -856,9 +900,9 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(Color.irTextTertiary)
                 }
             }
+            .accessibilityIdentifier("workout-ai-analysis")
 
-            // Check AI access first (subscription or TestFlight)
-            if !revenueCatManager.hasAIAccess {
+            if !revenueCatManager.hasAIAccess && !isSampleWorkout && analysisViewModel.analysisSource == nil && !analysisViewModel.isLoading {
                 // No AI access — show blurred teaser to demonstrate value
                 VStack(spacing: Spacing.base) {
                     // Blurred fake analysis preview — text visible but unreadable
@@ -935,52 +979,40 @@ struct WorkoutDetailView: View {
                 .padding(.vertical, Spacing.lg)
 
             } else if analysisViewModel.needsConsent {
-                // Consent required - show consent button directly
-                VStack(spacing: Spacing.md) {
-                    Image(systemName: "hand.raised.fill")
-                        .font(IRFont.title2)
-                        .foregroundStyle(Color.irPrimaryAccent)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text(String(localized: "analysis.consent_benefit", defaultValue: "Understand this run and find your next step."))
+                        .font(IRFont.headline)
+                        .foregroundStyle(Color.irTextPrimary)
 
-                    Text(String(localized: "AI consent is required to analyze your workouts.", comment: "Error when AI consent is missing"))
+                    Text(String(localized: "analysis.consent_explanation", defaultValue: "Review which data is shared with the AI before starting. Your workout metrics remain available without consent."))
                         .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
-                        .multilineTextAlignment(.center)
 
                     Button {
+                        consentResult = nil
                         showConsentSheet = true
                     } label: {
-                        Label(String(localized: "Review & Accept", comment: "Consent review button"), systemImage: "checkmark.shield")
+                        Label(String(localized: "analysis.consent_cta", defaultValue: "Review sharing and analyze"), systemImage: "hand.raised")
                             .font(IRFont.body.weight(.bold))
                             .foregroundStyle(Color.irTextOnAccent)
+                            .frame(maxWidth: .infinity)
                             .padding(.horizontal, Spacing.base)
                             .padding(.vertical, Spacing.md)
                             .background(Color.irPrimaryAccent)
                             .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("workout-analysis-consent")
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
-                .sheet(isPresented: $showConsentSheet) {
-                    AIConsentSheet(
-                        onConsent: {
-                            showConsentSheet = false
-                            analysisViewModel.needsConsent = false
-                            Task {
-                                if await HistoricalSummaryStorage.shared.requiresIndexation() {
-                                    analysisViewModel.needsIndexation = true
-                                } else {
-                                    await analysisViewModel.generateAnalysis()
-                                }
-                            }
-                        },
-                        onDecline: {
-                            showConsentSheet = false
-                        }
-                    )
-                }
-                .indexationGate(isPresented: $analysisViewModel.needsIndexation) {
-                    await analysisViewModel.generateAnalysis()
+
+            } else if analysisViewModel.needsIndexation {
+                HStack(spacing: Spacing.sm) {
+                    ProgressView()
+                    Text(String(localized: "analysis.preparing_history", defaultValue: "Preparing your training history…"))
+                        .font(IRFont.body)
+                        .foregroundStyle(Color.irTextSecondary)
                 }
 
             } else if let error = analysisViewModel.error {
@@ -1004,24 +1036,38 @@ struct WorkoutDetailView: View {
                             .font(IRFont.body)
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("workout-analysis-retry")
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
 
             } else if let analysis = analysisViewModel.analysisText {
                 VStack(alignment: .leading, spacing: Spacing.md) {
+                    if analysisViewModel.analysisSource == .sample {
+                        Text(String(localized: "analysis.sample_label", defaultValue: "Example analysis · not based on your health data"))
+                            .font(IRFont.caption)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+
                     MarkdownView(analysis)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("workout-analysis-result")
                         .onAppear {
-                            if lastTrackedAnalysis != analysis {
+                            analysisViewModel.recordAnalysisViewed()
+                            if analysisViewModel.analysisSource != .sample && lastTrackedAnalysis != analysis {
                                 ReviewManager.shared.recordAIEngagement(workoutID: workout.id)
                                 lastTrackedAnalysis = analysis
                             }
                         }
 
-                    HStack {
+                    if analysisViewModel.analysisSource != .sample {
+                      HStack {
                         Spacer()
                         Button {
+                            guard revenueCatManager.hasAIAccess else {
+                                showSubscriptionPaywall = true
+                                return
+                            }
                             Task {
                                 await analysisViewModel.regenerateAnalysis()
                             }
@@ -1034,9 +1080,10 @@ struct WorkoutDetailView: View {
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel(String(localized: "Regenerate analysis", comment: "Accessibility label for AI analysis regenerate button"))
+                      }
                     }
 
-                    if notificationManager.authorizationStatus == .notDetermined && !dismissedNotificationPrompt {
+                    if analysisViewModel.analysisSource != .sample && notificationManager.authorizationStatus == .notDetermined && !dismissedNotificationPrompt {
                         postAnalysisNotificationCard
                     }
                 }
@@ -1071,14 +1118,127 @@ struct WorkoutDetailView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.xxs)
             }
+
+            if let confidence = viewModel.metrics?.analysisConfidence {
+                analysisConfidenceView(confidence)
+            }
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .detailCard()
-        .accessibilityIdentifier("workout-ai-analysis")
-        .sheet(isPresented: $showSubscriptionPaywall) {
-            SubscriptionPaywallView(isInitialFlow: false)
-                .environmentObject(revenueCatManager)
+    }
+
+    private func resumeAfterConsent() {
+        if consentResult == nil {
+            AnalyticsService.shared.trackWorkoutAnalysisConsentResult(.dismissed)
+        }
+        guard resumeAnalysisAfterConsent else { return }
+        resumeAnalysisAfterConsent = false
+        guard revenueCatManager.hasAIAccess else {
+            showSubscriptionPaywall = true
+            return
+        }
+        Task { await analysisViewModel.generateAnalysis() }
+    }
+
+    private func analysisConfidenceView(_ confidence: WorkoutAnalysisConfidence) -> some View {
+        let accent = analysisConfidenceColor(confidence.level)
+        let signalCount = String(
+            format: String(
+                localized: "analysis.confidence.signal_count",
+                defaultValue: "%d of %d key signals available"
+            ),
+            confidence.availableSignals.count,
+            confidence.totalSignalCount
+        )
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isAnalysisConfidenceExpanded.toggle()
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "checkmark.shield.fill")
+                        .font(IRFont.caption.weight(.bold))
+                        .foregroundStyle(accent)
+
+                    Text(String(localized: "analysis.confidence.title", defaultValue: "Analysis confidence"))
+                        .font(IRFont.caption.weight(.semibold))
+                        .foregroundStyle(Color.irTextPrimary)
+
+                    Spacer()
+
+                    Text(confidence.level.localizedName)
+                        .font(IRFont.microLabel.weight(.bold))
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xxs)
+                        .background(accent.opacity(0.12))
+                        .clipShape(Capsule())
+
+                    Image(systemName: "chevron.down")
+                        .font(IRFont.microLabel.weight(.bold))
+                        .foregroundStyle(Color.irTextTertiary)
+                        .rotationEffect(.degrees(isAnalysisConfidenceExpanded ? 180 : 0))
+                }
+
+                Text(signalCount)
+                    .font(IRFont.microLabel)
+                    .foregroundStyle(Color.irTextSecondary)
+
+                if isAnalysisConfidenceExpanded {
+                    if !confidence.missingSignals.isEmpty {
+                        Text(
+                            String(
+                                format: String(
+                                    localized: "analysis.confidence.missing",
+                                    defaultValue: "Missing: %@"
+                                ),
+                                confidence.missingSignals.map(\.localizedName).joined(separator: ", ")
+                            )
+                        )
+                        .font(IRFont.microLabel)
+                        .foregroundStyle(Color.irTextSecondary)
+                    }
+
+                    Text(
+                        String(
+                            localized: "analysis.confidence.explanation",
+                            defaultValue: "This level reflects workout data completeness, not medical certainty."
+                        )
+                    )
+                    .font(IRFont.microLabel)
+                    .foregroundStyle(Color.irTextTertiary)
+                }
+            }
+            .padding(Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(accent.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.sm)
+                    .strokeBorder(accent.opacity(0.2), lineWidth: 0.5)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("analysis-confidence")
+        .onAppear {
+            let signature = "\(workout.id.uuidString):\(confidence.level.rawValue):\(confidence.availableSignals.count)"
+            guard trackedAnalysisConfidence != signature else { return }
+            trackedAnalysisConfidence = signature
+            AnalyticsService.shared.trackAnalysisConfidenceShown(confidence, isIndoor: workout.isIndoor)
+        }
+    }
+
+    private func analysisConfidenceColor(_ level: WorkoutAnalysisConfidenceLevel) -> Color {
+        switch level {
+        case .high:
+            return .irSuccess
+        case .moderate:
+            return .irWarning
+        case .limited:
+            return .irError
         }
     }
 
@@ -1130,6 +1290,7 @@ struct WorkoutDetailView: View {
         .padding(Spacing.md)
         .background(Color.irAccentSoft)
         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+        .accessibilityIdentifier("post-analysis-notification")
     }
 
     // MARK: - Compare With Similar Section

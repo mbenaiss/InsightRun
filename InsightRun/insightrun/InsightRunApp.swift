@@ -13,6 +13,9 @@ struct InsightRunApp: App {
     @State private var themeManager = ThemeManager()
     @StateObject private var revenueCatManager = RevenueCatManager.shared
     @State private var importedFileURL: URL?
+    #if DEBUG
+    @State private var workoutAnalysisUITestScenario: WorkoutAnalysisUITestScenario?
+    #endif
 
     // Unified ModelContainer for all SwiftData models (WorkoutAnalysis + CachedStravaActivity)
     let sharedModelContainer: ModelContainer
@@ -21,6 +24,21 @@ struct InsightRunApp: App {
     private(set) static var shared: ModelContainer?
 
     init() {
+        #if DEBUG
+        if WorkoutAnalysisUITestScenario.isEnabled {
+            do {
+                sharedModelContainer = try WorkoutAnalysisUITestScenario.makeModelContainer()
+                InsightRunApp.shared = sharedModelContainer
+                _workoutAnalysisUITestScenario = State(initialValue: WorkoutAnalysisUITestScenario(
+                    modelContext: sharedModelContainer.mainContext
+                ))
+            } catch {
+                fatalError("Could not create UI test ModelContainer: \(error)")
+            }
+            return
+        }
+        #endif
+
         // Configure analytics (PostHog) - non-blocking, won't crash if PostHog is unavailable
         AnalyticsService.shared.configure()
 
@@ -118,7 +136,7 @@ struct InsightRunApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(importedFileURL: $importedFileURL)
+            rootContent
                 .preferredColorScheme(themeManager.selectedTheme.colorScheme)
                 .environment(themeManager)
                 .environmentObject(revenueCatManager)
@@ -127,6 +145,25 @@ struct InsightRunApp: App {
                 }
         }
         .modelContainer(sharedModelContainer)  // Use unified persistent container
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        #if DEBUG
+        if let scenario = workoutAnalysisUITestScenario {
+            NavigationStack {
+                WorkoutDetailView(
+                    workout: scenario.workout,
+                    analysisViewModel: scenario.analysisViewModel,
+                    initialMetrics: scenario.metrics
+                )
+            }
+        } else {
+            ContentView(importedFileURL: $importedFileURL)
+        }
+        #else
+        ContentView(importedFileURL: $importedFileURL)
+        #endif
     }
 
     private func handleIncomingFile(_ url: URL) {

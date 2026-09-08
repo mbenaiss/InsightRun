@@ -27,8 +27,19 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES">
+      shouldUseLaunchSchemeArgsEnv = "NO">
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E1A001022F100001005ADB01"
+               BuildableName = "insightrunAnalysisTests.xctest"
+               BlueprintName = "insightrunAnalysisTests"
+               ReferencedContainer = "container:insightrun.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
          <TestableReference
             skipped = "NO">
             <BuildableReference
@@ -40,6 +51,12 @@
             </BuildableReference>
          </TestableReference>
       </Testables>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "-DEMO_MODE"
+            isEnabled = "YES">
+         </CommandLineArgument>
+      </CommandLineArguments>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

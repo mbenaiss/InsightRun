@@ -16,6 +16,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		E1A0010A2F100001005ADB01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BE013B502E9E7D83003FB282 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BE013B572E9E7D83003FB282;
+			remoteInfo = insightrun;
+		};
 		91C065EE4BA73F30045DE4F7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BE013B502E9E7D83003FB282 /* Project object */;
@@ -47,6 +54,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E1A001012F100001005ADB01 /* insightrunAnalysisTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = insightrunAnalysisTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		204019094FE9CDA25C72CE3E /* insightrunUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = insightrunUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE013B582E9E7D83003FB282 /* insightrun.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = insightrun.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE65974E2EB222C100565DAC /* insightrun.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = insightrun.storekit; path = insightrun/insightrun.storekit; sourceTree = "<group>"; };
@@ -72,6 +80,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		E1A001092F100001005ADB01 /* insightrunAnalysisTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = insightrunAnalysisTests;
+			sourceTree = "<group>";
+		};
 		BE013B5A2E9E7D83003FB282 /* insightrun */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -96,6 +109,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		E1A001042F100001005ADB01 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		15C3202E39B6569FCB1720D8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -131,6 +151,7 @@
 				BE013B5A2E9E7D83003FB282 /* insightrun */,
 				C1A001092EFF000100565DAC /* InsightRunWidgets */,
 				D1A001042F100004005ADB01 /* insightrunUITests */,
+				E1A001092F100001005ADB01 /* insightrunAnalysisTests */,
 				BE013B592E9E7D83003FB282 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -141,6 +162,7 @@
 				BE013B582E9E7D83003FB282 /* insightrun.app */,
 				C1A001012EFF000100565DAC /* InsightRunWidgets.appex */,
 				204019094FE9CDA25C72CE3E /* insightrunUITests.xctest */,
+				E1A001012F100001005ADB01 /* insightrunAnalysisTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -148,6 +170,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		E1A001022F100001005ADB01 /* insightrunAnalysisTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E1A001062F100001005ADB01 /* Build configuration list for PBXNativeTarget "insightrunAnalysisTests" */;
+			buildPhases = (
+				E1A001032F100001005ADB01 /* Sources */,
+				E1A001042F100001005ADB01 /* Frameworks */,
+				E1A001052F100001005ADB01 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E1A0010B2F100001005ADB01 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E1A001092F100001005ADB01 /* insightrunAnalysisTests */,
+			);
+			name = insightrunAnalysisTests;
+			productName = insightrunAnalysisTests;
+			productReference = E1A001012F100001005ADB01 /* insightrunAnalysisTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		BE013B572E9E7D83003FB282 /* insightrun */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BE013B632E9E7D84003FB282 /* Build configuration list for PBXNativeTarget "insightrun" */;
@@ -227,6 +270,10 @@
 				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					E1A001022F100001005ADB01 = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = BE013B572E9E7D83003FB282;
+					};
 					BE013B572E9E7D83003FB282 = {
 						CreatedOnToolsVersion = 26.1;
 					};
@@ -262,11 +309,19 @@
 				BE013B572E9E7D83003FB282 /* insightrun */,
 				C1A001022EFF000100565DAC /* InsightRunWidgets */,
 				EA798A214F5AA1D6F0C4ACAA /* insightrunUITests */,
+				E1A001022F100001005ADB01 /* insightrunAnalysisTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E1A001052F100001005ADB01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0A0CE1659991856B05B63973 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -292,6 +347,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		E1A001032F100001005ADB01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7221E99F31EEECE0854BBFE9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -316,6 +378,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		E1A0010B2F100001005ADB01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BE013B572E9E7D83003FB282 /* insightrun */;
+			targetProxy = E1A0010A2F100001005ADB01 /* PBXContainerItemProxy */;
+		};
 		AD5E4B22FD0EF38948A94C54 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = insightrun;
@@ -330,6 +397,69 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		E1A001072F100001005ADB01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 320;
+				DEVELOPMENT_TEAM = PCTXJ3892R;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.analysisTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/insightrun.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/insightrun";
+			};
+			name = Debug;
+		};
+		E1A001082F100001005ADB01 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 320;
+				DEVELOPMENT_TEAM = PCTXJ3892R;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.analysisTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/insightrun.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/insightrun";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		2DAA3DFC7119E49EA93A6D91 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -339,7 +469,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -366,7 +496,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -534,7 +664,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -578,7 +708,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -615,7 +745,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -650,7 +780,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -669,6 +799,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E1A001062F100001005ADB01 /* Build configuration list for PBXNativeTarget "insightrunAnalysisTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1A001072F100001005ADB01 /* Debug */,
+				E1A001082F100001005ADB01 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		94C4BC79716039212F595EB7 /* Build configuration list for PBXNativeTarget "insightrunUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

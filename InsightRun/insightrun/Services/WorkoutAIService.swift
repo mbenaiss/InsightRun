@@ -123,7 +123,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         return Locale(identifier: languageCode)
     }
 
-    func askQuestion(question: String, mode: AIAssistantMode, language: String? = nil) async {
+    func askQuestion(question: String, mode: AIAssistantMode, language: String? = nil, requiresCompleteResponse: Bool = false) async {
         // Check AI consent (Apple 5.1.1 compliance)
         guard await MainActor.run(body: { ConsentService.shared.hasConsentedToAIDataSharing }) else {
             await MainActor.run {
@@ -159,12 +159,12 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         print("🎯 WorkoutAIService: Using requestType: \(requestType.rawValue) → Backend will select appropriate model")
 
         // Backend builds the full prompt from structured data and selects the model
-        await handleRemoteModelInference(question: question, requestType: requestType, mode: mode, language: language)
+        await handleRemoteModelInference(question: question, requestType: requestType, mode: mode, language: language, requiresCompleteResponse: requiresCompleteResponse)
     }
 
     // MARK: - Remote Model Inference
 
-    private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode, language: String? = nil) async {
+    private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode, language: String? = nil, requiresCompleteResponse: Bool = false) async {
         do {
             let payload = await buildAgentPayload(question: question, mode: mode, languageOverride: language)
             let stream = try await backendClient.agentChatStream(payload: payload)
@@ -186,7 +186,9 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 if !self.streamedResponse.isEmpty || self.lastFunctionResult != nil {
                     self.lastResponse = self.streamedResponse
                     self.generateContextualSuggestions()
-                    RevenueCatManager.shared.incrementFreeRequestCount()
+                    if !requiresCompleteResponse || AIResponseValidator.isComplete(self.streamedResponse) {
+                        RevenueCatManager.shared.incrementFreeRequestCount()
+                    }
                 }
             }
 

@@ -242,6 +242,45 @@ struct WorkoutInterval: Identifiable {
 }
 
 extension WorkoutMetrics {
+    var analysisConfidence: WorkoutAnalysisConfidence {
+        var applicableSignals: [WorkoutAnalysisSignal] = [
+            .pace,
+            .heartRate,
+            .splits,
+            .effort,
+            .runningForm
+        ]
+
+        if !workout.isIndoor {
+            applicableSignals.append(contentsOf: [.elevation, .route])
+        }
+
+        let availableSignals = applicableSignals.filter { signal in
+            switch signal {
+            case .pace:
+                return workout.distance.map { $0 > 0 } == true && (averagePace != nil || workout.averagePace != nil)
+            case .heartRate:
+                return averageHeartRate != nil || maxHeartRate != nil || workout.averageHeartRate != nil
+            case .splits:
+                return splits?.isEmpty == false
+            case .effort:
+                return workout.effortScore != nil
+            case .runningForm:
+                return averageCadence != nil || strideLength != nil || runningPower != nil ||
+                    groundContactTime != nil || verticalOscillation != nil
+            case .elevation:
+                return totalElevationAscent != nil || workout.elevationGain != nil
+            case .route:
+                return routePoints?.isEmpty == false || workout.hasRoute
+            }
+        }
+
+        return WorkoutAnalysisConfidence(
+            availableSignals: availableSignals,
+            missingSignals: applicableSignals.filter { !availableSignals.contains($0) }
+        )
+    }
+
     var bestSplit: Split? {
         splits?.min(by: { $0.pace < $1.pace })
     }
@@ -268,5 +307,75 @@ extension WorkoutMetrics {
         let totalTime = workout.duration
         guard totalTime > 0 else { return nil }
         return (movingTime / totalTime) * 100.0
+    }
+}
+
+enum WorkoutAnalysisSignal: String, CaseIterable {
+    case pace
+    case heartRate = "heart_rate"
+    case splits
+    case effort
+    case runningForm = "running_form"
+    case elevation
+    case route
+
+    var localizedName: String {
+        switch self {
+        case .pace:
+            return String(localized: "analysis.signal.pace", defaultValue: "Pace")
+        case .heartRate:
+            return String(localized: "analysis.signal.heart_rate", defaultValue: "Heart rate")
+        case .splits:
+            return String(localized: "analysis.signal.splits", defaultValue: "Splits")
+        case .effort:
+            return String(localized: "analysis.signal.effort", defaultValue: "Effort")
+        case .runningForm:
+            return String(localized: "analysis.signal.running_form", defaultValue: "Running form")
+        case .elevation:
+            return String(localized: "analysis.signal.elevation", defaultValue: "Elevation")
+        case .route:
+            return String(localized: "analysis.signal.route", defaultValue: "Route")
+        }
+    }
+}
+
+enum WorkoutAnalysisConfidenceLevel: String {
+    case high
+    case moderate
+    case limited
+
+    var localizedName: String {
+        switch self {
+        case .high:
+            return String(localized: "analysis.confidence.high", defaultValue: "High")
+        case .moderate:
+            return String(localized: "analysis.confidence.moderate", defaultValue: "Moderate")
+        case .limited:
+            return String(localized: "analysis.confidence.limited", defaultValue: "Limited")
+        }
+    }
+}
+
+struct WorkoutAnalysisConfidence {
+    let availableSignals: [WorkoutAnalysisSignal]
+    let missingSignals: [WorkoutAnalysisSignal]
+
+    var totalSignalCount: Int {
+        availableSignals.count + missingSignals.count
+    }
+
+    var coverage: Double {
+        guard totalSignalCount > 0 else { return 0 }
+        return Double(availableSignals.count) / Double(totalSignalCount)
+    }
+
+    var level: WorkoutAnalysisConfidenceLevel {
+        if coverage >= 0.7 {
+            return .high
+        }
+        if coverage >= 0.4 {
+            return .moderate
+        }
+        return .limited
     }
 }

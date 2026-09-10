@@ -50,6 +50,16 @@
                ReferencedContainer = "container:insightrun.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "774B3A0ED43997506659CEB4"
+               BuildableName = "insightrunTests.xctest"
+               BlueprintName = "insightrunTests"
+               ReferencedContainer = "container:insightrun.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
          <CommandLineArgument

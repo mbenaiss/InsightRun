@@ -24,6 +24,7 @@ xcuserdata/
 secrets/
 
 # Build artifacts
+/artifacts/
 dist/
 build/
 *.log

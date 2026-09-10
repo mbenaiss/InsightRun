@@ -12,7 +12,18 @@ class BackendAPIClient {
     static let shared = BackendAPIClient()
 
     // Backend API endpoint
-    private let baseURL = "https://api.insightrun.altcode.studio"
+    private var baseURL: String {
+        #if DEBUG
+        if let value = ProcessInfo.processInfo.environment["INSIGHTRUN_BACKEND_URL"],
+            let url = URL(string: value),
+            let scheme = url.scheme, ["http", "https"].contains(scheme),
+            let host = url.host, ["localhost", "127.0.0.1", "::1"].contains(host)
+        {
+            return value
+        }
+        #endif
+        return "https://api.insightrun.altcode.studio"
+    }
 
     // App identifier key
     // Note: This is safe to hardcode as it's just an app identifier (like a User-Agent).

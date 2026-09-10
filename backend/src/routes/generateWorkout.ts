@@ -39,6 +39,7 @@ interface WorkoutStep {
   targetPaceMin?: string // "4:30" format (for ranges)
   targetPaceMax?: string // "4:45" format (for ranges)
   targetHeartRateZone?: number // 1-5
+  targetHeartRateMax?: number // beats per minute
   repetitions?: number
   instructions?: string
 }
@@ -66,7 +67,7 @@ const PACE_REGEX = /^\d+:[0-5]\d$/
 // Returns the cleaned "M:SS" string, or null when the value is not a valid pace.
 function validatePaceFormat(pace: string): string | null {
   const cleaned = pace.trim().replace(/\s*\/(km|mi)\s*$/i, '')
-  return PACE_REGEX.test(cleaned) ? cleaned : null
+  return PACE_REGEX.test(cleaned) && (paceToSeconds(cleaned) ?? 0) > 0 ? cleaned : null
 }
 
 function buildWorkoutGenerationPrompt(
@@ -98,7 +99,8 @@ CRITICAL RULES:
 - Respect the user's request exactly: simple continuous run = ONE step only.
 - Only add warm-up/cool-down for high-intensity workouts (intervals, speed work, tempo).
 - If the user specifies exact pace values, use those EXACT values. Never modify user-specified paces, distances, or durations.
-- If no pace is specified, suggest paces based on user's fitness level.
+- For a new workout with no specified targets, suggest paces based on the user's fitness level. For an existing structured workout, preserve its targets and do not invent missing ones.
+- Derive the name from the actual steps. Any duration, distance, or repetition count in the name MUST match those steps; correct a conflicting title in the source text.
 - Max 50 steps. Distances in meters, durations in seconds.
 
 PHASE PARSING:
@@ -106,11 +108,15 @@ If the user provides a pre-formatted workout with phases, parse it exactly:
 - Map phase names to types: warmup/warm-up → "warmup", tempo/seuil/threshold → "work", intervals/répétitions → "interval", recovery/récupération → "recovery", cooldown/retour au calme → "cooldown", endurance/easy → "work"
 - Convert: "10 min" → 600 seconds, "5 km" → 5000 meters
 - Keep phases in the exact order provided.
+- Explicit "Ouvert", "temps libre", "open", or "free time" means goal { "type": "open", "value": 0 }, even when an approximate distance or duration is also mentioned. Keep that guidance in instructions, never turn it into a fixed goal.
+- "The rest until 5 km" / "le reste jusqu'à boucler les 5 km" is an open step with that instruction and totalDistance: 5000. Never invent a fixed cooldown distance by subtracting estimates for time-based or open steps.
+- Preserve practical instructions (e.g. jog, do not walk) on the relevant step.
 
 REPETITIONS RULE (CRITICAL — never multiply distances):
 - For "N × distance" workouts (e.g. "6×800m récup 400m"), generate ONE "interval"/"work" step with the unit value (800m) and "repetitions": N. NEVER output a single step with the multiplied distance (4800m is wrong).
 - The "recovery" step that immediately follows is implicitly repeated the same number of times — do NOT duplicate it, do NOT set "repetitions" on the recovery step.
 - Omit "repetitions" (or set to 1) for non-repeated steps.
+- Apply the same rule to time intervals: "6 × 0:30, recovery 1:00" means a 30-second work step with repetitions: 6 followed by a 60-second recovery step.
 - Example "6×800m at 3:30/km récup 400m at 5:30/km":
   { "type": "interval", "goal": { "type": "distance", "value": 800 }, "repetitions": 6, "targetPace": "3:30" },
   { "type": "recovery", "goal": { "type": "distance", "value": 400 }, "targetPace": "5:30" }
@@ -120,6 +126,12 @@ PACE RULES:
 - Pace range (e.g., "6:00-6:30/km") → use "targetPaceMin": "6:00", "targetPaceMax": "6:30"
 - Never mix targetPace and targetPaceMin/Max in the same step.
 - Pace values MUST be exactly "M:SS" (minutes:seconds, seconds 00-59). No "/km" suffix, no apostrophes ("4'30"), no decimals ("4.5").
+
+HEART RATE AND NO-TARGET RULES:
+- A maximum heart rate in bpm (e.g. "FC < 150", "below 150 bpm") → targetHeartRateMax: 150. Never approximate an explicit bpm limit with a heart rate zone or a pace.
+- Use targetHeartRateZone only for explicitly requested zones (integer 1-5).
+- "Objectif Aucun" / "no target" means omit all pace and heart rate fields. If an optional alternative follows (e.g. "Aucun (ou FC < 150)"), keep it in instructions without adding an alert.
+- WorkoutKit supports one alert per step. Preserve the explicit target; do not invent a competing pace target for a heart-rate-based step.
 
 OUTPUT FORMAT:
 {
@@ -169,12 +181,25 @@ function validateWorkoutJSON(data: unknown): data is AIGeneratedWorkout {
 
   // Validate each step
   for (const step of workout.steps) {
+    if (typeof step !== 'object' || step === null) return false
     if (!['warmup', 'work', 'recovery', 'cooldown', 'interval'].includes(step.type)) return false
     if (!step.goal || !step.goal.type || !['distance', 'duration', 'open'].includes(step.goal.type))
       return false
-    if (step.goal.type !== 'open' && (typeof step.goal.value !== 'number' || step.goal.value <= 0))
+    if (step.goal.type !== 'open' && (!Number.isFinite(step.goal.value) || step.goal.value <= 0))
       return false
-    if (step.targetHeartRateZone && (step.targetHeartRateZone < 1 || step.targetHeartRateZone > 5))
+    if (
+      step.targetHeartRateZone != null &&
+      (!Number.isInteger(step.targetHeartRateZone) ||
+        step.targetHeartRateZone < 1 ||
+        step.targetHeartRateZone > 5)
+    )
+      return false
+    if (
+      step.targetHeartRateMax != null &&
+      (!Number.isInteger(step.targetHeartRateMax) ||
+        step.targetHeartRateMax < 2 ||
+        step.targetHeartRateMax > 300)
+    )
       return false
     if (
       step.repetitions !== undefined &&
@@ -195,6 +220,8 @@ function validateWorkoutJSON(data: unknown): data is AIGeneratedWorkout {
         step[key] = cleaned
       }
     }
+    if ((step.targetPaceMin != null) !== (step.targetPaceMax != null)) return false
+    if (step.targetPace != null && step.targetPaceMin != null) return false
   }
 
   return true
@@ -204,10 +231,32 @@ function validateWorkoutJSON(data: unknown): data is AIGeneratedWorkout {
 // a value would crash the strict decoder. Fill 0 so the response is always decodable.
 function fillWorkoutDefaults(workout: AIGeneratedWorkout): void {
   for (const step of workout.steps) {
-    if (step.goal.type === 'open' && typeof step.goal.value !== 'number') {
+    if (step.goal.type === 'open') {
       step.goal.value = 0
     }
   }
+}
+
+function workoutRequestMismatch(workout: AIGeneratedWorkout, userQuestion: string): string | null {
+  const recoveries = workout.steps.filter((step) => step.type === 'recovery')
+  if (recoveries.length !== 1) return null
+  const request = userQuestion.replace(/\*/g, '').replace(/\s+/g, ' ')
+  const recoveryWithoutTarget =
+    /(?:r[eé]cup(?:[eé]ration)?|recovery)(?:(?!\b(?:bloc|block|[eé]tape|step)\b).){0,240}?(?:objectif\s*:?\s*aucun|sans\s+objectif|no\s+(?:target|goal))/iu
+  const recovery = recoveries[0]
+  if (
+    recoveryWithoutTarget.test(request) &&
+    [
+      recovery.targetPace,
+      recovery.targetPaceMin,
+      recovery.targetPaceMax,
+      recovery.targetHeartRateZone,
+      recovery.targetHeartRateMax,
+    ].some((target) => target != null)
+  ) {
+    return 'The recovery explicitly requests NO TARGET. Remove ALL targetPace, targetPaceMin, targetPaceMax, targetHeartRateZone and targetHeartRateMax fields from recovery. Any optional heart rate alternative belongs ONLY in instructions.'
+  }
+  return null
 }
 
 function paceToSeconds(pace: string): number | null {
@@ -367,6 +416,13 @@ app.post('/', async (c) => {
         if (validateWorkoutJSON(parsedData)) {
           fillWorkoutDefaults(parsedData)
           normalizeWorkoutPaces(parsedData)
+          const mismatch = workoutRequestMismatch(parsedData, body.userQuestion)
+          if (mismatch) {
+            retryFeedback = mismatch
+            if (attempts >= maxAttempts)
+              throw new Error('Generated workout did not preserve requested targets')
+            continue
+          }
           workoutJSON = parsedData
           console.log(
             `✅ Valid workout generated: "${workoutJSON.name}" with ${workoutJSON.steps.length} steps`
@@ -374,7 +430,7 @@ app.post('/', async (c) => {
         } else {
           console.warn(`⚠️ Invalid workout structure on attempt ${attempts}`)
           retryFeedback =
-            'the JSON did not match the schema. Every step needs a valid "type" and "goal" {type, value}; every pace must be exact "M:SS" format (e.g. "5:30", no "/km", no apostrophes, no decimals).'
+            'the JSON did not match the schema. Every step needs a valid "type" and "goal" {type, value}; use a positive pace in "M:SS" format and either targetPace or BOTH targetPaceMin/Max. Heart rate zones must be integers 1-5 and targetHeartRateMax an integer 2-300 bpm.'
           if (attempts >= maxAttempts) {
             throw new Error('Generated workout failed validation')
           }

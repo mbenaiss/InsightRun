@@ -21,6 +21,7 @@ class WorkoutPlanViewModel: ObservableObject {
     @Published var error: String?
     @Published var showSuccessAlert = false
     @Published var showPreview = false
+    @Published var exportDestination: WorkoutExportDestination = .outdoor
 
     private let backendClient = BackendAPIClient.shared
     private let workoutKitManager = WorkoutKitManager.shared
@@ -105,7 +106,7 @@ class WorkoutPlanViewModel: ObservableObject {
             )
 
             // Convert backend response to AIGeneratedWorkout
-            let workout = convertToAIWorkout(response.workout)
+            let workout = AIGeneratedWorkout(from: response.workout)
 
             // Validate backend values vs calculated values
             validateWorkoutCalculations(workout)
@@ -153,7 +154,7 @@ class WorkoutPlanViewModel: ObservableObject {
         guard !exportCooldown else { return }
 
         do {
-            try await workoutKitManager.exportToFitnessApp(workout)
+            try await workoutKitManager.exportToFitnessApp(workout, destination: exportDestination)
 
             // Success — reset failure counter
             consecutiveExportFailures = 0
@@ -270,67 +271,6 @@ class WorkoutPlanViewModel: ObservableObject {
     private func calculateDaysSinceLastWorkout(workouts: [WorkoutModel]) -> Int? {
         guard let lastWorkout = workouts.first else { return nil }
         return Calendar.current.dateComponents([.day], from: lastWorkout.startDate, to: Date()).day
-    }
-
-    private func convertToAIWorkout(_ workoutData: WorkoutGenerationResponse.GeneratedWorkoutData) -> AIGeneratedWorkout {
-        let sport: AIGeneratedWorkout.WorkoutSportType
-        switch workoutData.sport.lowercased() {
-        case "running":
-            sport = .running
-        case "cycling":
-            sport = .cycling
-        case "swimming":
-            sport = .swimming
-        default:
-            sport = .running
-        }
-
-        let steps = workoutData.steps.map { stepData -> WorkoutStep in
-            let goalType: WorkoutGoal.GoalType
-            switch stepData.goal.type.lowercased() {
-            case "distance":
-                goalType = .distance
-            case "duration":
-                goalType = .duration
-            default:
-                goalType = .open
-            }
-
-            let stepType: WorkoutStep.StepType
-            switch stepData.type.lowercased() {
-            case "warmup":
-                stepType = .warmup
-            case "work":
-                stepType = .work
-            case "recovery":
-                stepType = .recovery
-            case "cooldown":
-                stepType = .cooldown
-            case "interval":
-                stepType = .interval
-            default:
-                stepType = .work
-            }
-
-            return WorkoutStep(
-                type: stepType,
-                goal: WorkoutGoal(type: goalType, value: stepData.goal.value),
-                targetPace: stepData.targetPace,
-                targetPaceMin: stepData.targetPaceMin,
-                targetPaceMax: stepData.targetPaceMax,
-                targetHeartRateZone: stepData.targetHeartRateZone,
-                instructions: stepData.instructions
-            )
-        }
-
-        return AIGeneratedWorkout(
-            name: workoutData.name,
-            description: workoutData.description,
-            sport: sport,
-            steps: steps,
-            totalDistance: workoutData.totalDistance,
-            estimatedDuration: workoutData.estimatedDuration
-        )
     }
 
     private func validateWorkoutCalculations(_ workout: AIGeneratedWorkout) {
@@ -594,6 +534,7 @@ struct WorkoutPlanView: View {
 
     // Subscription state
     @State private var showSubscriptionPaywall = false
+    @State private var showExportDestination = false
 
     // Edit mode state
     @State private var isEditing: Bool = false
@@ -701,6 +642,10 @@ struct WorkoutPlanView: View {
             }
             .sheet(isPresented: $viewModel.showSuccessAlert) {
                 WorkoutExportSuccessView()
+            }
+            .workoutExportDestinationDialog(isPresented: $showExportDestination) { destination in
+                viewModel.exportDestination = destination
+                Task { await viewModel.exportToFitness() }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 guard viewModel.exportAuthDenied else { return }
@@ -1006,6 +951,7 @@ struct WorkoutPlanView: View {
                 axis: .vertical
             )
             .focused($isTextFieldFocused)
+            .accessibilityIdentifier("workout-prompt")
             .lineLimit(3...6)
             .submitLabel(.done)
             .onSubmit { isTextFieldFocused = false }
@@ -1049,6 +995,7 @@ struct WorkoutPlanView: View {
                             radius: 12, y: 4)
                 }
                 .disabled(viewModel.promptText.isEmpty || viewModel.isGenerating)
+                .accessibilityIdentifier("generate-workout")
             }
             .padding(Spacing.md)
         }
@@ -1192,6 +1139,7 @@ struct WorkoutPlanView: View {
                         .clipShape(RoundedRectangle(cornerRadius: Radius.xs))
                 } else {
                     Text(workout.name)
+                        .accessibilityIdentifier("generated-workout-name")
                         .font(IRFont.title3)
                         .fontWeight(.bold)
                         .multilineTextAlignment(.center)
@@ -1237,7 +1185,7 @@ struct WorkoutPlanView: View {
                             isEditing: isEditing,
                             onPaceChanged: { newPace in
                                 if isEditing {
-                                    editedSteps[index].targetPace = newPace
+                                    editedSteps[index].setTargetPace(newPace)
                                 }
                             },
                             onDurationChanged: { newValue in
@@ -1246,6 +1194,7 @@ struct WorkoutPlanView: View {
                                 }
                             }
                         )
+                        .accessibilityIdentifier("workout-step-\(index + 1)")
                     }
 
                     // Error Display
@@ -1255,8 +1204,10 @@ struct WorkoutPlanView: View {
 
                     // Export Button
                     Button(action: {
-                        Task {
-                            await viewModel.exportToFitness()
+                        if workout.sport == .running {
+                            showExportDestination = true
+                        } else {
+                            Task { await viewModel.exportToFitness() }
                         }
                     }) {
                         HStack {
@@ -1278,6 +1229,7 @@ struct WorkoutPlanView: View {
                         .shadow(color: Color.irPrimaryAccent.opacity(0.4), radius: 8, y: 4)
                     }
                     .disabled(WorkoutKitManager.shared.isExporting || isEditing || viewModel.exportCooldown || viewModel.consecutiveExportFailures >= 3 || viewModel.exportAuthDenied)
+                    .accessibilityIdentifier("export-workout")
                     .opacity(viewModel.exportAuthDenied ? 0.5 : 1.0)
                     .padding(.top, Spacing.sm)
                 }
@@ -1548,7 +1500,7 @@ struct EditableWorkoutStepRow: View {
         _editedDuration = State(initialValue: Self.formatGoalValue(step.goal))
 
         // Initialize pace picker values
-        if let pace = step.targetPace {
+        if let pace = step.targetPace ?? step.targetPaceMin {
             let components = pace.split(separator: ":")
             if components.count == 2,
                let min = Int(components[0]),
@@ -1581,6 +1533,12 @@ struct EditableWorkoutStepRow: View {
                 Text(step.displayName)
                     .font(IRFont.body)
                     .fontWeight(.semibold)
+
+                if let repetitions = step.repetitions, repetitions > 1 {
+                    Text("× \(repetitions)")
+                        .font(IRFont.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
 
                 Spacer()
 
@@ -1657,7 +1615,16 @@ struct EditableWorkoutStepRow: View {
                 }
 
                 // Heart Rate Zone (read-only)
-                if let hrZone = step.targetHeartRateZone {
+                if let heartRateMax = step.targetHeartRateMax {
+                    HStack(spacing: Spacing.xxs) {
+                        Image(systemName: "heart.fill")
+                            .font(IRFont.body)
+                            .foregroundStyle(Color.irTextSecondary)
+                        Text("≤ \(heartRateMax) bpm")
+                            .font(IRFont.body)
+                            .foregroundStyle(Color.irTextSecondary)
+                    }
+                } else if let hrZone = step.targetHeartRateZone {
                     HStack(spacing: Spacing.xxs) {
                         Image(systemName: "heart.fill")
                             .font(IRFont.body)
@@ -1735,7 +1702,7 @@ struct EditableWorkoutStepRow: View {
             }
             return "\(Int(goal.value))\(String(localized: "s", comment: "Seconds unit abbreviation"))"
         case .open:
-            return String(localized: "Open", comment: "Open goal type")
+            return String(localized: "workout.goal.open", defaultValue: "Open", comment: "Workout goal without a fixed distance or duration")
         }
     }
 
@@ -1944,6 +1911,7 @@ struct WorkoutExportSuccessView: View {
                         .font(IRFont.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(Color.irTextPrimary)
+                        .accessibilityIdentifier("workout-export-success")
 
                     Text(String(localized: "Your workout has been exported successfully. Open the Fitness app to see it.", comment: "Success message after workout export"))
                         .font(IRFont.body)

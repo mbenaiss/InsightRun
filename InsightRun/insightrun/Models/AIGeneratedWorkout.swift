@@ -8,6 +8,26 @@
 import Foundation
 import HealthKit
 
+enum WorkoutExportDestination: String, CaseIterable, Identifiable {
+    case outdoor
+    case treadmill
+
+    var id: String { rawValue }
+
+    var locationType: HKWorkoutSessionLocationType {
+        self == .treadmill ? .indoor : .outdoor
+    }
+
+    var displayName: String {
+        switch self {
+        case .outdoor:
+            return String(localized: "workout.export.outdoor", defaultValue: "Outdoor run", comment: "Outdoor running export destination")
+        case .treadmill:
+            return String(localized: "workout.export.treadmill", defaultValue: "Treadmill run", comment: "Indoor running export destination")
+        }
+    }
+}
+
 // MARK: - WorkoutGoal
 
 struct WorkoutGoal: Codable, Equatable {
@@ -57,6 +77,7 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
     var targetPaceMin: String? // Format: "4:30" per km (for range minimum)
     var targetPaceMax: String? // Format: "4:45" per km (for range maximum)
     var targetHeartRateZone: Int? // 1-5
+    var targetHeartRateMax: Int?
     /// Set on a work/interval step. The trailing recovery step is implicitly repeated the same number of times.
     var repetitions: Int?
     var instructions: String?
@@ -69,7 +90,18 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         case interval
     }
 
-    init(id: UUID = UUID(), type: StepType, goal: WorkoutGoal, targetPace: String? = nil, targetPaceMin: String? = nil, targetPaceMax: String? = nil, targetHeartRateZone: Int? = nil, repetitions: Int? = nil, instructions: String? = nil) {
+    init(
+        id: UUID = UUID(),
+        type: StepType,
+        goal: WorkoutGoal,
+        targetPace: String? = nil,
+        targetPaceMin: String? = nil,
+        targetPaceMax: String? = nil,
+        targetHeartRateZone: Int? = nil,
+        targetHeartRateMax: Int? = nil,
+        repetitions: Int? = nil,
+        instructions: String? = nil
+    ) {
         self.id = id
         self.type = type
         self.goal = goal
@@ -77,6 +109,7 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         self.targetPaceMin = targetPaceMin
         self.targetPaceMax = targetPaceMax
         self.targetHeartRateZone = targetHeartRateZone
+        self.targetHeartRateMax = targetHeartRateMax
         self.repetitions = repetitions
         self.instructions = instructions
     }
@@ -89,7 +122,21 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
             guard (1...5).contains(hrZone) else { return false }
         }
 
+        if let heartRateMax = targetHeartRateMax {
+            guard (2...300).contains(heartRateMax) else { return false }
+        }
+
         return true
+    }
+
+    mutating func setTargetPace(_ pace: String?) {
+        targetPace = pace
+        targetPaceMin = nil
+        targetPaceMax = nil
+        if pace != nil {
+            targetHeartRateMax = nil
+            targetHeartRateZone = nil
+        }
     }
 
     // Display color for UI
@@ -241,6 +288,32 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
         self.createdDate = createdDate
     }
 
+    init(from data: WorkoutGenerationResponse.GeneratedWorkoutData) {
+        self.init(
+            name: data.name,
+            description: data.description,
+            sport: WorkoutSportType(rawValue: data.sport.lowercased()) ?? .running,
+            steps: data.steps.map { step in
+                WorkoutStep(
+                    type: WorkoutStep.StepType(rawValue: step.type.lowercased()) ?? .work,
+                    goal: WorkoutGoal(
+                        type: WorkoutGoal.GoalType(rawValue: step.goal.type.lowercased()) ?? .open,
+                        value: step.goal.value
+                    ),
+                    targetPace: step.targetPace,
+                    targetPaceMin: step.targetPaceMin,
+                    targetPaceMax: step.targetPaceMax,
+                    targetHeartRateZone: step.targetHeartRateZone,
+                    targetHeartRateMax: step.targetHeartRateMax,
+                    repetitions: step.repetitions,
+                    instructions: step.instructions
+                )
+            },
+            totalDistance: data.totalDistance,
+            estimatedDuration: data.estimatedDuration
+        )
+    }
+
     // Validation
     var isValid: Bool {
         guard !name.isEmpty else { return false }
@@ -289,7 +362,10 @@ struct AIGeneratedWorkout: Codable, Identifiable, Equatable {
     }
 
     var calculatedEstimatedDuration: TimeInterval {
-        walkSteps(singleStepEstimatedDuration)
+        if steps.contains(where: { $0.goal.type == .open }) {
+            return estimatedDuration ?? 0
+        }
+        return walkSteps(singleStepEstimatedDuration)
     }
 
     // Repeated work + trailing recovery are both counted reps times (mirrors WorkoutKit grouping).

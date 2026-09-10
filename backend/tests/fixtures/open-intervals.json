@@ -1,0 +1,31 @@
+{
+  "name": "Accélérations de 30 s",
+  "description": "6 accélérations de 30 s avec 1 min de récupération, pour 5 km au total.",
+  "sport": "running",
+  "steps": [
+    {
+      "type": "warmup",
+      "goal": { "type": "open", "value": 0 },
+      "targetHeartRateMax": 150,
+      "instructions": "Environ 1,5–2 km en trottinant, très facile."
+    },
+    {
+      "type": "interval",
+      "goal": { "type": "duration", "value": 30 },
+      "repetitions": 6,
+      "targetPaceMin": "4:39",
+      "targetPaceMax": "4:48"
+    },
+    {
+      "type": "recovery",
+      "goal": { "type": "duration", "value": 60 },
+      "instructions": "Trot, pas marche. Aucun objectif (ou FC < 150)."
+    },
+    {
+      "type": "cooldown",
+      "goal": { "type": "open", "value": 0 },
+      "instructions": "Allure facile jusqu’à boucler les 5 km."
+    }
+  ],
+  "totalDistance": 5000
+}

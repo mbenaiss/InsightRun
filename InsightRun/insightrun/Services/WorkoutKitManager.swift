@@ -50,7 +50,7 @@ class WorkoutKitManager: ObservableObject {
     // MARK: - Create Custom Workout
 
     /// Convert AIGeneratedWorkout to WorkoutKit CustomWorkout
-    func createCustomWorkout(from aiWorkout: AIGeneratedWorkout) throws -> CustomWorkout {
+    func createCustomWorkout(from aiWorkout: AIGeneratedWorkout, destination: WorkoutExportDestination = .outdoor) throws -> CustomWorkout {
         // Validate workout with detailed logging
         print("🔍 WorkoutKitManager: Validating workout '\(aiWorkout.name)'")
         print("   - Name: '\(aiWorkout.name)' (isEmpty: \(aiWorkout.name.isEmpty))")
@@ -121,7 +121,7 @@ class WorkoutKitManager: ObservableObject {
         // Create custom workout with proper warmup and cooldown
         let customWorkout = CustomWorkout(
             activity: activityType,
-            location: .outdoor,
+            location: aiWorkout.sport == .running ? destination.locationType : .outdoor,
             displayName: aiWorkout.name,
             warmup: warmupWorkoutStep,
             blocks: blocks,
@@ -138,60 +138,32 @@ class WorkoutKitManager: ObservableObject {
 
     /// Convert WorkoutStep to WorkoutKit WorkoutStep (for warmup/cooldown)
     private func convertToWorkoutStep(_ step: WorkoutStep) throws -> WorkoutKit.WorkoutStep {
-        // Create alert for pace and/or heart rate zone
         let alert = createWorkoutAlert(for: step)
-
-        // Create WorkoutKit WorkoutStep based on goal type
+        let goal: WorkoutKit.WorkoutGoal
         switch step.goal.type {
         case .distance:
-            let meters = step.goal.value
-            let goal = WorkoutKit.WorkoutGoal.distance(meters, UnitLength.meters)
-            return WorkoutKit.WorkoutStep(goal: goal, alert: alert)
-
+            goal = .distance(step.goal.value, .meters)
         case .duration:
-            let seconds = step.goal.value
-            let goal = WorkoutKit.WorkoutGoal.time(seconds, UnitDuration.seconds)
-            return WorkoutKit.WorkoutStep(goal: goal, alert: alert)
-
+            goal = .time(step.goal.value, .seconds)
         case .open:
-            let goal = WorkoutKit.WorkoutGoal.open
-            return WorkoutKit.WorkoutStep(goal: goal, alert: alert)
+            goal = .open
         }
+        return WorkoutKit.WorkoutStep(goal: goal, alert: alert, displayName: step.instructions)
     }
 
     /// Convert WorkoutStep to WorkoutKit IntervalStep
     private func convertToIntervalStep(_ step: WorkoutStep) throws -> IntervalStep {
-        // Determine if this is work or recovery
         let purpose: IntervalStep.Purpose = step.type == .recovery ? .recovery : .work
-
-        // Create alert for pace and/or heart rate zone
-        let alert = createWorkoutAlert(for: step)
-
-        // Create WorkoutKit WorkoutStep based on goal type
-        let workoutKitStep: WorkoutKit.WorkoutStep
-
-        switch step.goal.type {
-        case .distance:
-            let meters = step.goal.value
-            let goal = WorkoutKit.WorkoutGoal.distance(meters, UnitLength.meters)
-            workoutKitStep = WorkoutKit.WorkoutStep(goal: goal, alert: alert)
-
-        case .duration:
-            let seconds = step.goal.value
-            let goal = WorkoutKit.WorkoutGoal.time(seconds, UnitDuration.seconds)
-            workoutKitStep = WorkoutKit.WorkoutStep(goal: goal, alert: alert)
-
-        case .open:
-            let goal = WorkoutKit.WorkoutGoal.open
-            workoutKitStep = WorkoutKit.WorkoutStep(goal: goal, alert: alert)
-        }
-
-        // Create IntervalStep with purpose and workout step
-        return IntervalStep(purpose, step: workoutKitStep)
+        return IntervalStep(purpose, step: try convertToWorkoutStep(step))
     }
 
     /// Create WorkoutAlert from target pace and/or heart rate zone
     private func createWorkoutAlert(for step: WorkoutStep) -> (any WorkoutAlert)? {
+        if let heartRateMax = step.targetHeartRateMax {
+            // WorkoutKit requires a positive lower bound even when only a ceiling is requested.
+            return HeartRateRangeAlert.heartRate(1...Double(heartRateMax))
+        }
+
         // Priority 1: Pace
         // Check if pace range is specified (min/max)
         if let paceMin = step.targetPaceMin, let paceMax = step.targetPaceMax,
@@ -279,7 +251,7 @@ class WorkoutKitManager: ObservableObject {
     // MARK: - Export to Fitness App
 
     /// Export workout to Apple Fitness app
-    func exportToFitnessApp(_ workout: AIGeneratedWorkout) async throws {
+    func exportToFitnessApp(_ workout: AIGeneratedWorkout, destination: WorkoutExportDestination = .outdoor) async throws {
         await MainActor.run {
             isExporting = true
             exportError = nil
@@ -302,7 +274,7 @@ class WorkoutKitManager: ObservableObject {
             print("✅ WorkoutKitManager: WorkoutKit authorization granted")
 
             // Create custom workout
-            let customWorkout = try createCustomWorkout(from: workout)
+            let customWorkout = try createCustomWorkout(from: workout, destination: destination)
 
             // Create workout plan
             let workoutPlan = WorkoutPlan(.custom(customWorkout))

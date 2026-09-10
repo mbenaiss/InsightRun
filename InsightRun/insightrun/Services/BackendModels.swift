@@ -305,11 +305,13 @@ struct WorkoutGenerationResponse: Decodable {
         let targetPaceMin: String? // Minimum pace for range (e.g., "6:52")
         let targetPaceMax: String? // Maximum pace for range (e.g., "7:22")
         let targetHeartRateZone: Int?
+        let targetHeartRateMax: Int?
         let repetitions: Int?
         let instructions: String?
 
         private enum CodingKeys: String, CodingKey {
-            case type, goal, targetPace, targetPaceMin, targetPaceMax, targetHeartRateZone, repetitions, instructions
+            case type, goal, targetPace, targetPaceMin, targetPaceMax
+            case targetHeartRateZone, targetHeartRateMax, repetitions, instructions
         }
 
         init(from decoder: Decoder) throws {
@@ -320,6 +322,7 @@ struct WorkoutGenerationResponse: Decodable {
             self.targetPaceMin = try c.decodeIfPresent(String.self, forKey: .targetPaceMin)
             self.targetPaceMax = try c.decodeIfPresent(String.self, forKey: .targetPaceMax)
             self.targetHeartRateZone = try c.decodeIfPresent(Int.self, forKey: .targetHeartRateZone)
+            self.targetHeartRateMax = try c.decodeIfPresent(Int.self, forKey: .targetHeartRateMax)
             self.repetitions = try c.decodeIfPresent(Int.self, forKey: .repetitions)
             self.instructions = try c.decodeIfPresent(String.self, forKey: .instructions)
         }

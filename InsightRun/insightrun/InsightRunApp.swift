@@ -15,6 +15,7 @@ struct InsightRunApp: App {
     @State private var importedFileURL: URL?
     #if DEBUG
     @State private var workoutAnalysisUITestScenario: WorkoutAnalysisUITestScenario?
+    private static let isWorkoutGenerationUITest = ProcessInfo.processInfo.arguments.contains("-WORKOUT_GENERATION_UI_TEST")
     #endif
 
     // Unified ModelContainer for all SwiftData models (WorkoutAnalysis + CachedStravaActivity)
@@ -25,6 +26,16 @@ struct InsightRunApp: App {
 
     init() {
         #if DEBUG
+        if Self.isWorkoutGenerationUITest {
+            do {
+                sharedModelContainer = try WorkoutAnalysisUITestScenario.makeModelContainer()
+                InsightRunApp.shared = sharedModelContainer
+                RevenueCatManager.shared.debugTestFlightOverride = true
+            } catch {
+                fatalError("Could not create UI test ModelContainer: \(error)")
+            }
+            return
+        }
         if WorkoutAnalysisUITestScenario.isEnabled {
             do {
                 sharedModelContainer = try WorkoutAnalysisUITestScenario.makeModelContainer()
@@ -150,7 +161,9 @@ struct InsightRunApp: App {
     @ViewBuilder
     private var rootContent: some View {
         #if DEBUG
-        if let scenario = workoutAnalysisUITestScenario {
+        if Self.isWorkoutGenerationUITest {
+            WorkoutPlanView()
+        } else if let scenario = workoutAnalysisUITestScenario {
             NavigationStack {
                 WorkoutDetailView(
                     workout: scenario.workout,

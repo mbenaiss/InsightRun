@@ -17,6 +17,8 @@ struct PlannedWorkoutDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isExporting = false
     @State private var showExportSuccess = false
+    @State private var showExportDestination = false
+    @State private var exportDestination: WorkoutExportDestination = .outdoor
     @State private var exportError: String?
     @State private var showSkipConfirmation = false
     @State private var showMoveSheet = false
@@ -64,6 +66,10 @@ struct PlannedWorkoutDetailView: View {
             }
             .sheet(isPresented: $showExportSuccess) {
                 WorkoutExportSuccessView()
+            }
+            .workoutExportDestinationDialog(isPresented: $showExportDestination) { destination in
+                exportDestination = destination
+                Task { await exportToFitness() }
             }
             .alert(
                 String(localized: "goals.workout.exportError", defaultValue: "Export Failed", comment: "Workout export error title"),
@@ -356,7 +362,7 @@ struct PlannedWorkoutDetailView: View {
             }
 
             Button {
-                Task { await exportToFitness() }
+                showExportDestination = true
             } label: {
                 HStack(spacing: Spacing.sm) {
                     if isExporting {
@@ -540,7 +546,7 @@ struct PlannedWorkoutDetailView: View {
         )
 
         do {
-            try await WorkoutKitManager.shared.exportToFitnessApp(aiWorkout)
+            try await WorkoutKitManager.shared.exportToFitnessApp(aiWorkout, destination: exportDestination)
             isExporting = false
             showExportSuccess = true
         } catch {

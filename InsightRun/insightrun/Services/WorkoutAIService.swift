@@ -155,8 +155,15 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         }
 
         // Use ModelRouter to classify complexity and get RequestType
+        let classificationStart = Date()
         let requestType = await ModelRouter.shared.selectRequestType(for: question, mode: mode)
         print("🎯 WorkoutAIService: Using requestType: \(requestType.rawValue) → Backend will select appropriate model")
+        await MainActor.run {
+            AnalyticsService.shared.trackAIChatStep("classified", properties: [
+                "duration_ms": Self.elapsedMs(since: classificationStart),
+                "request_type": requestType.rawValue
+            ])
+        }
 
         // Backend builds the full prompt from structured data and selects the model
         await handleRemoteModelInference(question: question, requestType: requestType, mode: mode, language: language, requiresCompleteResponse: requiresCompleteResponse)
@@ -166,11 +173,32 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
     private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode, language: String? = nil, requiresCompleteResponse: Bool = false) async {
         do {
+            let payloadStart = Date()
             let payload = await buildAgentPayload(question: question, mode: mode, languageOverride: language)
+            let payloadBytes = (try? JSONEncoder().encode(payload))?.count ?? -1
+            await MainActor.run {
+                AnalyticsService.shared.trackAIChatStep("payload_built", properties: [
+                    "duration_ms": Self.elapsedMs(since: payloadStart),
+                    "payload_bytes": payloadBytes,
+                    "workouts_count": payload.data.recentWorkouts?.workouts.count ?? 0,
+                    "has_historical_summary": payload.data.historicalSummary != nil,
+                    "has_training_plan": payload.data.trainingPlan != nil
+                ])
+            }
+
+            let streamStart = Date()
             let stream = try await backendClient.agentChatStream(payload: payload)
+            var chunkCount = 0
 
             for try await event in stream {
+                chunkCount += 1
+                let isFirstChunk = chunkCount == 1
                 await MainActor.run {
+                    if isFirstChunk {
+                        AnalyticsService.shared.trackAIChatStep("first_chunk", properties: [
+                            "duration_ms": Self.elapsedMs(since: streamStart)
+                        ])
+                    }
                     switch event {
                     case .content(let chunk):
                         self.streamedResponse += chunk
@@ -182,6 +210,11 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             }
 
             await MainActor.run {
+                AnalyticsService.shared.trackAIChatStep("stream_completed", properties: [
+                    "duration_ms": Self.elapsedMs(since: streamStart),
+                    "chunks": chunkCount,
+                    "response_length": self.streamedResponse.count
+                ])
                 self.isStreaming = false
                 if !self.streamedResponse.isEmpty || self.lastFunctionResult != nil {
                     self.lastResponse = self.streamedResponse
@@ -226,6 +259,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 self.streamedResponse = ""
             }
         }
+    }
+
+    private static func elapsedMs(since start: Date) -> Int {
+        Int(Date().timeIntervalSince(start) * 1000)
     }
 
     // MARK: - Payload Builder

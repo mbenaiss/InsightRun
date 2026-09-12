@@ -37,6 +37,73 @@ interface StoredUserTokens {
   lastRefreshedAt?: number
 }
 
+class StravaApiError extends Error {
+  status: number
+  body: string
+
+  constructor(status: number, body: string) {
+    super(`Strava API error: ${status}${body ? ` - ${body}` : ''}`)
+    this.name = 'StravaApiError'
+    this.status = status
+    this.body = body
+  }
+}
+
+// Cloudflare's log collector drops `error.message` when an Error object is logged,
+// so the message is logged explicitly and mirrored to PostHog.
+function reportStravaError(
+  c: StravaContext,
+  event: string,
+  userId: string | undefined,
+  error: unknown
+) {
+  const message = error instanceof Error ? error.message : String(error)
+  const status = error instanceof StravaApiError ? error.status : undefined
+  console.error(`${event}: ${message}`)
+
+  if (!c.env.POSTHOG_API_KEY || !c.env.POSTHOG_HOST) return
+
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        const posthog = createPostHogClient({
+          apiKey: c.env.POSTHOG_API_KEY,
+          host: c.env.POSTHOG_HOST,
+        })
+        await posthog.captureImmediate({
+          distinctId: userId || 'unknown',
+          event,
+          properties: {
+            error_type: error instanceof Error ? error.name : 'Unknown',
+            error_message: message,
+            strava_status: status,
+            timestamp: Date.now(),
+          },
+        })
+        await posthog.shutdown()
+      } catch (captureError) {
+        console.error('PostHog capture error:', captureError)
+      }
+    })()
+  )
+}
+
+function stravaErrorResponse(c: StravaContext, error: unknown, fallback: string) {
+  if (error instanceof StravaApiError) {
+    return c.json(
+      { error: 'Strava API error', strava_status: error.status, message: error.message },
+      502
+    )
+  }
+  if (error instanceof Error && error.message.includes('not authenticated')) {
+    return c.json({ error: error.message }, 401)
+  }
+  return c.json(
+    { error: fallback, message: error instanceof Error ? error.message : 'Unknown error' },
+    500
+  )
+}
+
 interface StravaWebhookEvent {
   object_type: string
   object_id: number
@@ -491,14 +558,8 @@ app.get('/activities', async (c: StravaContext) => {
 
     return c.json(response)
   } catch (error) {
-    console.error('Activities error:', error)
-
-    // Check if it's an authentication error
-    if (error instanceof Error && error.message.includes('not authenticated')) {
-      return c.json({ error: error.message }, 401)
-    }
-
-    return c.json({ error: 'Failed to fetch activities' }, 500)
+    reportStravaError(c, 'strava_activities_failed_backend', c.req.header('X-User-ID'), error)
+    return stravaErrorResponse(c, error, 'Failed to fetch activities')
   }
 })
 
@@ -642,9 +703,9 @@ app.post('/sync', async (c: StravaContext) => {
       total_activities: result.totalActivities,
     })
   } catch (error) {
-    console.error('Sync error:', error)
-
     const userId = c.req.header('X-User-ID')
+    reportStravaError(c, 'strava_sync_failed_backend', userId, error)
+
     if (userId) {
       const cache = new StravaCache(c.env.STRAVA_CACHE)
       await cache.setSyncStatus(
@@ -654,7 +715,7 @@ app.post('/sync', async (c: StravaContext) => {
       )
     }
 
-    return c.json({ error: 'Sync failed' }, 500)
+    return stravaErrorResponse(c, error, 'Sync failed')
   }
 })
 
@@ -807,7 +868,8 @@ async function syncUserActivities(
     }
 
     if (!response.ok) {
-      throw new Error(`Strava API error: ${response.status}`)
+      const body = await response.text().catch(() => '')
+      throw new StravaApiError(response.status, body.slice(0, 500))
     }
 
     const activities = await response.json()

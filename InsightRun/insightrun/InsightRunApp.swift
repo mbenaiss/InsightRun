@@ -53,6 +53,9 @@ struct InsightRunApp: App {
         // Configure analytics (PostHog) - non-blocking, won't crash if PostHog is unavailable
         AnalyticsService.shared.configure()
 
+        // Forward MetricKit crash/hang/jetsam diagnostics to PostHog
+        CrashReportingService.shared.start()
+
         // Configure RevenueCat on app launch (synchronous - SDK must be ready before UI loads)
         RevenueCatManager.shared.configure()
 

@@ -253,6 +253,31 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         ])
     }
 
+    /// Intermediate step of a chat request, used to locate where the app dies when a
+    /// message is sent but no response is ever recorded.
+    func trackAIChatStep(_ step: String, properties: [String: Any] = [:]) {
+        var enriched = properties
+        enriched["step"] = step
+        if let memoryMB = MemoryFootprint.currentMB() {
+            enriched["memory_mb"] = memoryMB
+        }
+        track(.aiChatStep, properties: enriched)
+    }
+
+    // MARK: - Stability Events (MetricKit)
+
+    func trackAppCrashDetected(properties: [String: Any]) {
+        track(.appCrashDetected, properties: properties)
+    }
+
+    func trackAppHangDetected(properties: [String: Any]) {
+        track(.appHangDetected, properties: properties)
+    }
+
+    func trackAppExitMetrics(properties: [String: Any]) {
+        track(.appExitMetrics, properties: properties)
+    }
+
     // MARK: - Historical Indexation Events
 
     func trackIndexationBannerShown() {
@@ -631,6 +656,12 @@ enum AnalyticsEvent: String {
     case aiResponseReceived = "ai_response_received"
     case aiResponseError = "ai_response_error"
     case aiMessageSentWithoutContext = "ai_message_sent_without_context"
+    case aiChatStep = "ai_chat_step"
+
+    // Stability (MetricKit)
+    case appCrashDetected = "app_crash_detected"
+    case appHangDetected = "app_hang_detected"
+    case appExitMetrics = "app_exit_metrics"
 
     // Historical Indexation
     case indexationBannerShown = "indexation_banner_shown"

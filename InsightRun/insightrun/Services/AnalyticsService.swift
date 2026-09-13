@@ -191,6 +191,11 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         track(.notificationPermissionSkipped)
     }
 
+    /// A local notification was actually handed to the system (weekly progress, inactivity...).
+    func trackNotificationSent(type: String) {
+        track(.notificationSent, properties: ["notification_type": type])
+    }
+
     // MARK: - Workout Events
 
     func trackWorkoutListViewed(totalWorkouts: Int) {
@@ -644,6 +649,7 @@ enum AnalyticsEvent: String {
     case notificationPermissionGranted = "notification_permission_granted"
     case notificationPermissionDenied = "notification_permission_denied"
     case notificationPermissionSkipped = "notification_permission_skipped"
+    case notificationSent = "notification_sent"
 
     // Workouts
     case workoutListViewed = "workout_list_viewed"

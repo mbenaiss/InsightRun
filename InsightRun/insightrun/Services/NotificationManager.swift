@@ -26,6 +26,7 @@ class NotificationManager: ObservableObject {
     private let lastLowReadinessAlertKey = "com.insightrun.lastLowReadinessAlert"
     private let lastDailyReadinessKey = "com.insightrun.lastDailyReadiness"
     private let weeklyAIInsightKey = "com.insightrun.weeklyAIInsightNotification"
+    private let lastWeeklyProgressWeekKey = "com.insightrun.lastWeeklyProgressWeek"
     private let throttleInterval: TimeInterval = 24 * 60 * 60 // 24 hours
 
     private init() {
@@ -97,6 +98,7 @@ class NotificationManager: ObservableObject {
             do {
                 try await UNUserNotificationCenter.current().add(request)
                 self.markSent(key: self.lastDailyReadinessKey)
+                AnalyticsService.shared.trackNotificationSent(type: "daily_readiness")
                 print("✅ NotificationManager: Daily readiness notification sent")
             } catch {
                 print("❌ NotificationManager: Failed to send daily readiness: \(error)")
@@ -183,6 +185,7 @@ class NotificationManager: ObservableObject {
             do {
                 try await UNUserNotificationCenter.current().add(request)
                 self.markSent(key: self.lastInactivityReminderKey)
+                AnalyticsService.shared.trackNotificationSent(type: "inactivity_reminder")
             } catch {
                 print("❌ NotificationManager: Failed to send inactivity reminder: \(error)")
             }
@@ -216,6 +219,7 @@ class NotificationManager: ObservableObject {
             do {
                 try await UNUserNotificationCenter.current().add(request)
                 self.markSent(key: self.lastLowReadinessAlertKey)
+                AnalyticsService.shared.trackNotificationSent(type: "low_readiness")
             } catch {
                 print("❌ NotificationManager: Failed to send low readiness alert: \(error)")
             }
@@ -264,6 +268,14 @@ class NotificationManager: ObservableObject {
     func sendWeeklyProgressNotification(runCount: Int, totalDistanceKm: Double, weekOverWeekChange: Double?) {
         guard isNotificationsEnabled else { return }
 
+        // The caller runs on every launch: without this guard the notification fires
+        // again each time the app is opened on Sunday.
+        let currentWeek = Self.isoWeekIdentifier(for: Date())
+        guard userDefaults.string(forKey: lastWeeklyProgressWeekKey) != currentWeek else {
+            print("⏱️ NotificationManager: Weekly progress already sent for \(currentWeek)")
+            return
+        }
+
         // Cancel the static weekly summary — this progress notification replaces it
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["weekly-summary"])
@@ -292,6 +304,8 @@ class NotificationManager: ObservableObject {
         Task {
             do {
                 try await center.add(request)
+                self.userDefaults.set(currentWeek, forKey: self.lastWeeklyProgressWeekKey)
+                AnalyticsService.shared.trackNotificationSent(type: "weekly_progress")
                 // Re-schedule the static summary for next week
                 self.scheduleWeeklySummary()
                 print("✅ NotificationManager: Weekly progress notification sent (replaced static summary)")
@@ -302,6 +316,13 @@ class NotificationManager: ObservableObject {
     }
 
     // MARK: - Throttling
+
+    /// Week identifier such as "2026-W37", stable across launches within the same ISO week.
+    private static func isoWeekIdentifier(for date: Date) -> String {
+        let calendar = Calendar(identifier: .iso8601)
+        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return String(format: "%04d-W%02d", components.yearForWeekOfYear ?? 0, components.weekOfYear ?? 0)
+    }
 
     private func isThrottled(key: String) -> Bool {
         guard let lastSent = userDefaults.object(forKey: key) as? Date else {

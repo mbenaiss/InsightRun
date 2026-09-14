@@ -169,12 +169,16 @@ struct InsightRunApp: App {
         if Self.isWorkoutGenerationUITest {
             WorkoutPlanView()
         } else if let scenario = workoutAnalysisUITestScenario {
-            NavigationStack {
-                WorkoutDetailView(
-                    workout: scenario.workout,
-                    analysisViewModel: scenario.analysisViewModel,
-                    initialMetrics: scenario.metrics
-                )
+            if ProcessInfo.processInfo.arguments.contains("-WORKOUT_RACE_UI_TEST") {
+                WorkoutRaceUITestView(scenario: scenario)
+            } else {
+                NavigationStack {
+                    WorkoutDetailView(
+                        workout: scenario.workout,
+                        analysisViewModel: scenario.analysisViewModel,
+                        initialMetrics: scenario.metrics
+                    )
+                }
             }
         } else {
             ContentView(importedFileURL: $importedFileURL)

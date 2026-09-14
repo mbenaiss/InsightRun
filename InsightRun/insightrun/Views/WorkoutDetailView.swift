@@ -25,6 +25,7 @@ struct WorkoutDetailView: View {
     @ObservedObject private var remoteConfig = RemoteConfigService.shared
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
     @ObservedObject private var notificationManager = NotificationManager.shared
+    @ObservedObject private var raceStore = WorkoutRaceStore.shared
     @AppStorage("hasDismissedPostAnalysisNotificationPrompt") private var dismissedNotificationPrompt = false
     @State private var showComparisonSheet = false
     @State private var similarWorkouts: [WorkoutModel] = []
@@ -83,6 +84,8 @@ struct WorkoutDetailView: View {
 
                             if isSampleWorkout {
                                 sampleWorkoutBanner
+                            } else {
+                                officialRaceToggle
                             }
 
                             if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
@@ -227,6 +230,20 @@ struct WorkoutDetailView: View {
         .indexationGate(isPresented: $analysisViewModel.needsIndexation) {
             await analysisViewModel.generateAnalysis()
         }
+    }
+
+    private var officialRaceToggle: some View {
+        Toggle(isOn: Binding(
+            get: { raceStore.isOfficialRace(workout) },
+            set: { raceStore.setOfficialRace($0, for: workout) }
+        )) {
+            Label(String(localized: "workout.race.label", defaultValue: "Official race"), systemImage: "flag.checkered")
+                .font(IRFont.bodyEmphasized)
+        }
+        .tint(Color.irPrimaryAccent)
+        .padding(Spacing.md)
+        .background(Color.irCardBackground, in: RoundedRectangle(cornerRadius: Radius.sm))
+        .accessibilityIdentifier("workout-official-race-toggle")
     }
 
     private func loadInitialAnalysis() async {

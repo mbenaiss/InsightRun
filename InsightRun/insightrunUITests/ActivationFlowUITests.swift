@@ -94,7 +94,7 @@ final class ActivationFlowUITests: XCTestCase {
         attachScreenshot(of: app, named: "Real-Workout-Analysis-Retry-Succeeded")
     }
 
-    private func launchAnalysisScenario(failsFirstRequest: Bool = false) -> XCUIApplication {
+    private func launchAnalysisScenario(failsFirstRequest: Bool = false, showsRacePlan: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-DEMO_MODE",
@@ -105,8 +105,42 @@ final class ActivationFlowUITests: XCTestCase {
         if failsFirstRequest {
             app.launchArguments.append("-WORKOUT_ANALYSIS_UI_ERROR")
         }
+        if showsRacePlan {
+            app.launchArguments.append("-WORKOUT_RACE_UI_TEST")
+        }
         app.launch()
         return app
+    }
+
+    func testOfficialRaceLabelCanBeAddedAndRemovedFromWorkoutDetail() {
+        let app = launchAnalysisScenario()
+        let toggle = app.switches["workout-official-race-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        XCTAssertEqual(toggle.value as? String, "0")
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "1")
+        attachScreenshot(of: app, named: "Official-Race-Enabled")
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "0")
+        XCTAssertTrue(app.buttons["workout-analysis-consent"].exists)
+    }
+
+    func testCompletedOfficialRaceAppearsInPlanAndDisappearsWhenUnmarked() {
+        let app = launchAnalysisScenario(showsRacePlan: true)
+        let toggle = app.switches["workout-official-race-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "1")
+        app.buttons["test-official-race-plan"].tap()
+        XCTAssertTrue(app.staticTexts["Courses officielles réalisées"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Course du matin"].exists)
+        attachScreenshot(of: app, named: "Official-Race-In-Training-Plan")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "0")
+        app.buttons["test-official-race-plan"].tap()
+        XCTAssertFalse(app.staticTexts["Courses officielles réalisées"].exists)
+        XCTAssertFalse(app.staticTexts["Course du matin"].exists)
     }
 
     private func assertAnalysisIsDisplayed(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {

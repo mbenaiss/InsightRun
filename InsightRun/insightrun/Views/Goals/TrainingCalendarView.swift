@@ -142,6 +142,8 @@ struct TrainingCalendarView: View {
                     ForEach(Array(week.days.enumerated()), id: \.element.id) { dayIndex, day in
                         dayRow(day: day, weekIndex: weekIndex, dayIndex: dayIndex)
                     }
+                    OfficialRacesInPlanView(plan: plan, weekIndex: weekIndex)
+                        .padding(.horizontal, Spacing.md)
                 }
                 .padding(.bottom, Spacing.sm)
                 .transition(.opacity.combined(with: .move(edge: .top)))

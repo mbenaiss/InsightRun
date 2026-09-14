@@ -2,6 +2,9 @@ import Foundation
 
 @MainActor
 final class ConcurrentRequestCoalescer<Key: Hashable, Value> {
+    // Swift 6.3's optimizer crashes on an inferred isolated deinit for this generic type.
+    nonisolated deinit {}
+
     private var waiters: [Key: [CheckedContinuation<Value, Error>]] = [:]
 
     func value(for key: Key, operation: () async throws -> Value) async throws -> Value {

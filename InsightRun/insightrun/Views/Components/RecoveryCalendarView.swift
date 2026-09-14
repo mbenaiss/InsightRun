@@ -60,16 +60,12 @@ struct RecoveryCalendarView: View {
                             .foregroundStyle(Color.irTextSecondary)
                     }
                     .accessibilityLabel(String(localized: "Close", comment: "Accessibility label for sheet close button"))
+                    .accessibilityIdentifier("recovery-calendar-close")
                 }
             }
         }
-        .task {
+        .task(id: displayedMonth) {
             await loadRecoveryScores()
-        }
-        .onChange(of: displayedMonth) { _, _ in
-            Task {
-                await loadRecoveryScores()
-            }
         }
     }
 
@@ -98,6 +94,7 @@ struct RecoveryCalendarView: View {
                         .clipShape(Circle())
                 }
                 .accessibilityLabel(String(localized: "Previous month", comment: "Accessibility label for previous month navigation button"))
+                .accessibilityIdentifier("recovery-calendar-previous-month")
 
                 Button {
                     goToNextMonth()
@@ -112,6 +109,7 @@ struct RecoveryCalendarView: View {
                 }
                 .disabled(!canGoToNextMonth)
                 .accessibilityLabel(String(localized: "Next month", comment: "Accessibility label for next month navigation button"))
+                .accessibilityIdentifier("recovery-calendar-next-month")
             }
         }
     }
@@ -330,6 +328,10 @@ struct RecoveryCalendarView: View {
 
     private func loadRecoveryScores() async {
         isLoadingScores = true
+        recoveryScores = [:]
+        defer {
+            if !Task.isCancelled { isLoadingScores = false }
+        }
 
         // Get the date range for the displayed month
         guard let monthInterval = calendar.dateInterval(of: .month, for: displayedMonth) else {
@@ -344,6 +346,7 @@ struct RecoveryCalendarView: View {
         let numberOfDays = calendar.range(of: .day, in: .month, for: displayedMonth)?.count ?? 30
 
         for dayOffset in 0..<numberOfDays {
+            if Task.isCancelled { return }
             if let date = calendar.date(byAdding: .day, value: dayOffset, to: monthInterval.start) {
                 let startOfDay = calendar.startOfDay(for: date)
 
@@ -354,17 +357,15 @@ struct RecoveryCalendarView: View {
 
                 do {
                     let metrics = try await healthKitManager.fetchRecoveryMetrics(for: date)
+                    if Task.isCancelled { return }
                     scores[startOfDay] = metrics.recoveryScore
+                    recoveryScores = scores
                 } catch {
                     // Skip days with no data
                 }
             }
         }
 
-        await MainActor.run {
-            self.recoveryScores = scores
-            self.isLoadingScores = false
-        }
     }
 }
 

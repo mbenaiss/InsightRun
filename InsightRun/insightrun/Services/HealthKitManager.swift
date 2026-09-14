@@ -36,6 +36,8 @@ class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
 
     private let healthStore = HKHealthStore()
+    private let workoutRequests = ConcurrentRequestCoalescer<Bool, [WorkoutModel]>()
+    private let recoveryRequests = ConcurrentRequestCoalescer<Date, RecoveryMetrics>()
 
     private init() {}
 
@@ -228,6 +230,12 @@ class HealthKitManager: ObservableObject {
     }
 
     func fetchRunningWorkouts(includeEffortScores: Bool) async throws -> [WorkoutModel] {
+        try await workoutRequests.value(for: includeEffortScores) {
+            try await self.loadRunningWorkouts(includeEffortScores: includeEffortScores)
+        }
+    }
+
+    private func loadRunningWorkouts(includeEffortScores: Bool) async throws -> [WorkoutModel] {
         if DemoMode.isEnabled { return MockData.sampleWorkouts }
 
         let workoutType = HKObjectType.workoutType()
@@ -289,29 +297,32 @@ class HealthKitManager: ObservableObject {
 
     @available(iOS 18.0, *)
     private func enrichWithEffortScores(workouts: [HKWorkout], models: [WorkoutModel]) async -> [WorkoutModel] {
-        await withTaskGroup(of: (Int, Double?, Bool).self) { group in
-            for (idx, workout) in workouts.enumerated() {
-                group.addTask {
-                    if let user = await self.queryEffortScore(for: workout, type: .workoutEffortScore) {
-                        return (idx, user, false)
+        var enriched = models
+        // Bound lookups so large histories do not flood HealthKit with concurrent queries.
+        for start in stride(from: 0, to: workouts.count, by: 8) {
+            await withTaskGroup(of: (Int, Double?, Bool).self) { group in
+                for idx in start..<min(start + 8, workouts.count) {
+                    let workout = workouts[idx]
+                    group.addTask {
+                        if let user = await self.queryEffortScore(for: workout, type: .workoutEffortScore) {
+                            return (idx, user, false)
+                        }
+                        if let estimated = await self.queryEffortScore(for: workout, type: .estimatedWorkoutEffortScore) {
+                            return (idx, estimated, true)
+                        }
+                        return (idx, nil, false)
                     }
-                    if let estimated = await self.queryEffortScore(for: workout, type: .estimatedWorkoutEffortScore) {
-                        return (idx, estimated, true)
+                }
+                for await (idx, score, isEstimated) in group {
+                    guard idx < enriched.count else { continue }
+                    if let score {
+                        enriched[idx].effortScore = score
+                        enriched[idx].effortIsEstimated = isEstimated
                     }
-                    return (idx, nil, false)
                 }
             }
-
-            var enriched = models
-            for await (idx, score, isEstimated) in group {
-                guard idx < enriched.count else { continue }
-                if let score {
-                    enriched[idx].effortScore = score
-                    enriched[idx].effortIsEstimated = isEstimated
-                }
-            }
-            return enriched
         }
+        return enriched
     }
 
     @available(iOS 18.0, *)
@@ -2526,6 +2537,13 @@ class HealthKitManager: ObservableObject {
     }
 
     func fetchRecoveryMetrics(for date: Date = Date()) async throws -> RecoveryMetrics {
+        let day = Calendar.current.startOfDay(for: date)
+        return try await recoveryRequests.value(for: day) {
+            try await self.loadRecoveryMetrics(for: day)
+        }
+    }
+
+    private func loadRecoveryMetrics(for date: Date) async throws -> RecoveryMetrics {
         if DemoMode.isEnabled { return MockData.sampleRecoveryMetrics }
 
         // Fetch metrics for the given day

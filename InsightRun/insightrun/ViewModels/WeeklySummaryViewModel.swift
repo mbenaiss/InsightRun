@@ -89,6 +89,8 @@ class WeeklySummaryViewModel: ObservableObject {
 
     private let healthKitManager = HealthKitManager.shared
     private let calendar = Calendar.current
+    private var lastLoadedAt: Date?
+    private var isFetching = false
 
     var formattedWeekRange: String {
         let formatter = DateFormatter()
@@ -136,8 +138,16 @@ class WeeklySummaryViewModel: ObservableObject {
         return String(format: "%dh%02d", hours, minutes)
     }
 
-    func load(forceCoachingRefresh: Bool = false) async {
-        isLoading = true
+    func load(forceCoachingRefresh: Bool = false, minimumRefreshInterval: TimeInterval = 0, includeCoaching: Bool = true) async {
+        guard !isFetching else { return }
+        if !forceCoachingRefresh, let lastLoadedAt,
+           Date().timeIntervalSince(lastLoadedAt) < minimumRefreshInterval,
+           calendar.isDateInToday(lastLoadedAt) {
+            return
+        }
+        isFetching = true
+        defer { isFetching = false }
+        isLoading = lastLoadedAt == nil
         errorMessage = nil
 
         let now = Date()
@@ -161,18 +171,25 @@ class WeeklySummaryViewModel: ObservableObject {
 
             // Fetch recovery metrics for each day
             await loadRecoveryData(from: startOfWeek, to: now, prevStart: prevWeekStart, prevEnd: startOfWeek)
+            lastLoadedAt = Date()
         } catch {
             errorMessage = error.localizedDescription
         }
 
         isLoading = false
 
-        await loadCoaching(forceRefresh: forceCoachingRefresh)
+        if includeCoaching { await loadCoaching(forceRefresh: forceCoachingRefresh) }
     }
 
     // MARK: - Coaching
 
+    func loadCoachingIfNeeded() async {
+        guard lastLoadedAt != nil, coachingTimestamp == nil else { return }
+        await loadCoaching(forceRefresh: false)
+    }
+
     private func loadCoaching(forceRefresh: Bool) async {
+        guard !isCoachingLoading else { return }
         let language = AppLanguage.current
         if forceRefresh {
             WeeklyCoachingService.shared.invalidateCache(weekStart: weekStart, language: language)

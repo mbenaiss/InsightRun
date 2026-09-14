@@ -150,7 +150,7 @@ struct DashboardView: View {
                 .presentationDetents([.large])
             }
             .navigationDestination(isPresented: $notificationRouter.showWeeklySummary) {
-                WeeklySummaryView()
+                WeeklySummaryView(viewModel: weeklySummaryVM)
             }
             .fullScreenCover(isPresented: $showSubscriptionPaywall) {
                 SubscriptionPaywallView(isInitialFlow: false)
@@ -177,10 +177,11 @@ struct DashboardView: View {
                 await refreshAll()
             }
             .task {
+                loadTodaySession()
+                async let latestWorkoutLoad: Void = loadLatestWorkout()
                 await refreshAll()
                 await loadTrendData()
-                await loadLatestWorkout()
-                loadTodaySession()
+                await latestWorkoutLoad
 
                 if let recovery = recoveryVM.recoveryMetrics {
                     contextProvider.recoveryMetrics = recovery
@@ -214,7 +215,7 @@ struct DashboardView: View {
 
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await recoveryVM.loadRecoveryMetrics() }
-            group.addTask { await weeklySummaryVM.load() }
+            group.addTask { await weeklySummaryVM.load(includeCoaching: false) }
             group.addTask { await tls.analyzeCardiacLoad() }
             group.addTask { await tls.analyzeDailyEffort(for: selectedDate) }
         }
@@ -804,6 +805,7 @@ struct DashboardView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(String(localized: "dashboard.dateHeader.label", defaultValue: "Change date", comment: "Accessibility label for the dashboard date picker button"))
         .accessibilityValue(formattedDateTitle)
+        .accessibilityIdentifier("dashboard-calendar")
     }
 
     private var formattedDateTitle: String {

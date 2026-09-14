@@ -378,35 +378,12 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         ])
     }
 
-    func trackSubscriptionPurchaseStarted(productId: String, price: String, billingPeriod: String) {
+    func trackSubscriptionPurchaseStarted(productId: String, price: String, billingPeriod: String, source: String) {
         track(.subscriptionPurchaseStarted, properties: [
             "product_id": productId,
             "price": price,
-            "billing_period": billingPeriod
-        ])
-    }
-
-    func trackSubscriptionPurchaseCompleted(productId: String, revenue: String, isTrial: Bool, source: String) {
-        track(.subscriptionPurchaseCompleted, properties: [
-            "product_id": productId,
-            "revenue": revenue,
-            "is_trial": isTrial,
+            "billing_period": billingPeriod,
             "source": source
-        ])
-    }
-
-    func trackSubscriptionRestored(productId: String?, source: String) {
-        var properties: [String: Any] = ["source": source]
-        if let productId {
-            properties["product_id"] = productId
-        }
-        track(.subscriptionRestored, properties: properties)
-    }
-
-    func trackSubscriptionPurchaseFailed(errorCode: String, errorMessage: String) {
-        track(.subscriptionPurchaseFailed, properties: [
-            "error_code": errorCode,
-            "error_message": errorMessage
         ])
     }
 
@@ -690,6 +667,8 @@ enum AnalyticsEvent: String {
     case subscriptionPurchaseStarted = "subscription_purchase_started"
     case subscriptionPurchaseCompleted = "subscription_purchase_completed"
     case subscriptionPurchaseFailed = "subscription_purchase_failed"
+    case subscriptionPurchaseCancelled = "subscription_purchase_cancelled"
+    case subscriptionRestoreFailed = "subscription_restore_failed"
     case subscriptionRestored = "subscription_restored"
     case subscriptionCancelled = "subscription_cancelled"
     case subscriptionRenewed = "subscription_renewed"

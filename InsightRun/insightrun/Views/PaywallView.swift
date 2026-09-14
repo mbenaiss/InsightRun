@@ -21,6 +21,10 @@ struct SubscriptionPaywallView: View {
     @State private var showConsentSheet = false
     @State private var hasConsented = false
     @State private var pendingPurchasePrice = "unknown"
+    @State private var pendingPurchaseProductId: String?
+    private let outcomeTracker = SubscriptionOutcomeTracker()
+
+    private var purchaseSource: String { isInitialFlow ? "onboarding" : "locked_content" }
 
     var body: some View {
         Group {
@@ -53,23 +57,24 @@ struct SubscriptionPaywallView: View {
         PaywallView()
             .onPurchaseStarted { package in
                 pendingPurchasePrice = package.storeProduct.localizedPriceString
+                pendingPurchaseProductId = package.storeProduct.productIdentifier
                 AnalyticsService.shared.trackSubscriptionPurchaseStarted(
                     productId: package.storeProduct.productIdentifier,
                     price: package.storeProduct.localizedPriceString,
-                    billingPeriod: String(describing: package.packageType)
+                    billingPeriod: String(describing: package.packageType),
+                    source: purchaseSource
                 )
             }
             .onPurchaseCompleted { transaction, customerInfo in
-                let activeEntitlements = customerInfo.entitlements.active.values
-                if let entitlement = activeEntitlements.first {
-                    let isTrial = entitlement.periodType == .trial
-                    AnalyticsService.shared.trackSubscriptionPurchaseCompleted(
-                        productId: transaction?.productIdentifier ?? entitlement.productIdentifier,
-                        revenue: pendingPurchasePrice,
-                        isTrial: isTrial,
-                        source: isInitialFlow ? "onboarding" : "locked_content"
-                    )
-                }
+                let entitlement = customerInfo.entitlements.active.values.first
+                outcomeTracker.purchaseCompleted(
+                    productId: transaction?.productIdentifier ?? entitlement?.productIdentifier ?? pendingPurchaseProductId,
+                    revenue: pendingPurchasePrice,
+                    isTrial: entitlement?.periodType == .trial,
+                    hasActiveSubscription: entitlement != nil,
+                    source: purchaseSource
+                )
+                pendingPurchaseProductId = nil
 
                 revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                 Task {
@@ -83,11 +88,22 @@ struct SubscriptionPaywallView: View {
                     dismiss()
                 }
             }
+            .onPurchaseFailure { error in
+                outcomeTracker.purchaseFailed(error: error, productId: pendingPurchaseProductId, source: purchaseSource)
+                pendingPurchaseProductId = nil
+            }
+            .onPurchaseCancelled {
+                outcomeTracker.purchaseCancelled(productId: pendingPurchaseProductId, source: purchaseSource)
+                pendingPurchaseProductId = nil
+            }
+            .onRestoreFailure { error in
+                outcomeTracker.restoreFailed(error: error, source: purchaseSource)
+            }
             .onRestoreCompleted { customerInfo in
                 let productId = customerInfo.entitlements.active.values.first?.productIdentifier
-                AnalyticsService.shared.trackSubscriptionRestored(
+                outcomeTracker.restored(
                     productId: productId,
-                    source: isInitialFlow ? "onboarding" : "locked_content"
+                    source: purchaseSource
                 )
                 revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                 Task {

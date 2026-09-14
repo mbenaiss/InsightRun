@@ -244,30 +244,35 @@ class RevenueCatManager: NSObject, ObservableObject {
     /// Restore previous purchases and sync user identity
     /// If purchases are found with a different UUID, update local identity
     func restorePurchases(source: String) async throws {
-        let info = try await Purchases.shared.restorePurchases()
+        do {
+            let info = try await Purchases.shared.restorePurchases()
 
-        // Check if the restored account has a different app user ID
-        let currentUserID = UserIdentityService.shared.userID
-        let restoredUserID = info.originalAppUserId
+            // Check if the restored account has a different app user ID
+            let currentUserID = UserIdentityService.shared.userID
+            let restoredUserID = info.originalAppUserId
 
-        // If restored user ID is different and has active subscriptions,
-        // update local identity to match the restored account
-        if restoredUserID != currentUserID && !info.entitlements.active.isEmpty {
-            print("🔄 RevenueCat: Restoring identity from \(currentUserID) to \(restoredUserID)")
-            UserIdentityService.shared.updateUserID(restoredUserID)
+            // If restored user ID is different and has active subscriptions,
+            // update local identity to match the restored account
+            if restoredUserID != currentUserID && !info.entitlements.active.isEmpty {
+                print("🔄 RevenueCat: Restoring identity from \(currentUserID) to \(restoredUserID)")
+                UserIdentityService.shared.updateUserID(restoredUserID)
 
-            // Re-login with the restored user ID to sync
-            let (updatedInfo, _) = try await Purchases.shared.logIn(restoredUserID)
+                // Re-login with the restored user ID to sync
+                let (updatedInfo, _) = try await Purchases.shared.logIn(restoredUserID)
 
-            applyCustomerInfo(updatedInfo, trackLifecycleChanges: false)
-        } else {
-            applyCustomerInfo(info, trackLifecycleChanges: false)
+                applyCustomerInfo(updatedInfo, trackLifecycleChanges: false)
+            } else {
+                applyCustomerInfo(info, trackLifecycleChanges: false)
+            }
+
+            SubscriptionOutcomeTracker().restored(
+                productId: customerInfo?.entitlements.active.values.first?.productIdentifier,
+                source: source
+            )
+        } catch {
+            SubscriptionOutcomeTracker().restoreFailed(error: error as NSError, source: source)
+            throw error
         }
-
-        AnalyticsService.shared.trackSubscriptionRestored(
-            productId: customerInfo?.entitlements.active.values.first?.productIdentifier,
-            source: source
-        )
     }
 
     func applyCustomerInfo(_ info: CustomerInfo, trackLifecycleChanges: Bool) {

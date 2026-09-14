@@ -57,7 +57,7 @@ nonisolated final class CrashReportingService: NSObject, MXMetricManagerSubscrib
                 if #available(iOS 17.0, *), let reason = crash.exceptionReason {
                     properties["exception_reason"] = reason.composedMessage
                 }
-                Task { @MainActor in
+                Task { @MainActor [properties] in
                     AnalyticsService.shared.trackAppCrashDetected(properties: properties)
                 }
             }
@@ -71,7 +71,7 @@ nonisolated final class CrashReportingService: NSObject, MXMetricManagerSubscrib
                     "period_end": Self.iso8601(payload.timeStampEnd),
                     "call_stack": Self.truncatedCallStack(hang.callStackTree),
                 ]
-                Task { @MainActor in
+                Task { @MainActor [properties] in
                     AnalyticsService.shared.trackAppHangDetected(properties: properties)
                 }
             }
@@ -112,7 +112,7 @@ nonisolated final class CrashReportingService: NSObject, MXMetricManagerSubscrib
             // Daily payloads with only normal exits are noise; keep the ones that matter.
             guard abnormalForegroundExits > 0 else { continue }
 
-            Task { @MainActor in
+            Task { @MainActor [properties] in
                 AnalyticsService.shared.trackAppExitMetrics(properties: properties)
             }
         }

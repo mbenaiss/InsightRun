@@ -141,6 +141,7 @@ private enum RowWorkoutSource {
 
 struct WorkoutRowView: View {
     let workout: WorkoutModel
+    @ObservedObject private var raceStore = WorkoutRaceStore.shared
 
     private var sessionType: WorkoutSessionType { WorkoutSessionType.classify(workout) }
     private var source: RowWorkoutSource { RowWorkoutSource.classify(sourceName: workout.sourceName) }
@@ -386,6 +387,9 @@ struct WorkoutRowView: View {
     }
 
     private var titleText: String {
+        if raceStore.isOfficialRace(workout) {
+            return workout.raceDisplayName
+        }
         if workout.isIndoor {
             return String(localized: "Treadmill", comment: "Workout title: indoor / treadmill run")
         }
@@ -394,6 +398,9 @@ struct WorkoutRowView: View {
 
     @ViewBuilder
     private var chipsRow: some View {
+        if raceStore.isOfficialRace(workout) {
+            OfficialRaceBadge()
+        }
         if workout.isIndoor {
             HStack(spacing: Spacing.xxs) {
                 Text(String(localized: "Indoor", comment: "Workout chip: indoor"))

@@ -10,6 +10,7 @@ import SwiftUI
 struct GoalDetailView: View {
     let goal: RaceGoal
     @ObservedObject var viewModel: GoalsViewModel
+    @ObservedObject private var raceStore = WorkoutRaceStore.shared
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @State private var showDeleteConfirmation = false
     @State private var showRenameAlert = false
@@ -691,6 +692,7 @@ struct GoalDetailView: View {
                     dayRow(day: day, weekIndex: weekIndex, dayIndex: dayIndex)
                 }
             }
+            OfficialRacesInPlanView(plan: plan, weekIndex: weekIndex)
         }
         .padding(EdgeInsets(top: Spacing.base, leading: Spacing.base, bottom: Spacing.dash, trailing: Spacing.base))
         .detailCard()
@@ -988,6 +990,15 @@ struct GoalDetailView: View {
 
                     Spacer(minLength: 8)
 
+                    let raceCount = raceStore.races(in: plan, weekIndex: weekIndex).count
+                    if raceCount > 0 {
+                        Label("\(raceCount)", systemImage: "flag.checkered")
+                            .font(IRFont.caption.weight(.semibold))
+                            .foregroundStyle(Color.irPrimaryAccent)
+                            .accessibilityLabel(String(localized: "workout.race.plural", defaultValue: "Official races"))
+                            .accessibilityValue("\(raceCount)")
+                    }
+
                     if totalWorkouts > 0 {
                         HStack(spacing: 3) {
                             ForEach(0..<totalWorkouts, id: \.self) { i in
@@ -1030,6 +1041,7 @@ struct GoalDetailView: View {
                         }
                     }
                     .padding(.top, Spacing.xxs)
+                    OfficialRacesInPlanView(plan: plan, weekIndex: weekIndex)
                 }
                 .padding(.horizontal, Spacing.base)
                 .padding(.bottom, Spacing.dash)

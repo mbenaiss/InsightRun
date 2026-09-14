@@ -23,6 +23,8 @@ struct WorkoutListView: View {
     @State private var selectedMonth: Date = Calendar.current.startOfMonth(for: Date())
     @State private var isSearching: Bool = false
     @State private var searchText: String = ""
+    @State private var showOfficialRacesOnly = false
+    @ObservedObject private var raceStore = WorkoutRaceStore.shared
     @FocusState private var searchFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
@@ -118,6 +120,13 @@ struct WorkoutListView: View {
                 }
                 .onChange(of: unifiedViewModel.isLoading) { _, isLoading in
                     if !isLoading { updateContextProvider() }
+                }
+                .onReceive(unifiedViewModel.$unifiedWorkouts) { workouts in
+                    guard !raceStore.races.isEmpty else { return }
+                    raceStore.reconcile(workouts.map { $0.toWorkoutModel() })
+                }
+                .onReceive(healthKitViewModel.$workouts) { workouts in
+                    raceStore.reconcile(workouts)
                 }
                 .task(id: viewModel.authorizationStatus) {
                     if viewModel.authorizationStatus == .authorized {
@@ -221,6 +230,7 @@ struct WorkoutListView: View {
     }
 
     private func filterWorkouts(_ workouts: [WorkoutModel]) -> [WorkoutModel] {
+        let candidates = showOfficialRacesOnly ? raceStore.officialRaces(from: workouts) : workouts
         let q = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
         if isSearching && !q.isEmpty {
@@ -228,17 +238,19 @@ struct WorkoutListView: View {
             let f = DateFormatter()
             f.locale = Locale.current
             f.dateFormat = "EEE d MMMM yyyy"
-            return workouts.filter { w in
+            return candidates.filter { w in
                 let dateStr = f.string(from: w.startDate).lowercased()
                 let context = w.isIndoor ? "tapis indoor" : "plein air outdoor"
                 return dateStr.contains(q)
+                    || w.raceDisplayName.lowercased().contains(q)
                     || w.sourceName.lowercased().contains(q)
                     || context.contains(q)
             }
         }
 
+        if showOfficialRacesOnly { return candidates }
         let cal = Calendar.current
-        return workouts.filter {
+        return candidates.filter {
             cal.isDate($0.startDate, equalTo: selectedMonth, toGranularity: .month)
         }
     }
@@ -537,11 +549,11 @@ struct WorkoutListView: View {
 
                 let visibleWorkouts = filterWorkouts(displayWorkouts)
                 if !visibleWorkouts.isEmpty {
-                    if !isSearching {
+                    if !isSearching && !showOfficialRacesOnly {
                         monthSummaryCard(workouts: visibleWorkouts)
                     }
 
-                    VStack(spacing: Spacing.sm) {
+                    LazyVStack(spacing: Spacing.sm) {
                         ForEach(Array(visibleWorkouts.enumerated()), id: \.element.id) { index, workout in
                             NavigationLink(value: workout) {
                                 WorkoutRowView(workout: workout)
@@ -555,6 +567,12 @@ struct WorkoutListView: View {
                 } else {
                     if isSearching && !searchText.isEmpty {
                         searchEmptyState
+                    } else if showOfficialRacesOnly {
+                        ContentUnavailableView(
+                            String(localized: "workout.race.empty.title", defaultValue: "No official races yet"),
+                            systemImage: "flag.checkered",
+                            description: Text(String(localized: "workout.race.empty.message", defaultValue: "Open a completed workout and mark it as an official race to find it here."))
+                        )
                     } else {
                         monthEmptyState
                     }
@@ -587,7 +605,13 @@ struct WorkoutListView: View {
                 searchBar
             } else {
                 HStack(spacing: Spacing.sm) {
-                    monthPicker
+                    if showOfficialRacesOnly {
+                        Text(String(localized: "workout.race.allDates", defaultValue: "All dates"))
+                            .font(IRFont.caption.weight(.semibold))
+                            .foregroundStyle(Color.irTextPrimary)
+                    } else {
+                        monthPicker
+                    }
                     Text("·")
                         .font(IRFont.footnote)
                         .foregroundStyle(Color.irTextSecondary.opacity(0.5))
@@ -598,6 +622,13 @@ struct WorkoutListView: View {
                     searchToggleButton
                 }
             }
+
+            Picker(String(localized: "workout.race.filter", defaultValue: "Workout filter"), selection: $showOfficialRacesOnly) {
+                Text(String(localized: "workout.race.allWorkouts", defaultValue: "All workouts")).tag(false)
+                Text(String(localized: "workout.race.plural", defaultValue: "Official races")).tag(true)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("workout-race-filter")
         }
     }
 

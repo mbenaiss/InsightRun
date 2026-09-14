@@ -3,6 +3,7 @@ import Combine
 import Foundation
 import HealthKit
 import SwiftData
+import SwiftUI
 
 @MainActor
 final class WorkoutAnalysisUITestScenario {
@@ -109,6 +110,39 @@ private final class WorkoutAnalysisUITestClient: WorkoutAnalysisClient {
             ## Prochaine action
             Commencez votre prochaine séance par dix minutes à allure facile.
             """
+    }
+}
+struct WorkoutRaceUITestView: View {
+    let scenario: WorkoutAnalysisUITestScenario
+
+    private var plan: TrainingPlan {
+        TrainingPlan(
+            name: "Test plan", goal: "10K", level: .beginner,
+            weeks: [TrainingWeek(weekNumber: 1, phase: .base, days: [TrainingDay(dayOfWeek: .monday)])],
+            startDate: Calendar.current.startOfDay(for: scenario.workout.startDate)
+        )
+    }
+
+    var body: some View {
+        NavigationStack {
+            WorkoutDetailView(
+                workout: scenario.workout,
+                analysisViewModel: scenario.analysisViewModel,
+                initialMetrics: scenario.metrics
+            )
+            .toolbar {
+                NavigationLink {
+                    ScrollView {
+                        OfficialRacesInPlanView(plan: plan, weekIndex: 0)
+                            .padding()
+                    }
+                    .navigationTitle("Test plan")
+                } label: {
+                    Image(systemName: "calendar")
+                }
+                .accessibilityIdentifier("test-official-race-plan")
+            }
+        }
     }
 }
 #endif

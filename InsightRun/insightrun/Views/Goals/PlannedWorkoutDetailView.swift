@@ -22,12 +22,17 @@ struct PlannedWorkoutDetailView: View {
     @State private var exportError: String?
     @State private var showSkipConfirmation = false
     @State private var showMoveSheet = false
+    @ObservedObject private var raceStore = WorkoutRaceStore.shared
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.base) {
                     headerCard
+                    if raceStore.isOfficialRace(workoutID: day.completedWorkoutId) {
+                        OfficialRaceBadge()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     metricsCard
                     aiExplanationCard
 

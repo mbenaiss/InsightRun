@@ -1,5 +1,7 @@
 # Audit de stabilité — 14 septembre 2026
 
+> Mise à jour : les PR #100 à #104 sont fusionnées et leurs déploiements sont terminés. La version iOS 2.0.8 build 340 a été soumise à Apple. Le texte ci-dessous conserve les observations de la première passe ; l’état des cinq réserves et les preuves complémentaires figurent dans [la clôture de l’audit](2026-09-14-stability-closure.md).
+
 La PR #100 corrige une répétition réelle des notifications du dimanche, mais elle ne suffit pas à résoudre les problèmes observés. L’audit a permis de reproduire et de corriger plusieurs défauts dans les notifications, Strava, l’indexation et le chat IA. Les corrections incluent la PR #100. Une passe supplémentaire de performance prépare la version iOS 2.0.8.
 
 ## Périmètre et état du travail
@@ -88,7 +90,7 @@ Les scripts temporaires de parcours sur l’iPhone ont été retirés du dépôt
 - Même parcours automatisé, trois lancements avant et après : médiane **5,81 s avant**, **3,59 s après**, puis **3,46 s** sur la vérification finale de 2.0.8. La réduction observée est d’environ **40 %** sur ce parcours. XCTest inclut ses délais de pilotage et de synchronisation ; ces temps ne sont pas une mesure isolée du rendu, ni un résultat garanti sur d’autres appareils ou historiques.
 - Deux contrôles physiques supplémentaires passent : ouverture/fermeture du coach avec chargement différé, et affichage des statistiques sur trois relancements. Le script propre aux données de cet iPhone est conservé hors dépôt.
 
-## Points restant ouverts
+## Réserves à la fin de la première passe
 
 1. **Dépendances transitives du web.** Après les mises à jour ciblées, `bun audit` ne remonte plus aucune alerte dans le backend. Il reste 51 entrées d’alerte dans le site public (dont une critique portant sur `tar`) et 34 dans l’administration. Ces nombres incluent des dépendances d’outillage et plusieurs avis pour un même paquet ; ils ne représentent pas autant de failles exploitables dans l’application en production. Le tri des chemins réellement exposés et la mise à jour des dépendances transitives doivent encore être réalisés. Les avis portant sur Next.js, OpenNext, Hono et Wrangler ont disparu des résultats après mise à jour.
 2. **Cohérence des zones cardiaques entre interface et IA.** Le détail de course calcule son pourcentage de FCmax à partir du maximum observé dans les entraînements, avec un repli à 190 (`WorkoutDetailView.swift`, `personalMaxHR`). Le contexte IA utilise une estimation liée à l’âge (`backend/src/prompts.ts`, `estimateIntensity`). Une divergence entre le texte IA en cache et la carte de mesures est visible sur le téléphone. Les deux calculs doivent être harmonisés avec une source explicite et une stratégie d’invalidation des analyses en cache. Aucun changement arbitraire de modèle physiologique n’a été appliqué dans cet audit de stabilité.

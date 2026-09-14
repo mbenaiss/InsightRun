@@ -845,7 +845,7 @@ struct DashboardView: View {
         if !readinessVM.recommendation.isEmpty {
             return readinessVM.recommendation
         }
-        return recoveryVM.recoveryMetrics?.recoveryStatus.recommendation
+        return recoveryVM.recoveryMetrics?.coachingRecommendation
             ?? String(localized: "Loading your coaching insights...", comment: "Coaching loading placeholder")
     }
 
@@ -882,7 +882,7 @@ struct DashboardView: View {
         if !readinessVM.recommendation.isEmpty {
             return readinessVM.recommendation
         }
-        return recoveryVM.recoveryMetrics?.recoveryStatus.recommendation ?? ""
+        return recoveryVM.recoveryMetrics?.coachingRecommendation ?? ""
     }
 
     // MARK: - Pulse Ring helpers

@@ -2816,18 +2816,21 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Health Profile
 
+    var currentAge: Int? {
+        if DemoMode.isEnabled { return MockData.sampleHealthProfile.age }
+        let calendar = Calendar.current
+        guard let dob = try? healthStore.dateOfBirthComponents(),
+              let birthDate = calendar.date(from: dob),
+              let age = calendar.dateComponents([.year], from: birthDate, to: Date()).year,
+              (1...120).contains(age) else { return nil }
+        return age
+    }
+
     func fetchHealthProfile(for date: Date = Date()) async throws -> HealthProfile {
         if DemoMode.isEnabled { return MockData.sampleHealthProfile }
 
-        // Fetch user characteristics. Compute age from the full birthday, not a
-        // year-minus-year subtraction (which is off by one for half the year and
-        // shifts the derived max HR).
         let calendar = Calendar.current
-        let age: Int? = {
-            guard let dob = try? healthStore.dateOfBirthComponents(),
-                  let birthDate = calendar.date(from: dob) else { return nil }
-            return calendar.dateComponents([.year], from: birthDate, to: Date()).year
-        }()
+        let age = currentAge
         let biologicalSex = try? healthStore.biologicalSex().biologicalSex
 
         // Fetch all metrics but don't fail if some are unavailable

@@ -51,6 +51,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
     private let hasAIConsent: @MainActor () -> Bool
     private let requiresIndexation: @MainActor () async -> Bool
     private let isDemo: Bool
+    private let maximumHeartRate: @MainActor () -> Int?
     private var isPreparingAnalysis = false
     private var lastViewedAnalysis: String?
     private var lastViewedSource: WorkoutAnalysisSource?
@@ -68,7 +69,8 @@ class WorkoutAnalysisViewModel: ObservableObject {
         analytics: (any WorkoutAnalysisTracking)? = nil,
         hasAIConsent: (@MainActor () -> Bool)? = nil,
         requiresIndexation: (@MainActor () async -> Bool)? = nil,
-        isDemo: Bool? = nil
+        isDemo: Bool? = nil,
+        maximumHeartRate: (@MainActor () -> Int?)? = nil
     ) {
         self.workout = workout
         self.metrics = metrics
@@ -78,6 +80,9 @@ class WorkoutAnalysisViewModel: ObservableObject {
         self.hasAIConsent = hasAIConsent ?? { ConsentService.shared.hasConsentedToAIDataSharing }
         self.requiresIndexation = requiresIndexation ?? { await HistoricalSummaryStorage.shared.requiresIndexation() }
         self.isDemo = isDemo ?? DemoMode.isEnabled
+        self.maximumHeartRate = maximumHeartRate ?? {
+            HeartRateReference.maximum(age: HealthKitManager.shared.currentAge)
+        }
 
         // Observe streaming response in real-time
         self.aiService.responsePublisher
@@ -117,7 +122,9 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // First, try to load from local cache
         if let cached = fetchCachedAnalysis() {
             print("✅ WorkoutAnalysisViewModel: Found cached analysis")
-            if AIResponseValidator.isComplete(cached.analysisText) {
+            if AIResponseValidator.isComplete(cached.analysisText),
+               cached.contextVersion == WorkoutAnalysis.currentContextVersion,
+               cached.estimatedMaxHR == maximumHeartRate() {
                 analysisText = cached.analysisText
                 analysisSource = .cache
                 analyzedAt = cached.analyzedAt
@@ -126,12 +133,15 @@ class WorkoutAnalysisViewModel: ObservableObject {
                 needsIndexation = false
                 print("✅ WorkoutAnalysisViewModel: Loaded valid cached analysis")
                 return
-            } else {
+            } else if !AIResponseValidator.isComplete(cached.analysisText) {
                 print("⚠️ WorkoutAnalysisViewModel: Cached analysis is invalid, deleting and regenerating")
                 // Delete invalid cache
                 modelContext.delete(cached)
                 try? modelContext.save()
             }
+            analysisText = nil
+            analysisSource = nil
+            analyzedAt = nil
         }
 
         guard allowGeneration else { return }
@@ -219,6 +229,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         // Get analysis prompt in user's language
         let question = getAnalysisPrompt()
+        let estimatedMaxHR = maximumHeartRate()
 
         // ModelRouter will automatically select appropriate model based on request complexity
         // askQuestion only returns once the stream is fully consumed, so the final
@@ -272,6 +283,8 @@ class WorkoutAnalysisViewModel: ObservableObject {
             analysis = WorkoutAnalysis(workoutId: workout.id, analysisText: finalAnalysis, analyzedAt: Date())
             modelContext.insert(analysis)
         }
+        analysis.contextVersion = WorkoutAnalysis.currentContextVersion
+        analysis.estimatedMaxHR = estimatedMaxHR
 
         do {
             try modelContext.save()

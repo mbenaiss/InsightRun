@@ -8,6 +8,24 @@
 import Foundation
 import HealthKit
 
+enum HeartRateReference {
+    static func maximum(age: Int?) -> Int? {
+        guard let age, (1...120).contains(age) else { return nil }
+        return 220 - age
+    }
+
+    static func zone(average: Double, maximum: Int?) -> Int? {
+        guard average.isFinite, average > 0, let maximum, maximum > 0 else { return nil }
+        switch average / Double(maximum) {
+        case ..<0.60: return 1
+        case ..<0.70: return 2
+        case ..<0.80: return 3
+        case ..<0.90: return 4
+        default: return 5
+        }
+    }
+}
+
 struct HealthProfile: Identifiable {
     let id = UUID()
     let date: Date

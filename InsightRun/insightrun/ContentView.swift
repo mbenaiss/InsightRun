@@ -165,7 +165,7 @@ struct ContentView: View {
 
             // Pre-load AI context data in background for faster AI assistant access
             if revenueCatManager.hasAIAccess {
-                await contextProvider.loadAllData()
+                await contextProvider.loadAllData(includeWorkoutMetrics: false)
             }
 
             // Check notification permissions and trigger proactive alerts
@@ -208,7 +208,7 @@ struct ContentView: View {
                         let change: Double? = lastWeekDist > 0
                             ? ((thisWeekDist - lastWeekDist) / lastWeekDist) * 100
                             : nil
-                        notificationManager.sendWeeklyProgressNotification(
+                        await notificationManager.sendWeeklyProgressNotification(
                             runCount: runCount,
                             totalDistanceKm: thisWeekKm,
                             weekOverWeekChange: change

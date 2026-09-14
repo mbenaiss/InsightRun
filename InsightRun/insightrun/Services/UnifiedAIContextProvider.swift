@@ -47,9 +47,9 @@ class UnifiedAIContextProvider: ObservableObject {
     // MARK: - Data Loading
 
     /// Load all data needed for unified AI context
-    func loadAllData() async {
+    func loadAllData(includeWorkoutMetrics: Bool = true) async {
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.loadRecentWorkouts() }
+            group.addTask { await self.loadRecentWorkouts(includeMetrics: includeWorkoutMetrics) }
             group.addTask { await self.loadRecoveryMetrics() }
             group.addTask { await self.loadHealthProfile() }
             group.addTask { await self.loadPersonalBaseline() }
@@ -63,16 +63,19 @@ class UnifiedAIContextProvider: ObservableObject {
     }
 
     /// Load recent workouts with metrics
-    func loadRecentWorkouts() async {
+    func loadRecentWorkouts(includeMetrics: Bool = true) async {
         isLoadingWorkouts = true
+        defer { isLoadingWorkouts = false }
 
         do {
             let calendar = Calendar.current
             guard let startOfYear = calendar.date(from: calendar.dateComponents([.year], from: Date())) else { return }
-            let workouts = try await healthKitManager.fetchRunningWorkouts(from: startOfYear, to: Date())
+            let workouts = try await healthKitManager.fetchRunningWorkouts(from: startOfYear, to: Date(), limit: 10)
 
             // Take last 10 workouts
             let recent = Array(workouts.prefix(10))
+            self.recentWorkouts = recent
+            guard includeMetrics else { return }
 
             // Load metrics in parallel
             var metricsDict: [UUID: WorkoutMetrics] = [:]
@@ -91,13 +94,10 @@ class UnifiedAIContextProvider: ObservableObject {
                 }
             }
 
-            self.recentWorkouts = recent
             self.workoutsMetrics = metricsDict
         } catch {
             print("⚠️ UnifiedAIContextProvider: Failed to load workouts: \(error)")
         }
-
-        isLoadingWorkouts = false
     }
 
     /// Load today's recovery metrics
@@ -216,6 +216,10 @@ class UnifiedAIContextProvider: ObservableObject {
     /// Check if we have enough data for AI
     var hasData: Bool {
         !recentWorkouts.isEmpty || recoveryMetrics != nil || healthProfile != nil
+    }
+
+    var hasWorkoutMetrics: Bool {
+        recentWorkouts.allSatisfy { workoutsMetrics[$0.id] != nil }
     }
 
     var isLoading: Bool {

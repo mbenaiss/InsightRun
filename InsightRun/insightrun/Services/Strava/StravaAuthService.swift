@@ -267,12 +267,15 @@ class StravaAuthService: ObservableObject {
                 accessToken: tokenResponse.accessToken,
                 refreshToken: tokenResponse.refreshToken,
                 expiresAt: expiresAt,
-                athleteId: tokenResponse.athlete?.id ?? 0
+                athleteId: tokenResponse.athlete?.id ?? tokenStorage.getAthleteId() ?? 0
             )
         } catch {
-            tokenStorage.clearTokens()
-            isAuthenticated = false
-            throw StravaAuthError.refreshFailed
+            if case StravaBackendError.httpError(401) = error {
+                tokenStorage.clearTokens()
+                isAuthenticated = false
+                throw StravaAuthError.refreshFailed
+            }
+            throw error
         }
     }
 

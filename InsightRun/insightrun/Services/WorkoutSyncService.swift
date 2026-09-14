@@ -142,6 +142,10 @@ final class WorkoutSyncService {
     // MARK: - Notifications
 
     private func sendNotifications(for workouts: [HKWorkout], completion: @escaping () -> Void) {
+        guard NotificationManager.shared.areNotificationsAllowedByPreference else {
+            completion()
+            return
+        }
         let center = UNUserNotificationCenter.current()
         let group = DispatchGroup()
 

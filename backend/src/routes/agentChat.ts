@@ -73,7 +73,9 @@ interface FunctionCall {
 }
 
 interface OpenRouterResponse {
+  error?: { message?: string }
   choices: Array<{
+    finish_reason?: string
     message?: {
       content?: string
       tool_calls?: Array<{
@@ -441,6 +443,9 @@ app.post('/chat', async (c) => {
               const dataStr = line.slice(6).trim()
 
               if (dataStr === '[DONE]') {
+                if (!functionCall && !fullOutput.trim()) {
+                  throw new Error('The AI response was empty')
+                }
                 // If we had a function call, process it
                 if (functionCall) {
                   const result = processFunctionCall(functionCall, body.language)
@@ -487,39 +492,45 @@ app.post('/chat', async (c) => {
               }
 
               if (dataStr) {
-                try {
-                  const json: OpenRouterResponse = JSON.parse(dataStr)
-                  const choice = json.choices?.[0]
+                const json: OpenRouterResponse = JSON.parse(dataStr)
+                const choice = json.choices?.[0]
+                if (json.error || choice?.finish_reason === 'length') {
+                  throw new Error('The AI response was interrupted. Please retry.')
+                }
 
-                  // Handle tool calls
-                  const toolCall = choice?.delta?.tool_calls?.[0]
-                  if (toolCall?.function) {
-                    if (toolCall.function.name) {
-                      functionCall = { name: toolCall.function.name, arguments: '' }
-                    }
-                    if (toolCall.function.arguments && functionCall) {
-                      functionCall.arguments += toolCall.function.arguments
-                    }
+                const toolCall = choice?.delta?.tool_calls?.[0]
+                if (toolCall?.function) {
+                  if (toolCall.function.name) {
+                    functionCall = { name: toolCall.function.name, arguments: '' }
                   }
+                  if (toolCall.function.arguments && functionCall) {
+                    functionCall.arguments += toolCall.function.arguments
+                  }
+                }
 
-                  // Handle regular content
-                  const content = choice?.delta?.content
-                  if (content) {
-                    fullOutput += content
-                    await stream.writeSSE({
-                      data: JSON.stringify({ type: 'content', content }),
-                    })
-                  }
-                } catch (parseError) {
-                  console.warn('JSON parse error:', parseError)
+                const content = choice?.delta?.content
+                if (content) {
+                  fullOutput += content
+                  await stream.writeSSE({
+                    data: JSON.stringify({ type: 'content', content }),
+                  })
                 }
               }
             }
           }
         }
+        throw new Error('The AI stream ended without a completion marker')
       } catch (error) {
         console.error('Streaming error:', error)
-        throw error
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: 'error',
+            message: 'The AI response was interrupted. Please retry.',
+          }),
+        })
+      } finally {
+        await reader.cancel().catch(() => {})
+        reader.releaseLock()
       }
     })
   } catch (error) {

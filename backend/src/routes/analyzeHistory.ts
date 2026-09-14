@@ -221,24 +221,28 @@ async function callOpenRouterNonStreaming(
       signal: controller.signal,
     })
 
-    clearTimeout(timeoutId)
-
     if (!response.ok) {
       const errorText = await response.text()
       throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
     }
 
     const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>
+      choices: Array<{ message: { content: string | null }; finish_reason?: string }>
     }
 
-    return data.choices[0]?.message?.content || ''
+    const choice = data.choices?.[0]
+    const summary = choice?.message?.content?.trim()
+    if (!summary || choice?.finish_reason === 'length') {
+      throw new Error('History analysis returned an empty or incomplete summary. Please retry.')
+    }
+    return summary
   } catch (error) {
-    clearTimeout(timeoutId)
     if ((error as Error).name === 'AbortError') {
       throw new Error(`Request timeout after ${timeout}ms`)
     }
     throw error
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
@@ -390,13 +394,15 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     const cachedBatch = await c.env.RATE_LIMITER.get(batchCacheKey)
     if (cachedBatch) {
       const parsed = JSON.parse(cachedBatch) as { partialSummary: string; workoutCount: number }
-      console.log(`⚡ Batch ${batchIndex}: idempotency cache hit (${workouts.length} workouts)`)
-      return c.json({
-        batchIndex,
-        partialSummary: parsed.partialSummary,
-        workoutCount: parsed.workoutCount,
-        tokenCount: estimateTokenCount(parsed.partialSummary),
-      } satisfies BatchAnalysisResponse)
+      if (parsed.partialSummary?.trim()) {
+        console.log(`⚡ Batch ${batchIndex}: idempotency cache hit (${workouts.length} workouts)`)
+        return c.json({
+          batchIndex,
+          partialSummary: parsed.partialSummary,
+          workoutCount: parsed.workoutCount,
+          tokenCount: estimateTokenCount(parsed.partialSummary),
+        } satisfies BatchAnalysisResponse)
+      }
     }
 
     // Select model using helper
@@ -574,12 +580,14 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     const cachedConsolidate = await c.env.RATE_LIMITER.get(consolidateCacheKey)
     if (cachedConsolidate) {
       const parsed = JSON.parse(cachedConsolidate) as { summary: string }
-      console.log(`⚡ Consolidation: idempotency cache hit (${batchSummaries.length} batches)`)
-      return c.json({
-        summary: parsed.summary,
-        workoutCount: totalWorkouts,
-        tokenCount: estimateTokenCount(parsed.summary),
-      } satisfies ConsolidateResponse)
+      if (parsed.summary?.trim()) {
+        console.log(`⚡ Consolidation: idempotency cache hit (${batchSummaries.length} batches)`)
+        return c.json({
+          summary: parsed.summary,
+          workoutCount: totalWorkouts,
+          tokenCount: estimateTokenCount(parsed.summary),
+        } satisfies ConsolidateResponse)
+      }
     }
 
     // Select model using helper

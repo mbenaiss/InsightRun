@@ -785,6 +785,7 @@ class BatchIndexationManager: ObservableObject {
         var summaries: [Int: String] = [:]
         for batch in progressStore.loadBatchSummaries(forUserId: userId)
         where batch.status == .completed && batch.batchNumber >= 0 && batch.batchNumber < totalBatches {
+            guard !batch.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
             summaries[batch.batchNumber] = batch.summary
         }
         return summaries

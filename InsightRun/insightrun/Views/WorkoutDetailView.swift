@@ -73,7 +73,7 @@ struct WorkoutDetailView: View {
     var body: some View {
         ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.cardPadding) {
-                        if viewModel.isLoading {
+                        if viewModel.isLoading && viewModel.metrics == nil {
                             loadingSection
                         } else if let error = viewModel.errorMessage {
                             errorSection(error)

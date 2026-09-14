@@ -10,7 +10,11 @@
 import SwiftUI
 
 struct WeeklySummaryView: View {
-    @StateObject private var viewModel = WeeklySummaryViewModel()
+    @StateObject private var viewModel: WeeklySummaryViewModel
+
+    init(viewModel: WeeklySummaryViewModel? = nil) {
+        _viewModel = StateObject(wrappedValue: viewModel ?? WeeklySummaryViewModel())
+    }
 
     var body: some View {
         ScrollView {
@@ -23,13 +27,20 @@ struct WeeklySummaryView: View {
             }
         }
         .background(Color.irBackgroundApp.ignoresSafeArea())
+        .accessibilityIdentifier("weekly-summary-content")
         .navigationTitle(String(localized: "Weekly Summary", comment: "Navigation title for weekly summary"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {
             await viewModel.load(forceCoachingRefresh: true)
         }
         .task {
-            await viewModel.load()
+            await viewModel.load(minimumRefreshInterval: 60)
+            await viewModel.loadCoachingIfNeeded()
+        }
+        .onChange(of: viewModel.isLoading) { _, isLoading in
+            if !isLoading {
+                Task { await viewModel.loadCoachingIfNeeded() }
+            }
         }
     }
 

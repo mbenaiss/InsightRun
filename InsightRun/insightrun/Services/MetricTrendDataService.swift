@@ -25,13 +25,53 @@ final class MetricTrendDataService {
     private var caloriesBreakdownCache: [String: (data: [CaloriesBreakdownPoint], timestamp: Date)] = [:]
     private let cacheDuration: TimeInterval = Constants.cacheDurationSeconds
 
-    private init() {}
+    private var activityHistoryCache: [Int: (data: [(Date, DailyActivityData)], timestamp: Date)] = [:]
+    private var activityHistoryTasks: [Int: Task<[(Date, DailyActivityData)], Never>] = [:]
+    private let activityLoader: (Date) async -> DailyActivityData
+
+    init(activityLoader: @escaping (Date) async -> DailyActivityData = {
+        await HealthKitManager.shared.fetchDailyActivityData(for: $0)
+    }) {
+        self.activityLoader = activityLoader
+    }
+
+    private func activityHistory(days: Int) async -> [(Date, DailyActivityData)] {
+        let calendar = Calendar.current
+        let now = Date()
+        if let cached = activityHistoryCache[days],
+           now.timeIntervalSince(cached.timestamp) < cacheDuration,
+           calendar.isDate(cached.timestamp, inSameDayAs: now) {
+            return cached.data
+        }
+        if let task = activityHistoryTasks[days] { return await task.value }
+
+        let today = calendar.startOfDay(for: now)
+        let task = Task { @MainActor in
+            var result: [(Date, DailyActivityData)] = []
+            // Share a sequential read across charts to avoid saturating HealthKit.
+            for offset in 0..<max(0, days) {
+                guard let date = calendar.date(byAdding: .day, value: -(days - 1) + offset, to: today) else { continue }
+                result.append((date, await self.activityLoader(date)))
+            }
+            return result
+        }
+        activityHistoryTasks[days] = task
+        let data = await task.value
+        activityHistoryTasks[days] = nil
+        if data.contains(where: { $0.1.steps > 0 || $0.1.totalCalories > 0 || $0.1.exerciseMinutes > 0 }) {
+            activityHistoryCache[days] = (data, now)
+        }
+        return data
+    }
 
     private func cleanExpiredCache() {
         cache = cache.filter { _, entry in
             Date().timeIntervalSince(entry.timestamp) < cacheDuration
         }
         caloriesBreakdownCache = caloriesBreakdownCache.filter { _, entry in
+            Date().timeIntervalSince(entry.timestamp) < cacheDuration
+        }
+        activityHistoryCache = activityHistoryCache.filter { _, entry in
             Date().timeIntervalSince(entry.timestamp) < cacheDuration
         }
     }
@@ -78,22 +118,7 @@ final class MetricTrendDataService {
             return cached.data
         }
 
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let hkManager = HealthKitManager.shared
-
-        let dates: [Date] = (0..<days).compactMap { offset in
-            calendar.date(byAdding: .day, value: -(days - 1) + offset, to: today)
-        }
-
-        let activities = await withTaskGroup(of: (Date, DailyActivityData).self) { group in
-            for date in dates {
-                group.addTask { (date, await hkManager.fetchDailyActivityData(for: date)) }
-            }
-            var results: [(Date, DailyActivityData)] = []
-            for await result in group { results.append(result) }
-            return results.sorted { $0.0 < $1.0 }
-        }
+        let activities = await activityHistory(days: days)
 
         let tls = TrainingLoadService.shared
         let points: [TrendDataPoint] = activities.map { date, activity in
@@ -109,8 +134,6 @@ final class MetricTrendDataService {
         return points
     }
 
-    // Sequential — running this in parallel with effortTrend's TaskGroup saturates
-    // HKHealthStore and crashes the main thread during dashboard load.
     func caloriesTotalTrend(days: Int = 7) async -> [TrendDataPoint] {
         cleanExpiredCache()
         let cacheKey = "calories_total_\(days)"
@@ -118,17 +141,9 @@ final class MetricTrendDataService {
             return cached.data
         }
 
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let hkManager = HealthKitManager.shared
-
-        var points: [TrendDataPoint] = []
-        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
-            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
-            let activity = await hkManager.fetchDailyActivityData(for: date)
-            if activity.totalCalories > 0 {
-                points.append(TrendDataPoint(date: date, value: activity.totalCalories))
-            }
+        let activities = await activityHistory(days: days)
+        let points = activities.compactMap { date, activity in
+            activity.totalCalories > 0 ? TrendDataPoint(date: date, value: activity.totalCalories) : nil
         }
 
         if !points.isEmpty {
@@ -138,9 +153,6 @@ final class MetricTrendDataService {
     }
 
     /// Daily active vs. resting calories for the last `days` days.
-    /// Built from the same `fetchDailyActivityData` source as `caloriesTotalTrend` —
-    /// kept as a separate query so the dashboard's total-calories card can reuse the
-    /// existing trend without paying for the breakdown.
     func caloriesBreakdownTrend(days: Int = 7) async -> [CaloriesBreakdownPoint] {
         cleanExpiredCache()
         let cacheKey = "calories_breakdown_\(days)"
@@ -149,21 +161,10 @@ final class MetricTrendDataService {
             return cached.data
         }
 
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let hkManager = HealthKitManager.shared
-
-        var points: [CaloriesBreakdownPoint] = []
-        for dayOffset in stride(from: -(days - 1), through: 0, by: 1) {
-            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
-            let activity = await hkManager.fetchDailyActivityData(for: date)
-            if activity.totalCalories > 0 {
-                points.append(CaloriesBreakdownPoint(
-                    date: date,
-                    active: activity.activeCalories,
-                    resting: activity.basalCalories
-                ))
-            }
+        let activities = await activityHistory(days: days)
+        let points = activities.compactMap { date, activity -> CaloriesBreakdownPoint? in
+            guard activity.totalCalories > 0 else { return nil }
+            return CaloriesBreakdownPoint(date: date, active: activity.activeCalories, resting: activity.basalCalories)
         }
 
         if !points.isEmpty {

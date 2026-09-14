@@ -40,6 +40,7 @@ struct DashboardView: View {
     @State private var todaySession: (goal: RaceGoal, day: TrainingDay)?
     @State private var latestWorkout: WorkoutModel?
     @State private var isActivationLoading = false
+    @AppStorage("hasViewedWorkoutDetail") private var hasViewedWorkoutDetail = false
 
     // MARK: - Body
 
@@ -285,8 +286,10 @@ struct DashboardView: View {
                 dateHeader
                     .padding(.horizontal)
 
-                section(title: String(localized: "Next action", comment: "Dashboard activation section title")) {
-                    activationActionCard
+                if !hasViewedWorkoutDetail {
+                    section(title: String(localized: "Next action", comment: "Dashboard activation section title")) {
+                        activationActionCard
+                    }
                 }
 
                 // Disponibilité

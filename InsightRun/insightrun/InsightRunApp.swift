@@ -26,6 +26,9 @@ struct InsightRunApp: App {
 
     init() {
         #if DEBUG
+        if DemoMode.isEnabled && ProcessInfo.processInfo.arguments.contains("-RESET_ACTIVATION_UI_TEST") {
+            UserDefaults.standard.removeObject(forKey: "hasViewedWorkoutDetail")
+        }
         if Self.isWorkoutGenerationUITest {
             do {
                 sharedModelContainer = try WorkoutAnalysisUITestScenario.makeModelContainer()

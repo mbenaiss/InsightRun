@@ -9,6 +9,7 @@ final class ActivationFlowUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "-DEMO_MODE",
+            "-RESET_ACTIVATION_UI_TEST",
             "-AppleLanguages", "(fr)",
             "-AppleLocale", "fr_FR"
         ]
@@ -28,6 +29,17 @@ final class ActivationFlowUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["post-analysis-notification"].exists)
 
         attachScreenshot(of: app, named: "Activation-Workout-Analysis")
+
+        app.tabBars.buttons["Tableau de bord"].tap()
+        XCTAssertTrue(activationButton.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Ouvrez votre dernière course et obtenez une recommandation concrète."].exists)
+        attachScreenshot(of: app, named: "Dashboard-After-Workout-Consultation")
+
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "-RESET_ACTIVATION_UI_TEST" }
+        app.launch()
+        XCTAssertTrue(app.buttons["dashboard-settings"].waitForExistence(timeout: 10))
+        XCTAssertFalse(activationButton.exists)
     }
 
     func testRealWorkoutConsentIsVisibleAndAcceptShowsAnalysis() {

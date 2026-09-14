@@ -59,7 +59,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
 
     func testSaveAndRetrieveFromCache() {
         let identifier = "test_metric"
-        let text = "This is a cached analysis"
+        let text = "This is a complete cached analysis of your recent training."
 
         sut.testSaveAnalysis(text, for: identifier, value: "42")
         let retrieved = sut.testCachedAnalysis(for: identifier, value: "42")
@@ -74,7 +74,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
 
     func testCachedAnalysisReturnsNilForDifferentValue() {
         let identifier = "score_sleep"
-        sut.testSaveAnalysis("analysis for 65", for: identifier, value: "65")
+        sut.testSaveAnalysis("Your recovery score is 65, so keep the next run easy.", for: identifier, value: "65")
 
         let result = sut.testCachedAnalysis(for: identifier, value: "82")
         XCTAssertNil(result, "Should return nil when value differs — prevents stale analysis when score changes")
@@ -85,7 +85,7 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
         let oldKey = "ai_analysis_\(identifier)_en_2020-01-01_v50"
         testDefaults.set("old", forKey: oldKey)
 
-        sut.testSaveAnalysis("new", for: identifier, value: "75")
+        sut.testSaveAnalysis("This is the new complete analysis of your recent training.", for: identifier, value: "75")
 
         let oldValue = testDefaults.string(forKey: oldKey)
         XCTAssertNil(oldValue, "Old cache entries should be cleaned up")
@@ -93,12 +93,12 @@ final class ScoreAnalysisViewModelTests: XCTestCase {
 
     func testCleanOldCacheRemovesPreviousValueForSameDay() {
         let identifier = "score_sleep"
-        sut.testSaveAnalysis("analysis for 65", for: identifier, value: "65")
+        sut.testSaveAnalysis("Your recovery score is 65, so keep the next run easy.", for: identifier, value: "65")
 
-        sut.testSaveAnalysis("analysis for 82", for: identifier, value: "82")
+        sut.testSaveAnalysis("Your recovery score is 82, so continue the planned training.", for: identifier, value: "82")
 
         XCTAssertNil(sut.testCachedAnalysis(for: identifier, value: "65"), "Previous value's analysis should be cleaned up")
-        XCTAssertEqual(sut.testCachedAnalysis(for: identifier, value: "82"), "analysis for 82", "New value's analysis should be kept")
+        XCTAssertEqual(sut.testCachedAnalysis(for: identifier, value: "82"), "Your recovery score is 82, so continue the planned training.", "New value's analysis should be kept")
     }
 
     // MARK: - Build Prompt Tests
@@ -376,7 +376,6 @@ final class MetricTrendDataServiceTests: XCTestCase {
 
         for dayOffset in 0..<7 {
             guard let date = calendar.date(byAdding: .day, value: -6 + dayOffset, to: today) else { continue }
-            let testCache = DailyMetricsCache.createForTesting(defaults: testDefaults)
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             let key = "readiness_score_\(formatter.string(from: date))"

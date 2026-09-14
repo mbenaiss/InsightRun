@@ -224,6 +224,10 @@ class HealthKitManager: ObservableObject {
     /// Fetch ALL running workouts (deprecated - use paginated version instead)
     /// WARNING: This loads all workouts at once. For large histories, use fetchRunningWorkouts(limit:anchor:)
     func fetchRunningWorkouts() async throws -> [WorkoutModel] {
+        try await fetchRunningWorkouts(includeEffortScores: true)
+    }
+
+    func fetchRunningWorkouts(includeEffortScores: Bool) async throws -> [WorkoutModel] {
         if DemoMode.isEnabled { return MockData.sampleWorkouts }
 
         let workoutType = HKObjectType.workoutType()
@@ -249,7 +253,7 @@ class HealthKitManager: ObservableObject {
         }
 
         var models = hkWorkouts.map { WorkoutModel(from: $0) }
-        if #available(iOS 18.0, *) {
+        if includeEffortScores, #available(iOS 18.0, *) {
             models = await enrichWithEffortScores(workouts: hkWorkouts, models: models)
         }
         return models
@@ -338,9 +342,10 @@ class HealthKitManager: ObservableObject {
     ///   - startDate: Start of the date range
     ///   - endDate: End of the date range
     /// - Returns: Array of workouts within the date range, sorted by date descending
-    func fetchRunningWorkouts(from startDate: Date, to endDate: Date) async throws -> [WorkoutModel] {
+    func fetchRunningWorkouts(from startDate: Date, to endDate: Date, limit: Int = HKObjectQueryNoLimit) async throws -> [WorkoutModel] {
         if DemoMode.isEnabled {
-            return MockData.sampleWorkouts.filter { $0.startDate >= startDate && $0.startDate <= endDate }
+            let workouts = MockData.sampleWorkouts.filter { $0.startDate >= startDate && $0.startDate <= endDate }
+            return limit == HKObjectQueryNoLimit ? workouts : Array(workouts.prefix(max(0, limit)))
         }
 
         let workoutType = HKObjectType.workoutType()
@@ -358,7 +363,7 @@ class HealthKitManager: ObservableObject {
             let query = HKSampleQuery(
                 sampleType: workoutType,
                 predicate: predicate,
-                limit: HKObjectQueryNoLimit,
+                limit: limit,
                 sortDescriptors: [sortDescriptor]
             ) { _, samples, error in
                 if let error = error {

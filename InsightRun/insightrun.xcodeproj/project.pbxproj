@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A0D180000000000000000004 /* AgentStreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000004 /* AgentStreamParserTests.swift */; };
+		A0D180000000000000000003 /* WorkoutKitErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000003 /* WorkoutKitErrorTests.swift */; };
+		A0D180000000000000000002 /* ScoreAnalysisViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000002 /* ScoreAnalysisViewModelTests.swift */; };
+		A0D180000000000000000001 /* NoSleepModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000001 /* NoSleepModeTests.swift */; };
+		A0D180000000000000000000 /* NotificationManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000000 /* NotificationManagerTests.swift */; };
 		BE65974B2EB222A300565DAC /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = BE65974A2EB222A300565DAC /* RevenueCat */; };
 		BE65974D2EB222A300565DAC /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = BE65974C2EB222A300565DAC /* RevenueCatUI */; };
 		BE65974F2EB222C100565DAC /* insightrun.storekit in Resources */ = {isa = PBXBuildFile; fileRef = BE65974E2EB222C100565DAC /* insightrun.storekit */; };
@@ -63,6 +68,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A0D170000000000000000004 /* AgentStreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStreamParserTests.swift; sourceTree = "<group>"; };
+		A0D170000000000000000003 /* WorkoutKitErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutKitErrorTests.swift; sourceTree = "<group>"; };
+		A0D170000000000000000002 /* ScoreAnalysisViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreAnalysisViewModelTests.swift; sourceTree = "<group>"; };
+		A0D170000000000000000001 /* NoSleepModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoSleepModeTests.swift; sourceTree = "<group>"; };
+		A0D170000000000000000000 /* NotificationManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManagerTests.swift; sourceTree = "<group>"; };
 		E1A001012F100001005ADB01 /* insightrunAnalysisTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = insightrunAnalysisTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		204019094FE9CDA25C72CE3E /* insightrunUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = insightrunUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE013B582E9E7D83003FB282 /* insightrun.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = insightrun.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -192,6 +202,11 @@
 			isa = PBXGroup;
 			children = (
 				653D22F6438F0F93F299F3EC /* WorkoutGenerationTests.swift */,
+				A0D170000000000000000004 /* AgentStreamParserTests.swift */,
+				A0D170000000000000000003 /* WorkoutKitErrorTests.swift */,
+				A0D170000000000000000002 /* ScoreAnalysisViewModelTests.swift */,
+				A0D170000000000000000001 /* NoSleepModeTests.swift */,
+				A0D170000000000000000000 /* NotificationManagerTests.swift */,
 				55A8CDCEC4A8EA7F1B02A498 /* open-intervals.json */,
 			);
 			name = insightrunTests;
@@ -438,6 +453,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				C80505A95DFE1434FC74811B /* WorkoutGenerationTests.swift in Sources */,
+				A0D180000000000000000004 /* AgentStreamParserTests.swift in Sources */,
+				A0D180000000000000000003 /* WorkoutKitErrorTests.swift in Sources */,
+				A0D180000000000000000002 /* ScoreAnalysisViewModelTests.swift in Sources */,
+				A0D180000000000000000001 /* NoSleepModeTests.swift in Sources */,
+				A0D180000000000000000000 /* NotificationManagerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -483,7 +503,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.analysisTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -514,7 +534,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.analysisTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -541,7 +561,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -568,7 +588,7 @@
 				DEVELOPMENT_TEAM = PCTXJ3892R;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -736,7 +756,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -780,7 +800,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -817,7 +837,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -852,7 +872,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0.7;
+				MARKETING_VERSION = 2.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.altcode.insightrun.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

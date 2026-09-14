@@ -19,7 +19,13 @@ class NotificationManager: ObservableObject {
     @Published var isWeeklySummaryEnabled: Bool = false
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
-    private let userDefaults = UserDefaults.standard
+    private let userDefaults: UserDefaults
+    private let now: () -> Date
+    private let addNotification: (UNNotificationRequest) async throws -> Void
+    private let pendingNotifications: () async -> [UNNotificationRequest]
+    private let removePendingNotifications: ([String]) -> Void
+    private var weeklyProgressInFlight = false
+    private let notificationsEnabledKey = "com.insightrun.notificationsEnabled"
     private let dailyReadinessKey = "com.insightrun.dailyReadinessNotification"
     private let weeklySummaryKey = "com.insightrun.weeklySummaryNotification"
     private let lastInactivityReminderKey = "com.insightrun.lastInactivityReminder"
@@ -29,9 +35,24 @@ class NotificationManager: ObservableObject {
     private let lastWeeklyProgressWeekKey = "com.insightrun.lastWeeklyProgressWeek"
     private let throttleInterval: TimeInterval = 24 * 60 * 60 // 24 hours
 
-    private init() {
+    init(
+        userDefaults: UserDefaults = .standard,
+        now: @escaping () -> Date = Date.init,
+        addNotification: @escaping (UNNotificationRequest) async throws -> Void = { try await UNUserNotificationCenter.current().add($0) },
+        pendingNotifications: @escaping () async -> [UNNotificationRequest] = { await UNUserNotificationCenter.current().pendingNotificationRequests() },
+        removePendingNotifications: @escaping ([String]) -> Void = { UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: $0) }
+    ) {
+        self.userDefaults = userDefaults
+        self.now = now
+        self.addNotification = addNotification
+        self.pendingNotifications = pendingNotifications
+        self.removePendingNotifications = removePendingNotifications
         isDailyReadinessEnabled = userDefaults.bool(forKey: dailyReadinessKey)
         isWeeklySummaryEnabled = userDefaults.bool(forKey: weeklySummaryKey)
+    }
+
+    var areNotificationsAllowedByPreference: Bool {
+        userDefaults.object(forKey: notificationsEnabledKey) as? Bool ?? true
     }
 
     // MARK: - Permission Request
@@ -42,6 +63,7 @@ class NotificationManager: ObservableObject {
 
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            userDefaults.set(granted, forKey: notificationsEnabledKey)
             self.isNotificationsEnabled = granted
             self.authorizationStatus = granted ? .authorized : .denied
             return granted
@@ -56,7 +78,7 @@ class NotificationManager: ObservableObject {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         self.authorizationStatus = settings.authorizationStatus
-        self.isNotificationsEnabled = settings.authorizationStatus == .authorized
+        self.isNotificationsEnabled = (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional) && areNotificationsAllowedByPreference
     }
 
     // MARK: - Daily Readiness Notification
@@ -110,6 +132,7 @@ class NotificationManager: ObservableObject {
     func cancelDailyReadiness() {
         isDailyReadinessEnabled = false
         userDefaults.set(false, forKey: dailyReadinessKey)
+        SleepObserverService.shared.stopObserving()
     }
 
     // MARK: - Weekly Summary Notification
@@ -118,8 +141,7 @@ class NotificationManager: ObservableObject {
     func scheduleWeeklySummary(weekday: Int = 1, hour: Int = 18, minute: Int = 0) {
         guard isNotificationsEnabled else { return }
 
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["weekly-summary"])
+        removePendingNotifications(["weekly-summary"])
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Weekly Summary 📊", comment: "Weekly summary notification title")
@@ -135,11 +157,16 @@ class NotificationManager: ObservableObject {
 
         let request = UNNotificationRequest(identifier: "weekly-summary", content: content, trigger: trigger)
 
+        isWeeklySummaryEnabled = true
+        userDefaults.set(true, forKey: weeklySummaryKey)
         Task {
+            guard isNotificationsEnabled, isWeeklySummaryEnabled else { return }
             do {
-                try await center.add(request)
-                isWeeklySummaryEnabled = true
-                userDefaults.set(true, forKey: weeklySummaryKey)
+                try await addNotification(request)
+                guard isNotificationsEnabled, isWeeklySummaryEnabled else {
+                    removePendingNotifications([request.identifier])
+                    return
+                }
                 print("✅ NotificationManager: Weekly summary scheduled")
             } catch {
                 print("❌ NotificationManager: Failed to schedule weekly summary: \(error)")
@@ -149,8 +176,7 @@ class NotificationManager: ObservableObject {
 
     /// Cancel weekly summary notifications
     func cancelWeeklySummary() {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["weekly-summary"])
+        removePendingNotifications(["weekly-summary", "weekly-progress"])
         isWeeklySummaryEnabled = false
         userDefaults.set(false, forKey: weeklySummaryKey)
     }
@@ -263,22 +289,21 @@ class NotificationManager: ObservableObject {
 
     // MARK: - Weekly Progress Notification
 
-    /// Send weekly progress notification with actual stats
-    /// Replaces the static weekly summary for this week (avoids duplicate Sunday notifications)
-    func sendWeeklyProgressNotification(runCount: Int, totalDistanceKm: Double, weekOverWeekChange: Double?) {
-        guard isNotificationsEnabled else { return }
+    /// Recover a missing weekly reminder after its Sunday delivery time.
+    func sendWeeklyProgressNotification(runCount: Int, totalDistanceKm: Double, weekOverWeekChange: Double?) async {
+        guard isNotificationsEnabled, isWeeklySummaryEnabled, !weeklyProgressInFlight, runCount > 0 else { return }
+        let date = now()
+        let calendar = Calendar.current
+        guard calendar.component(.weekday, from: date) == 1, calendar.component(.hour, from: date) >= 18 else { return }
+        let currentWeek = Self.isoWeekIdentifier(for: date)
+        guard userDefaults.string(forKey: lastWeeklyProgressWeekKey) != currentWeek else { return }
 
-        // The caller runs on every launch: without this guard the notification fires
-        // again each time the app is opened on Sunday.
-        let currentWeek = Self.isoWeekIdentifier(for: Date())
-        guard userDefaults.string(forKey: lastWeeklyProgressWeekKey) != currentWeek else {
-            print("⏱️ NotificationManager: Weekly progress already sent for \(currentWeek)")
-            return
-        }
-
-        // Cancel the static weekly summary — this progress notification replaces it
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["weekly-summary"])
+        weeklyProgressInFlight = true
+        defer { weeklyProgressInFlight = false }
+        // The recurring reminder already covers Sunday, including after it was dismissed.
+        let pending = await pendingNotifications()
+        guard !pending.contains(where: { $0.identifier == "weekly-summary" }),
+              isNotificationsEnabled, isWeeklySummaryEnabled else { return }
 
         let content = UNMutableNotificationContent()
         let distanceStr = String(format: "%.0f", totalDistanceKm)
@@ -301,17 +326,15 @@ class NotificationManager: ObservableObject {
             trigger: nil
         )
 
-        Task {
-            do {
-                try await center.add(request)
-                self.userDefaults.set(currentWeek, forKey: self.lastWeeklyProgressWeekKey)
-                AnalyticsService.shared.trackNotificationSent(type: "weekly_progress")
-                // Re-schedule the static summary for next week
-                self.scheduleWeeklySummary()
-                print("✅ NotificationManager: Weekly progress notification sent (replaced static summary)")
-            } catch {
-                print("❌ NotificationManager: Failed to send weekly progress: \(error)")
+        do {
+            try await addNotification(request)
+            userDefaults.set(currentWeek, forKey: lastWeeklyProgressWeekKey)
+            AnalyticsService.shared.trackNotificationSent(type: "weekly_progress")
+            if isNotificationsEnabled, isWeeklySummaryEnabled {
+                scheduleWeeklySummary()
             }
+        } catch {
+            print("❌ NotificationManager: Failed to send weekly progress: \(error)")
         }
     }
 
@@ -357,6 +380,9 @@ class NotificationManager: ObservableObject {
 
     /// Remove all pending notifications
     func removeAllPendingNotifications() {
+        userDefaults.set(false, forKey: notificationsEnabledKey)
+        isNotificationsEnabled = false
+        SleepObserverService.shared.stopObserving()
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         isDailyReadinessEnabled = false
         isWeeklySummaryEnabled = false

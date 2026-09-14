@@ -144,7 +144,9 @@ struct InsightRunApp: App {
         // Start background sync if HealthKit is already authorized
         if HealthKitManager.shared.hasCompletedHealthKitSetup {
             WorkoutSyncService.shared.startObserving()
-            SleepObserverService.shared.startObserving()
+            if NotificationManager.shared.isDailyReadinessEnabled {
+                SleepObserverService.shared.startObserving()
+            }
         }
     }
 

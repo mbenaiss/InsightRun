@@ -49,6 +49,7 @@ class StatisticsViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
     private var progressionCache: [UUID: ProgressionDataPoint] = [:]
     private var progressionTask: Task<Void, Never>?
+    private var isFetchingWorkouts = false
 
     enum TimePeriod: Equatable, CaseIterable {
         case thisWeek
@@ -203,22 +204,26 @@ class StatisticsViewModel: ObservableObject {
     // MARK: - Data Loading
 
     func loadWorkouts() async {
+        guard !isFetchingWorkouts else { return }
         if DemoMode.isEnabled {
             workouts = MockData.sampleWorkouts
             isLoading = false
             return
         }
 
-        isLoading = true
+        isFetchingWorkouts = true
+        isLoading = workouts.isEmpty
         errorMessage = nil
+        defer {
+            isFetchingWorkouts = false
+            isLoading = false
+        }
 
         do {
-            workouts = try await healthKitManager.fetchRunningWorkouts()
+            workouts = try await healthKitManager.fetchRunningWorkouts(includeEffortScores: false)
         } catch {
             errorMessage = error.localizedDescription
         }
-
-        isLoading = false
     }
 
     func refresh() async {

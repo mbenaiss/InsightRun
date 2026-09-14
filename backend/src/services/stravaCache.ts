@@ -1,19 +1,25 @@
-interface StravaActivity {
-  id: number
-  name: string
-  distance: number
-  moving_time: number
-  elapsed_time: number
-  total_elevation_gain: number
-  type: string
-  start_date: string
-  start_date_local: string
-  average_speed?: number
-  max_speed?: number
-  average_heartrate?: number
-  max_heartrate?: number
-  calories?: number
-}
+import { z } from 'zod'
+
+export const stravaActivitySchema = z
+  .object({
+    id: z.number().int(),
+    name: z.string(),
+    distance: z.number(),
+    moving_time: z.number(),
+    elapsed_time: z.number(),
+    total_elevation_gain: z.number(),
+    type: z.string(),
+    start_date: z.string(),
+    start_date_local: z.string(),
+    average_speed: z.number().optional(),
+    max_speed: z.number().optional(),
+    average_heartrate: z.number().optional(),
+    max_heartrate: z.number().optional(),
+    calories: z.number().optional(),
+  })
+  .passthrough()
+
+type StravaActivity = z.infer<typeof stravaActivitySchema>
 
 interface CachedActivity {
   id: number

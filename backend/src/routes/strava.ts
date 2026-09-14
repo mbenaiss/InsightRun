@@ -1,7 +1,8 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
+import { z } from 'zod'
 import { createPostHogClient } from '../posthog'
-import { StravaCache } from '../services/stravaCache'
+import { StravaCache, stravaActivitySchema } from '../services/stravaCache'
 
 type StravaBindings = {
   STRAVA_CLIENT_ID: string
@@ -36,6 +37,8 @@ interface StoredUserTokens {
   createdAt: number
   lastRefreshedAt?: number
 }
+
+class StravaAuthenticationError extends Error {}
 
 class StravaApiError extends Error {
   status: number
@@ -89,10 +92,13 @@ function reportStravaError(
 }
 
 function stravaErrorResponse(c: StravaContext, error: unknown, fallback: string) {
+  if (error instanceof StravaAuthenticationError) {
+    return c.json({ error: 'Strava authentication required', message: error.message }, 401)
+  }
   if (error instanceof StravaApiError) {
     return c.json(
       { error: 'Strava API error', strava_status: error.status, message: error.message },
-      502
+      error.status === 429 ? 429 : 502
     )
   }
   if (error instanceof Error && error.message.includes('not authenticated')) {
@@ -116,6 +122,45 @@ interface StravaWebhookEvent {
 const STRAVA_OAUTH_URL = 'https://www.strava.com/oauth/token'
 const STRAVA_API_URL = 'https://www.strava.com/api/v3'
 const CACHE_MAX_AGE = 3600000 // 1 hour
+
+const refreshedTokensSchema = z.object({
+  access_token: z.string().min(1),
+  refresh_token: z.string().min(1),
+  expires_at: z.number().int().positive(),
+})
+
+async function refreshUserTokens(
+  c: StravaContext,
+  userId: string,
+  existing: StoredUserTokens
+): Promise<StoredUserTokens> {
+  const response = await fetch(STRAVA_OAUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: c.env.STRAVA_CLIENT_ID,
+      client_secret: c.env.STRAVA_CLIENT_SECRET,
+      refresh_token: existing.refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  if (response.status === 400 || response.status === 401) {
+    throw new StravaAuthenticationError('Your Strava session expired. Please reconnect.')
+  }
+  if (!response.ok) throw new StravaApiError(response.status, 'Token refresh failed')
+
+  const data = refreshedTokensSchema.parse(await response.json())
+  // Refresh responses omit athlete data, and the rotated token must be saved immediately.
+  const updated = {
+    ...existing,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: data.expires_at,
+    lastRefreshedAt: Date.now(),
+  }
+  await c.env.STRAVA_TOKENS.put(`user:${userId}`, JSON.stringify(updated))
+  return updated
+}
 
 const app = new Hono<{ Bindings: StravaBindings }>()
 
@@ -142,7 +187,10 @@ app.post('/exchange-token', async (c: StravaContext) => {
 
     if (!response.ok) {
       const error = await response.text()
-      return c.json({ error: 'Token exchange failed', details: error }, response.status)
+      return c.json(
+        { error: 'Token exchange failed', details: error },
+        response.status === 400 ? 400 : 502
+      )
     }
 
     const data: StravaTokenResponse = await response.json()
@@ -196,81 +244,51 @@ app.post('/exchange-token', async (c: StravaContext) => {
 })
 
 app.post('/refresh-token', async (c: StravaContext) => {
+  let userId: string | undefined
   try {
     const body = await c.req.json<{ refreshToken: string; userId: string }>()
-
     if (!body.refreshToken || !body.userId) {
       return c.json({ error: 'Missing refreshToken or userId' }, 400)
     }
-
-    const { refreshToken, userId } = body
-
-    const response = await fetch(STRAVA_OAUTH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: c.env.STRAVA_CLIENT_ID,
-        client_secret: c.env.STRAVA_CLIENT_SECRET,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      return c.json({ error: 'Token refresh failed', details: error }, response.status)
+    userId = body.userId
+    const existing = await c.env.STRAVA_TOKENS.get<StoredUserTokens>(`user:${body.userId}`, 'json')
+    if (!existing || existing.refreshToken !== body.refreshToken) {
+      throw new StravaAuthenticationError('Please reconnect to Strava.')
     }
 
-    const data: StravaTokenResponse = await response.json()
-
-    const existingData = await c.env.STRAVA_TOKENS.get(`user:${userId}`, 'json')
-    const existing = existingData as StoredUserTokens | null
-
-    const userTokens: StoredUserTokens = {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      expiresAt: data.expires_at,
-      athleteId: data.athlete.id,
-      athleteName: `${data.athlete.firstname} ${data.athlete.lastname}`,
-      createdAt: existing?.createdAt || Date.now(),
-      lastRefreshedAt: Date.now(),
+    const tokens =
+      existing.expiresAt > Date.now() / 1000 + 300
+        ? existing
+        : await refreshUserTokens(c, body.userId, existing)
+    if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const posthog = createPostHogClient({
+              apiKey: c.env.POSTHOG_API_KEY,
+              host: c.env.POSTHOG_HOST,
+            })
+            await posthog.captureImmediate({
+              distinctId: body.userId,
+              event: 'strava_token_refresh',
+              properties: { athleteId: tokens.athleteId, timestamp: Date.now() },
+            })
+            await posthog.shutdown()
+          } catch (error) {
+            console.error('PostHog capture error:', error)
+          }
+        })()
+      )
     }
-
-    await c.env.STRAVA_TOKENS.put(`user:${userId}`, JSON.stringify(userTokens))
-
-    c.executionCtx.waitUntil(
-      (async () => {
-        try {
-          const posthog = createPostHogClient({
-            apiKey: c.env.POSTHOG_API_KEY,
-            host: c.env.POSTHOG_HOST,
-          })
-
-          await posthog.captureImmediate({
-            distinctId: userId,
-            event: 'strava_token_refresh',
-            properties: {
-              athleteId: data.athlete.id,
-              timestamp: Date.now(),
-            },
-          })
-
-          await posthog.shutdown()
-        } catch (error) {
-          console.error('PostHog capture error:', error)
-        }
-      })()
-    )
-
     return c.json({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      expires_at: data.expires_at,
-      athlete: data.athlete,
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+      expires_at: tokens.expiresAt,
+      athlete: { id: tokens.athleteId },
     })
   } catch (error) {
-    console.error('Refresh token error:', error)
-    return c.json({ error: 'Internal server error' }, 500)
+    reportStravaError(c, 'strava_token_refresh_failed_backend', userId, error)
+    return stravaErrorResponse(c, error, 'Failed to refresh Strava token')
   }
 })
 
@@ -363,41 +381,14 @@ async function processWebhookEvent(c: StravaContext, event: StravaWebhookEvent) 
       if (response.status === 401) {
         console.log('⚠️ Token expired, refreshing for webhook...')
 
-        const refreshResponse = await fetch(STRAVA_OAUTH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            client_id: c.env.STRAVA_CLIENT_ID,
-            client_secret: c.env.STRAVA_CLIENT_SECRET,
-            refresh_token: userTokens.refreshToken,
-            grant_type: 'refresh_token',
-          }),
+        const updatedTokens = await refreshUserTokens(c, userId, userTokens)
+        response = await fetch(`${STRAVA_API_URL}/activities/${activityId}`, {
+          headers: { Authorization: `Bearer ${updatedTokens.accessToken}` },
         })
-
-        if (refreshResponse.ok) {
-          const refreshData: StravaTokenResponse = await refreshResponse.json()
-
-          const updatedTokens: StoredUserTokens = {
-            ...userTokens,
-            accessToken: refreshData.access_token,
-            refreshToken: refreshData.refresh_token,
-            expiresAt: refreshData.expires_at,
-            lastRefreshedAt: Date.now(),
-          }
-
-          await c.env.STRAVA_TOKENS.put(`user:${userId}`, JSON.stringify(updatedTokens))
-
-          // Retry with new token
-          response = await fetch(`${STRAVA_API_URL}/activities/${activityId}`, {
-            headers: {
-              Authorization: `Bearer ${updatedTokens.accessToken}`,
-            },
-          })
-        }
       }
 
       if (response.ok) {
-        const activity = await response.json()
+        const activity = stravaActivitySchema.parse(await response.json())
         const cache = new StravaCache(c.env.STRAVA_CACHE)
         await cache.saveActivities(userId, athleteId, [activity])
 
@@ -610,57 +601,17 @@ app.get('/activities/:id', async (c: StravaContext) => {
     if (response.status === 401) {
       console.log('⚠️ Access token expired, refreshing...')
 
-      try {
-        const refreshResponse = await fetch(STRAVA_OAUTH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            client_id: c.env.STRAVA_CLIENT_ID,
-            client_secret: c.env.STRAVA_CLIENT_SECRET,
-            refresh_token: userTokens.refreshToken,
-            grant_type: 'refresh_token',
-          }),
-        })
-
-        if (!refreshResponse.ok) {
-          return c.json({ error: 'Failed to refresh Strava token. Please re-authenticate.' }, 401)
-        }
-
-        const refreshData: StravaTokenResponse = await refreshResponse.json()
-
-        const updatedTokens: StoredUserTokens = {
-          accessToken: refreshData.access_token,
-          refreshToken: refreshData.refresh_token,
-          expiresAt: refreshData.expires_at,
-          athleteId: refreshData.athlete.id,
-          athleteName: `${refreshData.athlete.firstname} ${refreshData.athlete.lastname}`,
-          createdAt: userTokens.createdAt,
-          lastRefreshedAt: Date.now(),
-        }
-
-        await c.env.STRAVA_TOKENS.put(`user:${userId}`, JSON.stringify(updatedTokens))
-
-        console.log('✅ Token refreshed successfully')
-
-        // Retry with new token
-        response = await fetch(`${STRAVA_API_URL}/activities/${activityId}`, {
-          headers: {
-            Authorization: `Bearer ${updatedTokens.accessToken}`,
-          },
-        })
-
-        userTokens = updatedTokens
-      } catch (error) {
-        console.error('❌ Token refresh failed:', error)
-        return c.json({ error: 'Failed to refresh Strava token. Please re-authenticate.' }, 401)
-      }
+      userTokens = await refreshUserTokens(c, userId, userTokens)
+      response = await fetch(`${STRAVA_API_URL}/activities/${activityId}`, {
+        headers: { Authorization: `Bearer ${userTokens.accessToken}` },
+      })
     }
 
     if (!response.ok) {
-      return c.json({ error: 'Failed to fetch activity from Strava' }, response.status)
+      throw new StravaApiError(response.status, 'Failed to fetch activity from Strava')
     }
 
-    const activity = await response.json()
+    const activity = stravaActivitySchema.parse(await response.json())
 
     await cache.saveActivities(userId, userTokens.athleteId, [activity])
 
@@ -821,50 +772,10 @@ async function syncUserActivities(
     if (response.status === 401 && page === 1) {
       console.log('⚠️ Access token expired, refreshing...')
 
-      try {
-        const refreshResponse = await fetch(STRAVA_OAUTH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            client_id: c.env.STRAVA_CLIENT_ID,
-            client_secret: c.env.STRAVA_CLIENT_SECRET,
-            refresh_token: userTokens.refreshToken,
-            grant_type: 'refresh_token',
-          }),
-        })
-
-        if (!refreshResponse.ok) {
-          throw new Error(`Token refresh failed: ${refreshResponse.status}`)
-        }
-
-        const refreshData: StravaTokenResponse = await refreshResponse.json()
-
-        const updatedTokens: StoredUserTokens = {
-          accessToken: refreshData.access_token,
-          refreshToken: refreshData.refresh_token,
-          expiresAt: refreshData.expires_at,
-          athleteId: refreshData.athlete.id,
-          athleteName: `${refreshData.athlete.firstname} ${refreshData.athlete.lastname}`,
-          createdAt: userTokens.createdAt,
-          lastRefreshedAt: Date.now(),
-        }
-
-        await c.env.STRAVA_TOKENS.put(`user:${userId}`, JSON.stringify(updatedTokens))
-
-        console.log('✅ Token refreshed successfully')
-
-        // Retry with new token
-        response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${updatedTokens.accessToken}`,
-          },
-        })
-
-        userTokens = updatedTokens
-      } catch (error) {
-        console.error('❌ Token refresh failed:', error)
-        throw new Error('Failed to refresh Strava token. Please re-authenticate.')
-      }
+      userTokens = await refreshUserTokens(c, userId, userTokens)
+      response = await fetch(url, {
+        headers: { Authorization: `Bearer ${userTokens.accessToken}` },
+      })
     }
 
     if (!response.ok) {
@@ -872,7 +783,7 @@ async function syncUserActivities(
       throw new StravaApiError(response.status, body.slice(0, 500))
     }
 
-    const activities = await response.json()
+    const activities = z.array(stravaActivitySchema).parse(await response.json())
 
     if (activities.length === 0) {
       hasMore = false

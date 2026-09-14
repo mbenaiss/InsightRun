@@ -278,6 +278,8 @@ enum StravaBackendError: LocalizedError {
         switch self {
         case .invalidResponse:
             return String(localized: "strava.backend.error.invalidResponse", defaultValue: "Invalid response from Strava.", comment: "Strava backend error - invalid response")
+        case .httpError(401):
+            return StravaAuthError.refreshFailed.errorDescription
         case .httpError(let code):
             return String(localized: "strava.backend.error.http", defaultValue: "Strava error (code \(code)).", comment: "Strava backend error - HTTP status code")
         }

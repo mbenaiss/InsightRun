@@ -209,10 +209,11 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 }
             }
 
+            let receivedChunkCount = chunkCount
             await MainActor.run {
                 AnalyticsService.shared.trackAIChatStep("stream_completed", properties: [
                     "duration_ms": Self.elapsedMs(since: streamStart),
-                    "chunks": chunkCount,
+                    "chunks": receivedChunkCount,
                     "response_length": self.streamedResponse.count
                 ])
                 self.isStreaming = false

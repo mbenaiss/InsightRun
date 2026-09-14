@@ -180,6 +180,48 @@ class BackendAPIClient {
         let message: String
     }
 
+    struct AgentStreamParser {
+        private(set) var isComplete = false
+        private var hasContent = false
+
+        mutating func consume(_ line: String) throws -> AgentStreamEvent? {
+            guard line.hasPrefix("data:") else { return nil }
+            let payload = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+            if payload == "[DONE]" {
+                guard hasContent else { throw BackendError.invalidResponse }
+                isComplete = true
+                return nil
+            }
+            guard let data = payload.data(using: .utf8),
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let type = json["type"] as? String else { throw BackendError.invalidResponse }
+            switch type {
+            case "content":
+                guard let content = json["content"] as? String else { throw BackendError.invalidResponse }
+                hasContent = hasContent || !content.isEmpty
+                return .content(content)
+            case "function_result":
+                guard let function = json["function"] as? String,
+                      let message = json["message"] as? String,
+                      let result = json["result"] else { throw BackendError.invalidResponse }
+                hasContent = true
+                return .functionResult(AgentFunctionResult(
+                    functionName: function,
+                    result: try JSONSerialization.data(withJSONObject: result),
+                    message: message
+                ))
+            case "error":
+                throw BackendError.serverError
+            default:
+                return nil
+            }
+        }
+
+        func finish() throws {
+            guard isComplete else { throw BackendError.invalidResponse }
+        }
+    }
+
     func agentChatStream(payload: AgentChatRequest) async throws -> AsyncThrowingStream<AgentStreamEvent, Error> {
         let url = URL(string: "\(baseURL)/api/agent/chat")!
         var request = URLRequest(url: url)
@@ -193,48 +235,23 @@ class BackendAPIClient {
         request.httpBody = try encoder.encode(payload)
 
         return AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 do {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     try self.validate(response, data: nil)
 
+                    var parser = AgentStreamParser()
                     for try await line in bytes.lines {
-                        if line.hasPrefix("data: ") {
-                            let jsonString = String(line.dropFirst(6))
-
-                            if jsonString == "[DONE]" {
-                                continuation.finish()
-                                return
-                            }
-
-                            guard let jsonData = jsonString.data(using: .utf8),
-                                  let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                                  let type = json["type"] as? String else {
-                                continue
-                            }
-
-                            switch type {
-                            case "content":
-                                if let content = json["content"] as? String {
-                                    continuation.yield(.content(content))
-                                }
-                            case "function_result":
-                                if let functionName = json["function"] as? String,
-                                   let message = json["message"] as? String,
-                                   let result = json["result"] {
-                                    let resultData = try JSONSerialization.data(withJSONObject: result)
-                                    continuation.yield(.functionResult(AgentFunctionResult(
-                                        functionName: functionName,
-                                        result: resultData,
-                                        message: message
-                                    )))
-                                }
-                            default:
-                                break
-                            }
+                        try Task.checkCancellation()
+                        if let event = try parser.consume(line) {
+                            continuation.yield(event)
+                        }
+                        if parser.isComplete {
+                            continuation.finish()
+                            return
                         }
                     }
-
+                    try parser.finish()
                     continuation.finish()
 
                 } catch {
@@ -242,6 +259,7 @@ class BackendAPIClient {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -275,6 +293,9 @@ class BackendAPIClient {
 
         let decoder = JSONDecoder()
         let batchResponse = try decoder.decode(BatchAnalysisResponse.self, from: data)
+        guard !batchResponse.partialSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw BackendError.invalidResponse
+        }
 
         print("✅ BackendAPIClient: Batch \(batchIndex) analyzed (\(batchResponse.workoutCount) workouts, \(batchResponse.tokenCount) tokens)")
 

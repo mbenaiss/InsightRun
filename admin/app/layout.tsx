@@ -6,6 +6,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'InsightRun Admin',
+  icons: { icon: '/favicon.png' },
   description: 'Administration dashboard for InsightRun',
 }
 

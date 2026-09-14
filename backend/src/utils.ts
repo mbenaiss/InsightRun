@@ -161,7 +161,7 @@ export function readinessBandLine(): string {
 // Maximum heart rate estimated from age (Fox formula). Returns null when age is
 // unknown so callers never present a fabricated zone as fact.
 export function estimateMaxHR(age?: number): number | null {
-  if (!age || age <= 0) return null
+  if (age === undefined || !Number.isInteger(age) || age < 1 || age > 120) return null
   return 220 - age
 }
 

@@ -11,7 +11,7 @@ import FitFileParser
 
 // MARK: - Suunto Split
 
-struct SuuntoSplit {
+nonisolated struct SuuntoSplit: Sendable {
     let kilometer: Int
     let time: TimeInterval // seconds for this km
     let pace: Double // min/km
@@ -23,7 +23,7 @@ struct SuuntoSplit {
 
 // MARK: - Parsed Workout (Converted to usable units)
 
-struct ParsedSuuntoWorkout {
+nonisolated struct ParsedSuuntoWorkout: Sendable {
     let startDate: Date
     let endDate: Date
     let duration: TimeInterval
@@ -94,7 +94,7 @@ enum SuuntoParserError: Error, LocalizedError {
     }
 }
 
-struct SuuntoParser {
+nonisolated struct SuuntoParser {
 
     // Maximum samples to keep in memory (prevents memory issues for ultra-marathons)
     private static let maxSamplesInMemory = 2000
@@ -117,6 +117,7 @@ struct SuuntoParser {
     }
 
     static func parse(from url: URL) throws -> ParsedSuuntoWorkout {
+        try Task.checkCancellation()
         guard let fitFile = FitFile(file: url) else {
             throw SuuntoParserError.invalidFITFile(detail: "Could not open or parse the FIT file")
         }
@@ -125,17 +126,14 @@ struct SuuntoParser {
 
     /// Async version that loads and parses FIT file on background queue
     static func parseAsync(from url: URL) async throws -> ParsedSuuntoWorkout {
-        let fitFile: FitFile? = await Task.detached(priority: .userInitiated) {
-            FitFile(file: url)
-        }.value
-
-        guard let fitFile else {
-            throw SuuntoParserError.fileReadFailed(path: url.lastPathComponent, underlying: NSError(
-                domain: "SuuntoParser", code: 0,
-                userInfo: [NSLocalizedDescriptionKey: String(localized: "Could not parse FIT file", comment: "Suunto error: FIT parse failure")]
-            ))
+        let parsing = Task.detached(priority: .userInitiated) {
+            try parse(from: url)
         }
-        return try convert(fitFile)
+        return try await withTaskCancellationHandler {
+            try await parsing.value
+        } onCancel: {
+            parsing.cancel()
+        }
     }
 
     // MARK: - FIT Conversion
@@ -264,6 +262,7 @@ struct SuuntoParser {
         var powerCount: Int = 0
 
         for record in records {
+            try Task.checkCancellation()
             let fields = record.interpretedFields()
 
             guard let timestampValue = fields["timestamp"],

@@ -1,6 +1,13 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "recovery.insufficient_data" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Not enough health data to assess your recovery yet." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Aún no hay suficientes datos de salud para evaluar tu recuperación." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Pas encore assez de données de santé pour évaluer ta récupération." } }
+      }
+    },
     "workout.race.label": {
       "extractionState": "manual",
       "localizations": {
@@ -17827,6 +17834,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Séance"
+          }
+        }
+      }
+    },
+    "workout.detail.hr_max_estimated_suffix": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "age-estimated max HR"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FCmax estimée (âge)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FCmáx estimada (edad)"
           }
         }
       }

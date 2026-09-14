@@ -109,6 +109,15 @@ struct RecoveryMetrics: Identifiable {
         )
     }
 
+    var coachingRecommendation: String {
+        let measurements = [restingHeartRate, hrvAverage, respiratoryRate, oxygenSaturation]
+        guard measurements.contains(where: { $0.map { $0.isFinite && $0 > 0 } == true })
+                || (sleepData?.totalSleepDuration ?? 0) > 0 else {
+            return String(localized: "recovery.insufficient_data", defaultValue: "Not enough health data to assess your recovery yet.")
+        }
+        return recoveryStatus.recommendation
+    }
+
     var recoveryStatus: RecoveryStatus {
         switch recoveryScore {
         case 67...100:

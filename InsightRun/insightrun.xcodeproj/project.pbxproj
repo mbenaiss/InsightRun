@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A0D180000000000000000004 /* AgentStreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000004 /* AgentStreamParserTests.swift */; };
 		A0D180000000000000000007 /* WorkoutRaceStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000007 /* WorkoutRaceStoreTests.swift */; };
+		A0D180000000000000000008 /* StabilityIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000008 /* StabilityIntegrationTests.swift */; };
 		A0D180000000000000000006 /* MetricTrendLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000006 /* MetricTrendLoadingTests.swift */; };
 		A0D180000000000000000005 /* ConcurrentRequestCoalescerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000005 /* ConcurrentRequestCoalescerTests.swift */; };
 		A0D180000000000000000003 /* WorkoutKitErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000003 /* WorkoutKitErrorTests.swift */; };
@@ -73,6 +74,7 @@
 /* Begin PBXFileReference section */
 		A0D170000000000000000004 /* AgentStreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStreamParserTests.swift; sourceTree = "<group>"; };
 		A0D170000000000000000007 /* WorkoutRaceStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutRaceStoreTests.swift; sourceTree = "<group>"; };
+		A0D170000000000000000008 /* StabilityIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StabilityIntegrationTests.swift; sourceTree = "<group>"; };
 		A0D170000000000000000006 /* MetricTrendLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricTrendLoadingTests.swift; sourceTree = "<group>"; };
 		A0D170000000000000000005 /* ConcurrentRequestCoalescerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentRequestCoalescerTests.swift; sourceTree = "<group>"; };
 		A0D170000000000000000003 /* WorkoutKitErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutKitErrorTests.swift; sourceTree = "<group>"; };
@@ -210,6 +212,7 @@
 				653D22F6438F0F93F299F3EC /* WorkoutGenerationTests.swift */,
 				A0D170000000000000000004 /* AgentStreamParserTests.swift */,
 				A0D170000000000000000007 /* WorkoutRaceStoreTests.swift */,
+				A0D170000000000000000008 /* StabilityIntegrationTests.swift */,
 				A0D170000000000000000006 /* MetricTrendLoadingTests.swift */,
 				A0D170000000000000000005 /* ConcurrentRequestCoalescerTests.swift */,
 				A0D170000000000000000003 /* WorkoutKitErrorTests.swift */,
@@ -464,6 +467,7 @@
 				C80505A95DFE1434FC74811B /* WorkoutGenerationTests.swift in Sources */,
 				A0D180000000000000000004 /* AgentStreamParserTests.swift in Sources */,
 				A0D180000000000000000007 /* WorkoutRaceStoreTests.swift in Sources */,
+				A0D180000000000000000008 /* StabilityIntegrationTests.swift in Sources */,
 				A0D180000000000000000006 /* MetricTrendLoadingTests.swift in Sources */,
 				A0D180000000000000000005 /* ConcurrentRequestCoalescerTests.swift in Sources */,
 				A0D180000000000000000003 /* WorkoutKitErrorTests.swift in Sources */,

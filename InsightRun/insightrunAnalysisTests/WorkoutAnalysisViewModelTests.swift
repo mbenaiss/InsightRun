@@ -314,6 +314,103 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         XCTAssertEqual(saved.first?.analysisText, AnalysisHarness.completeResponse)
     }
 
+    func testLegacyAnalysisIsReplacedAfterContextVersionChanges() async throws {
+        let harness = try AnalysisHarness()
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        let cached = try harness.modelContext.fetch(FetchDescriptor<WorkoutAnalysis>()).first!
+        cached.contextVersion = nil
+        try harness.modelContext.save()
+
+        await harness.viewModel.loadAnalysis()
+
+        XCTAssertEqual(harness.client.requestCount, 1)
+        XCTAssertEqual(harness.viewModel.analysisSource, .generated)
+        XCTAssertEqual(try harness.savedAnalyses().first?.contextVersion, WorkoutAnalysis.currentContextVersion)
+    }
+
+    func testChangedHeartRateReferenceInvalidatesAnalysisWithoutLosingOfflineCache() async throws {
+        let harness = try AnalysisHarness()
+        harness.estimatedMaxHR = 190
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+
+        harness.estimatedMaxHR = 189
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+
+        XCTAssertNil(harness.viewModel.analysisText)
+        XCTAssertNil(harness.viewModel.analysisSource)
+        XCTAssertEqual(harness.client.requestCount, 0)
+        XCTAssertEqual(try harness.savedAnalyses().first?.estimatedMaxHR, 190)
+
+        harness.client.stubbedResponse = ""
+        harness.client.stubbedError = URLError(.notConnectedToInternet).localizedDescription
+        await harness.viewModel.loadAnalysis()
+        XCTAssertFalse(harness.viewModel.isLoading)
+        XCTAssertNotNil(harness.viewModel.error)
+        XCTAssertNil(harness.viewModel.analysisText)
+        XCTAssertEqual(try harness.savedAnalyses().first?.estimatedMaxHR, 190)
+        XCTAssertEqual(try harness.savedAnalyses().first?.analysisText, AnalysisHarness.completeResponse)
+
+        harness.client.stubbedError = nil
+        harness.client.stubbedResponse = AnalysisHarness.completeResponse
+        await harness.viewModel.loadAnalysis()
+        XCTAssertEqual(harness.client.requestCount, 2)
+        XCTAssertEqual(try harness.savedAnalyses().first?.estimatedMaxHR, 189)
+    }
+
+    func testAgePermissionChangesInvalidateThePreviousReference() async throws {
+        let harness = try AnalysisHarness()
+        harness.estimatedMaxHR = 190
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        harness.estimatedMaxHR = nil
+
+        await harness.viewModel.loadAnalysis()
+
+        XCTAssertEqual(harness.viewModel.analysisSource, .generated)
+        XCTAssertNil(try harness.savedAnalyses().first?.estimatedMaxHR)
+        await harness.viewModel.loadAnalysis()
+        XCTAssertEqual(harness.client.requestCount, 1)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+    }
+
+    func testHeartRateReferenceUsesTheSameAgeFormulaAndZoneBoundariesAsTheBackend() async {
+        XCTAssertEqual(HeartRateReference.maximum(age: 20), 200)
+        XCTAssertEqual(HeartRateReference.maximum(age: 40), 180)
+        for age in [nil, 0, -1, 121] {
+            XCTAssertNil(HeartRateReference.maximum(age: age))
+        }
+        for (average, expected) in [(119.0, 1), (120, 2), (140, 3), (160, 4), (180, 5)] {
+            XCTAssertEqual(HeartRateReference.zone(average: average, maximum: 200), expected)
+        }
+        XCTAssertNil(HeartRateReference.zone(average: 140, maximum: nil))
+        XCTAssertNil(HeartRateReference.zone(average: .infinity, maximum: 200))
+        XCTAssertNil(HeartRateReference.zone(average: .nan, maximum: 200))
+    }
+
+    func testLegacyPersistentStoreMigratesWithoutLosingAnalyses() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("analyses.store")
+        let workoutID = UUID()
+        try autoreleasepool {
+            let schema = Schema([LegacyAnalysisSchema.WorkoutAnalysis.self])
+            let configuration = ModelConfiguration(schema: schema, url: url)
+            let container = try ModelContainer(for: schema, configurations: configuration)
+            container.mainContext.insert(LegacyAnalysisSchema.WorkoutAnalysis(workoutId: workoutID, analysisText: AnalysisHarness.completeResponse))
+            try container.mainContext.save()
+        }
+        let schema = Schema([WorkoutAnalysis.self])
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, url: url))
+        let records = try container.mainContext.fetch(FetchDescriptor<WorkoutAnalysis>())
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records.first?.workoutId, workoutID)
+        XCTAssertEqual(records.first?.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertNil(records.first?.contextVersion)
+        XCTAssertNil(records.first?.estimatedMaxHR)
+    }
+
     private func assertFailedGeneration(
         response: String,
         serviceError: String? = nil,
@@ -357,6 +454,7 @@ private final class AnalysisHarness {
     let workout: WorkoutModel
     let client = AnalysisClientStub()
     let analytics = AnalysisTrackingSpy()
+    var estimatedMaxHR: Int?
     var hasConsent = true
     var indexationRequired = false
     var indexationChecks = 0
@@ -374,7 +472,8 @@ private final class AnalysisHarness {
             await indexationSuspension?.wait()
             return indexationRequired
         },
-        isDemo: false
+        isDemo: false,
+        maximumHeartRate: { [unowned self] in estimatedMaxHR }
     )
 
     init(isSample: Bool = false) throws {
@@ -403,7 +502,7 @@ private final class AnalysisHarness {
     }
 
     func cacheAnalysis(_ text: String, analyzedAt: Date = Date()) throws {
-        modelContext.insert(WorkoutAnalysis(workoutId: workout.id, analysisText: text, analyzedAt: analyzedAt))
+        modelContext.insert(WorkoutAnalysis(workoutId: workout.id, analysisText: text, analyzedAt: analyzedAt, estimatedMaxHR: estimatedMaxHR))
         try modelContext.save()
     }
 
@@ -483,5 +582,20 @@ private final class AnalysisSuspension {
     func resume() {
         continuation?.resume()
         continuation = nil
+    }
+}
+
+private enum LegacyAnalysisSchema {
+    @Model
+    final class WorkoutAnalysis {
+        @Attribute(.unique) var workoutId: UUID
+        var analysisText: String
+        var analyzedAt: Date
+
+        init(workoutId: UUID, analysisText: String) {
+            self.workoutId = workoutId
+            self.analysisText = analysisText
+            self.analyzedAt = Date()
+        }
     }
 }

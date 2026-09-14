@@ -31,6 +31,7 @@ struct WorkoutDetailView: View {
     @State private var similarWorkouts: [WorkoutModel] = []
     @State private var isAnalysisConfidenceExpanded = false
     @State private var trackedAnalysisConfidence: String?
+    @State private var estimatedMaxHR: Int?
 
     init(
         workout: WorkoutModel,
@@ -171,6 +172,7 @@ struct WorkoutDetailView: View {
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            estimatedMaxHR = HeartRateReference.maximum(age: HealthKitManager.shared.currentAge)
             await notificationManager.checkPermissionStatus()
 
             // Compute similar workouts once instead of on every render
@@ -607,32 +609,16 @@ struct WorkoutDetailView: View {
         return "\(pretty) " + String(localized: "net", comment: "KPI subtitle: net duration suffix")
     }
 
-    private var personalMaxHR: Double {
-        let maxes = allWorkouts.compactMap { $0.maxHeartRate }.filter { $0 > 0 }
-        return maxes.max() ?? 190
-    }
-
-    private func hrZone(avgHR: Double) -> Int {
-        let pct = avgHR / personalMaxHR
-        switch pct {
-        case ..<0.60: return 1
-        case ..<0.70: return 2
-        case ..<0.80: return 3
-        case ..<0.90: return 4
-        default:      return 5
-        }
-    }
-
     private func hrZoneLabel(avgHR: Double) -> String? {
-        guard avgHR > 0 else { return nil }
-        let zone = hrZone(avgHR: avgHR)
-        let pct = Int(((avgHR / personalMaxHR) * 100).rounded())
-        let pctLabel = Formatters.percent(Double(pct))
-        return "Z\(zone) · \(pctLabel) \(String(localized: "workout.detail.hr_max_suffix", defaultValue: "FCmax", comment: "Heart-rate percentage-of-max suffix"))"
+        guard let estimatedMaxHR,
+              let zone = HeartRateReference.zone(average: avgHR, maximum: estimatedMaxHR) else { return nil }
+        let pctLabel = Formatters.percent((avgHR / Double(estimatedMaxHR) * 100).rounded())
+        return "Z\(zone) · \(pctLabel) \(String(localized: "workout.detail.hr_max_estimated_suffix", defaultValue: "age-estimated max HR"))"
     }
 
     private func hrZoneColor(avgHR: Double) -> Color {
-        switch hrZone(avgHR: avgHR) {
+        switch HeartRateReference.zone(average: avgHR, maximum: estimatedMaxHR) {
+        case nil: return .irTextSecondary
         case 1: return .irSuccess
         case 2: return .irSuccess
         case 3: return .irWarning

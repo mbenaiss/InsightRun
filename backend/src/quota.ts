@@ -87,26 +87,40 @@ export async function setQuotaConfig(kv: KVNamespace, config: Partial<QuotaConfi
   console.log('✅ Quota: Updated rate limit config in KV')
 }
 
-/**
- * Get current quota status from KV store
- */
+type QuotaWindow = { resetAt: number }
+
+async function readQuotaCounter(kv: KVNamespace, key: string, window: number) {
+  const { value, metadata } = await kv.getWithMetadata<QuotaWindow>(key)
+  const now = Math.floor(Date.now() / 1000)
+  let resetAt = metadata?.resetAt
+
+  if (value !== null && !resetAt) {
+    // Legacy counters only store their expiry on the KV key itself.
+    const { keys } = await kv.list({ prefix: key, limit: 1 })
+    resetAt = keys.find((entry) => entry.name === key)?.expiration
+  }
+
+  if (value === null || (resetAt !== undefined && resetAt <= now)) {
+    return { count: 0, resetAt: now + window }
+  }
+
+  return { count: Number.parseInt(value, 10) || 0, resetAt: resetAt ?? now + window }
+}
+
 async function getQuotaStatus(
   kv: KVNamespace,
   key: string,
   limit: number,
   window: number
 ): Promise<QuotaStatus> {
-  const value = await kv.get(key)
-  const count = value ? Number.parseInt(value, 10) : 0
-
+  const { count, resetAt } = await readQuotaCounter(kv, key, window)
   const now = Math.floor(Date.now() / 1000)
-  const resetIn = window // Default to full window if we can't determine exact reset time
 
   return {
     remaining: Math.max(0, limit - count),
     limit,
-    resetAt: now + resetIn,
-    resetIn,
+    resetAt,
+    resetIn: Math.max(0, resetAt - now),
   }
 }
 
@@ -134,7 +148,11 @@ export async function checkQuota(
   let allowed = ipStatus.remaining > 0
   let restrictedBy: 'ip' | 'user' | undefined
 
-  if (userStatus && userStatus.remaining === 0) {
+  if (
+    userStatus &&
+    userStatus.remaining === 0 &&
+    (ipStatus.remaining > 0 || userStatus.resetAt >= ipStatus.resetAt)
+  ) {
     allowed = false
     restrictedBy = 'user'
   } else if (ipStatus.remaining === 0) {
@@ -163,23 +181,21 @@ export async function incrementQuota(
   userId?: string,
   config: QuotaConfig = DEFAULT_QUOTA_CONFIG
 ): Promise<void> {
-  // Increment IP counter
-  const ipKey = `ratelimit:ip:${ip}`
-  const ipCount = await kv.get(ipKey)
-  const ipRequestCount = ipCount ? Number.parseInt(ipCount, 10) : 0
-  await kv.put(ipKey, (ipRequestCount + 1).toString(), {
-    expirationTtl: config.ipWindow,
-  })
+  await incrementQuotaCounter(kv, `ratelimit:ip:${ip}`, config.ipWindow)
 
-  // Increment User counter if userId provided
   if (userId) {
-    const userKey = `ratelimit:user:${userId}`
-    const userCount = await kv.get(userKey)
-    const userRequestCount = userCount ? Number.parseInt(userCount, 10) : 0
-    await kv.put(userKey, (userRequestCount + 1).toString(), {
-      expirationTtl: config.userWindow,
-    })
+    await incrementQuotaCounter(kv, `ratelimit:user:${userId}`, config.userWindow)
   }
+}
+
+async function incrementQuotaCounter(kv: KVNamespace, key: string, window: number) {
+  const { count, resetAt } = await readQuotaCounter(kv, key, window)
+  const now = Math.floor(Date.now() / 1000)
+  await kv.put(key, (count + 1).toString(), {
+    // KV requires at least 60s of retention; metadata keeps the logical deadline unchanged.
+    expiration: Math.max(resetAt, now + 60),
+    metadata: { resetAt },
+  })
 }
 
 /**
@@ -196,6 +212,14 @@ export function getQuotaHeaders(quotaCheck: QuotaCheck): Record<string, string> 
     headers['X-RateLimit-User-Limit'] = quotaCheck.user.limit.toString()
     headers['X-RateLimit-User-Remaining'] = quotaCheck.user.remaining.toString()
     headers['X-RateLimit-User-Reset'] = quotaCheck.user.resetAt.toString()
+  }
+
+  if (!quotaCheck.allowed) {
+    const restricted = quotaCheck.restrictedBy === 'user' ? quotaCheck.user : quotaCheck.ip
+    if (restricted) {
+      headers['Retry-After'] = Math.ceil(restricted.resetIn).toString()
+      headers['X-RateLimit-Reset'] = restricted.resetAt.toString()
+    }
   }
 
   return headers

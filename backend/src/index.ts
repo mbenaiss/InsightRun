@@ -14,7 +14,7 @@ import {
   setModelMapping,
   upsertModel,
 } from './modelRouter'
-import { captureLLMEvent, createPostHogClient } from './posthog'
+import { captureLLMEvent, captureQuotaExceeded, createPostHogClient } from './posthog'
 import { buildPrompt } from './prompts'
 import type { QuotaCheck, QuotaConfig } from './quota'
 import {
@@ -303,6 +303,7 @@ app.use('/api/*', async (c, next) => {
 
   // If quota exceeded, return 429 with detailed error
   if (!quotaCheck.allowed) {
+    captureQuotaExceeded(c, quotaCheck)
     const quotaHeaders = getQuotaHeaders(quotaCheck)
     return c.json(
       {

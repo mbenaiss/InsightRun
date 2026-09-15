@@ -3,21 +3,22 @@ import app from '../src/routes/analyzeHistory'
 
 afterEach(() => mock.restore())
 
-async function analyze(content: unknown, cached: string | null = null, finishReason = 'stop') {
+async function requestAnalysis(route: 'batch' | 'consolidate', cached: string | null = null) {
   const put = mock(async () => {})
-  const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-    Response.json({ choices: [{ message: { content }, finish_reason: finishReason }] })
-  )
   const response = await app.request(
-    '/batch',
+    `/${route}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-User-ID': 'test-user' },
       body: JSON.stringify({
-        batchIndex: 0,
         language: 'en',
         model: 'test-model',
-        workouts: [{ date: '2026-09-13', duration: 1800, distance: 5000 }],
+        ...(route === 'batch'
+          ? {
+              batchIndex: 0,
+              workouts: [{ date: '2026-09-13', duration: 1800, distance: 5000 }],
+            }
+          : { batchSummaries: ['One 5 km run.'], totalWorkouts: 1 }),
       }),
     },
     {
@@ -29,7 +30,32 @@ async function analyze(content: unknown, cached: string | null = null, finishRea
     },
     { waitUntil: () => {}, passThroughOnException: () => {} }
   )
-  return { response, put, fetchMock }
+  return { response, put }
+}
+
+async function analyze(content: unknown, cached: string | null = null, finishReason = 'stop') {
+  const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    Response.json({ choices: [{ message: { content }, finish_reason: finishReason }] })
+  )
+  return { ...(await requestAnalysis('batch', cached)), fetchMock }
+}
+
+function fastForwardTimers() {
+  const realSetTimeout = globalThis.setTimeout
+  let elapsedMs = 0
+  spyOn(globalThis, 'setTimeout').mockImplementation((callback, delay, ...args) =>
+    realSetTimeout(() => {
+      elapsedMs += delay ?? 0
+      callback(...args)
+    }, 0)
+  )
+  return () => elapsedMs
+}
+
+function waitForAbort(_input: unknown, init?: RequestInit): Promise<Response> {
+  return new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+  })
 }
 
 describe('history analysis summaries', () => {
@@ -67,5 +93,56 @@ describe('history analysis summaries', () => {
     expect(response.status).toBe(200)
     expect((await response.json()).partialSummary).toBe('One 5 km run.')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('history analysis retries', () => {
+  test.each([
+    ['batch', 429],
+    ['batch', 503],
+    ['consolidate', 429],
+    ['consolidate', 503],
+  ] as const)('%s recovers from HTTP %s with one retry', async (route, status) => {
+    fastForwardTimers()
+    const fetchMock = spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('Unavailable', { status }))
+      .mockResolvedValueOnce(
+        Response.json({ choices: [{ message: { content: 'One 5 km run.' } }] })
+      )
+
+    const { response, put } = await requestAnalysis(route)
+
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  test('consolidation leaves at least 5 seconds before the client timeout after two timeouts', async () => {
+    const elapsedMs = fastForwardTimers()
+    const fetchMock = spyOn(globalThis, 'fetch').mockImplementation(waitForAbort)
+
+    const { response, put } = await requestAnalysis('consolidate')
+
+    expect(response.status).toBe(504)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(put).not.toHaveBeenCalled()
+    expect(elapsedMs()).toBeGreaterThan(0)
+    expect(elapsedMs()).toBeLessThanOrEqual(120_000 - 5_000)
+  })
+
+  test('consolidation can still succeed after the first attempt times out', async () => {
+    fastForwardTimers()
+    const fetchMock = spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(waitForAbort)
+      .mockResolvedValueOnce(
+        Response.json({ choices: [{ message: { content: 'One 5 km run.' } }] })
+      )
+
+    const { response, put } = await requestAnalysis('consolidate')
+
+    expect(response.status).toBe(200)
+    expect((await response.json()).summary).toBe('One 5 km run.')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(put).toHaveBeenCalledTimes(1)
   })
 })

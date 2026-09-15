@@ -37,7 +37,8 @@ type Variables = {
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const AI_TEMPERATURE = 0.3 // Lower temperature for more consistent summaries
 const BATCH_TIMEOUT = 30000 // 30s timeout for batch analysis
-const CONSOLIDATE_TIMEOUT = 60000 // 60s timeout for consolidation
+// Two attempts plus the retry delay leave 8s before the iOS client's 120s timeout.
+const CONSOLIDATE_TIMEOUT = 55000
 const MAX_BATCH_TOKENS = 1000 // Max tokens for batch summary (concise)
 const MAX_CONSOLIDATE_TOKENS = 3000 // Max tokens for final consolidated summary
 const IDEMPOTENCY_TTL_SECONDS = 7 * 24 * 60 * 60 // 7d: a retried/resumed request returns instantly without re-paying the LLM

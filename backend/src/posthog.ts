@@ -1,6 +1,7 @@
 import type { Context } from 'hono'
 import { PostHog } from 'posthog-node'
 import type { ZodError } from 'zod'
+import type { QuotaCheck } from './quota'
 
 export interface PostHogConfig {
   apiKey: string
@@ -10,6 +11,42 @@ export interface PostHogConfig {
 type PostHogEnv = {
   POSTHOG_API_KEY: string
   POSTHOG_HOST: string
+}
+
+export function captureQuotaExceeded<B extends PostHogEnv, V extends object>(
+  c: Context<{ Bindings: B; Variables: V }>,
+  quota: QuotaCheck
+): void {
+  if (!c.env.POSTHOG_API_KEY || !c.env.POSTHOG_HOST) return
+  const restricted = quota.restrictedBy === 'user' ? quota.user : quota.ip
+  const distinctId = c.req.header('X-User-ID') || 'unknown'
+
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        const posthog = createPostHogClient({
+          apiKey: c.env.POSTHOG_API_KEY,
+          host: c.env.POSTHOG_HOST,
+        })
+        await posthog.captureImmediate({
+          distinctId,
+          event: 'api_quota_exceeded',
+          properties: {
+            route: c.req.path,
+            restricted_by: quota.restrictedBy,
+            limit: restricted?.limit,
+            retry_after_seconds: restricted?.resetIn,
+            reset_at: restricted?.resetAt,
+            app: 'healthapp',
+            environment: 'production',
+          },
+        })
+        await posthog.shutdown()
+      } catch (error) {
+        console.error('PostHog quota capture error:', error)
+      }
+    })()
+  )
 }
 
 /**

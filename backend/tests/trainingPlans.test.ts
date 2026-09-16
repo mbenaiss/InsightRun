@@ -47,7 +47,7 @@ function plan(firstWeek = 1) {
           description: 'QA',
           intensity: 'easy',
           targetDistance: 10000,
-          steps: [],
+          steps: [] as Array<{ type: string; repetitions?: number; description: string }>,
         },
       ],
     })),
@@ -270,4 +270,18 @@ describe('long plan adaptation', () => {
     expect((await send('adapt', body)).status).toBe(400)
     expect(fetchMock).not.toHaveBeenCalled()
   })
+})
+
+test('tells the adaptation fallback which field must be corrected', async () => {
+  const invalid = plan(3)
+  invalid.weeks[0].workouts[0].steps = [{ type: 'work', repetitions: 0, description: 'QA' }]
+  const fetchMock = spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(modelResponse(invalid))
+    .mockResolvedValueOnce(modelResponse(plan(3)))
+  const response = await send('adapt')
+  expect(response.status).toBe(200)
+  const retry = JSON.parse(String(fetchMock.mock.calls[1][1]?.body))
+  expect(retry.messages[1].content).toContain(
+    'week 3, workout 0, step 0: repetitions must be an integer from 1 to 30 or omitted'
+  )
 })

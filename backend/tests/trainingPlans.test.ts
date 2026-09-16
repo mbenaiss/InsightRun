@@ -237,3 +237,37 @@ describe('long training plans', () => {
     expect((await response.json()).plan).toBeUndefined()
   })
 })
+
+describe('long plan adaptation', () => {
+  test('preserves absolute week numbers and completed history across blocks', async () => {
+    const body = requestBody()
+    body.remainingWeeksCount = 16
+    let calls = 0
+    const fetchMock = spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const request = JSON.parse(String(init?.body))
+      const firstWeek = 3 + calls++ * 4
+      expect(request.messages[0].content).toContain(
+        `ONLY weeks ${firstWeek} through ${firstWeek + 3}`
+      )
+      return modelResponse(plan(firstWeek))
+    })
+    const response = await send('adapt', body)
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    const result = await response.json()
+    expect(result.plan.weeks.map((week: { weekNumber: number }) => week.weekNumber)).toEqual(
+      Array.from({ length: 16 }, (_, index) => index + 3)
+    )
+    expect(result.plan.adaptation.goalAchievable).toBe(true)
+  })
+
+  test.each([
+    -1, 0.5, 25,
+  ])('rejects invalid remaining week count %s before generation', async (count) => {
+    const body = requestBody()
+    body.remainingWeeksCount = count
+    const fetchMock = spyOn(globalThis, 'fetch')
+    expect((await send('adapt', body)).status).toBe(400)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})

@@ -55,7 +55,7 @@ struct FloatingAIButton: View {
         isLoading = true
 
         // Load all data if not already loaded
-        if !contextProvider.hasData {
+        if !contextProvider.hasData || contextProvider.needsRefresh {
             await contextProvider.loadAllData()
         } else if !contextProvider.hasWorkoutMetrics {
             await contextProvider.loadRecentWorkouts()

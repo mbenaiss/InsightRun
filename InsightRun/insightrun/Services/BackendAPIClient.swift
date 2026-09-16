@@ -409,11 +409,12 @@ class BackendAPIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30
 
+        let age = await MainActor.run { HealthKitManager.shared.currentAge }
         // Build ChatRequestV2 payload (same structure as WorkoutAIService)
         let chatData = ChatDataPayload(
             workout: nil,
             recovery: nil,
-            profile: nil,
+            profile: HealthProfileData(age: age, sex: nil, bodyMass: nil, bodyFatPercentage: nil, exerciseTime: nil, cyclingDistance: nil, swimmingDistance: nil),
             baseline: nil,
             recentWorkouts: recentWorkoutsData,
             historicalSummary: historicalSummary,

@@ -68,3 +68,37 @@ describe('quota rejection telemetry', () => {
     })
   })
 })
+
+test('an accounting failure preserves a response already produced by the route', async () => {
+  const pending: Promise<unknown>[] = []
+  const errors = spyOn(console, 'error').mockImplementation(() => {})
+  const put = mock(async () => {
+    throw new Error('KV PUT failed: 503')
+  })
+  const response = await app.request(
+    '/api/config',
+    { headers: { 'X-App-Key': 'test-secret' } },
+    {
+      APP_SECRET: 'test-secret',
+      RATE_LIMITER: {
+        get: async () => null,
+        getWithMetadata: async () => ({ value: null, metadata: null }),
+        put,
+      } as unknown as KVNamespace,
+    },
+    {
+      waitUntil: (promise: Promise<unknown>) => {
+        pending.push(promise)
+      },
+      passThroughOnException: () => {},
+    }
+  )
+  expect(response.status).toBe(200)
+  expect(response.headers.get('X-RateLimit-IP-Limit')).toBe('100')
+  await Promise.all(pending)
+  expect(put).toHaveBeenCalled()
+  expect(errors).toHaveBeenCalledWith('quota_accounting_failed', {
+    route: '/api/config',
+    failures: [{ status: '503' }],
+  })
+})

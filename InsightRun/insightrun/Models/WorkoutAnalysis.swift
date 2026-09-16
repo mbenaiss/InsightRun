@@ -10,7 +10,7 @@ import SwiftData
 
 @Model
 class WorkoutAnalysis {
-    static let currentContextVersion = 3
+    static let currentContextVersion = 5
 
     @Attribute(.unique) var workoutId: UUID
     var analysisText: String

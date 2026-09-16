@@ -148,3 +148,36 @@ describe('quota windows', () => {
     expect(getQuotaHeaders(quota)['Retry-After']).toBe('300')
   })
 })
+
+describe('quota write resilience', () => {
+  test('a rejected IP write does not prevent user accounting', async () => {
+    const { kv, put, stored } = setup()
+    put.mockImplementation(async (key, value) => {
+      if (key === ipKey) throw new Error('KV PUT failed: 503')
+      stored.set(key, { value })
+    })
+    await expect(incrementQuota(kv, '192.0.2.1', 'test-user', config)).rejects.toThrow(
+      'Quota accounting failed'
+    )
+    expect(stored.get(userKey)?.value).toBe('1')
+    expect(put).toHaveBeenCalledTimes(2)
+  })
+
+  test('a 429 write is retried using a fresh counter without extending its deadline', async () => {
+    const { kv, put, stored, now } = setup()
+    const resetAt = now() + 300
+    stored.set(ipKey, { value: '3', metadata: { resetAt } })
+    let attempts = 0
+    put.mockImplementation(async (key, value, options) => {
+      attempts++
+      if (attempts === 1) {
+        stored.set(key, { value: '4', metadata: { resetAt } })
+        throw new Error('KV PUT failed: 429 Too Many Requests')
+      }
+      stored.set(key, { value, metadata: options.metadata as { resetAt: number } })
+    })
+    await incrementQuota(kv, '192.0.2.1', undefined, config)
+    expect(put).toHaveBeenCalledTimes(2)
+    expect(stored.get(ipKey)).toEqual({ value: '5', metadata: { resetAt } })
+  })
+})

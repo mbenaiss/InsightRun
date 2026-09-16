@@ -1,6 +1,295 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "progression.vo2_context" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VO₂ max uses the latest estimate available at each workout, up to 7 days earlier."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le VO₂ max reprend la dernière estimation disponible au moment de chaque séance, jusqu’à 7 jours auparavant."
+          }
+        }
+      }
+    },
+    "metric.avg_hr.recommended" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no single target for every runner or every workout. A missing measurement is not treated as zero."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il n’y a pas de cible unique pour tous les coureurs ou toutes les séances. Une mesure manquante n’est pas remplacée par zéro."
+          }
+        }
+      }
+    },
+    "metric.avg_hr.usage" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read it alongside pace, conditions and perceived effort. The displayed zone uses an estimated maximum heart rate."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À lire avec l’allure, les conditions et l’effort ressenti. La zone affichée repose sur une fréquence cardiaque maximale estimée."
+          }
+        }
+      }
+    },
+    "metric.avg_hr.description" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average recorded heart rate during the workout, in beats per minute."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moyenne de la fréquence cardiaque mesurée pendant la séance, en battements par minute."
+          }
+        }
+      }
+    },
+    "metric.avg_hr.title" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average heart rate"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fréquence cardiaque moyenne"
+          }
+        }
+      }
+    },
+    "metric.avg_pace.recommended" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your target pace depends on the purpose of the workout and your current fitness."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’allure cible dépend du but de la séance et de ta condition actuelle."
+          }
+        }
+      }
+    },
+    "metric.avg_pace.usage" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A smaller value means a faster pace. Compare similar terrain and distances."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une valeur plus faible correspond à une allure plus rapide. Compare des terrains et distances proches."
+          }
+        }
+      }
+    },
+    "metric.avg_pace.description" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active duration divided by distance, shown per kilometer or mile according to your settings."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durée active divisée par la distance, affichée par kilomètre ou mile selon tes réglages."
+          }
+        }
+      }
+    },
+    "metric.avg_pace.title" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average pace"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allure moyenne"
+          }
+        }
+      }
+    },
+    "metric.duration.recommended" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A shorter workout is not automatically better: compare duration alongside distance and effort."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une séance plus courte n’est pas forcément meilleure : compare aussi la distance et l’effort."
+          }
+        }
+      }
+    },
+    "metric.duration.usage" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This duration is used with distance to calculate average pace. It can differ from the elapsed time between start and finish."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette durée sert à calculer l’allure moyenne avec la distance. Elle peut différer du temps écoulé entre le départ et l’arrivée."
+          }
+        }
+      }
+    },
+    "metric.duration.description" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active workout duration, excluding recorded pauses."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durée active de la séance, hors pauses enregistrées."
+          }
+        }
+      }
+    },
+    "metric.duration.title" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duration"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durée"
+          }
+        }
+      }
+    },
+    "metric.distance.recommended" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no universal target. Choose a distance that fits your training plan."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il n’existe pas de distance idéale universelle. Adapte-la à ton plan d’entraînement."
+          }
+        }
+      }
+    },
+    "metric.distance.usage" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare workouts of similar distance and terrain. Apple Health is used when this workout is available there."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare des séances de distance et de terrain proches. Apple Santé est utilisé lorsque la séance y est disponible."
+          }
+        }
+      }
+    },
+    "metric.distance.description" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total distance recorded for this workout."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance totale enregistrée pour cette séance."
+          }
+        }
+      }
+    },
+    "metric.distance.title" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance"
+          }
+        }
+      }
+    },
   "dashboard.coach.fallback": {
     "extractionState": "manual",
     "localizations": {
@@ -10398,18 +10687,18 @@
       }
     },
     "metric.best_pace.description" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The fastest pace you held during the session."
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fastest recorded pace sample. For a Strava-only workout without pace samples, this may be the fastest split average. It is not a sustained kilometer record."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L'allure la plus rapide que tu as tenue durant la séance."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échantillon d’allure le plus rapide enregistré. Pour une séance issue uniquement de Strava sans échantillons d’allure, il peut s’agir de la moyenne du meilleur intermédiaire. Ce n’est pas un record tenu sur un kilomètre."
           }
         }
       }
@@ -10602,18 +10891,18 @@
       }
     },
     "metric.max_speed.description" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The highest speed you reached during the session."
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highest speed available from the recorded samples. Sensor noise and sampling frequency can affect this peak."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La vitesse la plus élevée que tu as atteinte durant la séance."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vitesse maximale disponible parmi les mesures enregistrées. La précision du capteur et la fréquence des mesures peuvent influencer ce pic."
           }
         }
       }
@@ -10993,18 +11282,18 @@
       }
     },
     "metric.vo2_max.usage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A key marker of aerobic fitness — the higher it is, the greater your endurance potential."
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latest available estimate from the seven days up to the end of this workout. It is context, not necessarily a measurement from this session."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Un marqueur clé de la condition aérobie : plus il est élevé, plus ton potentiel d'endurance est grand."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernière estimation disponible dans les sept jours précédant la fin de cette séance. C’est un repère de contexte, pas nécessairement une mesure prise pendant cette course."
           }
         }
       }

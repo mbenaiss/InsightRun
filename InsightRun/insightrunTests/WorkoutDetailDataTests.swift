@@ -160,4 +160,77 @@ final class WorkoutDetailDataTests: XCTestCase {
                           elevationGain: nil, elevationLoss: nil)
         XCTAssertEqual(split.timeFormatted, "6:50")
     }
+    private func comparisonWorkout(distance: Double = 5000, duration: Double = 1800, daysAgo: Double = 0, indoor: Bool = true) -> WorkoutModel {
+        let start = Date(timeIntervalSince1970: 1_800_000_000 - daysAgo * 86400)
+        return WorkoutModel(id: UUID(), workoutType: .running, startDate: start,
+                            endDate: start.addingTimeInterval(duration), duration: duration,
+                            distance: distance, totalEnergyBurned: 300,
+                            sourceName: "Apple Watch", sourceVersion: nil, metadata: nil,
+                            averageHeartRate: 150, maxHeartRate: 170, elevationGain: 0,
+                            hasRoute: false, isIndoor: indoor)
+    }
+
+    func testSimilarWorkoutsRespectChronologyEnvironmentAndDistance() {
+        let current = comparisonWorkout()
+        let earlier = comparisonWorkout(daysAgo: 1)
+        let oldest = comparisonWorkout(daysAgo: 5)
+        let candidates = [current, comparisonWorkout(daysAgo: -1), comparisonWorkout(daysAgo: 2, indoor: false),
+                          comparisonWorkout(distance: 10_000, daysAgo: 3), oldest, earlier]
+        XCTAssertEqual(SimilarWorkoutFinder.findSimilar(to: current, from: candidates).map(\.id), [earlier.id, oldest.id])
+        XCTAssertTrue(SimilarWorkoutFinder.findSimilar(to: current, from: candidates, limit: -1).isEmpty)
+        XCTAssertTrue(SimilarWorkoutFinder.findSimilar(to: comparisonWorkout(distance: 0), from: candidates).isEmpty)
+    }
+
+    func testComparisonDoesNotTreatVolumeDifferencesAsProgress() async {
+        let current = comparisonWorkout(distance: 4000, duration: 1200)
+        let previous = comparisonWorkout(daysAgo: 2)
+        let model = WorkoutComparisonViewModel(referenceWorkout: current, similarWorkouts: [previous])
+        let deltas = model.comparisons[0].deltas
+        XCTAssertEqual(deltas.first?.direction, .improved)
+        XCTAssertTrue(deltas.dropFirst().allSatisfy { $0.direction == .neutral })
+        let expectedPaceDelta = Formatters.paceClock(60 / (UnitPreference.current.usesImperial ? Formatters.kmToMiles : 1))
+        XCTAssertEqual(deltas.first?.deltaText, "-\(expectedPaceDelta) \(Formatters.paceUnitSuffix())")
+    }
+
+    func testComparisonAnalysisCacheChangesWhenPeersChange() async {
+        let current = comparisonWorkout()
+        let earlier = comparisonWorkout(daysAgo: 2)
+        let initial = WorkoutComparisonViewModel(referenceWorkout: current, similarWorkouts: [earlier])
+        let repeated = WorkoutComparisonViewModel(referenceWorkout: current, similarWorkouts: [earlier])
+        let changed = WorkoutComparisonViewModel(referenceWorkout: current, similarWorkouts: [comparisonWorkout(daysAgo: 3)])
+        XCTAssertEqual(initial.analysisCacheKey, repeated.analysisCacheKey)
+        XCTAssertNotEqual(initial.analysisCacheKey, changed.analysisCacheKey)
+    }
+
+    func testKilometerDurationsIncludeRoundedPartialSegment() {
+        let times: [Double] = [391.472, 409.757, 411.752, 10.937]
+        let durations = times.enumerated().map { index, time in
+            Split(kilometer: index + 1, distance: index == 3 ? 21 : 1000, time: time, pace: time / 60,
+                  averageHeartRate: nil, averagePower: nil, elevationGain: nil, elevationLoss: nil).timeFormatted
+        }
+        XCTAssertEqual(durations, ["6:31", "6:50", "6:52", "0:11"])
+    }
+
+    func testWeeklyVolumeIncludesTheSameTimeOfDayAndDoesNotInventGrowthFromZero() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Paris"))
+        calendar.firstWeekday = 2
+        let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-14T18:00:00Z"))
+        let ranges = try XCTUnwrap(TrainingLoadService.weeklyComparisonRanges(through: date, calendar: calendar))
+        XCTAssertEqual(calendar.component(.hour, from: ranges.previous.end), 20)
+        XCTAssertEqual(calendar.component(.day, from: ranges.previous.end), 7)
+        XCTAssertEqual(ranges.current.duration, ranges.previous.duration)
+        XCTAssertEqual(TrainingLoadService.volumeChange(current: 10000, previous: 10000), 0)
+        XCTAssertNil(TrainingLoadService.volumeChange(current: 10000, previous: 0))
+        XCTAssertEqual(TrainingLoadService.volumeChange(current: 0, previous: 10000), -100)
+    }
+
+    func testAnalysisPayloadRoundsMeasurementsLikeTheMetricCards() {
+        let run = workout()
+        let metrics = WorkoutMetrics(workout: run, averageHeartRate: 149.8, averageCadence: 64.7)
+        let payload = WorkoutAIService().convertToWorkoutData(workout: run, metrics: metrics)
+        XCTAssertEqual(payload.heartRate?.avg, 150)
+        XCTAssertEqual(payload.cadence, 65)
+    }
+
 }

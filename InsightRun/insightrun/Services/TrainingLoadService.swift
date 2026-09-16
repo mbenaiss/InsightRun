@@ -118,35 +118,33 @@ final class TrainingLoadService: ObservableObject {
             let calendar = Calendar.current
             let today = Date()
 
-            // This week's range (Monday to today)
-            guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) else { return }
-            let thisWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: weekStart, to: today)
+            guard let ranges = Self.weeklyComparisonRanges(through: today, calendar: calendar) else { return }
+            let thisWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: ranges.current.start, to: ranges.current.end)
             let thisWeekVolume = thisWeekWorkouts.compactMap { $0.distance }.reduce(0, +)
 
-            // Previous week's range (same elapsed days for fair comparison).
-            // Use the actual day delta from weekStart — `.weekday` (1=Sunday) yields a
-            // negative offset on Sunday for Monday-first locales, which zeroed the
-            // previous-week volume and produced a false +100% overtraining alert.
-            guard let prevWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart) else { return }
-            let daysIntoWeek = calendar.dateComponents([.day], from: weekStart, to: today).day ?? 0
-            guard let prevWeekEnd = calendar.date(byAdding: .day, value: daysIntoWeek, to: prevWeekStart) else { return }
-            let prevWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: prevWeekStart, to: prevWeekEnd)
+            let prevWeekWorkouts = try await healthKitManager.fetchRunningWorkouts(from: ranges.previous.start, to: ranges.previous.end)
             let prevWeekVolume = prevWeekWorkouts.compactMap { $0.distance }.reduce(0, +)
 
-            // Calculate percentage change
-            if prevWeekVolume > 0 {
-                weeklyVolumeChange = ((thisWeekVolume - prevWeekVolume) / prevWeekVolume) * 100
-            } else if thisWeekVolume > 0 {
-                weeklyVolumeChange = 100 // First week with activity
-            } else {
-                weeklyVolumeChange = 0
-            }
+            weeklyVolumeChange = Self.volumeChange(current: thisWeekVolume, previous: prevWeekVolume)
 
             print("📊 TrainingLoadService: This week: \(thisWeekVolume / 1000)km, Last week: \(prevWeekVolume / 1000)km, Change: \(weeklyVolumeChange ?? 0)%")
         } catch {
             print("⚠️ TrainingLoadService: Failed to calculate volume change: \(error)")
             weeklyVolumeChange = nil
         }
+    }
+
+    static func weeklyComparisonRanges(through now: Date, calendar: Calendar = .current) -> (current: DateInterval, previous: DateInterval)? {
+        guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start,
+              let previousStart = calendar.date(byAdding: .weekOfYear, value: -1, to: weekStart),
+              let previousEnd = calendar.date(byAdding: .weekOfYear, value: -1, to: now) else { return nil }
+        return (DateInterval(start: weekStart, end: now), DateInterval(start: previousStart, end: previousEnd))
+    }
+
+    static func volumeChange(current: Double, previous: Double) -> Double? {
+        guard current.isFinite, previous.isFinite, current >= 0, previous >= 0 else { return nil }
+        guard previous > 0 else { return current == 0 ? 0 : nil }
+        return (current - previous) / previous * 100
     }
 
     /// Check days since last workout

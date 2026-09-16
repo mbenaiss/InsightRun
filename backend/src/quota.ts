@@ -181,21 +181,31 @@ export async function incrementQuota(
   userId?: string,
   config: QuotaConfig = DEFAULT_QUOTA_CONFIG
 ): Promise<void> {
-  await incrementQuotaCounter(kv, `ratelimit:ip:${ip}`, config.ipWindow)
-
-  if (userId) {
-    await incrementQuotaCounter(kv, `ratelimit:user:${userId}`, config.userWindow)
-  }
+  const counters = [incrementQuotaCounter(kv, `ratelimit:ip:${ip}`, config.ipWindow)]
+  if (userId)
+    counters.push(incrementQuotaCounter(kv, `ratelimit:user:${userId}`, config.userWindow))
+  const results = await Promise.allSettled(counters)
+  const errors = results.flatMap((result) => (result.status === 'rejected' ? [result.reason] : []))
+  if (errors.length > 0) throw new AggregateError(errors, 'Quota accounting failed')
 }
 
 async function incrementQuotaCounter(kv: KVNamespace, key: string, window: number) {
-  const { count, resetAt } = await readQuotaCounter(kv, key, window)
-  const now = Math.floor(Date.now() / 1000)
-  await kv.put(key, (count + 1).toString(), {
-    // KV requires at least 60s of retention; metadata keeps the logical deadline unchanged.
-    expiration: Math.max(resetAt, now + 60),
-    metadata: { resetAt },
-  })
+  for (let attempt = 0; ; attempt++) {
+    const { count, resetAt } = await readQuotaCounter(kv, key, window)
+    const now = Math.floor(Date.now() / 1000)
+    try {
+      await kv.put(key, (count + 1).toString(), {
+        // KV requires at least 60s of retention; metadata keeps the logical deadline unchanged.
+        expiration: Math.max(resetAt, now + 60),
+        metadata: { resetAt },
+      })
+      return
+    } catch (error) {
+      // Retry only rejected writes; an ambiguous failure may already have stored the increment.
+      if (attempt >= 2 || !(error instanceof Error) || !/\b429\b/.test(error.message)) throw error
+      await new Promise((resolve) => setTimeout(resolve, 1100 * (attempt + 1)))
+    }
+  }
 }
 
 /**

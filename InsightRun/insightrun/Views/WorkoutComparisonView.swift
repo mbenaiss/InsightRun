@@ -17,18 +17,15 @@ struct WorkoutComparisonView: View {
     @State private var cachedAnalysis: String?
     @State private var shouldResumeComparisonAnalysis = false
 
-    private let referenceWorkoutId: UUID
-
     init(referenceWorkout: WorkoutModel, similarWorkouts: [WorkoutModel]) {
         _viewModel = StateObject(wrappedValue: WorkoutComparisonViewModel(
             referenceWorkout: referenceWorkout,
             similarWorkouts: similarWorkouts
         ))
-        self.referenceWorkoutId = referenceWorkout.id
     }
 
     private var cacheKey: String {
-        "comparison_analysis_\(referenceWorkoutId.uuidString)"
+        viewModel.analysisCacheKey
     }
 
     var body: some View {
@@ -61,18 +58,11 @@ struct WorkoutComparisonView: View {
                 }
             }
             .navigationDestination(item: $selectedWorkout) { workout in
-                WorkoutDetailView(workout: workout)
+                WorkoutDetailView(workout: workout, allWorkouts: [viewModel.referenceWorkout] + viewModel.similarWorkouts)
             }
             .onAppear {
                 // Load cached analysis
                 cachedAnalysis = UserDefaults.standard.string(forKey: cacheKey)
-            }
-            .onChange(of: aiService.isStreaming) { _, isStreaming in
-                // Persist when streaming finishes
-                if !isStreaming && !aiService.streamedResponse.isEmpty {
-                    cachedAnalysis = aiService.streamedResponse
-                    UserDefaults.standard.set(aiService.streamedResponse, forKey: cacheKey)
-                }
             }
             .sheet(isPresented: $aiService.needsConsent) {
                 AIConsentSheet(
@@ -164,10 +154,10 @@ struct WorkoutComparisonView: View {
         var lines: [String] = []
 
         if isFrench {
-            lines.append("Analyse la progression entre ces séances similaires.")
+            lines.append("Compare cette séance à des séances antérieures de distance proche et de même environnement. Les écarts sont référence moins séance antérieure. Une distance, durée ou dépense énergétique plus élevée ne prouve pas une progression. Ne conclus pas sur la forme sans tenir compte de l’allure, du relief et de l’effort.")
             lines.append("Séance de référence: \(viewModel.referenceDate), \(viewModel.referenceDistance), allure \(viewModel.referencePace)")
         } else {
-            lines.append("Analyze the progression between these similar workouts.")
+            lines.append("Compare this workout with earlier workouts of similar distance in the same environment. Deltas are reference minus earlier workout. More distance, duration or calories do not prove progress. Consider pace, elevation and effort before drawing fitness conclusions.")
             lines.append("Reference workout: \(viewModel.referenceDate), \(viewModel.referenceDistance), pace \(viewModel.referencePace)")
         }
 
@@ -236,11 +226,12 @@ struct WorkoutComparisonView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, Spacing.md)
                 }
-            } else if let error = aiService.error {
-                Text(error)
-                    .font(IRFont.caption)
-                    .foregroundStyle(Color.irError)
             } else {
+                if let error = aiService.error {
+                    Text(error)
+                        .font(IRFont.caption)
+                        .foregroundStyle(Color.irError)
+                }
                 Button {
                     Task {
                         await prepareComparisonAnalysis()
@@ -289,8 +280,17 @@ struct WorkoutComparisonView: View {
 
         await aiService.askQuestion(
             question: comparisonPrompt,
-            mode: .unified
+            mode: .unified,
+            requiresCompleteResponse: true
         )
+        guard !Task.isCancelled, aiService.error == nil else { return }
+        guard AIResponseValidator.isComplete(aiService.streamedResponse) else {
+            aiService.streamedResponse = ""
+            aiService.error = String(localized: "Invalid response from server")
+            return
+        }
+        cachedAnalysis = aiService.streamedResponse
+        UserDefaults.standard.set(aiService.streamedResponse, forKey: cacheKey)
     }
 
     // MARK: - Comparison Card
@@ -329,54 +329,36 @@ struct WorkoutComparisonView: View {
             .detailCard()
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("similar-workout-" + comparison.id.uuidString)
     }
 
     // MARK: - Delta Row
 
     private func deltaRow(_ delta: WorkoutComparisonViewModel.MetricDelta) -> some View {
-        HStack(spacing: Spacing.sm) {
-            Image(systemName: delta.icon)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Label(delta.label, systemImage: delta.icon)
                 .font(IRFont.caption)
                 .foregroundStyle(Color.irTextSecondary)
-                .frame(width: 20)
-
-            Text(delta.label)
-                .font(IRFont.caption)
-                .foregroundStyle(Color.irTextSecondary)
-                .frame(width: 60, alignment: .leading)
-
-            Spacer()
-
-            Text(delta.referenceValue)
-                .font(IRFont.caption)
-                .foregroundStyle(Color.irTextSecondary)
-                .frame(width: 70, alignment: .trailing)
-
-            Text(delta.comparedValue)
-                .font(IRFont.body.weight(.medium))
-                .foregroundStyle(Color.irTextPrimary)
-                .frame(width: 70, alignment: .trailing)
-
-            HStack(spacing: 2) {
-                Text(deltaArrow(delta.direction))
+            HStack(spacing: Spacing.sm) {
+                Text(delta.referenceValue)
+                    .foregroundStyle(Color.irTextSecondary)
+                Image(systemName: "arrow.right")
                     .font(IRFont.microLabel)
+                    .foregroundStyle(Color.irTextTertiary)
+                Text(delta.comparedValue)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.irTextPrimary)
+                Spacer(minLength: Spacing.xxs)
                 Text(delta.deltaText)
-                    .font(IRFont.microLabel.weight(.medium))
+                    .foregroundStyle(deltaColor(delta.direction))
             }
-            .foregroundStyle(deltaColor(delta.direction))
-            .frame(width: 80, alignment: .trailing)
+            .font(IRFont.caption)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
         }
     }
 
     // MARK: - Helpers
-
-    private func deltaArrow(_ direction: WorkoutComparisonViewModel.DeltaDirection) -> String {
-        switch direction {
-        case .improved: return "\u{2191}"
-        case .regressed: return "\u{2193}"
-        case .neutral: return "\u{2194}"
-        }
-    }
 
     private func deltaColor(_ direction: WorkoutComparisonViewModel.DeltaDirection) -> Color {
         switch direction {

@@ -484,7 +484,16 @@ export async function afterModelUsage(
 ): Promise<void> {
   // Increment premium model quota if premium model was used
   if (modelConfig.requiresQuota && userId) {
-    await incrementPremiumModelQuota(kv, userId, quotaCategory)
+    try {
+      await incrementPremiumModelQuota(kv, userId, quotaCategory)
+    } catch (error) {
+      // The model has already answered; accounting must not discard its response.
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('premium_quota_accounting_failed', {
+        category: quotaCategory,
+        status: message.match(/\b(?:429|5\d{2})\b/)?.[0] ?? 'unknown',
+      })
+    }
   }
 }
 

@@ -471,17 +471,17 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             pace: workout.averagePace,
             speed: workout.averageSpeed,
             heartRate: metrics?.averageHeartRate != nil ? HeartRateData(
-                avg: metrics?.averageHeartRate.map { Int($0) },
-                min: metrics?.minHeartRate.map { Int($0) },
-                max: metrics?.maxHeartRate.map { Int($0) }
+                avg: metrics?.averageHeartRate.map { Int($0.rounded()) },
+                min: metrics?.minHeartRate.map { Int($0.rounded()) },
+                max: metrics?.maxHeartRate.map { Int($0.rounded()) }
             ) : nil,
             minPace: metrics?.minPace,
-            cadence: metrics?.averageCadence.map { Int($0) },
+            cadence: metrics?.averageCadence.map { Int($0.rounded()) },
             strideLength: metrics?.strideLength,
-            runningPower: metrics?.runningPower.map { Int($0) },
+            runningPower: metrics?.runningPower.map { Int($0.rounded()) },
             vo2Max: metrics?.vo2Max,
             elevationGain: metrics?.totalElevationAscent,
-            groundContactTime: metrics?.groundContactTime.map { Int($0) },
+            groundContactTime: metrics?.groundContactTime.map { Int($0.rounded()) },
             verticalOscillation: metrics?.verticalOscillation,
             mobility: metrics != nil && (
                 metrics?.walkingSteadiness != nil ||

@@ -9,6 +9,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import CryptoKit
 
 @MainActor
 final class WorkoutComparisonViewModel: ObservableObject {
@@ -74,6 +75,20 @@ final class WorkoutComparisonViewModel: ObservableObject {
         return Self.formatPace(pace)
     }
 
+    var analysisCacheKey: String {
+        let workouts = [referenceWorkout] + similarWorkouts
+        let data = workouts.map { workout in
+            [workout.id.uuidString, String(workout.startDate.timeIntervalSince1970),
+             String(workout.distance ?? 0), String(workout.duration),
+             String(workout.averageHeartRate ?? 0), String(workout.totalEnergyBurned ?? 0),
+             String(workout.elevationGain ?? 0), String(workout.isIndoor)]
+                .joined(separator: "|")
+        }.joined(separator: ";")
+        let context = "v2|\(AppLanguage.current)|\(UnitPreference.current.usesImperial)|\(data)"
+        let digest = SHA256.hash(data: Data(context.utf8)).map { String(format: "%02x", $0) }.joined()
+        return "comparison_analysis_\(digest)"
+    }
+
     // MARK: - Private
 
     /// Build all metric deltas between the reference and a compared workout.
@@ -87,7 +102,8 @@ final class WorkoutComparisonViewModel: ObservableObject {
         // "improved" = my current run is better than this old run
 
         // Pace (lower is better → negative diff = I'm faster now)
-        if let refPace = reference.averagePace, let cmpPace = compared.averagePace {
+        if let refPace = reference.averagePace, let cmpPace = compared.averagePace,
+           refPace.isFinite, cmpPace.isFinite, refPace > 0, cmpPace > 0 {
             let diff = refPace - cmpPace
             let direction: DeltaDirection = diff < -0.01 ? .improved : (diff > 0.01 ? .regressed : .neutral)
             deltas.append(MetricDelta(
@@ -100,10 +116,10 @@ final class WorkoutComparisonViewModel: ObservableObject {
             ))
         }
 
-        // Distance (higher is better → positive diff = I ran further)
+        // Distance, duration and energy describe volume, not progress on their own.
         if let refDist = reference.distance, let cmpDist = compared.distance {
             let diff = refDist - cmpDist
-            let direction: DeltaDirection = diff > 10 ? .improved : (diff < -10 ? .regressed : .neutral)
+            let direction: DeltaDirection = .neutral
             deltas.append(MetricDelta(
                 label: String(localized: "Distance", comment: "Comparison metric label for distance"),
                 icon: "ruler",
@@ -114,12 +130,11 @@ final class WorkoutComparisonViewModel: ObservableObject {
             ))
         }
 
-        // Duration (lower is better → negative diff = I was faster)
         let refDur = reference.duration
         let cmpDur = compared.duration
         if refDur > 0 && cmpDur > 0 {
             let diff = refDur - cmpDur
-            let direction: DeltaDirection = diff < -1 ? .improved : (diff > 1 ? .regressed : .neutral)
+            let direction: DeltaDirection = .neutral
             deltas.append(MetricDelta(
                 label: String(localized: "Duration", comment: "Comparison metric label for duration"),
                 icon: "clock",
@@ -143,10 +158,9 @@ final class WorkoutComparisonViewModel: ObservableObject {
             ))
         }
 
-        // Calories (higher is better)
         if let refCal = reference.totalEnergyBurned, let cmpCal = compared.totalEnergyBurned {
             let diff = refCal - cmpCal
-            let direction: DeltaDirection = diff > 1 ? .improved : (diff < -1 ? .regressed : .neutral)
+            let direction: DeltaDirection = .neutral
             deltas.append(MetricDelta(
                 label: String(localized: "Calories", comment: "Comparison metric label for calories"),
                 icon: "flame.fill",
@@ -192,7 +206,8 @@ final class WorkoutComparisonViewModel: ObservableObject {
 
     private static func formatPaceDelta(_ diff: Double) -> String {
         let sign = diff >= 0 ? "+" : "-"
-        return "\(sign)\(Formatters.paceClock(abs(diff) * 60))"
+        let seconds = abs(diff) * 60 / (UnitPreference.current.usesImperial ? Formatters.kmToMiles : 1)
+        return "\(sign)\(Formatters.paceClock(seconds)) \(Formatters.paceUnitSuffix())"
     }
 
     private static func formatDistance(_ meters: Double) -> String {

@@ -216,6 +216,13 @@ function buildWorkoutContext(workout: WorkoutData, estimatedMaxHR: number | null
   }
 
   // Derived intensity analysis
+  if (workout.cadence !== undefined && workout.cadence < 100) {
+    context +=
+      '- Cadence is unusually low for running: flag possible incomplete step counts or source semantics; do not infer poor technique or prescribe a universal cadence from this value alone.\n'
+  }
+  context +=
+    '- Heart-rate zones use an estimated maximum, not a measured lactate threshold. Do not label a physiological threshold from this estimate alone.\n'
+
   const intensity = estimateIntensity(workout, estimatedMaxHR)
   if (intensity) {
     context += `\n## Derived Analysis\n`
@@ -281,9 +288,12 @@ function buildRecentWorkoutsContext(
   recent: RecentWorkoutsData,
   estimatedMaxHR: number | null
 ): string {
+  const chronological = [...recent.workouts]
+    .filter((workout) => Number.isFinite(Date.parse(workout.date)))
+    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
   let context = `# Recent Training History (Last ${recent.workouts.length} runs)\n\n`
 
-  context += `**Weekly Summary:**\n`
+  context += `**Recent Session Totals (not necessarily one week):**\n`
   context += `- Total Volume: ${(recent.totalDistance / 1000).toFixed(1)} km\n`
   context += `- Total Time: ${formatDuration(recent.totalDuration)}\n`
   context += `- Frequency: ${recent.workouts.length} runs\n`
@@ -291,9 +301,9 @@ function buildRecentWorkoutsContext(
 
   if (recent.weeklyVolumeChange !== undefined) {
     if (recent.weeklyVolumeChange > 10) {
-      context += `- **Training Load Alert**: Volume increased by ${recent.weeklyVolumeChange.toFixed(1)}% — high injury risk\n`
+      context += `- **Training Load Alert**: Volume increased by ${recent.weeklyVolumeChange.toFixed(1)}% — consider recovery and the absolute volume before adjusting training\n`
     } else if (recent.weeklyVolumeChange > 0) {
-      context += `- Volume change: +${recent.weeklyVolumeChange.toFixed(1)}% (safe progression)\n`
+      context += `- Volume change: +${recent.weeklyVolumeChange.toFixed(1)}% (not a guarantee of safe progression)\n`
     }
   }
 
@@ -306,16 +316,29 @@ function buildRecentWorkoutsContext(
   }
 
   // Derived cross-workout analysis
-  const workoutsWithHR = recent.workouts.filter((w) => w.heartRate?.avg)
-  const workoutsWithPace = recent.workouts.filter((w) => w.pace)
-  const workoutsWithCadence = recent.workouts.filter((w) => w.cadence)
+  const workoutsWithHR = chronological.filter(
+    (w) => w.heartRate?.avg && Number.isFinite(w.heartRate.avg)
+  )
+  const latestDistance = chronological.at(-1)?.distance ?? 0
+  const workoutsWithPace = chronological.filter(
+    (w) =>
+      w.pace &&
+      Number.isFinite(w.pace) &&
+      w.pace > 0 &&
+      latestDistance > 0 &&
+      w.distance >= latestDistance * 0.7 &&
+      w.distance <= latestDistance * 1.3
+  )
+  const workoutsWithCadence = chronological.filter(
+    (w) => w.cadence && Number.isFinite(w.cadence) && w.cadence > 0
+  )
 
   if (workoutsWithHR.length >= 2 || workoutsWithPace.length >= 2) {
     context += `\n**Derived Training Patterns:**\n`
 
     // Intensity distribution
     if (workoutsWithHR.length >= 2) {
-      const intensities = recent.workouts
+      const intensities = chronological
         .map((w) => classifyWorkoutIntensity(w, estimatedMaxHR))
         .filter(Boolean)
       if (intensities.length > 0) {
@@ -342,25 +365,24 @@ function buildRecentWorkoutsContext(
       const lastAvg = lastThird.reduce((a, b) => a + b, 0) / lastThird.length
       const diff = lastAvg - firstAvg
       if (Math.abs(diff) > 0.05) {
-        context += `- Pace Trend: ${diff < 0 ? 'Improving' : 'Slowing'} (${Math.abs(diff * 60).toFixed(0)}s/km shift)\n`
+        context += `- Pace Trend: ${diff < 0 ? 'Faster' : 'Slower'} (${Math.abs(diff * 60).toFixed(0)}s/km shift)\n`
       } else {
         context += `- Pace Trend: Stable\n`
       }
     }
 
-    // HR efficiency trend (HR at similar pace)
-    if (workoutsWithHR.length >= 3 && workoutsWithPace.length >= 3) {
-      const hrPaceRatios = recent.workouts
-        .filter((w) => w.heartRate?.avg && w.pace)
-        .map((w) => (w.heartRate?.avg ?? 0) / (w.pace ?? 1))
-      if (hrPaceRatios.length >= 3) {
-        const firstRatio = hrPaceRatios[0]
-        const lastRatio = hrPaceRatios[hrPaceRatios.length - 1]
-        const ratioDiff = lastRatio - firstRatio
-        if (Math.abs(ratioDiff) > 1) {
-          context += `- HR Efficiency: ${ratioDiff < 0 ? 'Improving (lower HR at same pace)' : 'Declining (higher HR at same pace)'}\n`
-        }
-      }
+    // A pace ratio alone cannot establish cardiovascular efficiency.
+    const latest = workoutsWithPace.at(-1)
+    const comparableHR =
+      latest?.pace && latest.heartRate?.avg
+        ? workoutsWithPace.filter(
+            (w) => w.heartRate?.avg && Math.abs((w.pace ?? 0) / (latest.pace ?? 1) - 1) <= 0.05
+          )
+        : []
+    if (comparableHR.length >= 3) {
+      const first = comparableHR[0].heartRate?.avg ?? 0
+      const last = comparableHR.at(-1)?.heartRate?.avg ?? 0
+      context += `- HR at comparable pace (within 5%): ${Math.round(last - first)} bpm change from oldest to newest; terrain, weather and effort may differ.\n`
     }
 
     // Cadence consistency across workouts
@@ -384,7 +406,7 @@ function buildRecentWorkoutsContext(
   }
 
   const detailStart = Math.max(0, recent.workouts.length - MAX_DETAILED_WORKOUTS)
-  const detailed = recent.workouts.slice(detailStart)
+  const detailed = chronological.slice(-MAX_DETAILED_WORKOUTS)
   const detailHeader =
     detailStart > 0
       ? `\n**Workout Detail (most recent ${detailed.length} of ${recent.workouts.length} runs; the patterns above cover all of them):**\n`

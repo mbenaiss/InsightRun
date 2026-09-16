@@ -49,8 +49,11 @@ struct MetricRangeVisualization: View {
     }
 
     private func rangeDescription(for range: MetricRangeModel.RangeSegment) -> String {
-        let format = String(localized: "%@ (from %d to %d %@)", comment: "Range description format: label, min value, max value, unit")
-        return String(format: format, range.label, Int(range.minValue), Int(range.maxValue), rangeModel.unit)
+        "\(range.label) (\(formatted(range.minValue))–\(formatted(range.maxValue)) \(rangeModel.unit))"
+    }
+
+    private func formatted(_ value: Double) -> String {
+        Formatters.decimal(value, fractionDigits: value == value.rounded() ? 0 : 1)
     }
 
     var body: some View {
@@ -67,7 +70,7 @@ struct MetricRangeVisualization: View {
 
                                 VStack(spacing: 2) {
                                     HStack(spacing: 3) {
-                                        Text(String(format: "%.0f", value))
+                                        Text(formatted(value))
                                             .font(IRFont.bodyEmphasized.weight(.bold))
                                             .foregroundStyle(Color.irTextPrimary)
 
@@ -87,37 +90,27 @@ struct MetricRangeVisualization: View {
                     }
 
                     // Colored bars
-                    HStack(spacing: 0) {
-                        ForEach(rangeModel.ranges) { range in
-                            Rectangle()
-                                .fill(range.color)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 10)
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                    // Values below bars
-                    HStack(spacing: 0) {
-                        ForEach(Array(rangeModel.ranges.enumerated()), id: \.element.id) { index, range in
-                            HStack(spacing: 0) {
-                                Text("\(Int(range.minValue))")
-                                    .font(IRFont.microLabel.weight(.medium))
-                                    .foregroundStyle(Color.irTextSecondary)
-
-                                if index == rangeModel.ranges.count - 1 {
-                                    Spacer()
-                                    Text("\(Int(range.maxValue))+")
-                                        .font(IRFont.microLabel.weight(.medium))
-                                        .foregroundStyle(Color.irTextSecondary)
-                                } else {
-                                    Spacer()
-                                }
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            ForEach(rangeModel.ranges) { range in
+                                Rectangle()
+                                    .fill(range.color)
+                                    .frame(width: geometry.size.width * (range.maxValue - range.minValue) / max(totalRange, 0.001))
                             }
-                            .frame(maxWidth: .infinity)
                         }
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
+                    .frame(height: 10)
+
+                    HStack {
+                        Text(formatted(minValue))
+                        Spacer()
+                        Text("\(formatted(minValue + totalRange)) \(rangeModel.unit)")
+                    }
+                    .font(IRFont.microLabel.weight(.medium))
+                    .foregroundStyle(Color.irTextSecondary)
                     .padding(.top, 3)
+
                 }
 
                 // Current range description

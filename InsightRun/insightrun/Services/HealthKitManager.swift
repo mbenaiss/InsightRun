@@ -724,16 +724,14 @@ class HealthKitManager: ObservableObject {
         async let firstLastPower = fetchFirstLastPower(for: workout)
         async let elevationData = safeElevation(for: workout)
         async let routeData = safeRoute(for: workout)
-        async let vo2MaxData = safeVO2Max(around: workoutModel.startDate)
+        async let vo2MaxData = safeVO2Max(around: workout.endDate)
         async let advancedMetrics = safeAdvancedRunningMetrics(for: workout)
-        async let mobilityMetrics = fetchMobilityMetrics(for: workout)
         async let weatherData = extractWeatherData(from: workout)
         async let intervalsData = fetchWorkoutIntervals(for: workout)
 
         // Await all results (none will throw now)
         let steps = await stepCountData
         let weather = await weatherData
-        let mobility = await mobilityMetrics
         let hrFirstLast = await firstLastHR
         let powerFirstLast = await firstLastPower
         let hr = await heartRateData
@@ -788,12 +786,12 @@ class HealthKitManager: ObservableObject {
             groundContactTimeBalance: advanced.groundContactTimeBalance,
             verticalOscillation: advanced.verticalOscillation,
             runningEfficiency: advanced.efficiency,
-            walkingSteadiness: mobility.walkingSteadiness,
-            walkingAsymmetry: mobility.walkingAsymmetry,
-            doubleSupportPercentage: mobility.doubleSupportPercentage,
-            walkingSpeed: mobility.walkingSpeed,
-            stairAscentSpeed: mobility.stairAscentSpeed,
-            stairDescentSpeed: mobility.stairDescentSpeed,
+            walkingSteadiness: nil,
+            walkingAsymmetry: nil,
+            doubleSupportPercentage: nil,
+            walkingSpeed: nil,
+            stairAscentSpeed: nil,
+            stairDescentSpeed: nil,
             vo2Max: vo2Max,
             temperature: weather.temperature,
             humidity: weather.humidity,
@@ -1567,8 +1565,9 @@ class HealthKitManager: ObservableObject {
     ) {
         // Always calculate average pace from total duration and distance
         // This matches the calculation used by Apple Health app
-        let avgPace = workout.activeDuration > 0 && workout.totalDistance != nil
-            ? (workout.activeDuration / 60.0) / (workout.totalDistance!.doubleValue(for: .meter()) / 1000.0)
+        let distance = workout.totalDistance?.doubleValue(for: .meter()) ?? 0
+        let avgPace = workout.activeDuration > 0 && distance.isFinite && distance > 0
+            ? (workout.activeDuration / 60.0) / (distance / 1000.0)
             : nil
 
         guard let speedType = HKQuantityType.quantityType(forIdentifier: .runningSpeed) else {
@@ -1617,11 +1616,13 @@ class HealthKitManager: ObservableObject {
             return nil
         }
 
-        let predicate = HKQuery.predicateForSamples(
-            withStart: workout.startDate,
-            end: workout.endDate,
-            options: .strictStartDate
-        )
+        if let steps = workout.statistics(for: stepCountType)?.sumQuantity()?.doubleValue(for: .count()), steps > 0 {
+            return Int(steps)
+        }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate, options: [.strictStartDate, .strictEndDate]),
+            HKQuery.predicateForObjects(from: workout.sourceRevision.source)
+        ])
 
         do {
             return try await withCheckedThrowingContinuation { continuation in
@@ -1813,35 +1814,13 @@ class HealthKitManager: ObservableObject {
     // MARK: - VO2 Max
 
     private func fetchVO2Max(around date: Date) async throws -> Double? {
-        guard let vo2MaxType = HKQuantityType.quantityType(forIdentifier: .vo2Max) else {
-            return nil
-        }
-
-        // Query VO2Max within a week of the workout
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: date) ?? date
-        let endDate = Calendar.current.date(byAdding: .day, value: 7, to: date) ?? date
-
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKStatisticsQuery(
-                quantityType: vo2MaxType,
-                quantitySamplePredicate: predicate,
-                options: .discreteAverage
-            ) { _, statistics, error in
-                if let error = error {
-                    continuation.resume(throwing: HealthKitError.queryFailed(error))
-                    return
-                }
-
-                let vo2Max = statistics?.averageQuantity()?.doubleValue(
-                    for: HKUnit.literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute()))
-                )
-                continuation.resume(returning: vo2Max)
-            }
-
-            healthStore.execute(query)
-        }
+        return await fetchLatestQuantityInRange(
+            for: .vo2Max,
+            start: startDate,
+            end: date,
+            unit: HKUnit.literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute()))
+        )
     }
 
     // MARK: - Advanced Running Metrics
@@ -1871,81 +1850,6 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Mobility Metrics
 
-    private func fetchMobilityMetrics(for workout: HKWorkout) async -> (
-        walkingSteadiness: Double?,
-        walkingAsymmetry: Double?,
-        doubleSupportPercentage: Double?,
-        walkingSpeed: Double?,
-        stairAscentSpeed: Double?,
-        stairDescentSpeed: Double?
-    ) {
-        // These metrics are available on Apple Watch Series 4+
-        // Note: These are measured throughout the day, not during workouts
-        // We fetch the most recent value around the workout date
-
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: workout.startDate)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-
-        async let steadiness = fetchLatestQuantityInRange(
-            for: .appleWalkingSteadiness,
-            start: startOfDay,
-            end: endOfDay,
-            unit: .percent()
-        )
-        async let asymmetry = fetchLatestQuantityInRange(
-            for: .walkingAsymmetryPercentage,
-            start: startOfDay,
-            end: endOfDay,
-            unit: .percent()
-        )
-        async let doubleSupport = fetchLatestQuantityInRange(
-            for: .walkingDoubleSupportPercentage,
-            start: startOfDay,
-            end: endOfDay,
-            unit: .percent()
-        )
-        async let walkSpeed = fetchLatestQuantityInRange(
-            for: .walkingSpeed,
-            start: startOfDay,
-            end: endOfDay,
-            unit: .meter().unitDivided(by: .second())
-        )
-        async let ascentSpeed = fetchLatestQuantityInRange(
-            for: .stairAscentSpeed,
-            start: startOfDay,
-            end: endOfDay,
-            unit: .meter().unitDivided(by: .second())
-        )
-        async let descentSpeed = fetchLatestQuantityInRange(
-            for: .stairDescentSpeed,
-            start: startOfDay,
-            end: endOfDay,
-            unit: .meter().unitDivided(by: .second())
-        )
-
-        let (steadinessVal, asymmetryVal, doubleSupportVal, walkSpeedVal, ascentSpeedVal, descentSpeedVal) = await (
-            steadiness, asymmetry, doubleSupport, walkSpeed, ascentSpeed, descentSpeed
-        )
-
-        // Convert values to appropriate units
-        let steadinessPercent = steadinessVal.map { $0 * 100 }
-        let asymmetryPercent = asymmetryVal.map { $0 * 100 }
-        let doubleSupportPercent = doubleSupportVal.map { $0 * 100 }
-        let walkSpeedKmh = walkSpeedVal.map { $0 * 3.6 } // m/s to km/h
-        let ascentSpeedKmh = ascentSpeedVal.map { $0 * 3.6 }
-        let descentSpeedKmh = descentSpeedVal.map { $0 * 3.6 }
-
-        return (
-            walkingSteadiness: steadinessPercent,
-            walkingAsymmetry: asymmetryPercent,
-            doubleSupportPercentage: doubleSupportPercent,
-            walkingSpeed: walkSpeedKmh,
-            stairAscentSpeed: ascentSpeedKmh,
-            stairDescentSpeed: descentSpeedKmh
-        )
-    }
-
     // Fetch latest quantity in a date range (for daily metrics)
     private func fetchLatestQuantityInRange(
         for identifier: HKQuantityTypeIdentifier,
@@ -1960,7 +1864,7 @@ class HealthKitManager: ObservableObject {
         let predicate = HKQuery.predicateForSamples(
             withStart: start,
             end: end,
-            options: .strictStartDate
+            options: [.strictStartDate, .strictEndDate]
         )
 
         do {

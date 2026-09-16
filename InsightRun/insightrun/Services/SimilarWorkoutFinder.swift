@@ -21,27 +21,19 @@ struct SimilarWorkoutFinder {
         from allWorkouts: [WorkoutModel],
         limit: Int = 5
     ) -> [WorkoutModel] {
-        guard let referenceDistance = workout.distance, referenceDistance > 0 else {
-            // If the reference workout has no distance, match only by type
-            return allWorkouts
-                .filter { $0.id != workout.id && $0.workoutType == workout.workoutType }
-                .sorted { $0.startDate > $1.startDate }
-                .prefix(limit)
-                .map { $0 }
-        }
-
-        let lowerBound = referenceDistance * 0.7 // -30%
-        let upperBound = referenceDistance * 1.3 // +30%
+        guard limit > 0,
+              let referenceDistance = workout.distance,
+              referenceDistance.isFinite, referenceDistance > 0 else { return [] }
 
         return allWorkouts
             .filter { candidate in
-                // Exclude the workout itself
-                guard candidate.id != workout.id else { return false }
-                // Same workout type
-                guard candidate.workoutType == workout.workoutType else { return false }
-                // Distance within +/- 30%
-                guard let candidateDistance = candidate.distance else { return false }
-                return candidateDistance >= lowerBound && candidateDistance <= upperBound
+                guard candidate.id != workout.id,
+                      candidate.workoutType == workout.workoutType,
+                      candidate.isIndoor == workout.isIndoor,
+                      candidate.endDate <= workout.startDate,
+                      candidate.duration.isFinite, candidate.duration > 0,
+                      let distance = candidate.distance, distance.isFinite else { return false }
+                return distance >= referenceDistance * 0.7 && distance <= referenceDistance * 1.3
             }
             .sorted { $0.startDate > $1.startDate }
             .prefix(limit)

@@ -91,6 +91,11 @@ struct MetricsProgressionView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("statistics-progression-availability")
 
+            Text(String(localized: "progression.vo2_context", defaultValue: "VO₂ max uses the latest estimate available at each workout, up to 7 days earlier."))
+                .font(IRFont.caption)
+                .foregroundStyle(Color.irTextSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             if !viewModel.performanceMetrics.isEmpty {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(

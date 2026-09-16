@@ -27,7 +27,9 @@ class UnifiedAIContextProvider: ObservableObject {
     @Published var currentPage: AIContextPage = .workouts
 
     // Loaded data
-    @Published var recentWorkouts: [WorkoutModel] = []
+    @Published var recentWorkouts: [WorkoutModel] = [] {
+        didSet { workoutsMetrics = [:] }
+    }
     @Published var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
     @Published var recoveryMetrics: RecoveryMetrics?
     @Published var healthProfile: HealthProfile?
@@ -39,6 +41,13 @@ class UnifiedAIContextProvider: ObservableObject {
     @Published var isLoadingWorkouts = false
     @Published var isLoadingRecovery = false
     @Published var isLoadingProfile = false
+
+    private var contextRefreshedAt: Date?
+
+    var needsRefresh: Bool {
+        guard let contextRefreshedAt else { return true }
+        return Date().timeIntervalSince(contextRefreshedAt) > 300
+    }
 
     private let healthKitManager = HealthKitManager.shared
 
@@ -54,6 +63,7 @@ class UnifiedAIContextProvider: ObservableObject {
             group.addTask { await self.loadHealthProfile() }
             group.addTask { await self.loadPersonalBaseline() }
         }
+        contextRefreshedAt = Date()
     }
 
     /// The currently-active goal with a training plan, if any.
@@ -69,11 +79,17 @@ class UnifiedAIContextProvider: ObservableObject {
 
         do {
             let calendar = Calendar.current
-            guard let startOfYear = calendar.date(from: calendar.dateComponents([.year], from: Date())) else { return }
-            let workouts = try await healthKitManager.fetchRunningWorkouts(from: startOfYear, to: Date(), limit: 10)
-
-            // Take last 10 workouts
-            let recent = Array(workouts.prefix(10))
+            let now = Date()
+            guard let start = calendar.date(byAdding: .year, value: -1, to: now) else { return }
+            let workouts = try await healthKitManager.fetchRunningWorkouts(from: start, to: now, limit: 10)
+            let healthRuns = workouts.map { UnifiedWorkout(from: $0) }
+            let cached = (try? UnifiedWorkoutCache.shared.fetchAllWorkouts()) ?? []
+            let imported = cached.filter { candidate in
+                (candidate.source == .suunto || (candidate.source == .strava && StravaAuthService.shared.isAuthenticated)) &&
+                candidate.endDate <= now && candidate.startDate >= start &&
+                !healthRuns.contains { $0.isDuplicateOf(candidate) }
+            }.map { $0.toWorkoutModel() }
+            let recent = Array((workouts + imported).sorted { $0.startDate > $1.startDate }.prefix(10))
             self.recentWorkouts = recent
             guard includeMetrics else { return }
 
@@ -94,6 +110,7 @@ class UnifiedAIContextProvider: ObservableObject {
                 }
             }
 
+            guard recent.map(\.id) == recentWorkouts.map(\.id) else { return }
             self.workoutsMetrics = metricsDict
         } catch {
             print("⚠️ UnifiedAIContextProvider: Failed to load workouts: \(error)")

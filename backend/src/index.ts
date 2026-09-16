@@ -333,8 +333,19 @@ app.use('/api/*', async (c, next) => {
   // Process request
   await next()
 
-  // Increment both IP and User quotas after successful request
-  await incrementQuota(c.env.RATE_LIMITER, ip, userId, config)
+  // Accounting must not replace an already-produced response or interrupt its stream.
+  c.executionCtx.waitUntil(
+    incrementQuota(c.env.RATE_LIMITER, ip, userId, config).catch((error: unknown) => {
+      const failures = error instanceof AggregateError ? error.errors : [error]
+      console.error('quota_accounting_failed', {
+        route: c.req.path.replace(/\/\d+(?=\/|$)/g, '/:id'),
+        failures: failures.map((failure: unknown) => {
+          const message = failure instanceof Error ? failure.message : String(failure)
+          return { status: message.match(/\b(?:429|5\d{2})\b/)?.[0] ?? 'unknown' }
+        }),
+      })
+    })
+  )
 
   // Add quota headers to successful responses (if response is a JSON response)
   const quotaHeaders = getQuotaHeaders(quotaCheck)

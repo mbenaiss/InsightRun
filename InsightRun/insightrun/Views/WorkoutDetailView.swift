@@ -32,8 +32,7 @@ struct WorkoutDetailView: View {
     @AppStorage("hasDismissedPostAnalysisNotificationPrompt") private var dismissedNotificationPrompt = false
     @State private var showComparisonSheet = false
     @State private var similarWorkouts: [WorkoutModel] = []
-    @State private var isAnalysisConfidenceExpanded = false
-    @State private var trackedAnalysisConfidence: String?
+    @State private var selectedMetric: MetricInfo?
     @State private var estimatedMaxHR: Int?
 
     init(
@@ -105,7 +104,7 @@ struct WorkoutDetailView: View {
                             mainMetricsGrid(metrics: metrics)
 
                             // Compare similar
-                            if similarWorkouts.count >= 2 {
+                            if !similarWorkouts.isEmpty {
                                 compareWithSimilarSection
                             }
 
@@ -172,6 +171,7 @@ struct WorkoutDetailView: View {
                         similarWorkouts: similarWorkouts
                     )
                 }
+        .sheet(item: $selectedMetric) { MetricInfoSheet(metricInfo: $0) }
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -513,21 +513,21 @@ struct WorkoutDetailView: View {
 
         return VStack(spacing: 0) {
             HStack(spacing: 0) {
-                kpiView(cell: distanceCell, showsLeftBorder: false)
+                kpiView(cell: distanceCell, key: "metric.distance", currentValue: workout.distance)
                 Rectangle().fill(Color.irBorder).frame(width: 0.5)
-                kpiView(cell: durationCell, showsLeftBorder: false)
+                kpiView(cell: durationCell, key: "metric.duration", currentValue: workout.duration)
             }
             .frame(maxWidth: .infinity)
             Rectangle().fill(Color.irBorder).frame(height: 0.5)
             HStack(spacing: 0) {
                 if let paceCell {
-                    kpiView(cell: paceCell, showsLeftBorder: false)
+                    kpiView(cell: paceCell, key: "metric.avg_pace", currentValue: metrics.averagePace)
                 } else {
                     Rectangle().fill(Color.clear).frame(maxWidth: .infinity).frame(height: 64)
                 }
                 Rectangle().fill(Color.irBorder).frame(width: 0.5)
                 if let hrCell {
-                    kpiView(cell: hrCell, showsLeftBorder: false)
+                    kpiView(cell: hrCell, key: "metric.avg_hr", currentValue: metrics.averageHeartRate)
                 } else {
                     Rectangle().fill(Color.clear).frame(maxWidth: .infinity).frame(height: 64)
                 }
@@ -536,38 +536,45 @@ struct WorkoutDetailView: View {
         .detailCard()
     }
 
-    private func kpiView(cell: KPICell, showsLeftBorder: Bool) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(cell.label.uppercased())
-                .font(IRFont.microLabel.weight(.bold))
-                .tracking(IRTracking.microLabel)
-                .foregroundStyle(Color.irTextTertiary)
+    private func kpiView(cell: KPICell, key: String, currentValue: Double?) -> some View {
+        Button {
+            selectedMetric = MetricInfo(key: key, currentValue: currentValue, displayValue: [cell.value, cell.unit].compactMap { $0 }.joined(separator: " "))
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(cell.label.uppercased())
+                    .font(IRFont.microLabel.weight(.bold))
+                    .tracking(IRTracking.microLabel)
+                    .foregroundStyle(Color.irTextTertiary)
 
-            HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
-                Text(cell.value)
-                    .font(IRFont.numMD.weight(.heavy))
-                    .kerning(IRTracking.title2)
-                    .foregroundStyle(Color.irTextPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                if let unit = cell.unit {
-                    Text(unit)
-                        .font(IRFont.footnote.weight(.bold))
-                        .foregroundStyle(Color.irTextTertiary)
+                HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
+                    Text(cell.value)
+                        .font(IRFont.numMD.weight(.heavy))
+                        .kerning(IRTracking.title2)
+                        .foregroundStyle(Color.irTextPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    if let unit = cell.unit {
+                        Text(unit)
+                            .font(IRFont.footnote.weight(.bold))
+                            .foregroundStyle(Color.irTextTertiary)
+                    }
+                }
+
+                if let sub = cell.sub {
+                    Text(sub)
+                        .font(IRFont.microLabel.weight(.semibold))
+                        .foregroundStyle(cell.subColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
-
-            if let sub = cell.sub {
-                Text(sub)
-                    .font(IRFont.microLabel.weight(.semibold))
-                    .foregroundStyle(cell.subColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
+            .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+            .padding(.horizontal, Spacing.base)
+            .padding(.vertical, Spacing.base)
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
-        .padding(.horizontal, Spacing.base)
-        .padding(.vertical, Spacing.base)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("workout-" + key)
     }
 
     private func shortDistance(_ meters: Double?) -> String {
@@ -618,7 +625,7 @@ struct WorkoutDetailView: View {
         let paces = peers.compactMap { $0.averagePace }.filter { $0 > 0 }
         guard paces.count >= 2 else { return nil }
         let avg = paces.reduce(0, +) / Double(paces.count)
-        let deltaSec = (currentPace - avg) * 60.0
+        let deltaSec = (currentPace - avg) * 60.0 / (UnitPreference.current.usesImperial ? Formatters.kmToMiles : 1)
         guard Swift.abs(deltaSec) >= 1 else { return nil }
         let sign = deltaSec < 0 ? "−" : "+"
         let abs = Int(Swift.abs(deltaSec).rounded())
@@ -674,10 +681,7 @@ struct WorkoutDetailView: View {
 
     private func hasAdvancedMetrics(_ metrics: WorkoutMetrics) -> Bool {
         metrics.groundContactTime != nil || metrics.verticalOscillation != nil ||
-        metrics.groundContactTimeBalance != nil || metrics.runningEfficiency != nil ||
-        metrics.walkingSteadiness != nil || metrics.walkingAsymmetry != nil ||
-        metrics.doubleSupportPercentage != nil || metrics.walkingSpeed != nil ||
-        metrics.stairAscentSpeed != nil || metrics.stairDescentSpeed != nil
+        metrics.groundContactTimeBalance != nil || metrics.runningEfficiency != nil
     }
 
     // MARK: - Loading
@@ -838,66 +842,6 @@ struct WorkoutDetailView: View {
                 color: Color.irSuccess,
                 metricInfoKey: "metric.running_efficiency",
                 currentValue: efficiency
-            ))
-        }
-        if let steadiness = metrics.walkingSteadiness {
-            rows.append(MetricRowData(
-                icon: "figure.walk",
-                label: String(localized: "Walking Steadiness", comment: "Walking steadiness advanced metric"),
-                value: viewModel.formatPercentage(steadiness),
-                color: Color.irSuccess,
-                metricInfoKey: "metric.walking_steadiness",
-                currentValue: steadiness
-            ))
-        }
-        if let asymmetry = metrics.walkingAsymmetry {
-            rows.append(MetricRowData(
-                icon: "figure.walk.arrival",
-                label: String(localized: "Walking Asymmetry", comment: "Walking asymmetry advanced metric"),
-                value: viewModel.formatPercentage(asymmetry),
-                color: Color.irWarning,
-                metricInfoKey: "metric.walking_asymmetry",
-                currentValue: asymmetry
-            ))
-        }
-        if let doubleSupport = metrics.doubleSupportPercentage {
-            rows.append(MetricRowData(
-                icon: "figure.2.arms.open",
-                label: String(localized: "Double Support", comment: "Double support percentage advanced metric"),
-                value: viewModel.formatPercentage(doubleSupport),
-                color: Color.irPrimaryAccent,
-                metricInfoKey: "metric.double_support",
-                currentValue: doubleSupport
-            ))
-        }
-        if let speed = metrics.walkingSpeed {
-            rows.append(MetricRowData(
-                icon: "figure.walk.circle",
-                label: String(localized: "Walking Speed", comment: "Walking speed advanced metric"),
-                value: viewModel.formatSpeed(speed),
-                color: Color.irPrimaryAccent,
-                metricInfoKey: "metric.walking_speed",
-                currentValue: speed
-            ))
-        }
-        if let ascentSpeed = metrics.stairAscentSpeed {
-            rows.append(MetricRowData(
-                icon: "figure.stairs",
-                label: String(localized: "Stair Ascent Speed", comment: "Stair ascent speed advanced metric"),
-                value: viewModel.formatSpeed(ascentSpeed),
-                color: Color.irPrimaryAccent,
-                metricInfoKey: "metric.stair_ascent_speed",
-                currentValue: ascentSpeed
-            ))
-        }
-        if let descentSpeed = metrics.stairDescentSpeed {
-            rows.append(MetricRowData(
-                icon: "figure.stairs",
-                label: String(localized: "Stair Descent Speed", comment: "Stair descent speed advanced metric"),
-                value: viewModel.formatSpeed(descentSpeed),
-                color: Color.irPrimaryAccent,
-                metricInfoKey: "metric.stair_descent_speed",
-                currentValue: descentSpeed
             ))
         }
         return metricRowList(rows)
@@ -1090,6 +1034,7 @@ struct WorkoutDetailView: View {
                     }
 
                     MarkdownView(analysis)
+                        .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityIdentifier("workout-analysis-result")
                         .onAppear {
@@ -1158,10 +1103,6 @@ struct WorkoutDetailView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.xxs)
             }
-
-            if let confidence = viewModel.metrics?.analysisConfidence {
-                analysisConfidenceView(confidence)
-            }
         }
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1179,107 +1120,6 @@ struct WorkoutDetailView: View {
             return
         }
         Task { await analysisViewModel.generateAnalysis() }
-    }
-
-    private func analysisConfidenceView(_ confidence: WorkoutAnalysisConfidence) -> some View {
-        let accent = analysisConfidenceColor(confidence.level)
-        let signalCount = String(
-            format: String(
-                localized: "analysis.confidence.signal_count",
-                defaultValue: "%d of %d key signals available"
-            ),
-            confidence.availableSignals.count,
-            confidence.totalSignalCount
-        )
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isAnalysisConfidenceExpanded.toggle()
-            }
-        } label: {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "checkmark.shield.fill")
-                        .font(IRFont.caption.weight(.bold))
-                        .foregroundStyle(accent)
-
-                    Text(String(localized: "analysis.confidence.title", defaultValue: "Analysis confidence"))
-                        .font(IRFont.caption.weight(.semibold))
-                        .foregroundStyle(Color.irTextPrimary)
-
-                    Spacer()
-
-                    Text(confidence.level.localizedName)
-                        .font(IRFont.microLabel.weight(.bold))
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, Spacing.xxs)
-                        .background(accent.opacity(0.12))
-                        .clipShape(Capsule())
-
-                    Image(systemName: "chevron.down")
-                        .font(IRFont.microLabel.weight(.bold))
-                        .foregroundStyle(Color.irTextTertiary)
-                        .rotationEffect(.degrees(isAnalysisConfidenceExpanded ? 180 : 0))
-                }
-
-                Text(signalCount)
-                    .font(IRFont.microLabel)
-                    .foregroundStyle(Color.irTextSecondary)
-
-                if isAnalysisConfidenceExpanded {
-                    if !confidence.missingSignals.isEmpty {
-                        Text(
-                            String(
-                                format: String(
-                                    localized: "analysis.confidence.missing",
-                                    defaultValue: "Missing: %@"
-                                ),
-                                confidence.missingSignals.map(\.localizedName).joined(separator: ", ")
-                            )
-                        )
-                        .font(IRFont.microLabel)
-                        .foregroundStyle(Color.irTextSecondary)
-                    }
-
-                    Text(
-                        String(
-                            localized: "analysis.confidence.explanation",
-                            defaultValue: "This level reflects workout data completeness, not medical certainty."
-                        )
-                    )
-                    .font(IRFont.microLabel)
-                    .foregroundStyle(Color.irTextTertiary)
-                }
-            }
-            .padding(Spacing.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(accent.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.sm)
-                    .strokeBorder(accent.opacity(0.2), lineWidth: 0.5)
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("analysis-confidence")
-        .onAppear {
-            let signature = "\(workout.id.uuidString):\(confidence.level.rawValue):\(confidence.availableSignals.count)"
-            guard trackedAnalysisConfidence != signature else { return }
-            trackedAnalysisConfidence = signature
-            AnalyticsService.shared.trackAnalysisConfidenceShown(confidence, isIndoor: workout.isIndoor)
-        }
-    }
-
-    private func analysisConfidenceColor(_ level: WorkoutAnalysisConfidenceLevel) -> Color {
-        switch level {
-        case .high:
-            return .irSuccess
-        case .moderate:
-            return .irWarning
-        case .limited:
-            return .irError
-        }
     }
 
     private var sampleWorkoutBanner: some View {
@@ -1371,6 +1211,7 @@ struct WorkoutDetailView: View {
             .detailCard()
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("workout-compare-similar")
     }
 
     // MARK: - Source Section
@@ -1427,10 +1268,12 @@ struct MetricInfo: Identifiable {
     let id = UUID()
     let key: String
     let currentValue: Double?
+    let displayValue: String?
 
-    init(key: String, currentValue: Double? = nil) {
+    init(key: String, currentValue: Double? = nil, displayValue: String? = nil) {
         self.key = key
         self.currentValue = currentValue
+        self.displayValue = displayValue
     }
 
     var title: String {
@@ -1477,6 +1320,13 @@ struct MetricInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, Spacing.xxs)
                     .padding(.bottom, Spacing.xxs)
+
+                    if let value = metricInfo.displayValue {
+                        Text(value)
+                            .font(IRFont.numMD.weight(.bold))
+                            .foregroundStyle(Color.irPrimaryAccent)
+                            .accessibilityIdentifier("metric-current-value")
+                    }
 
                     // What is this?
                     metricSection(
@@ -1567,6 +1417,7 @@ struct MetricInfoSheet: View {
                             .contentShape(Rectangle())
                     }
                     .accessibilityLabel(String(localized: "Close", comment: "Accessibility label for close button"))
+                    .accessibilityIdentifier("metric-info-close")
                 }
             }
         }
@@ -1650,8 +1501,9 @@ struct MetricRow: View {
                     showingInfo = true
                 } label: { rowContent }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("workout-" + metricInfoKey)
                 .sheet(isPresented: $showingInfo) {
-                    MetricInfoSheet(metricInfo: MetricInfo(key: metricInfoKey, currentValue: currentValue))
+                    MetricInfoSheet(metricInfo: MetricInfo(key: metricInfoKey, currentValue: currentValue, displayValue: value))
                 }
             } else {
                 rowContent
@@ -1686,12 +1538,8 @@ struct MetricRow: View {
 
 struct SplitRow: View {
     let split: Split
-    var averagePace: Double = 0
-    var maxAbsDelta: Double = 1
     var isBest: Bool = false
     var isSlowest: Bool = false
-
-    private var delta: Double { split.pace - averagePace }
 
     private var paceColor: Color {
         if isBest { return .irSuccess }
@@ -1700,80 +1548,33 @@ struct SplitRow: View {
     }
 
     var body: some View {
-        HStack(spacing: Spacing.md) {
+        HStack(spacing: Spacing.sm) {
             Text(split.distance >= 900
-                 ? String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), split.kilometer)
-                 : Formatters.elevation(meters: split.distance))
-                .font(IRFont.eyebrow.weight(.semibold))
+                 ? String(format: String(localized: "split.km_label", defaultValue: "km %lld"), split.kilometer)
+                 : "\(Int(split.distance.rounded())) m")
+                .font(IRFont.microLabel.weight(.semibold))
                 .foregroundStyle(Color.irTextTertiary)
-                .frame(width: 36, alignment: .leading)
+                .frame(width: 42, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(split.paceFormatted)
-                    .font(IRFont.monoSM.weight(.bold))
-                    .foregroundStyle(paceColor)
-                if split.distance < 900 {
-                    Text(split.timeFormatted)
-                        .font(IRFont.microLabel)
-                        .foregroundStyle(Color.irTextSecondary)
-                }
-            }
-            .frame(width: 56, alignment: .leading)
+            Text(split.timeFormatted)
+                .font(IRFont.monoSM.weight(.bold))
+                .foregroundStyle(Color.irTextPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("split-duration-\(split.kilometer)")
 
-            Group {
-                if split.distance >= 900 { deltaBar }
-                else { Color.clear }
-            }
-            .frame(height: 16)
-            .frame(maxWidth: .infinity)
+            Text(split.paceFormatted)
+                .font(IRFont.monoSM.weight(.bold))
+                .foregroundStyle(paceColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
 
-            if let hr = split.averageHeartRate {
-                HStack(spacing: Spacing.xxs) {
-                    Image(systemName: "heart.fill")
-                        .font(IRFont.eyebrow)
-                        .foregroundStyle(Color.irError)
-                    Text(Formatters.integer(Int(hr.rounded())))
-                        .font(IRFont.eyebrow.weight(.semibold))
-                        .foregroundStyle(Color.irError)
-                }
+            Text(split.averageHeartRate.map { Formatters.integer(Int($0.rounded())) } ?? "—")
+                .font(IRFont.monoSM.weight(.semibold))
+                .foregroundStyle(Color.irError)
                 .frame(width: 44, alignment: .trailing)
-            } else {
-                Color.clear.frame(width: 44, height: 1)
-            }
         }
-    }
-
-    private var deltaBar: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let height: CGFloat = 12
-            let centerY = geo.size.height / 2
-            let safeMax = max(maxAbsDelta, 0.001)
-            let barWidth = max(2, width * 0.5 * CGFloat(min(abs(delta) / safeMax, 1)))
-
-            ZStack(alignment: .leading) {
-                // background track
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.irBorder)
-                    .frame(height: height)
-                    .position(x: width / 2, y: centerY)
-
-                // center axis
-                Rectangle()
-                    .fill(Color.irTextPrimary.opacity(0.18))
-                    .frame(width: 1, height: height + 2)
-                    .position(x: width / 2, y: centerY)
-
-                // delta bar
-                RoundedRectangle(cornerRadius: 2)
-                    .fill((delta < 0 ? Color.irSuccess : Color.irWarning).opacity(0.8))
-                    .frame(width: barWidth, height: height - 2)
-                    .position(
-                        x: delta < 0 ? width / 2 - barWidth / 2 : width / 2 + barWidth / 2,
-                        y: centerY
-                    )
-            }
-        }
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -2841,16 +2642,6 @@ struct SplitsByKmContent: View {
     private var best: Split? { fullSplits.min(by: { $0.pace < $1.pace }) }
     private var worst: Split? { fullSplits.max(by: { $0.pace < $1.pace }) }
 
-    private var averagePace: Double {
-        let paces = fullSplits.map { $0.pace }
-        guard !paces.isEmpty else { return 0 }
-        return paces.reduce(0, +) / Double(paces.count)
-    }
-
-    private var maxAbsDelta: Double {
-        max(0.001, fullSplits.map { abs($0.pace - averagePace) }.max() ?? 0)
-    }
-
     private var variabilityFormatted: String {
         guard let bestPace = fullSplits.map({ $0.pace }).min(),
               let worstPace = fullSplits.map({ $0.pace }).max() else {
@@ -2891,12 +2682,24 @@ struct SplitsByKmContent: View {
                 Divider().background(Color.irBorder)
             }
 
+            HStack(spacing: Spacing.sm) {
+                Color.clear.frame(width: 42, height: 1)
+                Text(String(localized: "Duration"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(String(localized: "Pace"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(String(localized: "bpm"))
+                    .frame(width: 44, alignment: .trailing)
+            }
+            .font(IRFont.microLabel)
+            .foregroundStyle(Color.irTextSecondary)
+            .padding(.horizontal, Spacing.base)
+            .padding(.top, Spacing.md)
+
             ForEach(Array(splits.enumerated()), id: \.element.id) { idx, split in
                 if idx > 0 { Divider().background(Color.irBorder) }
                 SplitRow(
                     split: split,
-                    averagePace: averagePace,
-                    maxAbsDelta: maxAbsDelta,
                     isBest: split.id == best?.id,
                     isSlowest: split.id == worst?.id
                 )

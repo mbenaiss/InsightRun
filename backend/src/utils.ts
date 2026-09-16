@@ -119,9 +119,9 @@ export function formatDistance(meters: number): string {
 }
 
 export function formatPace(pace: number): string {
-  const minutes = Math.floor(pace)
-  const seconds = Math.floor((pace - minutes) * 60)
-  return `${minutes}:${seconds.toString().padStart(2, '0')}/km`
+  if (!Number.isFinite(pace) || pace <= 0) return 'N/A'
+  const totalSeconds = Math.round(pace * 60)
+  return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}/km`
 }
 
 // Normalize any inbound pace string (e.g. "4:30", "4'30\"", "4.5") to canonical

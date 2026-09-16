@@ -72,6 +72,33 @@ function waitForAbort(_input: unknown, init?: RequestInit): Promise<Response> {
 
 describe('history analysis summaries', () => {
   test.each([
+    ['batch', 4096],
+    ['consolidate', 6000],
+  ] as const)('%s reserves space for reasoning and completes in one call', async (route, budget) => {
+    const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json({ choices: [{ message: { content: 'One 5 km run.' }, finish_reason: 'stop' }] })
+    )
+
+    const { response } = await requestAnalysis(route)
+
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+    expect(request.max_tokens).toBe(budget)
+    expect(request.reasoning).toEqual({ effort: 'low', exclude: true })
+  })
+
+  test('a larger generation budget cannot overflow the consolidation input limit', async () => {
+    const { response, put } = await analyze('One 5 km run with a steady pace. '.repeat(200))
+
+    const result = await response.json()
+    expect(response.status).toBe(200)
+    expect(result.partialSummary.length).toBeGreaterThan(0)
+    expect(result.partialSummary.length).toBeLessThanOrEqual(4000)
+    expect(JSON.parse(String(put.mock.calls[0][1])).partialSummary).toBe(result.partialSummary)
+  })
+
+  test.each([
     '',
     '  \n\t',
     null,
@@ -114,10 +141,10 @@ describe('history analysis summaries', () => {
 
 describe('history analysis retries', () => {
   test.each([
-    ['batch', '', 'stop', 1000],
-    ['batch', null, 'length', 4000],
-    ['batch', 'Partial analysis', 'length', 4000],
-    ['consolidate', '', 'stop', 3000],
+    ['batch', '', 'stop', 4096],
+    ['batch', null, 'length', 8192],
+    ['batch', 'Partial analysis', 'length', 8192],
+    ['consolidate', '', 'stop', 6000],
     ['consolidate', null, 'length', 12000],
     ['consolidate', 'Partial analysis', 'length', 12000],
   ] as const)('%s recovers from output %p ending with %s', async (route, content, finishReason, budget) => {
@@ -263,7 +290,7 @@ describe('history analysis retries', () => {
         choices: [
           { message: { content: null, reasoning: 'Private reasoning' }, finish_reason: 'length' },
         ],
-        usage: { completion_tokens: 4000, completion_tokens_details: { reasoning_tokens: 4000 } },
+        usage: { completion_tokens: 8192, completion_tokens_details: { reasoning_tokens: 8192 } },
       })
     )
 
@@ -283,10 +310,10 @@ describe('history analysis retries', () => {
         openrouter_status: undefined,
         model: 'test-model',
         finish_reason: 'length',
-        max_tokens: 4000,
+        max_tokens: 8192,
         output_length: 0,
-        completion_tokens: 4000,
-        reasoning_tokens: 4000,
+        completion_tokens: 8192,
+        reasoning_tokens: 8192,
         timestamp: expect.any(Number),
       },
     })

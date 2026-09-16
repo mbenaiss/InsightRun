@@ -309,16 +309,23 @@ async function callOpenRouterNonStreaming(
   maxTokens: number,
   timeout: number
 ): Promise<string> {
+  // The generation cap includes reasoning; keep room for the visible summary from the first call.
+  const generationBudget = Math.max(4096, maxTokens * 2)
+  const summarySystemPrompt = `${systemPrompt}\n\nReturn a complete, concise summary within ${maxTokens} visible tokens. Prioritize the key quantitative facts and finish every sentence.`
   try {
-    return await callOpenRouterOnce(apiKey, model, systemPrompt, prompt, maxTokens, timeout)
+    return await callOpenRouterOnce(
+      apiKey,
+      model,
+      summarySystemPrompt,
+      prompt,
+      generationBudget,
+      timeout
+    )
   } catch (error) {
     if (!isTransientOpenRouterError(error)) throw error
     const summaryError = error instanceof OpenRouterSummaryError ? error : undefined
-    // Reasoning can consume the entire generation budget before visible text is produced.
-    const retryMaxTokens = summaryError?.finishReason === 'length' ? maxTokens * 4 : maxTokens
-    const retrySystemPrompt = summaryError
-      ? `${systemPrompt}\n\nReturn a complete, concise summary within ${maxTokens} visible tokens. Prioritize the key quantitative facts and finish every sentence.`
-      : systemPrompt
+    const retryMaxTokens =
+      summaryError?.finishReason === 'length' ? generationBudget * 2 : generationBudget
     console.warn(
       `OpenRouter transient failure, retrying once: ${(error as Error).message.slice(0, 200)}`,
       { ...summaryError?.diagnostics, retry_max_tokens: retryMaxTokens }
@@ -327,7 +334,7 @@ async function callOpenRouterNonStreaming(
     return await callOpenRouterOnce(
       apiKey,
       model,
-      retrySystemPrompt,
+      summarySystemPrompt,
       prompt,
       retryMaxTokens,
       timeout
@@ -350,6 +357,7 @@ async function callOpenRouterOnce(
       { role: 'user', content: prompt },
     ],
     max_tokens: maxTokens,
+    reasoning: { effort: 'low', exclude: true },
     temperature: AI_TEMPERATURE,
     stream: false,
   }

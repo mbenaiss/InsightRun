@@ -5,9 +5,9 @@
 //  ViewModel for statistics and performance metrics
 //
 
-import SwiftUI
 import Combine
 import HealthKit
+import SwiftUI
 
 // MARK: - Progression Data
 
@@ -34,22 +34,73 @@ struct ProgressionDataPoint: Identifiable {
 
 @MainActor
 class StatisticsViewModel: ObservableObject {
-    @Published var workouts: [WorkoutModel] = []
+    @Published var workouts: [WorkoutModel] = [] { didSet { invalidateSnapshot() } }
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var selectedPeriod: TimePeriod = .thisMonth
-    @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
-    @Published var chartGranularity: ChartGranularity = .week
+    @Published var selectedPeriod: TimePeriod = .thisMonth { didSet { invalidateSnapshot() } }
+    @Published var selectedYear: Int = Calendar.current.component(.year, from: Date()) {
+        didSet { invalidateSnapshot() }
+    }
+    @Published var chartGranularity: ChartGranularity = .week { didSet { invalidateSnapshot() } }
 
     // Progression
-    @Published var progressionData: [ProgressionDataPoint] = []
+    @Published var progressionData: [ProgressionDataPoint] = [] {
+        didSet {
+            performanceCache = nil
+            advancedCache = nil
+        }
+    }
     @Published var isLoadingProgression = false
     @Published var progressionLoadingProgress: Double = 0
 
-    private let healthKitManager = HealthKitManager.shared
+    private let fetchWorkouts: () async throws -> [WorkoutModel]
+    private let usesDemoProgression: Bool
+    private let fetchProgression: (WorkoutModel) async -> ProgressionDataPoint
+    private let now: () -> Date
+    private let calendar: Calendar
+    private var snapshotCache: StatisticsSnapshot?
+    private var paceCache: [PaceDistribution]?
+    private var distanceCache: [DistanceDistribution]?
+    private var performanceCache: [MetricSeries]?
+    private var advancedCache: [MetricSeries]?
     private var progressionCache: [UUID: ProgressionDataPoint] = [:]
     private var progressionTask: Task<Void, Never>?
-    private var isFetchingWorkouts = false
+    private var progressionRequestID = UUID()
+    private var progressionWorkerID = UUID()
+    private var progressionSelection: [UUID] = []
+    private var loadTask: Task<[WorkoutModel], Error>?
+    private var lastLoadedAt: Date?
+    @Published private(set) var dataRevision = 0
+
+    init(
+        now: @escaping () -> Date = Date.init, calendar: Calendar = .current,
+        fetchWorkouts: @escaping () async throws -> [WorkoutModel] = {
+            try await HealthKitManager.shared.fetchRunningWorkouts(includeEffortScores: false)
+        },
+        fetchProgression: ((WorkoutModel) async -> ProgressionDataPoint)? = nil
+    ) {
+        self.now = now
+        self.calendar = calendar
+        self.fetchWorkouts = fetchWorkouts
+        self.fetchProgression = fetchProgression ?? { await HealthKitManager.shared.fetchProgressionMetrics(for: $0) }
+        self.usesDemoProgression = fetchProgression == nil && DemoMode.isEnabled
+        selectedYear = calendar.component(.year, from: now())
+    }
+
+    private func invalidateSnapshot() {
+        snapshotCache = nil
+        paceCache = nil
+        distanceCache = nil
+    }
+
+    var snapshot: StatisticsSnapshot {
+        if let snapshotCache { return snapshotCache }
+        let value = StatisticsSnapshot(
+            workouts: workouts, period: selectedPeriod, year: selectedYear,
+            granularity: chartGranularity, now: now(), calendar: calendar)
+        snapshotCache = value
+        return value
+    }
 
     enum TimePeriod: Equatable, CaseIterable {
         case thisWeek
@@ -62,28 +113,24 @@ class StatisticsViewModel: ObservableObject {
         var localizedTitle: String {
             switch self {
             case .thisWeek:
-                return String(localized: "statistics.period.thisWeek", defaultValue: "Week", comment: "This week period filter")
+                return String(
+                    localized: "statistics.period.thisWeek", defaultValue: "Week", comment: "This week period filter")
             case .thisMonth:
-                return String(localized: "statistics.period.thisMonth", defaultValue: "This month", comment: "This month period filter")
+                return String(
+                    localized: "statistics.period.thisMonth", defaultValue: "This month",
+                    comment: "This month period filter")
             case .sixMonths:
-                return String(localized: "statistics.period.6months", defaultValue: "6 months", comment: "6 months period filter")
+                return String(
+                    localized: "statistics.period.6months", defaultValue: "6 months", comment: "6 months period filter")
             case .oneYear:
-                return String(localized: "statistics.period.1year", defaultValue: "1 year", comment: "1 year period filter")
+                return String(
+                    localized: "statistics.period.1year", defaultValue: "1 year", comment: "1 year period filter")
             case .allTime:
-                return String(localized: "statistics.period.all", defaultValue: "All", comment: "All-time period filter")
+                return String(
+                    localized: "statistics.period.all", defaultValue: "All", comment: "All-time period filter")
             case .specificYear:
-                return String(localized: "statistics.period.year", defaultValue: "Year", comment: "Specific year period filter")
-            }
-        }
-
-        var days: Int? {
-            switch self {
-            case .thisWeek: return nil
-            case .thisMonth: return nil
-            case .sixMonths: return 180
-            case .oneYear: return 365
-            case .allTime: return nil
-            case .specificYear: return nil
+                return String(
+                    localized: "statistics.period.year", defaultValue: "Year", comment: "Specific year period filter")
             }
         }
 
@@ -99,9 +146,12 @@ class StatisticsViewModel: ObservableObject {
         var localizedTitle: String {
             switch self {
             case .week:
-                return String(localized: "statistics.granularity.week", defaultValue: "Week", comment: "Week chart granularity")
+                return String(
+                    localized: "statistics.granularity.week", defaultValue: "Week", comment: "Week chart granularity")
             case .month:
-                return String(localized: "statistics.granularity.month", defaultValue: "Month", comment: "Month chart granularity")
+                return String(
+                    localized: "statistics.granularity.month", defaultValue: "Month", comment: "Month chart granularity"
+                )
             }
         }
     }
@@ -109,42 +159,16 @@ class StatisticsViewModel: ObservableObject {
     // MARK: - Data Structures for Charts
 
     struct PeriodData: Identifiable {
-        let id = UUID()
+        var id: Date { date }
         let date: Date
-        let distance: Double // in meters
+        let distance: Double  // in meters
         let duration: TimeInterval
         let workoutCount: Int
         let averagePace: Double?
     }
 
-    struct ActivityDay: Identifiable {
-        let id = UUID()
-        let date: Date
-        let hasActivity: Bool
-        let distance: Double
-        let intensity: ActivityIntensity
-    }
-
-    enum ActivityIntensity: Int {
-        case none = 0
-        case light = 1
-        case moderate = 2
-        case high = 3
-        case veryHigh = 4
-
-        var color: Color {
-            switch self {
-            case .none: return Color.gray.opacity(0.1)
-            case .light: return Color.green.opacity(0.3)
-            case .moderate: return Color.green.opacity(0.5)
-            case .high: return Color.green.opacity(0.7)
-            case .veryHigh: return Color.green.opacity(0.9)
-            }
-        }
-    }
-
     struct PaceDistribution: Identifiable {
-        let id = UUID()
+        var id: String { range }
         let range: String
         let zoneLabel: String
         let count: Int
@@ -161,7 +185,7 @@ class StatisticsViewModel: ObservableObject {
     }
 
     struct DistanceDistribution: Identifiable {
-        let id = UUID()
+        var id: String { category }
         let category: String
         let count: Int
         let percentage: Double
@@ -177,132 +201,92 @@ class StatisticsViewModel: ObservableObject {
         }
     }
 
-    struct YearlyComparison {
-        let thisYearDistance: Double
-        let lastYearDistance: Double
-        let thisYearWorkouts: Int
-        let lastYearWorkouts: Int
-        let thisYearAvgPace: Double?
-        let lastYearAvgPace: Double?
-
-        var distanceChange: Double {
-            guard lastYearDistance > 0 else { return 0 }
-            return ((thisYearDistance - lastYearDistance) / lastYearDistance) * 100
-        }
-
-        var workoutsChange: Double {
-            guard lastYearWorkouts > 0 else { return 0 }
-            return Double((thisYearWorkouts - lastYearWorkouts)) / Double(lastYearWorkouts) * 100
-        }
-
-        var paceChange: Double? {
-            guard let thisPace = thisYearAvgPace, let lastPace = lastYearAvgPace else { return nil }
-            return thisPace - lastPace
-        }
-    }
-
-    // MARK: - Data Loading
-
-    func loadWorkouts() async {
-        guard !isFetchingWorkouts else { return }
-        if DemoMode.isEnabled {
-            workouts = MockData.sampleWorkouts
-            isLoading = false
+    func loadWorkouts(force: Bool = false) async {
+        invalidateSnapshot()
+        if let loadTask {
+            _ = try? await loadTask.value
             return
         }
-
-        isFetchingWorkouts = true
+        if !force, let lastLoadedAt, now().timeIntervalSince(lastLoadedAt) < 60 { return }
         isLoading = workouts.isEmpty
         errorMessage = nil
+        let task = Task { try await fetchWorkouts() }
+        loadTask = task
         defer {
-            isFetchingWorkouts = false
+            loadTask = nil
             isLoading = false
         }
-
         do {
-            workouts = try await healthKitManager.fetchRunningWorkouts(includeEffortScores: false)
+            let fresh = try await task.value
+            cancelProgressionLoading()
+            let updatedByID = Dictionary(fresh.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+            let previous = Dictionary(workouts.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+            progressionCache = progressionCache.filter { id, _ in
+                guard let old = previous[id], let updated = updatedByID[id] else { return false }
+                return old.startDate == updated.startDate && old.duration == updated.duration
+                    && old.distance == updated.distance
+            }
+            workouts = fresh
+            lastLoadedAt = now()
+            dataRevision += 1
+        } catch is CancellationError {
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     func refresh() async {
-        await loadWorkouts()
+        cancelProgressionLoading()
+        progressionCache.removeAll()
+        await loadWorkouts(force: true)
     }
 
-    // MARK: - Filtered Workouts
+    var filteredWorkouts: [WorkoutModel] { snapshot.workouts }
+    var periodDistanceData: [PeriodData] { snapshot.buckets }
+    var sparklineWorkouts: [Double] { snapshot.buckets.map { Double($0.workoutCount) } }
+    var sparklineDistance: [Double] { snapshot.buckets.map { $0.distance / 1000 } }
+    var sparklineDuration: [Double] { snapshot.buckets.map { $0.duration / 3600 } }
+    var sparklinePace: [Double] { snapshot.buckets.compactMap(\.averagePace) }
+    var totalWorkouts: Int { snapshot.totals.count }
+    var totalDistance: Double { snapshot.totals.distance }
+    var totalDuration: TimeInterval { snapshot.totals.duration }
+    var averagePace: Double? { snapshot.totals.averagePace }
+    var availableYears: [Int] { snapshot.availableYears }
+    var longestRun: WorkoutModel? { snapshot.longestRun }
+    var longestDuration: WorkoutModel? { snapshot.longestDuration }
+    var best5K: WorkoutModel? { snapshot.distanceRecords[0] }
+    var best10K: WorkoutModel? { snapshot.distanceRecords[1] }
+    var bestHalfMarathon: WorkoutModel? { snapshot.distanceRecords[2] }
+    var bestMarathon: WorkoutModel? { snapshot.distanceRecords[3] }
 
-    var filteredWorkouts: [WorkoutModel] {
-        let calendar = Calendar.current
+    var periodTitle: String {
+        selectedPeriod == .specificYear ? String(selectedYear) : selectedPeriod.localizedTitle
+    }
 
-        switch selectedPeriod {
-        case .thisWeek:
-            guard let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())) else {
-                return workouts
-            }
-            return workouts.filter { $0.startDate >= startOfWeek }
+    var comparisonLabel: String? {
+        guard let interval = snapshot.previousInterval else { return nil }
+        let formatter = DateIntervalFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        formatter.calendar = calendar
+        let end =
+            calendar.isDate(interval.end, inSameDayAs: calendar.startOfDay(for: interval.end))
+                && interval.end == calendar.startOfDay(for: interval.end)
+            ? interval.end.addingTimeInterval(-1) : interval.end
+        return formatter.string(from: interval.start, to: max(interval.start, end))
+    }
 
-        case .thisMonth:
-            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: Date())) else {
-                return workouts
-            }
-            return workouts.filter { $0.startDate >= startOfMonth }
-
-        case .sixMonths, .oneYear:
-            guard let days = selectedPeriod.days else { return workouts }
-            let cutoffDate = calendar.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-            return workouts.filter { $0.startDate >= cutoffDate }
-
-        case .allTime:
-            return workouts
-
-        case .specificYear:
-            guard let startOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 1, day: 1)) else {
-                return workouts
-            }
-            guard let startOfNextYear = calendar.date(from: DateComponents(year: selectedYear + 1, month: 1, day: 1)) else {
-                return workouts
-            }
-            return workouts.filter { $0.startDate >= startOfYear && $0.startDate < startOfNextYear }
+    var monthlyWorkouts: (current: [WorkoutModel], previous: [WorkoutModel]) {
+        let intervals = StatisticsSnapshot.ranges(
+            period: .thisMonth, year: selectedYear, now: now(), first: nil, calendar: calendar)
+        let current = workouts.filter {
+            $0.startDate >= intervals.current.start && $0.startDate < intervals.current.end
         }
-    }
-
-    // MARK: - KPI Hero Sparklines
-
-    /// Returns the sorted period buckets used for KPI hero sparklines.
-    /// Computed once per access; the per-bucket distance/duration/pace are all
-    /// carried by `PeriodData`, so the sparkline accessors are O(buckets), not
-    /// O(buckets × workouts).
-    private var sparklineBuckets: [PeriodData] {
-        periodDistanceData.sorted { $0.date < $1.date }
-    }
-
-    /// Workouts per period bucket for the "Sessions" sparkline.
-    var sparklineWorkouts: [Double] {
-        sparklineBuckets.map { Double($0.workoutCount) }
-    }
-
-    /// Distance in km per bucket for the "Distance" sparkline.
-    var sparklineDistance: [Double] {
-        sparklineBuckets.map { $0.distance / 1000.0 }
-    }
-
-    /// Duration in hours per bucket for the "Time" sparkline.
-    var sparklineDuration: [Double] {
-        sparklineBuckets.map { $0.duration / 3600.0 }
-    }
-
-    /// Average pace per bucket for the "Avg pace" sparkline. Buckets without a
-    /// pace map to 0 so the series stays index-aligned with the other sparklines.
-    var sparklinePace: [Double] {
-        sparklineBuckets.map { $0.averagePace ?? 0 }
-    }
-
-    /// Canonical bucket pace (decimal min/km) = duration / distance; nil if either is zero.
-    private static func canonicalPace(distanceMeters: Double, duration: TimeInterval) -> Double? {
-        // Helper returns seconds/km; divide by 60 for the min/km used downstream.
-        Formatters.averagePaceValue(totalDurationSeconds: duration, totalDistanceKm: distanceMeters / 1000.0)
-            .map { $0 / 60.0 }
+        let previous =
+            intervals.previous.map { interval in
+                workouts.filter { $0.startDate >= interval.start && $0.startDate < interval.end }
+            } ?? []
+        return (current, previous)
     }
 
     // MARK: - Header Subtitle (editorial)
@@ -315,439 +299,41 @@ class StatisticsViewModel: ObservableObject {
         let periodName: String = {
             switch selectedPeriod {
             case .thisWeek:
-                return String(localized: "statistics.header.thisWeek", defaultValue: "This week", comment: "Header subtitle period: this week")
+                return String(
+                    localized: "statistics.header.thisWeek", defaultValue: "This week",
+                    comment: "Header subtitle period: this week")
             case .thisMonth:
                 let f = DateFormatter()
                 f.locale = Locale.current
                 f.dateFormat = "LLLL yyyy"
-                return f.string(from: Date()).capitalized
+                return f.string(from: now()).capitalized
             case .sixMonths:
-                return String(localized: "statistics.header.6months", defaultValue: "Last 6 months", comment: "Header subtitle period: last 6 months")
+                return String(
+                    localized: "statistics.header.6months", defaultValue: "Last 6 months",
+                    comment: "Header subtitle period: last 6 months")
             case .oneYear:
-                return String(localized: "statistics.header.1year", defaultValue: "Last 12 months", comment: "Header subtitle period: last 12 months")
+                return String(
+                    localized: "statistics.header.1year", defaultValue: "Last 12 months",
+                    comment: "Header subtitle period: last 12 months")
             case .allTime:
-                return String(localized: "statistics.header.all", defaultValue: "All time", comment: "Header subtitle period: all time")
+                return String(
+                    localized: "statistics.header.all", defaultValue: "All time",
+                    comment: "Header subtitle period: all time")
             case .specificYear:
                 return "\(selectedYear)"
             }
         }()
 
-        let sessions = String(format: String(localized: "statistics.header.sessionsCount", defaultValue: "%lld sessions", comment: "Header subtitle: number of sessions"), count)
+        let sessions = String(
+            format: String(
+                localized: "statistics.header.sessionsCount", defaultValue: "%lld sessions",
+                comment: "Header subtitle: number of sessions"), count)
         return "\(periodName) · \(sessions) · \(kmText)"
     }
 
-    // MARK: - Available Years
-
-    var availableYears: [Int] {
-        guard !workouts.isEmpty else { return [Calendar.current.component(.year, from: Date())] }
-
-        let years = Set(workouts.map { Calendar.current.component(.year, from: $0.startDate) })
-        return years.sorted(by: >)
-    }
-
-    // MARK: - Overview Metrics
-
-    var totalWorkouts: Int {
-        filteredWorkouts.count
-    }
-
-    var totalDistance: Double {
-        filteredWorkouts.compactMap { $0.distance }.reduce(0, +)
-    }
-
-    var totalDuration: TimeInterval {
-        filteredWorkouts.map { $0.duration }.reduce(0, +)
-    }
-
-    var currentStreak: Int {
-        calculateStreak()
-    }
-
-    var longestStreak: Int {
-        calculateLongestStreak()
-    }
-
-    var consistencyRate: Double {
-        calculateConsistencyRate()
-    }
-
-    /// Canonical average pace (decimal min/km) = sum(durations) / sum(distances),
-    /// over workouts that have a usable distance. Avoids the misaligned zip of a
-    /// compactMapped pace array against the full workout list.
-    var averagePace: Double? {
-        let runs = filteredWorkouts.filter { ($0.distance ?? 0) > 0 && $0.duration > 0 }
-        let totalDistanceKm = runs.compactMap { $0.distance }.reduce(0, +) / 1000.0
-        let totalDurationSeconds = runs.map { $0.duration }.reduce(0, +)
-        return Formatters.averagePaceValue(totalDurationSeconds: totalDurationSeconds, totalDistanceKm: totalDistanceKm)
-            .map { $0 / 60.0 }
-    }
-
-    // MARK: - Performance Metrics
-
-    var averageDistance: Double {
-        guard !filteredWorkouts.isEmpty else { return 0 }
-        return totalDistance / Double(filteredWorkouts.count)
-    }
-
-    var averageDuration: TimeInterval {
-        guard !filteredWorkouts.isEmpty else { return 0 }
-        return totalDuration / Double(filteredWorkouts.count)
-    }
-
-    var weeklyFrequency: Double {
-        guard !filteredWorkouts.isEmpty else { return 0 }
-
-        guard let windowDays = consistencyWindowDays(), windowDays > 0 else {
-            return Double(filteredWorkouts.count)
-        }
-        let weeks = max(1.0, Double(windowDays) / 7.0)
-        return Double(filteredWorkouts.count) / weeks
-    }
-
-    // MARK: - Personal Records
-
-    var longestRun: WorkoutModel? {
-        workouts.max(by: { ($0.distance ?? 0) < ($1.distance ?? 0) })
-    }
-
-    var fastestRun: WorkoutModel? {
-        workouts.min(by: { ($0.averagePace ?? Double.infinity) < ($1.averagePace ?? Double.infinity) })
-    }
-
-    var longestDuration: WorkoutModel? {
-        workouts.max(by: { $0.duration < $1.duration })
-    }
-
-    var best5K: WorkoutModel? {
-        findBestTime(forDistance: 5000, tolerance: 250)
-    }
-
-    var best10K: WorkoutModel? {
-        findBestTime(forDistance: 10000, tolerance: 500)
-    }
-
-    var bestHalfMarathon: WorkoutModel? {
-        findBestTime(forDistance: 21097.5, tolerance: 1000)
-    }
-
-    var bestMarathon: WorkoutModel? {
-        findBestTime(forDistance: 42195, tolerance: 1000)
-    }
-
-    // MARK: - Change Metrics
-
-    var monthlyChange: MonthlyChange {
-        calculateMonthlyChange()
-    }
-
-    struct MonthlyChange {
-        let distanceChange: Double
-        let workoutsChange: Int
-        let paceChange: Double?
-        let durationChange: TimeInterval
-
-        // This month values
-        let thisMonthWorkouts: Int
-        let thisMonthDistance: Double
-        let thisMonthDuration: TimeInterval
-        let thisMonthAvgPace: Double?
-
-        // Last month values
-        let lastMonthWorkouts: Int
-        let lastMonthDistance: Double
-        let lastMonthDuration: TimeInterval
-        let lastMonthAvgPace: Double?
-
-        var distancePercentage: Double {
-            guard distanceChange != 0 else { return 0 }
-            return distanceChange * 100
-        }
-
-        var workoutsPercentage: Double {
-            guard workoutsChange != 0 else { return 0 }
-            return Double(workoutsChange) * 100
-        }
-    }
-
-    // MARK: - Helper Methods
-
-    private func calculateStreak() -> Int {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-
-        let workoutDates = Set(workouts.map { calendar.startOfDay(for: $0.startDate) })
-
-        var streak = 0
-        var currentDate = today
-
-        while workoutDates.contains(currentDate) {
-            streak += 1
-            guard let previousDate = calendar.date(byAdding: .day, value: -1, to: currentDate) else {
-                break
-            }
-            currentDate = previousDate
-        }
-
-        return streak
-    }
-
-    private func calculateLongestStreak() -> Int {
-        let calendar = Calendar.current
-        let workoutDates = Set(workouts.map { calendar.startOfDay(for: $0.startDate) }).sorted()
-
-        guard !workoutDates.isEmpty else { return 0 }
-
-        var maxStreak = 1
-        var currentStreak = 1
-
-        for i in 1..<workoutDates.count {
-            let previousDate = workoutDates[i - 1]
-            let currentDate = workoutDates[i]
-
-            let daysDiff = calendar.dateComponents([.day], from: previousDate, to: currentDate).day ?? 0
-
-            if daysDiff == 1 {
-                currentStreak += 1
-                maxStreak = max(maxStreak, currentStreak)
-            } else {
-                currentStreak = 1
-            }
-        }
-
-        return maxStreak
-    }
-
-    private func calculateConsistencyRate() -> Double {
-        let calendar = Calendar.current
-        let workoutDays = Set(filteredWorkouts.map { calendar.startOfDay(for: $0.startDate) }).count
-        guard workoutDays > 0, let windowDays = consistencyWindowDays(), windowDays > 0 else { return 0 }
-        return Double(workoutDays) / Double(windowDays) * 100
-    }
-
-    /// Number of elapsed days in the selected period, used as the denominator of
-    /// the consistency rate. Bounded so future-dated period starts can't yield <= 0.
-    private func consistencyWindowDays() -> Int? {
-        let calendar = Calendar.current
-        let now = Date()
-
-        switch selectedPeriod {
-        case .sixMonths, .oneYear:
-            return selectedPeriod.days
-
-        case .thisWeek:
-            guard let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) else { return nil }
-            return elapsedDays(from: startOfWeek, to: now)
-
-        case .thisMonth:
-            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else { return nil }
-            return elapsedDays(from: startOfMonth, to: now)
-
-        case .specificYear:
-            guard let startOfYear = calendar.date(from: DateComponents(year: selectedYear, month: 1, day: 1)),
-                  let startOfNextYear = calendar.date(from: DateComponents(year: selectedYear + 1, month: 1, day: 1)) else { return nil }
-            let end = min(now, startOfNextYear)
-            return elapsedDays(from: startOfYear, to: end)
-
-        case .allTime:
-            let sorted = workouts.sorted { $0.startDate < $1.startDate }
-            guard let firstDate = sorted.first?.startDate else { return nil }
-            return elapsedDays(from: firstDate, to: now)
-        }
-    }
-
-    private func elapsedDays(from start: Date, to end: Date) -> Int {
-        let days = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
-        return max(1, days + 1)
-    }
-
-    /// Best (shortest) time for a target distance. Only runs that *cover at least*
-    /// the target distance qualify (a 4.75 km run can't be a 5K PR); the upper
-    /// bound stays loose so a slightly long run still counts.
-    private func findBestTime(forDistance targetDistance: Double, tolerance: Double) -> WorkoutModel? {
-        let candidates = workouts.filter { workout in
-            guard let distance = workout.distance else { return false }
-            return distance >= targetDistance && distance <= targetDistance + tolerance
-        }
-
-        return candidates.min { $0.duration < $1.duration }
-    }
-
-    private func calculateMonthlyChange() -> MonthlyChange {
-        let calendar = Calendar.current
-        let now = Date()
-
-        guard let startOfThisMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)),
-              let startOfLastMonth = calendar.date(byAdding: .month, value: -1, to: startOfThisMonth) else {
-            return MonthlyChange(
-                distanceChange: 0, workoutsChange: 0, paceChange: nil, durationChange: 0,
-                thisMonthWorkouts: 0, thisMonthDistance: 0, thisMonthDuration: 0, thisMonthAvgPace: nil,
-                lastMonthWorkouts: 0, lastMonthDistance: 0, lastMonthDuration: 0, lastMonthAvgPace: nil
-            )
-        }
-
-        let thisMonthWorkouts = workouts.filter { $0.startDate >= startOfThisMonth }
-        let lastMonthWorkouts = workouts.filter { $0.startDate >= startOfLastMonth && $0.startDate < startOfThisMonth }
-
-        let thisMonthDistance = thisMonthWorkouts.compactMap { $0.distance }.reduce(0, +)
-        let lastMonthDistance = lastMonthWorkouts.compactMap { $0.distance }.reduce(0, +)
-
-        let thisMonthDuration = thisMonthWorkouts.map { $0.duration }.reduce(0, +)
-        let lastMonthDuration = lastMonthWorkouts.map { $0.duration }.reduce(0, +)
-
-        let distanceChange = lastMonthDistance > 0 ? (thisMonthDistance - lastMonthDistance) / lastMonthDistance : 0
-        let workoutsChange = lastMonthWorkouts.count > 0 ?
-            Int((Double(thisMonthWorkouts.count - lastMonthWorkouts.count) / Double(lastMonthWorkouts.count)) * 100) : 0
-        let durationChange = thisMonthDuration - lastMonthDuration
-
-        // Canonical pace = total duration / total distance over the month.
-        let thisMonthAvgPace = Self.canonicalPace(distanceMeters: thisMonthDistance, duration: thisMonthDuration)
-        let lastMonthAvgPace = Self.canonicalPace(distanceMeters: lastMonthDistance, duration: lastMonthDuration)
-
-        let paceChange: Double?
-        if let thisAvg = thisMonthAvgPace, let lastAvg = lastMonthAvgPace {
-            paceChange = thisAvg - lastAvg
-        } else {
-            paceChange = nil
-        }
-
-        return MonthlyChange(
-            distanceChange: distanceChange,
-            workoutsChange: workoutsChange,
-            paceChange: paceChange,
-            durationChange: durationChange,
-            thisMonthWorkouts: thisMonthWorkouts.count,
-            thisMonthDistance: thisMonthDistance,
-            thisMonthDuration: thisMonthDuration,
-            thisMonthAvgPace: thisMonthAvgPace,
-            lastMonthWorkouts: lastMonthWorkouts.count,
-            lastMonthDistance: lastMonthDistance,
-            lastMonthDuration: lastMonthDuration,
-            lastMonthAvgPace: lastMonthAvgPace
-        )
-    }
-
-    // MARK: - Chart Data Methods
-
-    var periodDistanceData: [PeriodData] {
-        let calendar = Calendar.current
-        var data: [PeriodData] = []
-
-        if selectedPeriod == .thisMonth && chartGranularity == .week {
-            let now = Date()
-            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else {
-                return data
-            }
-            guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth) else {
-                return data
-            }
-
-            // Group workouts by week using yearForWeekOfYear for correct year-boundary handling
-            let grouped = Dictionary(grouping: filteredWorkouts) { workout in
-                calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: workout.startDate)
-            }
-
-            // Generate all weeks that overlap with the current month
-            let weekStart = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: startOfMonth)
-            guard var currentWeekDate = calendar.date(from: weekStart) else { return data }
-
-            while currentWeekDate < nextMonth {
-                let weekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentWeekDate)
-                let workoutsInWeek = grouped[weekComponents] ?? []
-
-                let distance = workoutsInWeek.compactMap { $0.distance }.reduce(0, +)
-                let duration = workoutsInWeek.map { $0.duration }.reduce(0, +)
-
-                data.append(PeriodData(
-                    date: currentWeekDate,
-                    distance: distance,
-                    duration: duration,
-                    workoutCount: workoutsInWeek.count,
-                    averagePace: Self.canonicalPace(distanceMeters: distance, duration: duration)
-                ))
-
-                guard let nextWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeekDate) else { break }
-                currentWeekDate = nextWeek
-            }
-
-            return data
-        }
-
-        let components: Calendar.Component = chartGranularity == .week ? .weekOfYear : .month
-        let yearComponent: Calendar.Component = chartGranularity == .week ? .yearForWeekOfYear : .year
-
-        // Group workouts by period
-        let grouped = Dictionary(grouping: filteredWorkouts) { workout in
-            calendar.dateComponents([yearComponent, components], from: workout.startDate)
-        }
-
-        // Create data points for each period
-        for (dateComponents, workouts) in grouped {
-            guard let date = calendar.date(from: dateComponents) else { continue }
-
-            let distance = workouts.compactMap { $0.distance }.reduce(0, +)
-            let duration = workouts.map { $0.duration }.reduce(0, +)
-
-            data.append(PeriodData(
-                date: date,
-                distance: distance,
-                duration: duration,
-                workoutCount: workouts.count,
-                averagePace: Self.canonicalPace(distanceMeters: distance, duration: duration)
-            ))
-        }
-
-        return data.sorted { $0.date < $1.date }
-    }
-
-    var activityHeatMapData: [ActivityDay] {
-        let calendar = Calendar.current
-        var data: [ActivityDay] = []
-
-        // Get last 12 months
-        guard let startDate = calendar.date(byAdding: .month, value: -12, to: Date()) else { return [] }
-        let endDate = Date()
-
-        // Create dictionary of workout dates with their distances
-        let workoutsByDate = Dictionary(grouping: workouts.filter { $0.startDate >= startDate }) { workout in
-            calendar.startOfDay(for: workout.startDate)
-        }
-
-        // Iterate through all days
-        var currentDate = startDate
-        while currentDate <= endDate {
-            let dayStart = calendar.startOfDay(for: currentDate)
-            let dayWorkouts = workoutsByDate[dayStart] ?? []
-            let totalDistance = dayWorkouts.compactMap { $0.distance }.reduce(0, +)
-
-            let intensity = getActivityIntensity(distance: totalDistance)
-
-            data.append(ActivityDay(
-                date: dayStart,
-                hasActivity: !dayWorkouts.isEmpty,
-                distance: totalDistance,
-                intensity: intensity
-            ))
-
-            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) else {
-                break
-            }
-            currentDate = nextDate
-        }
-
-        return data
-    }
-
-    private func getActivityIntensity(distance: Double) -> ActivityIntensity {
-        if distance == 0 { return .none }
-        let km = distance / 1000.0
-        if km < 3 { return .light }
-        if km < 6 { return .moderate }
-        if km < 10 { return .high }
-        return .veryHigh
-    }
-
     var paceDistributionData: [PaceDistribution] {
-        let paces = filteredWorkouts.compactMap { $0.averagePace }
+        if let paceCache { return paceCache }
+        let paces = filteredWorkouts.compactMap { $0.averagePace }.filter { $0.isFinite && $0 > 0 }
         guard !paces.isEmpty else { return [] }
 
         let total = Double(paces.count)
@@ -760,23 +346,16 @@ class StatisticsViewModel: ObservableObject {
             let color: Color
         }
 
-        // Order matches design v4-stats.jsx (Tempo first, Endurance, Récup, Intervalles last)
+        let unitScale = Formatters.distanceValue(km: 1)
+        func clock(_ minutes: Double) -> String { Formatters.paceClock(minutes * 60 / unitScale) }
         let zones: [Zone] = [
-            Zone(range: "5'00–6'00",
-                 label: String(localized: "statistics.pace.zone.tempo", defaultValue: "Tempo · threshold", comment: "Pace zone: tempo"),
-                 min: 5.0, max: 6.0, color: .irSuccess),
-            Zone(range: "6'00–7'00",
-                 label: String(localized: "statistics.pace.zone.endurance", defaultValue: "Endurance", comment: "Pace zone: endurance"),
-                 min: 6.0, max: 7.0, color: .irPrimaryAccent),
-            Zone(range: "> 7'00",
-                 label: String(localized: "statistics.pace.zone.recovery", defaultValue: "Recovery · long", comment: "Pace zone: recovery"),
-                 min: 7.0, max: 100.0, color: .irWarning),
-            Zone(range: "< 5'00",
-                 label: String(localized: "statistics.pace.zone.intervals", defaultValue: "Intervals · VMA", comment: "Pace zone: intervals"),
-                 min: 0.0, max: 5.0, color: .irError)
+            Zone(range: "< \(clock(5))", label: "", min: 0, max: 5, color: .irWarning),
+            Zone(range: "\(clock(5))–\(clock(6))", label: "", min: 5, max: 6, color: .irSuccess),
+            Zone(range: "\(clock(6))–\(clock(7))", label: "", min: 6, max: 7, color: .irPrimaryAccent),
+            Zone(range: "≥ \(clock(7))", label: "", min: 7, max: .infinity, color: .irTextSecondary),
         ]
 
-        return zones.map { zone in
+        let result = zones.map { zone in
             let count = paces.filter { $0 >= zone.min && $0 < zone.max }.count
             let percentage = (Double(count) / total) * 100
             return PaceDistribution(
@@ -787,12 +366,15 @@ class StatisticsViewModel: ObservableObject {
                 zoneLabel: zone.label
             )
         }
+        paceCache = result
+        return result
     }
 
     var distanceDistributionData: [DistanceDistribution] {
-        guard !filteredWorkouts.isEmpty else { return [] }
-
-        let total = Double(filteredWorkouts.count)
+        if let distanceCache { return distanceCache }
+        let measured = filteredWorkouts.filter { ($0.distance ?? 0).isFinite && ($0.distance ?? 0) > 0 }
+        guard !measured.isEmpty else { return [] }
+        let total = Double(measured.count)
 
         struct Bucket {
             let label: String
@@ -801,21 +383,21 @@ class StatisticsViewModel: ObservableObject {
             let isMarathon: Bool
         }
 
+        func label(_ km: Double) -> String {
+            Formatters.decimal(
+                Formatters.distanceValue(km: km), fractionDigits: UnitPreference.current.usesImperial ? 1 : 0)
+        }
+        let unit = Formatters.distanceUnitLabel()
         let buckets: [Bucket] = [
-            Bucket(label: String(localized: "statistics.distance.bucket.under5", defaultValue: "< 5 km", comment: "Distance bucket below 5 km"),
-                   min: 0.0, max: 5000.0, isMarathon: false),
-            Bucket(label: String(localized: "statistics.distance.bucket.5to10", defaultValue: "5–10 km", comment: "Distance bucket 5 to 10 km"),
-                   min: 5000.0, max: 10000.0, isMarathon: false),
-            Bucket(label: String(localized: "statistics.distance.bucket.10to15", defaultValue: "10–15 km", comment: "Distance bucket 10 to 15 km"),
-                   min: 10000.0, max: 15000.0, isMarathon: false),
-            Bucket(label: String(localized: "statistics.distance.bucket.15to20", defaultValue: "15–20 km", comment: "Distance bucket 15 to 20 km"),
-                   min: 15000.0, max: 20000.0, isMarathon: false),
-            Bucket(label: String(localized: "statistics.distance.bucket.over20", defaultValue: "> 20 km", comment: "Distance bucket above 20 km"),
-                   min: 20000.0, max: Double.infinity, isMarathon: true)
+            Bucket(label: "< \(label(5)) \(unit)", min: 0, max: 5000, isMarathon: false),
+            Bucket(label: "\(label(5))–\(label(10)) \(unit)", min: 5000, max: 10000, isMarathon: false),
+            Bucket(label: "\(label(10))–\(label(15)) \(unit)", min: 10000, max: 15000, isMarathon: false),
+            Bucket(label: "\(label(15))–\(label(20)) \(unit)", min: 15000, max: 20000, isMarathon: false),
+            Bucket(label: "≥ \(label(20)) \(unit)", min: 20000, max: .infinity, isMarathon: false),
         ]
 
-        return buckets.map { bucket in
-            let matched = filteredWorkouts.filter { workout in
+        let result = buckets.map { bucket in
+            let matched = measured.filter { workout in
                 guard let distance = workout.distance else { return false }
                 return distance >= bucket.min && distance < bucket.max
             }
@@ -830,111 +412,73 @@ class StatisticsViewModel: ObservableObject {
                 isMarathon: bucket.isMarathon
             )
         }
-    }
-
-    var yearlyComparisonData: YearlyComparison {
-        let calendar = Calendar.current
-        let now = Date()
-
-        guard let startOfThisYear = calendar.date(from: calendar.dateComponents([.year], from: now)),
-              let startOfLastYear = calendar.date(byAdding: .year, value: -1, to: startOfThisYear) else {
-            return YearlyComparison(
-                thisYearDistance: 0,
-                lastYearDistance: 0,
-                thisYearWorkouts: 0,
-                lastYearWorkouts: 0,
-                thisYearAvgPace: nil,
-                lastYearAvgPace: nil
-            )
-        }
-
-        let thisYearWorkouts = workouts.filter { $0.startDate >= startOfThisYear }
-        let lastYearWorkouts = workouts.filter { $0.startDate >= startOfLastYear && $0.startDate < startOfThisYear }
-
-        let thisYearDistance = thisYearWorkouts.compactMap { $0.distance }.reduce(0, +)
-        let lastYearDistance = lastYearWorkouts.compactMap { $0.distance }.reduce(0, +)
-
-        let thisYearDuration = thisYearWorkouts.map { $0.duration }.reduce(0, +)
-        let lastYearDuration = lastYearWorkouts.map { $0.duration }.reduce(0, +)
-
-        // Canonical pace = total duration / total distance over the year.
-        let thisYearAvgPace = Self.canonicalPace(distanceMeters: thisYearDistance, duration: thisYearDuration)
-        let lastYearAvgPace = Self.canonicalPace(distanceMeters: lastYearDistance, duration: lastYearDuration)
-
-        return YearlyComparison(
-            thisYearDistance: thisYearDistance,
-            lastYearDistance: lastYearDistance,
-            thisYearWorkouts: thisYearWorkouts.count,
-            lastYearWorkouts: lastYearWorkouts.count,
-            thisYearAvgPace: thisYearAvgPace,
-            lastYearAvgPace: lastYearAvgPace
-        )
+        distanceCache = result
+        return result
     }
 
     // MARK: - Progression Loading
 
-    func loadProgressionMetrics() {
+    func cancelProgressionLoading() {
+        progressionRequestID = UUID()
         progressionTask?.cancel()
+        isLoadingProgression = false
+    }
+
+    func loadProgressionMetrics() {
+        let selected = filteredWorkouts.sorted { $0.startDate < $1.startDate }
+        let ids = selected.map(\.id)
+        if isLoadingProgression && progressionSelection == ids { return }
+        let previousTask = progressionTask
+        cancelProgressionLoading()
+        progressionSelection = ids
+        progressionData = selected.map { progressionCache[$0.id] ?? Self.baseProgression(for: $0) }
+        progressionLoadingProgress = 0
+        if usesDemoProgression {
+            let demo = Dictionary(uniqueKeysWithValues: MockData.sampleProgressionData.map { ($0.workoutId, $0) })
+            progressionData = selected.map { demo[$0.id] ?? Self.baseProgression(for: $0) }
+            return
+        }
+        let uncached = selected.reversed().filter { progressionCache[$0.id] == nil }
+        guard !uncached.isEmpty else { return }
+        let requestID = progressionRequestID
+        isLoadingProgression = true
+        progressionWorkerID = requestID
         progressionTask = Task {
-            isLoadingProgression = true
-            progressionLoadingProgress = 0
-
-            if DemoMode.isEnabled {
-                progressionData = MockData.sampleProgressionData
-                isLoadingProgression = false
-                return
+            defer {
+                if progressionRequestID == requestID { isLoadingProgression = false }
+                if progressionWorkerID == requestID { progressionTask = nil }
             }
-
-            let workoutsToLoad = filteredWorkouts.sorted { $0.startDate < $1.startDate }
-            guard !workoutsToLoad.isEmpty else {
-                progressionData = []
-                isLoadingProgression = false
-                return
-            }
-
-            // Check cache first
-            let uncached = workoutsToLoad.filter { progressionCache[$0.id] == nil }
-            let totalToLoad = uncached.count
-
-            if totalToLoad == 0 {
-                progressionData = workoutsToLoad.compactMap { progressionCache[$0.id] }
-                isLoadingProgression = false
-                return
-            }
-
+            await previousTask?.value
             var loaded = 0
-
-            // Process in batches of 8
-            let batchSize = 8
-            for batchStart in Swift.stride(from: 0, to: uncached.count, by: batchSize) {
-                if Task.isCancelled { return }
-
-                let batchEnd = min(batchStart + batchSize, uncached.count)
-                let batch = Array(uncached[batchStart..<batchEnd])
-
+            for start in stride(from: 0, to: uncached.count, by: 4) {
+                guard !Task.isCancelled, progressionRequestID == requestID else { return }
+                let batch = Array(uncached[start..<min(start + 4, uncached.count)])
                 await withTaskGroup(of: ProgressionDataPoint.self) { group in
                     for workout in batch {
-                        group.addTask {
-                            await self.healthKitManager.fetchProgressionMetrics(for: workout)
-                        }
+                        group.addTask { await self.fetchProgression(workout) }
                     }
-
                     for await result in group {
-                        if Task.isCancelled { return }
+                        guard !Task.isCancelled, self.progressionRequestID == requestID else {
+                            group.cancelAll()
+                            return
+                        }
                         self.progressionCache[result.workoutId] = result
                         loaded += 1
-                        self.progressionLoadingProgress = Double(loaded) / Double(totalToLoad)
                     }
                 }
-
-                // Update progressionData incrementally
-                if !Task.isCancelled {
-                    progressionData = workoutsToLoad.compactMap { progressionCache[$0.id] }
-                }
+                guard !Task.isCancelled, progressionRequestID == requestID else { return }
+                progressionLoadingProgress = Double(loaded) / Double(uncached.count)
+                progressionData = selected.map { progressionCache[$0.id] ?? Self.baseProgression(for: $0) }
             }
-
-            isLoadingProgression = false
         }
+    }
+
+    static func baseProgression(for workout: WorkoutModel) -> ProgressionDataPoint {
+        ProgressionDataPoint(
+            workoutId: workout.id, date: workout.startDate, averagePace: workout.averagePace,
+            minPace: nil, maxSpeed: nil, averageCadence: nil, strideLength: nil, runningPower: nil,
+            vo2Max: nil, groundContactTime: nil, verticalOscillation: nil, walkingAsymmetry: nil,
+            doubleSupportPercentage: nil, walkingSpeed: nil, stairDescentSpeed: nil)
     }
 
     // MARK: - Progression Series
@@ -948,8 +492,25 @@ class StatisticsViewModel: ObservableObject {
         let lowerIsBetter: Bool
         let metricInfoKey: String?
         let points: [(date: Date, value: Double)]
+        var aggregateAverage: Double? = nil
+
+        var chartPoints: [(date: Date, value: Double)] {
+            guard points.count > 160 else { return points }
+            let size = Int(ceil(Double(points.count) / 40))
+            var indices = Set<Int>()
+            for start in stride(from: 0, to: points.count, by: size) {
+                let end = min(start + size, points.count)
+                let range = start..<end
+                indices.insert(start)
+                indices.insert(end - 1)
+                if let low = range.min(by: { points[$0].value < points[$1].value }) { indices.insert(low) }
+                if let high = range.max(by: { points[$0].value < points[$1].value }) { indices.insert(high) }
+            }
+            return indices.sorted().map { points[$0] }
+        }
 
         var average: Double {
+            if let aggregateAverage { return aggregateAverage }
             guard !points.isEmpty else { return 0 }
             return points.map(\.value).reduce(0, +) / Double(points.count)
         }
@@ -967,97 +528,107 @@ class StatisticsViewModel: ObservableObject {
     }
 
     var performanceMetrics: [MetricSeries] {
+        if let performanceCache { return performanceCache }
         let data = progressionData
         var series: [MetricSeries] = []
-
-        // VO2 Max first — most predictive marker of aerobic fitness.
+        let averagePace = data.compactMap { point in
+            point.averagePace.flatMap { value in value.isFinite && value > 0 ? (point.date, value) : nil }
+        }
+        if averagePace.count >= 2 {
+            series.append(
+                MetricSeries(
+                    id: "averagePace",
+                    name: String(localized: "statistics.kpi.avgPace", defaultValue: "Avg pace"),
+                    icon: "figure.run", color: .irPrimaryAccent, unit: "min\(Formatters.paceUnitSuffix())",
+                    lowerIsBetter: true, metricInfoKey: nil, points: averagePace,
+                    aggregateAverage: snapshot.totals.averagePace))
+        }
         let vo2 = data.compactMap { p in p.vo2Max.map { (p.date, $0) } }
         if vo2.count >= 2 {
-            series.append(MetricSeries(
-                id: "vo2max", name: "VO2 Max",
-                icon: "lungs.fill", color: .red, unit: String(localized: "progression.unit.vo2", defaultValue: "ml/kg/min", comment: "VO2 Max unit"), lowerIsBetter: false, metricInfoKey: "metric.vo2_max", points: vo2
-            ))
-        }
-
-        let bestPace = data.compactMap { p in p.minPace.map { (p.date, $0) } }
-        if bestPace.count >= 2 {
-            series.append(MetricSeries(
-                id: "minPace", name: String(localized: "progression.metric.bestPace", defaultValue: "Best pace", comment: "Best pace metric"),
-                icon: "hare.fill", color: .green, unit: String(localized: "progression.unit.minKm", defaultValue: "min/km", comment: "Pace unit"), lowerIsBetter: true, metricInfoKey: "metric.best_pace", points: bestPace
-            ))
-        }
-
-        let maxSpd = data.compactMap { p in p.maxSpeed.map { (p.date, $0) } }
-        if maxSpd.count >= 2 {
-            series.append(MetricSeries(
-                id: "maxSpeed", name: String(localized: "progression.metric.maxSpeed", defaultValue: "Max speed", comment: "Max speed metric"),
-                icon: "bolt.fill", color: .yellow, unit: String(localized: "progression.unit.kmh", defaultValue: "km/h", comment: "Speed unit"), lowerIsBetter: false, metricInfoKey: "metric.max_speed", points: maxSpd
-            ))
+            series.append(
+                MetricSeries(
+                    id: "vo2max", name: "VO2 Max",
+                    icon: "lungs.fill", color: .red,
+                    unit: String(localized: "progression.unit.vo2", defaultValue: "ml/kg/min", comment: "VO2 Max unit"),
+                    lowerIsBetter: false, metricInfoKey: "metric.vo2_max", points: vo2
+                ))
         }
 
         let cadence = data.compactMap { p in p.averageCadence.map { (p.date, $0) } }
         if cadence.count >= 2 {
-            series.append(MetricSeries(
-                id: "cadence", name: String(localized: "progression.metric.cadence", defaultValue: "Avg cadence", comment: "Cadence metric"),
-                icon: "metronome.fill", color: .indigo, unit: String(localized: "progression.unit.spm", defaultValue: "spm", comment: "Steps per minute"), lowerIsBetter: false, metricInfoKey: "metric.avg_cadence", points: cadence
-            ))
+            series.append(
+                MetricSeries(
+                    id: "cadence",
+                    name: String(
+                        localized: "progression.metric.cadence", defaultValue: "Avg cadence", comment: "Cadence metric"),
+                    icon: "metronome.fill", color: .indigo,
+                    unit: String(localized: "progression.unit.spm", defaultValue: "spm", comment: "Steps per minute"),
+                    lowerIsBetter: false, metricInfoKey: "metric.avg_cadence", points: cadence
+                ))
         }
 
         let stride = data.compactMap { p in p.strideLength.map { (p.date, $0) } }
         if stride.count >= 2 {
-            series.append(MetricSeries(
-                id: "stride", name: String(localized: "progression.metric.strideLength", defaultValue: "Stride length", comment: "Stride length metric"),
-                icon: "figure.walk", color: .cyan, unit: String(localized: "progression.unit.m", defaultValue: "m", comment: "Meters unit"), lowerIsBetter: false, metricInfoKey: "metric.stride_length", points: stride
-            ))
+            series.append(
+                MetricSeries(
+                    id: "stride",
+                    name: String(
+                        localized: "progression.metric.strideLength", defaultValue: "Stride length",
+                        comment: "Stride length metric"),
+                    icon: "figure.walk", color: .cyan,
+                    unit: String(localized: "progression.unit.m", defaultValue: "m", comment: "Meters unit"),
+                    lowerIsBetter: false, metricInfoKey: "metric.stride_length", points: stride
+                ))
         }
 
         let power = data.compactMap { p in p.runningPower.map { (p.date, $0) } }
         if power.count >= 2 {
-            series.append(MetricSeries(
-                id: "power", name: String(localized: "progression.metric.power", defaultValue: "Power", comment: "Running power metric"),
-                icon: "bolt.circle.fill", color: .orange, unit: "W", lowerIsBetter: false, metricInfoKey: "metric.running_power", points: power
-            ))
+            series.append(
+                MetricSeries(
+                    id: "power",
+                    name: String(
+                        localized: "progression.metric.power", defaultValue: "Power", comment: "Running power metric"),
+                    icon: "bolt.circle.fill", color: .orange, unit: "W", lowerIsBetter: false,
+                    metricInfoKey: "metric.running_power", points: power
+                ))
         }
 
+        performanceCache = series
         return series
     }
 
     var advancedMetrics: [MetricSeries] {
+        if let advancedCache { return advancedCache }
         let data = progressionData
         var series: [MetricSeries] = []
 
         let gct = data.compactMap { p in p.groundContactTime.map { (p.date, $0) } }
         if gct.count >= 2 {
-            series.append(MetricSeries(
-                id: "gct", name: String(localized: "progression.metric.groundContactTime", defaultValue: "Ground contact", comment: "Ground contact time metric"),
-                icon: "timer", color: .indigo, unit: "ms", lowerIsBetter: true, metricInfoKey: "metric.ground_contact_time", points: gct
-            ))
+            series.append(
+                MetricSeries(
+                    id: "gct",
+                    name: String(
+                        localized: "progression.metric.groundContactTime", defaultValue: "Ground contact",
+                        comment: "Ground contact time metric"),
+                    icon: "timer", color: .indigo, unit: "ms", lowerIsBetter: true,
+                    metricInfoKey: "metric.ground_contact_time", points: gct
+                ))
         }
 
         let vo = data.compactMap { p in p.verticalOscillation.map { (p.date, $0) } }
         if vo.count >= 2 {
-            series.append(MetricSeries(
-                id: "vertOsc", name: String(localized: "progression.metric.verticalOscillation", defaultValue: "Vertical osc.", comment: "Vertical oscillation metric"),
-                icon: "arrow.up.and.down", color: .cyan, unit: "cm", lowerIsBetter: true, metricInfoKey: "metric.vertical_oscillation", points: vo
-            ))
+            series.append(
+                MetricSeries(
+                    id: "vertOsc",
+                    name: String(
+                        localized: "progression.metric.verticalOscillation", defaultValue: "Vertical osc.",
+                        comment: "Vertical oscillation metric"),
+                    icon: "arrow.up.and.down", color: .cyan, unit: "cm", lowerIsBetter: true,
+                    metricInfoKey: "metric.vertical_oscillation", points: vo
+                ))
         }
 
-        let asym = data.compactMap { p in p.walkingAsymmetry.map { (p.date, $0) } }
-        if asym.count >= 2 {
-            series.append(MetricSeries(
-                id: "asymmetry", name: String(localized: "progression.metric.walkingAsymmetry", defaultValue: "Walking asymmetry", comment: "Walking asymmetry metric"),
-                icon: "figure.walk.arrival", color: .orange, unit: "%", lowerIsBetter: true, metricInfoKey: "metric.walking_asymmetry", points: asym
-            ))
-        }
-
-        let ds = data.compactMap { p in p.doubleSupportPercentage.map { (p.date, $0) } }
-        if ds.count >= 2 {
-            series.append(MetricSeries(
-                id: "doubleSupport", name: String(localized: "progression.metric.doubleSupport", defaultValue: "Double support", comment: "Double support metric"),
-                icon: "figure.2.arms.open", color: .blue, unit: "%", lowerIsBetter: false, metricInfoKey: "metric.double_support", points: ds
-            ))
-        }
-
+        advancedCache = series
         return series
     }
 
@@ -1107,9 +678,9 @@ class StatisticsViewModel: ObservableObject {
         let testWorkouts: [WorkoutModel] = (1...45).map { day in
             let calendar = Calendar.current
             let startDate = calendar.date(byAdding: .day, value: -day, to: Date()) ?? Date()
-            let distance = Double.random(in: 3000...15000) // 3-15 km
-            let pace = Double.random(in: 5.5...7.5) // 5:30-7:30 min/km
-            let duration = (distance / 1000.0) * pace * 60 // Convert to seconds
+            let distance = Double.random(in: 3000...15000)  // 3-15 km
+            let pace = Double.random(in: 5.5...7.5)  // 5:30-7:30 min/km
+            let duration = (distance / 1000.0) * pace * 60  // Convert to seconds
 
             return WorkoutModel(
                 id: UUID(),
@@ -1118,7 +689,7 @@ class StatisticsViewModel: ObservableObject {
                 endDate: calendar.date(byAdding: .second, value: Int(duration), to: startDate) ?? startDate,
                 duration: duration,
                 distance: distance,
-                totalEnergyBurned: distance / 1000 * Double.random(in: 50...80), // 50-80 kcal per km
+                totalEnergyBurned: distance / 1000 * Double.random(in: 50...80),  // 50-80 kcal per km
                 sourceName: "Apple Health",
                 sourceVersion: "1.0",
                 metadata: nil,

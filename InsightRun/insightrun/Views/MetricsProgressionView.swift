@@ -27,10 +27,14 @@ struct MetricsProgressionView: View {
             ProgressView(value: viewModel.progressionLoadingProgress)
                 .tint(Color.irPrimaryAccent)
 
-            Text(String(
-                format: String(localized: "progression.loading", defaultValue: "Loading metrics… %d%%", comment: "Loading progression metrics"),
-                Int(viewModel.progressionLoadingProgress * 100)
-            ))
+            Text(
+                String(
+                    format: String(
+                        localized: "progression.loading", defaultValue: "Loading metrics… %d%%",
+                        comment: "Loading progression metrics"),
+                    Int(viewModel.progressionLoadingProgress * 100)
+                )
+            )
             .font(IRFont.body)
             .foregroundStyle(Color.irTextSecondary)
         }
@@ -46,14 +50,23 @@ struct MetricsProgressionView: View {
                 .font(IRFont.numLG)
                 .foregroundStyle(Color.irTextSecondary)
 
-            Text(String(localized: "progression.empty.title", defaultValue: "Not enough data", comment: "Progression empty state title"))
-                .font(IRFont.title2)
+            Text(
+                String(
+                    localized: "progression.empty.title", defaultValue: "Not enough data",
+                    comment: "Progression empty state title")
+            )
+            .font(IRFont.title2)
 
-            Text(String(localized: "progression.empty.message", defaultValue: "At least 2 workouts are needed in this period to show progression.", comment: "Progression empty state message"))
-                .font(IRFont.body)
-                .foregroundStyle(Color.irTextSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            Text(
+                String(
+                    localized: "progression.empty.message",
+                    defaultValue: "At least 2 workouts are needed in this period to show progression.",
+                    comment: "Progression empty state message")
+            )
+            .font(IRFont.body)
+            .foregroundStyle(Color.irTextSecondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal)
         }
         .padding(.top, Spacing.xxl)
     }
@@ -61,7 +74,7 @@ struct MetricsProgressionView: View {
     // MARK: - Metrics Content
 
     private var metricsContent: some View {
-        VStack(spacing: Spacing.lg) {
+        LazyVStack(spacing: Spacing.lg) {
             if viewModel.isLoadingProgression {
                 ProgressView(value: viewModel.progressionLoadingProgress)
                     .tint(Color.irPrimaryAccent)
@@ -69,25 +82,35 @@ struct MetricsProgressionView: View {
             }
 
             if !viewModel.performanceMetrics.isEmpty {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text(String(localized: "progression.section.performance", defaultValue: "Performance", comment: "Performance section title"))
-                        .font(IRFont.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                LazyVStack(alignment: .leading, spacing: Spacing.md) {
+                    Text(
+                        String(
+                            localized: "progression.section.performance", defaultValue: "Performance",
+                            comment: "Performance section title")
+                    )
+                    .font(IRFont.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     ForEach(viewModel.performanceMetrics) { metric in
                         MetricProgressionCard(series: metric)
+                            .accessibilityIdentifier("statistics-metric-\(metric.id)")
                     }
                 }
             }
 
             if !viewModel.advancedMetrics.isEmpty {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text(String(localized: "progression.section.advanced", defaultValue: "Advanced metrics", comment: "Advanced metrics section title"))
-                        .font(IRFont.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                LazyVStack(alignment: .leading, spacing: Spacing.md) {
+                    Text(
+                        String(
+                            localized: "progression.section.advanced", defaultValue: "Advanced metrics",
+                            comment: "Advanced metrics section title")
+                    )
+                    .font(IRFont.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     ForEach(viewModel.advancedMetrics) { metric in
                         MetricProgressionCard(series: metric)
+                            .accessibilityIdentifier("statistics-metric-\(metric.id)")
                     }
                 }
             }

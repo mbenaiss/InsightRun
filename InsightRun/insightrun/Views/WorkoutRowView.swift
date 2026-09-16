@@ -2,8 +2,6 @@
 //  WorkoutRowView.swift
 //  InsightRun
 //
-//  Pulse-Ring session card: type badge + intensity chips + inline mono stats
-//  + RPE dots + bottom load bar.
 //
 
 import SwiftUI
@@ -148,24 +146,15 @@ struct WorkoutRowView: View {
     private var source: RowWorkoutSource { RowWorkoutSource.classify(sourceName: workout.sourceName) }
 
     private var dayLabel: String {
-        let f = DateFormatter()
-        f.locale = Locale.current
-        f.setLocalizedDateFormatFromTemplate("EEE")
-        return f.string(from: workout.startDate).capitalized
+        workout.startDate.formatted(.dateTime.weekday(.abbreviated)).capitalized
     }
 
     private var dateLabel: String {
-        let f = DateFormatter()
-        f.locale = Locale.current
-        f.setLocalizedDateFormatFromTemplate("dMMMy")
-        return f.string(from: workout.startDate)
+        workout.startDate.formatted(.dateTime.day().month(.abbreviated).year())
     }
 
     private var timeLabel: String {
-        let f = DateFormatter()
-        f.locale = Locale.current
-        f.setLocalizedDateFormatFromTemplate("jmm")
-        return f.string(from: workout.startDate)
+        workout.startDate.formatted(date: .omitted, time: .shortened)
     }
 
     private var distanceText: String {
@@ -195,53 +184,9 @@ struct WorkoutRowView: View {
         return Formatters.integer(Int(hr))
     }
 
-    /// 0–100, used for the bottom load bar width
-    private var effortPercent: CGFloat {
-        let pace = workout.averagePace ?? 6.5
-        let km = (workout.distance ?? 0) / 1000.0
-        let pacePart = max(0, min(80, (7.5 - pace) * 30))
-        let distancePart = max(0, min(50, km * 1.5))
-        return CGFloat(min(100, max(8, pacePart + distancePart)))
-    }
-
-    /// 1–5 dots. Priority:
-    /// 1. Apple Workout Effort score (iOS 18+ user-rated or Apple-estimated)
-    /// 2. Heart-rate intensity vs an estimated FCmax
-    /// 3. Session-type heuristic (constant per type)
-    private var rpeLevel: Int {
-        if let score = workout.effortScore {
-            return max(1, min(5, Int(((score + 1) / 2).rounded())))
-        }
-        if let hr = workout.averageHeartRate, hr > 0 {
-            let assumedMax = 190.0
-            let pct = hr / assumedMax
-            switch pct {
-            case ..<0.60: return 1
-            case ..<0.70: return 2
-            case ..<0.80: return 3
-            case ..<0.90: return 4
-            default:      return 5
-            }
-        }
-        switch sessionType {
-        case .interval: return 5
-        case .tempo:    return 4
-        case .long:     return 5
-        case .easy:     return 2
-        }
-    }
-
-    /// True when we have a real (user-rated or Apple-estimated) effort score.
-    private var hasAppleEffort: Bool { workout.effortScore != nil }
-
-    /// 8-segment trace, deterministic from session type
-    private var traceCommands: [CGFloat] {
-        switch sessionType {
-        case .interval: return [20, 8, 22, 8, 22, 8, 18, 20]
-        case .tempo:    return [28, 24, 18, 22, 12, 18, 8, 14]
-        case .easy:     return [22, 20, 18, 20, 18, 20, 18, 22]
-        case .long:     return [18, 16, 18, 14, 20, 16, 22, 28]
-        }
+    private var effortScore: Double? {
+        guard let score = workout.effortScore, score.isFinite, (1...10).contains(score) else { return nil }
+        return score
     }
 
     var body: some View {
@@ -257,32 +202,14 @@ struct WorkoutRowView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(alignment: .trailing, spacing: Spacing.sm) {
-                    traceShape
-                        .frame(width: 46, height: 26)
-                        .opacity(0.7)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(IRFont.eyebrow.weight(.bold))
-                        .foregroundStyle(Color.irTextSecondary.opacity(0.55))
-                }
+                Image(systemName: "chevron.right")
+                    .font(IRFont.eyebrow.weight(.bold))
+                    .foregroundStyle(Color.irTextSecondary.opacity(0.55))
+                    .padding(.top, Spacing.xs)
             }
             .padding(.horizontal, Spacing.dash)
             .padding(.top, Spacing.dash)
             .padding(.bottom, Spacing.md)
-
-            // bottom load bar
-            ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(Color.irBorder)
-                    .frame(height: 3)
-                GeometryReader { geo in
-                    Rectangle()
-                        .fill(sessionType.color.opacity(0.7))
-                        .frame(width: geo.size.width * (effortPercent / 100.0), height: 3)
-                }
-                .frame(height: 3)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .detailCard()
@@ -310,18 +237,15 @@ struct WorkoutRowView: View {
                     .offset(x: 4, y: 4)
             }
 
-            VStack(spacing: Spacing.xxs) {
-                Text(String(localized: "EFFORT", comment: "Workout intensity dots label"))
-                    .font(IRFont.monoSM.weight(.bold))
-                    .tracking(0.5)
-                    .foregroundStyle(Color.irTextSecondary.opacity(0.7))
-
-                HStack(spacing: 3) {
-                    ForEach(1...5, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(i <= rpeLevel ? sessionType.color : Color.irBorder)
-                            .frame(width: 3, height: 8)
-                    }
+            if let effortScore {
+                VStack(spacing: Spacing.xxs) {
+                    Text(String(localized: "EFFORT", comment: "Workout intensity dots label"))
+                        .font(IRFont.monoSM.weight(.bold))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                    Text("\(Formatters.decimal(effortScore, fractionDigits: 0))/10")
+                        .font(IRFont.monoSM.weight(.bold))
+                        .foregroundStyle(Color.irTextSecondary)
                 }
             }
         }
@@ -450,20 +374,6 @@ struct WorkoutRowView: View {
         }
     }
 
-    private var traceShape: some View {
-        GeometryReader { geo in
-            let segments = traceCommands
-            let width = geo.size.width
-            let stepX = width / CGFloat(segments.count - 1)
-            Path { path in
-                for (i, y) in segments.enumerated() {
-                    let pt = CGPoint(x: CGFloat(i) * stepX, y: y)
-                    if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
-                }
-            }
-            .stroke(sessionType.color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-        }
-    }
 }
 
 #Preview {

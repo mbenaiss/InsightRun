@@ -148,6 +148,7 @@ struct SplitData: Encodable {
     let kilometer: Int
     let pace: String
     let time: String
+    var distanceMeters: Double? = nil
 }
 
 // MARK: - Recovery Data

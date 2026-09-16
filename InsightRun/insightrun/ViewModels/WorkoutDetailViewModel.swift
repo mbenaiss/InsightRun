@@ -15,14 +15,20 @@ class WorkoutDetailViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isLoadingDetails = false
 
-    private let healthKitManager = HealthKitManager.shared
-    private let stravaAPIClient = StravaAPIClient.shared
+    private let fetchMetrics: @MainActor (WorkoutModel) async throws -> WorkoutMetrics
+    private let fetchStravaActivity: @MainActor (Int64) async throws -> StravaDetailedActivity
     private let workout: WorkoutModel
     private var retryCount = 0
     private let maxRetries = 2
 
-    init(workout: WorkoutModel) {
+    init(
+        workout: WorkoutModel,
+        fetchMetrics: @escaping @MainActor (WorkoutModel) async throws -> WorkoutMetrics = { try await HealthKitManager.shared.fetchWorkoutMetrics(for: $0) },
+        fetchStravaActivity: @escaping @MainActor (Int64) async throws -> StravaDetailedActivity = { try await StravaAPIClient.shared.fetchActivity(id: $0) }
+    ) {
         self.workout = workout
+        self.fetchMetrics = fetchMetrics
+        self.fetchStravaActivity = fetchStravaActivity
     }
 
     // MARK: - Actions
@@ -54,7 +60,12 @@ class WorkoutDetailViewModel: ObservableObject {
             }
         } else {
             do {
-                metrics = try await healthKitManager.fetchWorkoutMetrics(for: workout)
+                let loadedMetrics = try await fetchMetrics(workout)
+                try Task.checkCancellation()
+                metrics = loadedMetrics
+            } catch is CancellationError {
+                isLoading = false
+                return
             } catch let error as HealthKitError {
                 switch error {
                 case .notAvailable:
@@ -249,7 +260,8 @@ class WorkoutDetailViewModel: ObservableObject {
 
         do {
             print("📡 Fetching detailed Strava data for activity \(activityId)...")
-            let detailedActivity = try await stravaAPIClient.fetchActivity(id: activityId)
+            let detailedActivity = try await fetchStravaActivity(activityId)
+            try Task.checkCancellation()
 
             // Convert Strava splits to app's Split model
             let splits = convertStravaSplits(detailedActivity.splitsMetric)
@@ -282,10 +294,8 @@ class WorkoutDetailViewModel: ObservableObject {
                 if let splits = splits, !splits.isEmpty {
                     let minPace = splits.map { $0.pace }.min()
                     currentMetrics.minPace = minPace
+                    currentMetrics.splits = splits
                 }
-
-                // Add splits
-                currentMetrics.splits = splits
 
                 metrics = currentMetrics
                 print("✅ Loaded detailed Strava data: \(splits?.count ?? 0) splits, elevation: \(detailedActivity.totalElevationGain)m")
@@ -301,18 +311,22 @@ class WorkoutDetailViewModel: ObservableObject {
     private func convertStravaSplits(_ stravaSplits: [StravaSplit]?) -> [Split]? {
         guard let stravaSplits = stravaSplits, !stravaSplits.isEmpty else { return nil }
 
-        return stravaSplits.map { stravaSplit in
-            Split(
+        let splits = stravaSplits.compactMap { stravaSplit -> Split? in
+            guard stravaSplit.distance.isFinite, stravaSplit.distance > 0, stravaSplit.movingTime > 0 else { return nil }
+            let pace = stravaSplit.pace ?? (Double(stravaSplit.movingTime) / 60 / (stravaSplit.distance / 1000))
+            guard pace.isFinite, pace > 0 else { return nil }
+            return Split(
                 kilometer: stravaSplit.split,
                 distance: stravaSplit.distance,
                 time: TimeInterval(stravaSplit.movingTime),
-                pace: stravaSplit.pace ?? 0,
+                pace: pace,
                 averageHeartRate: stravaSplit.averageHeartrate,
                 averagePower: nil,
                 elevationGain: stravaSplit.elevationDifference != nil && stravaSplit.elevationDifference! > 0 ? stravaSplit.elevationDifference : nil,
                 elevationLoss: stravaSplit.elevationDifference != nil && stravaSplit.elevationDifference! < 0 ? abs(stravaSplit.elevationDifference!) : nil
             )
         }
+        return splits.isEmpty ? nil : splits
     }
 
     /// Create basic WorkoutMetrics from WorkoutModel data (for Strava workouts or fallback)

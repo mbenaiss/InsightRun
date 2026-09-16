@@ -100,7 +100,9 @@ const GENERATION_BUDGET_MS = 150_000
 
 function buildTrainingPlanPrompt(
   request: TrainingPlanRequest,
-  weeksAvailable: number
+  weeksAvailable: number,
+  firstWeek = 1,
+  lastWeek = weeksAvailable
 ): { system: string; user: string } {
   const langName = getLanguageName(request.language)
   const raceDistance = getRaceDistance(request.raceType)
@@ -161,15 +163,19 @@ CRITICAL RULES:
 - Keep descriptions concise (one short sentence per workout or step). Omit redundant optional fields. Return the complete plan without spending the generation budget on internal reasoning.
 - Generate a realistic, periodized training plan with proper phase progression.
 - Phases should follow: base → build → peak → taper (adjust duration based on available weeks).
-- Generate EXACTLY ${weeksAvailable} weeks (weekNumber 1..${weeksAvailable}), no more, no less.
+- This is a ${weeksAvailable}-week plan. Generate ONLY weeks ${firstWeek} through ${lastWeek}: exactly ${lastWeek - firstWeek + 1} weeks. Keep absolute week numbers and select phases and load for this position in the full plan.
 - Generate exactly ${request.trainingDaysPerWeek || '3-5'} workouts per week (NOT 7 days — just the workouts).${request.injury ? `\n- IMPORTANT: The runner has an injury/constraint (see USER CONTEXT). Adapt the plan accordingly: reduce intensity, avoid aggravating exercises, include more recovery.` : ''}
 - DO NOT assign days of the week. The client app handles day scheduling.
 - Distances in meters, durations in seconds.
 - Weekly volume (weeklyVolume) MUST be in kilometers (not meters). Example: 25.0 means 25 km.
 - Gradually increase weekly volume (no more than 10% per week).
 - Include a taper phase (1-3 weeks before race depending on distance).
-- The LAST week must include the race itself as a workout. Its "type" MUST be exactly "${raceType}" (do NOT invent a "race" type — only the types listed below are valid).
-- In the LAST week, the race workout MUST be the FIRST entry of the "workouts" array (index 0). The client uses array order to schedule the race on race day — getting this wrong puts the race on the wrong day of the week.
+${
+  lastWeek === weeksAvailable
+    ? `- The LAST week must include the race itself as a workout. Its "type" MUST be exactly "${raceType}" (do NOT invent a "race" type — only the types listed below are valid).
+- In the LAST week, the race workout MUST be the FIRST entry of the "workouts" array (index 0). The client uses array order to schedule the race on race day — getting this wrong puts the race on the wrong day of the week.`
+    : `- The race is in week ${weeksAvailable}, outside this block. Do NOT include the race or taper prematurely.`
+}
 - Order workouts by importance: key session first, then secondary sessions, then easy/recovery last.
 - Every workout MUST include a non-empty "description". Every step MUST include a "type" and a non-empty "description".
 
@@ -209,7 +215,7 @@ OUTPUT FORMAT (workouts array = ONLY the workout sessions, no rest days):
   "goal": "Description of the goal",
   "weeks": [
     {
-      "weekNumber": 1,
+      "weekNumber": ${firstWeek},
       "phase": "base",
       "workouts": [
         {
@@ -245,7 +251,7 @@ OUTPUT FORMAT (workouts array = ONLY the workout sessions, no rest days):
 USER CONTEXT:
 ${userContextStr}`
 
-  const userPrompt = `Generate a ${weeksAvailable}-week training plan for a ${raceDistance} race. The runner is ${request.fitnessLevel} level.`
+  const userPrompt = `Generate weeks ${firstWeek} through ${lastWeek} of a ${weeksAvailable}-week training plan for a ${raceDistance} race. The runner is ${request.fitnessLevel} level.`
 
   return { system: systemPrompt, user: userPrompt }
 }
@@ -257,7 +263,8 @@ const MAX_REPETITIONS = 30
 function validateTrainingPlanJSON(
   data: unknown,
   expectedWeeks: number,
-  expectedRaceType: GeneratedPlannedWorkout['type']
+  expectedRaceType: GeneratedPlannedWorkout['type'] | undefined,
+  firstWeek = 1
 ): data is GeneratedTrainingPlan {
   if (typeof data !== 'object' || data === null) return false
 
@@ -272,10 +279,10 @@ function validateTrainingPlanJSON(
   // Race-day integrity: the last week's first workout is what the client pins to race day.
   const lastWeek = plan.weeks[plan.weeks.length - 1]
   const raceWorkout = Array.isArray(lastWeek?.workouts) ? lastWeek.workouts[0] : undefined
-  if (!raceWorkout || raceWorkout.type !== expectedRaceType) return false
+  if (expectedRaceType && (!raceWorkout || raceWorkout.type !== expectedRaceType)) return false
 
   for (const [index, week] of plan.weeks.entries()) {
-    if (week.weekNumber !== index + 1) return false
+    if (week.weekNumber !== firstWeek + index) return false
     if (!['base', 'build', 'peak', 'taper', 'recovery'].includes(week.phase)) return false
     if (!Array.isArray(week.workouts) || week.workouts.length === 0) return false
 
@@ -463,70 +470,96 @@ app.post('/', async (c) => {
       `📋 Generating ${maxWeeks}-week training plan with ${finalModel} for ${body.raceType}`
     )
 
-    // Call OpenRouter with retry logic
     const raceType = raceWorkoutType(body.raceType)
-    let planJSON: GeneratedTrainingPlan | null = null
-    let attempts = 0
-    const maxAttempts = 2
-    let modelUsed = finalModel
-    // Carries the previous failure into the next attempt so the model corrects it
-    // instead of re-emitting the exact same broken output.
-    let retryFeedback = ''
-
-    while (attempts < maxAttempts && !planJSON) {
-      attempts++
-      modelUsed = attempts === 1 ? finalModel : PLAN_FALLBACK_MODEL_ID
-      const remainingMs = GENERATION_BUDGET_MS - (Date.now() - startTime)
-      if (remainingMs <= 0) throw new OpenRouterTimeoutError()
-
-      try {
-        const attemptUserPrompt = retryFeedback
-          ? `${userPrompt}\n\nYour previous output was invalid: ${retryFeedback}\nReturn corrected, complete JSON only.`
-          : userPrompt
-
-        const rawResponse = await callOpenRouterForPlan(
-          c.env.OPENROUTER_API_KEY,
-          systemPrompt,
-          attemptUserPrompt,
-          modelUsed,
-          Math.min(OPENROUTER_TIMEOUT_MS, remainingMs)
+    // Short blocks keep output size bounded even for a 24-week plan with six weekly sessions.
+    const blocks = Array.from({ length: Math.ceil(maxWeeks / 4) }, (_, index) => ({
+      firstWeek: index * 4 + 1,
+      lastWeek: Math.min((index + 1) * 4, maxWeeks),
+    }))
+    const results = await Promise.all(
+      blocks.map(async ({ firstWeek, lastWeek }) => {
+        const { system: systemPrompt, user: userPrompt } = buildTrainingPlanPrompt(
+          body,
+          maxWeeks,
+          firstWeek,
+          lastWeek
         )
+        let planJSON: GeneratedTrainingPlan | null = null
+        let attempts = 0
+        const maxAttempts = 2
+        let modelUsed = finalModel
+        // Carries the previous failure into the next attempt so the model corrects it
+        // instead of re-emitting the exact same broken output.
+        let retryFeedback = ''
 
-        console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
+        while (attempts < maxAttempts && !planJSON) {
+          attempts++
+          modelUsed = attempts === 1 ? finalModel : PLAN_FALLBACK_MODEL_ID
+          const remainingMs = GENERATION_BUDGET_MS - (Date.now() - startTime)
+          if (remainingMs <= 0) throw new OpenRouterTimeoutError()
 
-        const cleanedResponse = cleanJSONResponse(rawResponse)
-        const parsedData = JSON.parse(cleanedResponse) as unknown
+          try {
+            const attemptUserPrompt = retryFeedback
+              ? `${userPrompt}\n\nYour previous output was invalid: ${retryFeedback}\nReturn corrected, complete JSON only.`
+              : userPrompt
 
-        if (validateTrainingPlanJSON(parsedData, maxWeeks, raceType)) {
-          fillPlanWorkoutDefaults(parsedData.weeks)
-          planJSON = parsedData
-          console.log(
-            `✅ Valid training plan generated: "${planJSON.name}" with ${planJSON.weeks.length} weeks`
-          )
-        } else {
-          console.warn(`⚠️ Invalid training plan structure on attempt ${attempts}`)
-          retryFeedback = `the JSON did not match the required schema (need exactly ${maxWeeks} weeks, the last week's first workout must be type "${raceType}", and every workout/step needs the required fields).`
-          if (attempts >= maxAttempts) {
-            throw new Error('Generated training plan failed validation')
+            const rawResponse = await callOpenRouterForPlan(
+              c.env.OPENROUTER_API_KEY,
+              systemPrompt,
+              attemptUserPrompt,
+              modelUsed,
+              Math.min(OPENROUTER_TIMEOUT_MS, remainingMs)
+            )
+
+            console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
+
+            const cleanedResponse = cleanJSONResponse(rawResponse)
+            const parsedData = JSON.parse(cleanedResponse) as unknown
+
+            if (
+              validateTrainingPlanJSON(
+                parsedData,
+                lastWeek - firstWeek + 1,
+                lastWeek === maxWeeks ? raceType : undefined,
+                firstWeek
+              )
+            ) {
+              fillPlanWorkoutDefaults(parsedData.weeks)
+              planJSON = parsedData
+              console.log(
+                `✅ Valid training plan generated: "${planJSON.name}" with ${planJSON.weeks.length} weeks`
+              )
+            } else {
+              console.warn(`⚠️ Invalid training plan structure on attempt ${attempts}`)
+              retryFeedback = `the JSON did not match the required schema (need exactly ${lastWeek - firstWeek + 1} weeks numbered ${firstWeek}..${lastWeek}, valid workout types and phases, and every workout/step needs the required fields).`
+              if (attempts >= maxAttempts) {
+                throw new Error('Generated training plan failed validation')
+              }
+            }
+          } catch (parseError) {
+            console.error(`❌ Attempt ${attempts} failed:`, parseError)
+            if (parseError instanceof TruncatedResponseError) {
+              retryFeedback =
+                'the JSON was cut off before completion. Be more concise (shorter descriptions, fewer steps) so the full plan fits.'
+            } else if (parseError instanceof SyntaxError) {
+              retryFeedback = `the response was not valid JSON (${parseError.message}).`
+            }
+            if (attempts >= maxAttempts) {
+              throw parseError
+            }
           }
         }
-      } catch (parseError) {
-        console.error(`❌ Attempt ${attempts} failed:`, parseError)
-        if (parseError instanceof TruncatedResponseError) {
-          retryFeedback =
-            'the JSON was cut off before completion. Be more concise (shorter descriptions, fewer steps) so the full plan fits.'
-        } else if (parseError instanceof SyntaxError) {
-          retryFeedback = `the response was not valid JSON (${parseError.message}).`
-        }
-        if (attempts >= maxAttempts) {
-          throw parseError
-        }
-      }
-    }
 
-    if (!planJSON) {
-      throw new Error('Failed to generate valid training plan after retries')
+        if (!planJSON) throw new Error('Failed to generate a complete training plan block')
+        return { plan: planJSON, attempts, modelUsed }
+      })
+    )
+    const planJSON: GeneratedTrainingPlan = {
+      ...results[0].plan,
+      weeks: results.flatMap((result) => result.plan.weeks),
     }
+    const attempts = Math.max(...results.map((result) => result.attempts))
+    const modelUsed = [...new Set(results.map((result) => result.modelUsed))].join(',')
 
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000

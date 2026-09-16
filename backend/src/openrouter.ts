@@ -14,6 +14,13 @@ export class TruncatedResponseError extends Error {
   }
 }
 
+export class OpenRouterTimeoutError extends Error {
+  constructor() {
+    super('OpenRouter request timed out')
+    this.name = 'OpenRouterTimeoutError'
+  }
+}
+
 interface CallOpenRouterOptions {
   apiKey: string
   model: string
@@ -25,6 +32,7 @@ interface CallOpenRouterOptions {
     messages: Array<{ role: string; content: string }>
   }
   timeoutMs: number
+  networkAttempts?: 1 | 2
   // OpenRouter "X-Title" attribution header (varies per route).
   title: string
   // When true, throw TruncatedResponseError on finish_reason === 'length'. Routes
@@ -42,7 +50,7 @@ export async function callOpenRouterWithRetry(
   }
 
   let lastError: unknown
-  for (let networkAttempt = 0; networkAttempt < 2; networkAttempt++) {
+  for (let networkAttempt = 0; networkAttempt < (opts.networkAttempts ?? 2); networkAttempt++) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), opts.timeoutMs)
 
@@ -80,7 +88,7 @@ export async function callOpenRouterWithRetry(
       return { content: data.choices[0]?.message?.content || '', finishReason }
     } catch (error) {
       if (error instanceof TruncatedResponseError) throw error
-      lastError = error
+      lastError = controller.signal.aborted ? new OpenRouterTimeoutError() : error
     } finally {
       clearTimeout(timer)
     }

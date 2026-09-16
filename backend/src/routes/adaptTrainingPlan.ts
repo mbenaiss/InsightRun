@@ -5,8 +5,12 @@ import {
   RequestType,
   selectModelFromRequest,
 } from '../modelRouter'
-import { callOpenRouterWithRetry, TruncatedResponseError } from '../openrouter'
-import { captureLLMEvent, createPostHogClient } from '../posthog'
+import {
+  callOpenRouterWithRetry,
+  OpenRouterTimeoutError,
+  TruncatedResponseError,
+} from '../openrouter'
+import { captureLLMEvent, captureTrainingPlanError, createPostHogClient } from '../posthog'
 import {
   cleanJSONResponse,
   estimateTokenCount,
@@ -130,8 +134,9 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const MAX_TOKENS = 16000
 const AI_TEMPERATURE = 0.3
-// iOS aborts this request at 120s; keep two attempts inside that budget (2×55s + parsing margin).
-const OPENROUTER_TIMEOUT_MS = 55_000
+// Keep both model attempts below the iOS request timeout (185 seconds).
+const OPENROUTER_TIMEOUT_MS = 75_000
+const GENERATION_BUDGET_MS = 150_000
 // Upper bound for interval repetitions — see generateTrainingPlan for rationale.
 const MAX_REPETITIONS = 30
 
@@ -235,11 +240,13 @@ TASK: Analyze the runner's completed weeks (planned vs actual performance) and g
 
 CRITICAL RULES:
 - Output ONLY valid JSON. No markdown, no code blocks, no explanation text.
+- Keep descriptions concise (one short sentence per workout or step). Omit redundant optional fields. Return the complete plan without spending the generation budget on internal reasoning.
 - You are adapting an existing plan named ${wrapUserData(request.originalPlanName)} with goal ${wrapUserData(request.originalPlanGoal)}.
 - Keep the SAME race goal and target date. Do NOT change the objective.
 - Analyze actual vs planned performance to determine if the runner is ahead, on track, or behind.
 - Adjust difficulty accordingly: increase if ahead, maintain if on track, decrease if behind.
 - Generate exactly ${request.trainingDaysPerWeek} workouts per week.
+- Number weeks consecutively from ${request.currentWeekNumber + 1} to ${request.currentWeekNumber + request.remainingWeeksCount}.
 - You MUST output exactly ${request.remainingWeeksCount} week(s) — no more, no less. The LAST of those weeks is the race week and MUST include the race itself as a workout. Its "type" MUST be exactly "${raceType}" (do NOT invent a "race" type).
 - In the LAST week, the race workout MUST be the FIRST entry of the "workouts" array (index 0). The client uses array order to schedule the race on race day.
 - DO NOT assign days of the week. The client app handles day scheduling.
@@ -314,7 +321,8 @@ async function callOpenRouterForAdaptation(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
-  model: string
+  model: string,
+  timeoutMs: number
 ): Promise<string> {
   const { content } = await callOpenRouterWithRetry({
     apiKey,
@@ -326,11 +334,13 @@ async function callOpenRouterForAdaptation(
         { role: 'user', content: userPrompt },
       ],
       max_tokens: MAX_TOKENS,
+      reasoning: { effort: 'low', exclude: true },
       temperature: AI_TEMPERATURE,
       stream: false,
       response_format: { type: 'json_object' },
     },
-    timeoutMs: OPENROUTER_TIMEOUT_MS,
+    timeoutMs,
+    networkAttempts: 1,
     title: 'insightRun.ai',
     throwOnTruncation: true,
   })
@@ -340,7 +350,8 @@ async function callOpenRouterForAdaptation(
 function validateAdaptedPlanJSON(
   data: unknown,
   expectedWeeks: number,
-  expectedRaceType: string
+  expectedRaceType: string,
+  firstWeekNumber: number
 ): data is AdaptedTrainingPlan {
   if (typeof data !== 'object' || data === null) return false
 
@@ -368,8 +379,8 @@ function validateAdaptedPlanJSON(
   )
     return false
 
-  for (const week of plan.weeks) {
-    if (typeof week.weekNumber !== 'number') return false
+  for (const [index, week] of plan.weeks.entries()) {
+    if (week.weekNumber !== firstWeekNumber + index) return false
     if (!['base', 'build', 'peak', 'taper', 'recovery'].includes(week.phase)) return false
     if (!Array.isArray(week.workouts) || week.workouts.length === 0) return false
 
@@ -524,12 +535,16 @@ app.post('/', async (c) => {
     let adaptedPlan: AdaptedTrainingPlan | null = null
     let attempts = 0
     const maxAttempts = 2
+    let modelUsed = finalModel
     // Carries the previous failure into the next attempt so the model corrects it
     // instead of re-emitting the exact same broken output.
     let retryFeedback = ''
 
     while (attempts < maxAttempts && !adaptedPlan) {
       attempts++
+      modelUsed = attempts === 1 ? finalModel : PLAN_FALLBACK_MODEL_ID
+      const remainingMs = GENERATION_BUDGET_MS - (Date.now() - startTime)
+      if (remainingMs <= 0) throw new OpenRouterTimeoutError()
 
       try {
         const attemptUserPrompt = retryFeedback
@@ -540,7 +555,8 @@ app.post('/', async (c) => {
           c.env.OPENROUTER_API_KEY,
           systemPrompt,
           attemptUserPrompt,
-          finalModel
+          modelUsed,
+          Math.min(OPENROUTER_TIMEOUT_MS, remainingMs)
         )
 
         console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
@@ -548,7 +564,14 @@ app.post('/', async (c) => {
         const cleanedResponse = cleanJSONResponse(rawResponse)
         const parsedData = JSON.parse(cleanedResponse) as unknown
 
-        if (validateAdaptedPlanJSON(parsedData, body.remainingWeeksCount, raceType)) {
+        if (
+          validateAdaptedPlanJSON(
+            parsedData,
+            body.remainingWeeksCount,
+            raceType,
+            body.currentWeekNumber + 1
+          )
+        ) {
           fillAdaptedPlanDefaults(parsedData)
           adaptedPlan = parsedData
           console.log(
@@ -599,7 +622,7 @@ app.post('/', async (c) => {
             const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
             const outputTokenCount = estimateTokenCount(JSON.stringify(adaptedPlan))
             await captureLLMEvent(posthog, userId, traceId, {
-              model: finalModel,
+              model: modelUsed,
               input: userPrompt,
               systemPrompt,
               output: JSON.stringify(adaptedPlan),
@@ -623,20 +646,25 @@ app.post('/', async (c) => {
       plan: adaptedPlan,
       metadata: {
         generationTimeMs: generationTime,
-        modelUsed: finalModel,
+        modelUsed,
         attempts,
         weeksGenerated: adaptedPlan.weeks.length,
       },
     })
   } catch (error) {
     console.error('Training plan adaptation error:', error)
+    captureTrainingPlanError(c, {
+      route: '/api/adapt-training-plan',
+      code: error instanceof OpenRouterTimeoutError ? 'timeout' : 'generation_failed',
+      durationMs: Date.now() - startTime,
+    })
 
     return c.json(
       {
         error: 'Training Plan Adaptation Failed',
         message: error instanceof Error ? error.message : 'Unknown error occurred',
       },
-      500
+      error instanceof OpenRouterTimeoutError ? 504 : 500
     )
   }
 })

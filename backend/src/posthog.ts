@@ -49,6 +49,38 @@ export function captureQuotaExceeded<B extends PostHogEnv, V extends object>(
   )
 }
 
+export function captureTrainingPlanError<B extends PostHogEnv, V extends object>(
+  c: Context<{ Bindings: B; Variables: V }>,
+  details: { route: string; code: string; durationMs: number }
+): void {
+  if (!c.env.POSTHOG_API_KEY || !c.env.POSTHOG_HOST) return
+  c.executionCtx.waitUntil(
+    (async () => {
+      const posthog = createPostHogClient({
+        apiKey: c.env.POSTHOG_API_KEY,
+        host: c.env.POSTHOG_HOST,
+      })
+      try {
+        await posthog.captureImmediate({
+          distinctId: c.req.header('X-User-ID') || 'unknown',
+          event: 'training_plan_generation_failed',
+          properties: {
+            route: details.route,
+            error_code: details.code,
+            duration_ms: details.durationMs,
+            app: 'healthapp',
+            environment: 'production',
+          },
+        })
+      } catch (error) {
+        console.error('PostHog training plan capture error:', error)
+      } finally {
+        await posthog.shutdown()
+      }
+    })()
+  )
+}
+
 /**
  * Create PostHog client for Cloudflare Workers
  * Configured with flushAt: 1 and flushInterval: 0 for immediate flushing

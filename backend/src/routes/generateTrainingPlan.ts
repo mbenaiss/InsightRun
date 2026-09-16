@@ -5,8 +5,12 @@ import {
   RequestType,
   selectModelFromRequest,
 } from '../modelRouter'
-import { callOpenRouterWithRetry, TruncatedResponseError } from '../openrouter'
-import { captureLLMEvent, createPostHogClient } from '../posthog'
+import {
+  callOpenRouterWithRetry,
+  OpenRouterTimeoutError,
+  TruncatedResponseError,
+} from '../openrouter'
+import { captureLLMEvent, captureTrainingPlanError, createPostHogClient } from '../posthog'
 import {
   cleanJSONResponse,
   estimateTokenCount,
@@ -90,8 +94,9 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const MAX_TOKENS = 16000
 const AI_TEMPERATURE = 0.3
-// iOS aborts this request at 120s; keep two attempts inside that budget (2×55s + parsing margin).
-const OPENROUTER_TIMEOUT_MS = 55_000
+// Keep both model attempts below the iOS request timeout (185 seconds).
+const OPENROUTER_TIMEOUT_MS = 75_000
+const GENERATION_BUDGET_MS = 150_000
 
 function buildTrainingPlanPrompt(
   request: TrainingPlanRequest,
@@ -153,6 +158,7 @@ LANGUAGE: All text fields (name, goal, notes, descriptions, workout names) MUST 
 
 CRITICAL RULES:
 - Output ONLY valid JSON. No markdown, no code blocks, no explanation text.
+- Keep descriptions concise (one short sentence per workout or step). Omit redundant optional fields. Return the complete plan without spending the generation budget on internal reasoning.
 - Generate a realistic, periodized training plan with proper phase progression.
 - Phases should follow: base → build → peak → taper (adjust duration based on available weeks).
 - Generate EXACTLY ${weeksAvailable} weeks (weekNumber 1..${weeksAvailable}), no more, no less.
@@ -268,8 +274,8 @@ function validateTrainingPlanJSON(
   const raceWorkout = Array.isArray(lastWeek?.workouts) ? lastWeek.workouts[0] : undefined
   if (!raceWorkout || raceWorkout.type !== expectedRaceType) return false
 
-  for (const week of plan.weeks) {
-    if (typeof week.weekNumber !== 'number') return false
+  for (const [index, week] of plan.weeks.entries()) {
+    if (week.weekNumber !== index + 1) return false
     if (!['base', 'build', 'peak', 'taper', 'recovery'].includes(week.phase)) return false
     if (!Array.isArray(week.workouts) || week.workouts.length === 0) return false
 
@@ -356,7 +362,8 @@ async function callOpenRouterForPlan(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
-  model: string
+  model: string,
+  timeoutMs: number
 ): Promise<string> {
   const { content } = await callOpenRouterWithRetry({
     apiKey,
@@ -368,11 +375,13 @@ async function callOpenRouterForPlan(
         { role: 'user', content: userPrompt },
       ],
       max_tokens: MAX_TOKENS,
+      reasoning: { effort: 'low', exclude: true },
       temperature: AI_TEMPERATURE,
       stream: false,
       response_format: { type: 'json_object' },
     },
-    timeoutMs: OPENROUTER_TIMEOUT_MS,
+    timeoutMs,
+    networkAttempts: 1,
     title: 'insightRun.ai',
     throwOnTruncation: true,
   })
@@ -412,17 +421,13 @@ app.post('/', async (c) => {
     const targetDate = new Date(body.targetDate)
     const now = new Date()
     const parsedStart = body.startDate ? new Date(body.startDate) : now
-    // Guard against invalid ISO strings or start dates in the past
-    const startDate =
-      Number.isNaN(parsedStart.getTime()) || parsedStart.getTime() < now.getTime()
-        ? now
-        : parsedStart
+    if (!Number.isFinite(targetDate.getTime()) || !Number.isFinite(parsedStart.getTime())) {
+      return c.json({ error: 'Bad Request', message: 'Invalid start or target date' }, 400)
+    }
+    const startDate = parsedStart
     const msPerWeek = 7 * 24 * 60 * 60 * 1000
-    const weeksFromDates = Math.floor((targetDate.getTime() - startDate.getTime()) / msPerWeek)
-    const weeksAvailable =
-      typeof body.weeksCount === 'number' && body.weeksCount > 0 ? body.weeksCount : weeksFromDates
-
-    if (weeksAvailable < 4) {
+    const weeksFromDates = (targetDate.getTime() - startDate.getTime()) / msPerWeek
+    if (targetDate <= now || weeksFromDates < 4) {
       return c.json(
         {
           error: 'Bad Request',
@@ -431,6 +436,7 @@ app.post('/', async (c) => {
         400
       )
     }
+    const weeksAvailable = Math.ceil(weeksFromDates)
 
     // Cap at reasonable plan length
     const maxWeeks = Math.min(weeksAvailable, 24)
@@ -462,12 +468,16 @@ app.post('/', async (c) => {
     let planJSON: GeneratedTrainingPlan | null = null
     let attempts = 0
     const maxAttempts = 2
+    let modelUsed = finalModel
     // Carries the previous failure into the next attempt so the model corrects it
     // instead of re-emitting the exact same broken output.
     let retryFeedback = ''
 
     while (attempts < maxAttempts && !planJSON) {
       attempts++
+      modelUsed = attempts === 1 ? finalModel : PLAN_FALLBACK_MODEL_ID
+      const remainingMs = GENERATION_BUDGET_MS - (Date.now() - startTime)
+      if (remainingMs <= 0) throw new OpenRouterTimeoutError()
 
       try {
         const attemptUserPrompt = retryFeedback
@@ -478,7 +488,8 @@ app.post('/', async (c) => {
           c.env.OPENROUTER_API_KEY,
           systemPrompt,
           attemptUserPrompt,
-          finalModel
+          modelUsed,
+          Math.min(OPENROUTER_TIMEOUT_MS, remainingMs)
         )
 
         console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
@@ -538,7 +549,7 @@ app.post('/', async (c) => {
             const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
             const outputTokenCount = estimateTokenCount(JSON.stringify(planJSON))
             await captureLLMEvent(posthog, userId, traceId, {
-              model: finalModel,
+              model: modelUsed,
               input: userPrompt,
               systemPrompt,
               output: JSON.stringify(planJSON),
@@ -562,20 +573,25 @@ app.post('/', async (c) => {
       plan: planJSON,
       metadata: {
         generationTimeMs: generationTime,
-        modelUsed: finalModel,
+        modelUsed,
         attempts,
         weeksGenerated: planJSON.weeks.length,
       },
     })
   } catch (error) {
     console.error('Training plan generation error:', error)
+    captureTrainingPlanError(c, {
+      route: '/api/generate-training-plan',
+      code: error instanceof OpenRouterTimeoutError ? 'timeout' : 'generation_failed',
+      durationMs: Date.now() - startTime,
+    })
 
     return c.json(
       {
         error: 'Training Plan Generation Failed',
         message: error instanceof Error ? error.message : 'Unknown error occurred',
       },
-      500
+      error instanceof OpenRouterTimeoutError ? 504 : 500
     )
   }
 })

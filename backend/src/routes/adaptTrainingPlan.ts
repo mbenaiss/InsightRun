@@ -362,110 +362,7 @@ function validateAdaptedPlanJSON(
   expectedRaceType: string | undefined,
   firstWeekNumber: number
 ): data is AdaptedTrainingPlan {
-  if (typeof data !== 'object' || data === null) return false
-
-  const plan = data as AdaptedTrainingPlan
-
-  if (!Array.isArray(plan.weeks) || plan.weeks.length === 0) return false
-  // The client schedules week-by-week against the race date; a wrong count desyncs the calendar.
-  if (plan.weeks.length !== expectedWeeks) return false
-  if (!plan.adaptation || typeof plan.adaptation !== 'object') return false
-  if (typeof plan.adaptation.assessment !== 'string') return false
-  if (typeof plan.adaptation.goalAchievable !== 'boolean') return false
-
-  // Race-day integrity: the last week's first workout is what the client pins to race day.
-  const lastWeek = plan.weeks[plan.weeks.length - 1]
-  const raceWorkout = Array.isArray(lastWeek?.workouts) ? lastWeek.workouts[0] : undefined
-  if (expectedRaceType && (!raceWorkout || raceWorkout.type !== expectedRaceType)) return false
-
-  // adjustments/confidenceLevel are non-optional for the strict iOS decoder; reject only
-  // wrong-typed values here, then backfill any missing ones in fillAdaptedPlanDefaults.
-  if (plan.adaptation.adjustments != null && typeof plan.adaptation.adjustments !== 'string')
-    return false
-  if (
-    plan.adaptation.confidenceLevel != null &&
-    !['high', 'medium', 'low'].includes(plan.adaptation.confidenceLevel)
-  )
-    return false
-
-  for (const [index, week] of plan.weeks.entries()) {
-    if (week.weekNumber !== firstWeekNumber + index) return false
-    if (!['base', 'build', 'peak', 'taper', 'recovery'].includes(week.phase)) return false
-    if (!Array.isArray(week.workouts) || week.workouts.length === 0) return false
-
-    for (const workout of week.workouts) {
-      if (!workout.type || !workout.name) return false
-      if (
-        ![
-          'easy_run',
-          'tempo',
-          'intervals',
-          'long_run',
-          'recovery',
-          'hill_repeats',
-          'fartlek',
-          'cross_training',
-        ].includes(workout.type)
-      )
-        return false
-      if (!['easy', 'moderate', 'hard', 'very_hard'].includes(workout.intensity)) return false
-
-      if (workout.targetDuration != null) {
-        if (
-          typeof workout.targetDuration !== 'number' ||
-          !Number.isFinite(workout.targetDuration) ||
-          workout.targetDuration < 0
-        )
-          return false
-      }
-      if (workout.targetDistance != null) {
-        if (
-          typeof workout.targetDistance !== 'number' ||
-          !Number.isFinite(workout.targetDistance) ||
-          workout.targetDistance < 0
-        )
-          return false
-      }
-
-      if (Array.isArray(workout.steps)) {
-        for (const step of workout.steps) {
-          if (
-            step.type != null &&
-            !['warmup', 'work', 'recovery', 'cooldown', 'interval', 'rest'].includes(step.type)
-          )
-            return false
-
-          if (step.duration != null) {
-            if (
-              typeof step.duration !== 'number' ||
-              !Number.isFinite(step.duration) ||
-              step.duration < 0
-            )
-              return false
-          }
-          if (step.distance != null) {
-            if (
-              typeof step.distance !== 'number' ||
-              !Number.isFinite(step.distance) ||
-              step.distance < 0
-            )
-              return false
-          }
-
-          if (
-            step.repetitions != null &&
-            (typeof step.repetitions !== 'number' ||
-              step.repetitions < 1 ||
-              step.repetitions > MAX_REPETITIONS ||
-              !Number.isInteger(step.repetitions))
-          )
-            return false
-        }
-      }
-    }
-  }
-
-  return true
+  return summarizePlanValidation(data, firstWeekNumber, expectedWeeks, expectedRaceType) === null
 }
 
 function summarizePlanValidation(
@@ -473,25 +370,79 @@ function summarizePlanValidation(
   firstWeek: number,
   count: number,
   raceType: string | undefined
-): string {
+): string | null {
+  if (typeof data !== 'object' || data === null) return 'missing plan object'
   const plan = data as AdaptedTrainingPlan
-  if (!Array.isArray(plan?.weeks)) return 'missing weeks'
-  if (plan.weeks.length !== count) return 'incorrect week count'
-  if (plan.weeks.some((week, index) => week.weekNumber !== firstWeek + index))
-    return 'incorrect week numbering'
-  if (raceType && plan.weeks.at(-1)?.workouts?.[0]?.type !== raceType)
-    return 'incorrect race workout type or position'
+  if (!Array.isArray(plan.weeks) || plan.weeks.length !== count)
+    return `expected exactly ${count} weeks`
   if (
     !plan.adaptation ||
     typeof plan.adaptation.assessment !== 'string' ||
     typeof plan.adaptation.goalAchievable !== 'boolean'
   )
-    return 'missing adaptation assessment'
+    return 'missing adaptation assessment or boolean goalAchievable'
+  if (plan.adaptation.adjustments != null && typeof plan.adaptation.adjustments !== 'string')
+    return 'adaptation.adjustments must be a string'
   if (
-    plan.weeks.some((week) => !['base', 'build', 'peak', 'taper', 'recovery'].includes(week.phase))
+    plan.adaptation.confidenceLevel != null &&
+    !['high', 'medium', 'low'].includes(plan.adaptation.confidenceLevel)
   )
-    return 'incorrect phase'
-  return 'invalid workout or step fields'
+    return 'adaptation.confidenceLevel must be high, medium or low'
+  if (raceType && plan.weeks.at(-1)?.workouts?.[0]?.type !== raceType)
+    return `last week must start with the race workout of type ${raceType}`
+  const workoutTypes = [
+    'easy_run',
+    'tempo',
+    'intervals',
+    'long_run',
+    'recovery',
+    'hill_repeats',
+    'fartlek',
+    'cross_training',
+  ]
+  const stepTypes = ['warmup', 'work', 'recovery', 'cooldown', 'interval', 'rest']
+  for (const [index, week] of plan.weeks.entries()) {
+    if (week?.weekNumber !== firstWeek + index)
+      return `week ${index} must have weekNumber ${firstWeek + index}`
+    if (!['base', 'build', 'peak', 'taper', 'recovery'].includes(week.phase))
+      return `week ${week.weekNumber}: invalid phase`
+    if (!Array.isArray(week.workouts) || week.workouts.length === 0)
+      return `week ${week.weekNumber}: missing workouts`
+    for (const [workoutIndex, workout] of week.workouts.entries()) {
+      const location = `week ${week.weekNumber}, workout ${workoutIndex}`
+      if (!workout || !workout.name || typeof workout.name !== 'string')
+        return `${location}: missing workout name`
+      if (!workoutTypes.includes(workout.type))
+        return `${location}: type must be one of ${workoutTypes.join(', ')}`
+      if (!['easy', 'moderate', 'hard', 'very_hard'].includes(workout.intensity))
+        return `${location}: intensity must be easy, moderate, hard or very_hard`
+      for (const key of ['targetDuration', 'targetDistance'] as const) {
+        const value = workout[key]
+        if (value != null && (typeof value !== 'number' || !Number.isFinite(value) || value < 0))
+          return `${location}: ${key} must be a nonnegative number`
+      }
+      if (!Array.isArray(workout.steps)) continue
+      for (const [stepIndex, step] of workout.steps.entries()) {
+        const stepLocation = `${location}, step ${stepIndex}`
+        if (!step) return `${stepLocation}: missing step object`
+        if (step.type != null && !stepTypes.includes(step.type))
+          return `${stepLocation}: type must be one of ${stepTypes.join(', ')}`
+        for (const key of ['duration', 'distance'] as const) {
+          const value = step[key]
+          if (value != null && (typeof value !== 'number' || !Number.isFinite(value) || value < 0))
+            return `${stepLocation}: ${key} must be a nonnegative number`
+        }
+        if (
+          step.repetitions != null &&
+          (!Number.isInteger(step.repetitions) ||
+            step.repetitions < 1 ||
+            step.repetitions > MAX_REPETITIONS)
+        )
+          return `${stepLocation}: repetitions must be an integer from 1 to ${MAX_REPETITIONS} or omitted`
+      }
+    }
+  }
+  return null
 }
 
 // Backfill fields a strict iOS decoder requires but the model occasionally omits

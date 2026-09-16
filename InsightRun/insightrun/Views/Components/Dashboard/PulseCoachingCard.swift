@@ -17,6 +17,9 @@ struct PulseCoachingCard: View {
     let highlightWord: String?
     let reasons: [String]
     let detail: String
+    var isLoading = false
+    var statusMessage: String?
+    var onRetry: (() -> Void)?
     var onCreatePlan: (() -> Void)?
 
     @State private var expanded = false
@@ -28,6 +31,25 @@ struct PulseCoachingCard: View {
             tldrBlock
                 .padding(.horizontal, Spacing.cardPadding)
                 .padding(.bottom, Spacing.md)
+
+            if let statusMessage {
+                HStack(spacing: Spacing.sm) {
+                    if isLoading { ProgressView().tint(Color.irPrimaryAccent) }
+                    Text(statusMessage)
+                        .font(IRFont.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                    Spacer(minLength: 0)
+                    if let onRetry, !isLoading {
+                        Button(String(localized: "Retry"), action: onRetry)
+                            .font(IRFont.caption.weight(.semibold))
+                            .foregroundStyle(Color.irPrimaryAccent)
+                            .accessibilityIdentifier("dashboard-coach-retry")
+                    }
+                }
+                .padding(.horizontal, Spacing.cardPadding)
+                .padding(.bottom, Spacing.md)
+                .accessibilityIdentifier("dashboard-coach-status")
+            }
 
             if expanded {
                 expandedDetails

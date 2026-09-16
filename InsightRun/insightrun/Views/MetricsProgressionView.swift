@@ -81,6 +81,16 @@ struct MetricsProgressionView: View {
                     .padding(.horizontal)
             }
 
+            Text(
+                String(
+                    localized: "progression.availability",
+                    defaultValue: "Each chart needs this metric in at least 2 workouts within the selected period. The number of available metrics can vary by period.")
+            )
+            .font(IRFont.caption)
+            .foregroundStyle(Color.irTextSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("statistics-progression-availability")
+
             if !viewModel.performanceMetrics.isEmpty {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(

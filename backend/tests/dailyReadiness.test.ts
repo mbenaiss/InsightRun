@@ -153,3 +153,157 @@ describe('readiness endpoint', () => {
     expect((await response.json()).score).toBe(51)
   })
 })
+
+async function requestWithMock(body: unknown, payload: unknown, status = 200) {
+  fetchMock = spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(payload, { status }))
+  return app.request(
+    '/',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    env
+  )
+}
+
+describe('dashboard coaching resilience', () => {
+  test('returns validated AI text and a concise prompt with a consistent training ceiling', async () => {
+    const response = await request({
+      recovery: { hrv: 75 },
+      language: 'fr',
+      noSleepMode: true,
+      cardiacLoad: { score: 18, status: 'overreaching' },
+    })
+    const result = await response.json()
+    expect(result.coachingSource).toBe('ai')
+    expect(result.suggestedWorkoutType).toBe('rest')
+    const body = JSON.parse(String(fetchMock?.mock.calls[0]?.[1]?.body))
+    expect(body.messages[0].content).toContain('training ceiling is rest')
+    expect(body.messages[0].content).toContain('do not mention sleep')
+    expect(body.messages[0].content.length).toBeLessThan(1800)
+    expect(body.reasoning).toEqual({ effort: 'low', exclude: true })
+  })
+
+  test.each([
+    '{"summary":"Go run","detail":"An unfinished',
+    '{"summary":"","detail":""}',
+    '{"summary":12,"detail":null}',
+    'Plain text instead of structured analysis',
+    'null',
+  ])('uses a safe fallback for malformed or incomplete analysis %s', async (content) => {
+    const response = await requestWithMock(
+      { recovery: { hrv: 75 }, language: 'fr' },
+      {
+        choices: [{ message: { content }, finish_reason: 'stop' }],
+      }
+    )
+    const result = await response.json()
+    expect(response.status).toBe(200)
+    expect(result.coachingSource).toBe('fallback')
+    expect(result.summary.length).toBeGreaterThan(0)
+    expect(result.detail).not.toContain('{')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  test('rejects a token-limited response even if its JSON happens to be valid', async () => {
+    const response = await requestWithMock(
+      { recovery: { hrv: 75 } },
+      {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({ summary: 'AI text', detail: 'Incomplete reasoning' }),
+            },
+            finish_reason: 'length',
+          },
+        ],
+      }
+    )
+    expect((await response.json()).coachingSource).toBe('fallback')
+  })
+
+  test('does not retry an unavailable provider and preserves the score', async () => {
+    const response = await requestWithMock(
+      { recovery: { hrv: 75 }, cachedScore: 80 },
+      { error: 'Unavailable' },
+      503
+    )
+    const result = await response.json()
+    expect(result.score).toBe(80)
+    expect(result.coachingSource).toBe('fallback')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  test('fallback and workout type respect a recent race even with a frozen high score', async () => {
+    const response = await requestWithMock(
+      {
+        recovery: { hrv: 75 },
+        cachedScore: 95,
+        language: 'fr',
+        recentWorkouts: [
+          { date: '2026-09-13', distanceMeters: 42000, durationSeconds: 14400, hoursAgo: 72 },
+        ],
+      },
+      { error: 'Unavailable' },
+      503
+    )
+    const result = await response.json()
+    expect(result.suggestedWorkoutType).toBe('rest')
+    expect(result.detail).toContain('effort long récent')
+    expect(result.detail).not.toContain('séance de qualité')
+  })
+
+  test('caps hard-effort advice without overriding a stricter cardiac-load recommendation', async () => {
+    const response = await request({
+      recovery: { hrv: 75 },
+      cachedScore: 40,
+      cardiacLoad: { score: 12, status: 'increasing' },
+      recentWorkouts: [
+        { date: '2026-09-16', distanceMeters: 22000, durationSeconds: 7200, hoursAgo: 6 },
+      ],
+    })
+    expect((await response.json()).suggestedWorkoutType).toBe('rest')
+  })
+
+  test('keeps the timeout active after headers until the response body completes', async () => {
+    const originalSetTimeout = globalThis.setTimeout
+    const timer = spyOn(globalThis, 'setTimeout').mockImplementation(((
+      handler: TimerHandler,
+      timeout?: number
+    ) => originalSetTimeout(handler, timeout === 12000 ? 10 : timeout)) as typeof setTimeout)
+    let aborted = false
+    fetchMock = spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init?.signal?.addEventListener(
+            'abort',
+            () => {
+              aborted = true
+              controller.error(new DOMException('Aborted', 'AbortError'))
+            },
+            { once: true }
+          )
+          controller.enqueue(new TextEncoder().encode('{"choices":['))
+        },
+      })
+      return new Response(body, { headers: { 'Content-Type': 'application/json' } })
+    })
+    try {
+      const response = await app.request(
+        '/',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recovery: { hrv: 75 } }),
+        },
+        env
+      )
+      expect(aborted).toBe(true)
+      expect((await response.json()).coachingSource).toBe('fallback')
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      timer.mockRestore()
+    }
+  })
+})

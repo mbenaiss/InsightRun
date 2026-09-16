@@ -301,6 +301,14 @@ struct StatisticsView: View {
     @ViewBuilder
     private var overviewContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
+            sectionHeading(String(localized: "statistics.records.title"))
+            Text(String(localized: "statistics.records.scope", defaultValue: "All-time bests from complete runs"))
+                .font(IRFont.caption)
+                .foregroundStyle(Color.irTextSecondary)
+            personalRecordsCarousel
+        }
+
+        VStack(alignment: .leading, spacing: Spacing.md) {
             sectionHeading(viewModel.periodTitle)
             kpiHeroGrid
             if let comparison = viewModel.comparisonLabel, (viewModel.snapshot.previousTotals?.count ?? 0) > 0 {
@@ -314,18 +322,12 @@ struct StatisticsView: View {
             }
         }
 
+        monthlyCoachInsight
+
         VStack(alignment: .leading, spacing: Spacing.md) {
             sectionHeading(
                 String(localized: "statistics.section.distanceOverPeriod", defaultValue: "Distance over period"))
             distanceChartCard
-        }
-
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            sectionHeading(String(localized: "statistics.records.title"))
-            Text(String(localized: "statistics.records.scope", defaultValue: "All-time bests from complete runs"))
-                .font(IRFont.caption)
-                .foregroundStyle(Color.irTextSecondary)
-            personalRecordsCarousel
         }
 
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -346,7 +348,10 @@ struct StatisticsView: View {
         Text(String(localized: "statistics.source.health", defaultValue: "Runs recorded in Apple Health"))
             .font(IRFont.caption)
             .foregroundStyle(Color.irTextTertiary)
+    }
 
+    @ViewBuilder
+    private var monthlyCoachInsight: some View {
         if shouldShowCoachInsightCard {
             MonthlyCoachInsightCard(
                 vm: coachInsightVM,
@@ -371,8 +376,8 @@ struct StatisticsView: View {
             .indexationGate(isPresented: $coachInsightVM.needsIndexation) {
                 await loadCoachInsight(generate: true)
             }
+            .accessibilityIdentifier("statistics-monthly-insight")
         }
-
     }
 
     private func sectionHeading(_ title: String) -> some View {

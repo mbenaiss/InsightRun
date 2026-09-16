@@ -181,7 +181,10 @@ struct DashboardView: View {
             .task(id: recoveryVM.selectedDate) {
                 await refreshAll()
             }
-            .onDisappear { refreshCoordinator.cancel() }
+            .onDisappear {
+                refreshCoordinator.cancel()
+                readinessVM.cancel()
+            }
             .onReceive(NotificationCenter.default.publisher(for: .trainingDayCompleted)) { _ in
                 loadTodaySession()
             }
@@ -209,18 +212,19 @@ struct DashboardView: View {
     // MARK: - Data Loading
 
     @MainActor
-    private func refreshAll(forceRefresh: Bool = false) async {
+    private func refreshAll(forceRefresh: Bool = false, regenerateCoaching: Bool = false) async {
         let date = recoveryVM.selectedDate
         await refreshCoordinator.refresh(for: date, force: forceRefresh) {
-            await loadDashboard(for: date, forceRefresh: forceRefresh)
+            await loadDashboard(for: date, forceRefresh: forceRefresh, regenerateCoaching: regenerateCoaching)
         }
     }
 
     @MainActor
-    private func loadDashboard(for date: Date, forceRefresh: Bool) async {
+    private func loadDashboard(for date: Date, forceRefresh: Bool, regenerateCoaching: Bool) async {
         #if DEBUG
         DashboardDiagnostics.record("dashboard.refresh", date: date)
         #endif
+        readinessVM.restoreCachedReadiness(for: date)
         loadTodaySession()
         if forceRefresh || Calendar.current.isDateInToday(date) {
             MetricTrendDataService.shared.invalidateCache(keepingHistoricalData: !forceRefresh)
@@ -247,9 +251,6 @@ struct DashboardView: View {
             contextProvider.recoveryMetrics = metrics
         }
         if loadedDate != date {
-            readinessVM.recommendation = ""
-            readinessVM.recommendationSummary = ""
-            readinessVM.updatedAt = nil
             hrvTrend = []
             rhrTrend = []
             respTrend = []
@@ -270,7 +271,7 @@ struct DashboardView: View {
             cardiacLoadScore: trainingLoadService.cardiacLoadScore,
             cardiacLoadStatus: trainingLoadService.cardiacLoadStatus,
             freshnessAvailable: trainingLoadService.freshnessScore != nil,
-            forceRefresh: forceRefresh
+            forceRefresh: regenerateCoaching
         )
         await trends
         await weekly
@@ -451,6 +452,11 @@ struct DashboardView: View {
                                 highlightWord: coachingHighlight,
                                 reasons: coachingReasons,
                                 detail: coachingDetail,
+                                isLoading: readinessVM.isLoading,
+                                statusMessage: coachStatusMessage,
+                                onRetry: readinessVM.errorMessage != nil || readinessVM.isFallback ? {
+                                    Task { await refreshAll(forceRefresh: true, regenerateCoaching: true) }
+                                } : nil,
                                 onCreatePlan: { showWorkoutPlan = true }
                             )
                         } else {
@@ -929,8 +935,23 @@ struct DashboardView: View {
         if !readinessVM.recommendation.isEmpty {
             return readinessVM.recommendation
         }
-        return recoveryVM.recoveryMetrics?.coachingRecommendation
-            ?? String(localized: "Loading your coaching insights...", comment: "Coaching loading placeholder")
+        if let localAdvice = recoveryVM.recoveryMetrics?.coachingRecommendation { return localAdvice }
+        return readinessVM.isLoading
+            ? String(localized: "Loading your coaching insights...", comment: "Coaching loading placeholder")
+            : String(localized: "dashboard.coach.unavailable", defaultValue: "Your coaching analysis is not available yet.")
+    }
+
+    private var coachStatusMessage: String? {
+        if readinessVM.isLoading {
+            return String(localized: "dashboard.coach.refreshing", defaultValue: "Updating your analysis…")
+        }
+        if let error = readinessVM.errorMessage {
+            return readinessVM.recommendation.isEmpty ? error : String(localized: "dashboard.coach.previous", defaultValue: "Update unavailable. Your last analysis is still displayed.")
+        }
+        if readinessVM.isFallback {
+            return String(localized: "dashboard.coach.fallback", defaultValue: "Advice based on your metrics. AI analysis is temporarily unavailable.")
+        }
+        return nil
     }
 
     /// Pick the readiness status title as the highlighted keyword in the TL;DR (e.g. "Mitigée").

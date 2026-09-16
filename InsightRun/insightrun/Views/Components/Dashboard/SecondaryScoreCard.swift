@@ -10,13 +10,16 @@ import SwiftUI
 
 struct SecondaryScoreCard: View {
     let title: String
-    let score: Int
-    let baseline: Int
+    let score: Int?
+    let baseline: Int?
     let accent: Color
     let trend: [Double]
     var onTap: (() -> Void)?
 
-    private var delta: Int { score - baseline }
+    private var delta: Int? {
+        guard let score, let baseline else { return nil }
+        return score - baseline
+    }
 
     var body: some View {
         Button {
@@ -40,7 +43,7 @@ struct SecondaryScoreCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title), \(score)/100")
+        .accessibilityLabel("\(title), \(score.map(String.init) ?? "—")/100")
     }
 
     private var header: some View {
@@ -61,7 +64,7 @@ struct SecondaryScoreCard: View {
     private var scoreRow: some View {
         HStack(alignment: .lastTextBaseline) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
-                Text("\(score)")
+                Text(score.map(String.init) ?? "—")
                     .font(IRFont.title1.weight(.heavy))
                     .kerning(-1)
                     .foregroundStyle(Color.irTextPrimary)
@@ -75,17 +78,19 @@ struct SecondaryScoreCard: View {
 
             Spacer()
 
+            if let delta {
             Text("\(delta >= 0 ? "+" : "")\(delta)")
                 .font(IRFont.monoSM.weight(.bold))
-                .foregroundStyle(delta >= 0 ? Color.irSuccess : Color.irError)
+                .foregroundStyle(accent)
+            }
         }
     }
 
     private var progressBar: some View {
         GeometryReader { geo in
             let width = geo.size.width
-            let progress = max(0, min(1, Double(score) / 100.0))
-            let baselineX = max(0, min(1, Double(baseline) / 100.0)) * width
+            let progress = max(0, min(1, Double(score ?? 0) / 100.0))
+            let baselineX = max(0, min(1, Double(baseline ?? 0) / 100.0)) * width
 
             ZStack(alignment: .leading) {
                 Capsule()
@@ -95,10 +100,12 @@ struct SecondaryScoreCard: View {
                     .fill(accent)
                     .frame(width: progress * width)
 
+                if baseline != nil {
                 Rectangle()
                     .fill(Color.irTextPrimary.opacity(0.4))
                     .frame(width: 1, height: 8)
                     .offset(x: baselineX, y: 0)
+                }
             }
         }
         .frame(height: 4)

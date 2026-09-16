@@ -3,12 +3,15 @@
 //  InsightRun
 //
 //  UserDefaults cache for daily readiness metrics.
-//  Readiness is computed once per day then frozen (keyed on effort + cardiac load).
+//  Preserve the daily score while its recovery inputs stay unchanged.
 //
 
 import Foundation
 
 final class DailyMetricsCache {
+    // Swift 6.3 can miscompile inferred isolated destruction of the UserDefaults reference.
+    nonisolated deinit {}
+
     static let shared = DailyMetricsCache()
 
     private(set) var defaults: UserDefaults
@@ -43,30 +46,33 @@ final class DailyMetricsCache {
         let suggestedWorkoutType: String
         let effortScore: Int?
         let cardiacLoadScore: Int?
+        let inputSignature: String?
+        let recoverySignature: String?
     }
 
     // MARK: - Readiness
 
     /// Returns today's cached readiness only if the inputs (effort + cardiac load) still match.
     /// Used to skip the backend call entirely when nothing relevant has changed.
-    func getCachedReadiness(effortScore: Int, cardiacLoadScore: Int?) -> CachedReadiness? {
+    func getCachedReadiness(effortScore: Int, cardiacLoadScore: Int?, inputSignature: String? = nil) -> CachedReadiness? {
         guard let data = defaults.data(forKey: readinessKey),
               let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
               Calendar.current.isDateInToday(cached.cacheDate),
               cached.effortScore == effortScore,
-              cached.cardiacLoadScore == cardiacLoadScore else {
+              cached.cardiacLoadScore == cardiacLoadScore,
+              inputSignature == nil || cached.inputSignature == inputSignature else {
             return nil
         }
         return cached
     }
 
     /// Returns the morning score for today regardless of effort/cardiac changes.
-    /// The readiness score is computed once per calendar day and frozen — only the
-    /// AI coaching text is allowed to refresh as inputs evolve during the day.
-    func getCachedScoreForToday() -> (score: Int, status: String)? {
+    /// Activity can refresh coaching without changing the score; new recovery data can recompute it.
+    func getCachedScoreForToday(recoverySignature: String? = nil) -> (score: Int, status: String)? {
         guard let data = defaults.data(forKey: readinessKey),
               let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
-              Calendar.current.isDateInToday(cached.cacheDate) else {
+              Calendar.current.isDateInToday(cached.cacheDate),
+              recoverySignature == nil || cached.recoverySignature == recoverySignature else {
             return nil
         }
         return (cached.score, cached.status)
@@ -79,9 +85,12 @@ final class DailyMetricsCache {
         summary: String? = nil,
         workoutType: String,
         effortScore: Int = 0,
-        cardiacLoadScore: Int? = nil
+        cardiacLoadScore: Int? = nil,
+        inputSignature: String? = nil,
+        recoverySignature: String? = nil,
+        date: Date = Date()
     ) {
-        let now = Date()
+        let now = Calendar.current.isDateInToday(date) ? Date() : date
         let cached = CachedReadiness(
             cacheDate: now,
             score: score,
@@ -90,12 +99,27 @@ final class DailyMetricsCache {
             summary: summary,
             suggestedWorkoutType: workoutType,
             effortScore: effortScore,
-            cardiacLoadScore: cardiacLoadScore
+            cardiacLoadScore: cardiacLoadScore,
+            inputSignature: inputSignature,
+            recoverySignature: recoverySignature
         )
         if let data = try? JSONEncoder().encode(cached) {
             defaults.set(data, forKey: readinessKey)
+            defaults.set(data, forKey: historyKey(for: now))
         }
         saveHistoricalReadinessScore(score, for: now)
+    }
+
+    private func historyKey(for date: Date) -> String {
+        "\(readinessKey)_\(Self.dateFormatter.string(from: date))"
+    }
+
+    func getReadiness(for date: Date) -> CachedReadiness? {
+        let key = Calendar.current.isDateInToday(date) ? readinessKey : historyKey(for: date)
+        guard let data = defaults.data(forKey: key),
+              let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
+              Calendar.current.isDate(cached.cacheDate, inSameDayAs: date) else { return nil }
+        return cached
     }
 
     // MARK: - Historical Readiness

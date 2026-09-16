@@ -246,6 +246,15 @@ enum MockData {
         baseline: samplePersonalBaseline
     )
 
+    static func recoveryMetrics(for date: Date) -> RecoveryMetrics {
+        let sample = sampleRecoveryMetrics
+        return RecoveryMetrics(date: date, restingHeartRate: sample.restingHeartRate,
+                               hrvAverage: sample.hrvAverage, hrvMin: sample.hrvMin, hrvMax: sample.hrvMax,
+                               walkingHeartRate: sample.walkingHeartRate, sleepData: sample.sleepData,
+                               respiratoryRate: sample.respiratoryRate, oxygenSaturation: sample.oxygenSaturation,
+                               baseline: sample.baseline)
+    }
+
     // MARK: - Sample Health Profile
 
     static let sampleHealthProfile: HealthProfile = HealthProfile(
@@ -349,33 +358,33 @@ enum MockData {
 
     // MARK: - Sample Score Analysis (Demo Mode)
 
-    static func sampleScoreAnalysis(for scoreType: ScoreType) -> String {
+    static func sampleScoreAnalysis(for scoreType: ScoreType, score: Int) -> String {
         let lang = AppLanguage.current
         switch scoreType {
         case .effort:
             return lang == "fr"
-                ? "Votre score d'effort est bas aujourd'hui — aucun entraînement enregistré. C'est une bonne journée pour une séance modérée à intense. Votre corps est bien reposé et prêt pour l'effort."
-                : "Your effort score is low today — no workout recorded. This is a good day for a moderate to intense session. Your body is well-rested and ready for effort."
+                ? "Votre score d'effort est de \(score)/100. Il combine votre progression vers les objectifs de pas, de calories actives et de minutes d’exercice."
+                : "Your effort score is \(score)/100. It combines your progress towards steps, active calories and exercise minute goals."
         case .sleep:
             return lang == "fr"
                 ? "Excellent sommeil ! 7h45 avec 91% d'efficacité et une bonne répartition des phases (profond 19%, léger 45%, REM 26%). Votre récupération nocturne est optimale pour l'entraînement."
                 : "Excellent sleep! 7h45 with 91% efficiency and good stage distribution (deep 19%, light 45%, REM 26%). Your overnight recovery is optimal for training."
         case .readiness:
             return lang == "fr"
-                ? "Score de préparation de 82% — excellent. Votre VFC (65ms), FC repos (52 bpm) et SpO2 (98%) indiquent une récupération complète. Vous pouvez envisager une séance intense aujourd'hui."
-                : "Readiness score of 82% — excellent. Your HRV (65ms), resting HR (52 bpm) and SpO2 (98%) indicate full recovery. You can consider an intense session today."
+                ? "Score de préparation de \(score)% — excellent. Votre VFC (65ms), FC repos (52 bpm) et SpO2 (98%) indiquent une récupération complète. Vous pouvez envisager une séance intense aujourd'hui."
+                : "Readiness score of \(score)% — excellent. Your HRV (65ms), resting HR (52 bpm) and SpO2 (98%) indicate full recovery. You can consider an intense session today."
         case .cardiacLoad:
             return lang == "fr"
-                ? "Charge cardiaque de 17, en augmentation. Votre tendance sur 7 jours montre une progression régulière. Maintenez cet équilibre charge/récupération pour optimiser vos adaptations."
-                : "Cardiac load of 17, increasing. Your 7-day trend shows steady progression. Maintain this load/recovery balance to optimize your adaptations."
+                ? "Charge cardiaque de \(score)/20. La courbe sur 14 jours permet de suivre l’évolution de votre charge récente par rapport à votre référence personnelle."
+                : "Cardiac load of \(score)/20. The 14-day chart shows how your recent load evolves relative to your personal baseline."
         case .freshness:
             return lang == "fr"
-                ? "Score de fraîcheur de 72/100 — vous êtes bien récupéré. Votre charge récente reste sous votre charge chronique, signe d'un bon équilibre. Bon moment pour une séance qualitative."
-                : "Freshness score of 72/100 — you're well rested. Recent training load is below your chronic baseline, indicating good balance. Good time for a quality session."
+                ? "Score de fraîcheur de \(score)/100 — vous êtes bien récupéré. Votre charge récente reste sous votre charge chronique, signe d'un bon équilibre. Bon moment pour une séance qualitative."
+                : "Freshness score of \(score)/100 — you're well rested. Recent training load is below your chronic baseline, indicating good balance. Good time for a quality session."
         }
     }
 
-    static func sampleMetricAnalysis(for metricType: MetricType) -> String {
+    static func sampleMetricAnalysis(for metricType: MetricType, value: Double) -> String {
         let lang = AppLanguage.current
         switch metricType {
         case .hrv:
@@ -408,8 +417,8 @@ enum MockData {
                 : "Overall recovery score is very positive. All your physiological indicators are within optimal ranges."
         case .totalCalories:
             return lang == "fr"
-                ? "2 350 kcal brûlées aujourd'hui (1 750 au repos + 600 actives) — dépense énergétique conforme à votre niveau d'activité habituel."
-                : "2,350 kcal burned today (1,750 at rest + 600 active) — energy expenditure consistent with your typical activity level."
+                ? "Dépense totale de \(Formatters.calories(value)). La courbe distingue les calories actives et celles dépensées au repos."
+                : "Total expenditure of \(Formatters.calories(value)). The chart separates active calories from energy burned at rest."
         }
     }
 

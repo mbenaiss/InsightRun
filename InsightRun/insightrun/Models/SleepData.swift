@@ -31,10 +31,29 @@ struct SleepData: Identifiable {
     // Naps (during the day, excluding main sleep session)
     let napDuration: TimeInterval?
 
+    init(date: Date, sleepStart: Date, sleepEnd: Date, totalSleepDuration: TimeInterval,
+         timeInBed: TimeInterval, deepSleepDuration: TimeInterval?, coreSleepDuration: TimeInterval?,
+         remSleepDuration: TimeInterval?, awakeDuration: TimeInterval?, napDuration: TimeInterval?) {
+        self.date = date
+        self.sleepStart = sleepStart
+        self.sleepEnd = sleepEnd
+        self.totalSleepDuration = totalSleepDuration
+        self.timeInBed = timeInBed
+        let stages = [deepSleepDuration, coreSleepDuration, remSleepDuration].compactMap { $0 }
+        // Conflicting HealthKit sources can classify the same interval differently.
+        let validStages = stages.allSatisfy { $0.isFinite && $0 >= 0 }
+            && stages.reduce(0, +) <= totalSleepDuration + 0.001
+        self.deepSleepDuration = validStages ? deepSleepDuration : nil
+        self.coreSleepDuration = validStages ? coreSleepDuration : nil
+        self.remSleepDuration = validStages ? remSleepDuration : nil
+        self.awakeDuration = awakeDuration
+        self.napDuration = napDuration
+    }
+
     // Sleep efficiency (percentage of time in bed actually sleeping)
     var sleepEfficiency: Double {
-        guard timeInBed > 0 else { return 0 }
-        return (totalSleepDuration / timeInBed) * 100
+        guard timeInBed.isFinite, timeInBed > 0, totalSleepDuration.isFinite else { return 0 }
+        return min(100, max(0, (totalSleepDuration / timeInBed) * 100))
     }
 
     /// Sleep quality score (0-100)
@@ -43,6 +62,7 @@ struct SleepData: Identifiable {
     /// Efficiency thresholds: Ohayon M et al. (2017). "National Sleep Foundation's sleep quality
     /// recommendations." Sleep Health 3(1):6-19. (≥85% = good efficiency)
     var qualityScore: Int {
+        guard totalSleepDuration.isFinite, totalSleepDuration > 0 else { return 0 }
         var score = 50
 
         // Sleep duration score

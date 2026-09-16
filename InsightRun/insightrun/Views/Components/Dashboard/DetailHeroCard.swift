@@ -49,6 +49,7 @@ struct DetailHeroCard: View {
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
         .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier("detail-hero-value")
         .accessibilityLabel("\(valueLabel)\(unitLabel.map { " \($0)" } ?? ""), \(statusLabel)")
     }
 

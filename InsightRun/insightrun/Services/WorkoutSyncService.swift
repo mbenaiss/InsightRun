@@ -91,7 +91,7 @@ final class WorkoutSyncService {
             predicate: nil,
             anchor: anchor,
             limit: HKObjectQueryNoLimit
-        ) { [weak self] _, samples, _, newAnchor, error in
+        ) { [weak self] _, samples, deleted, newAnchor, error in
             if let error {
                 print("❌ WorkoutSyncService: AnchoredObjectQuery error: \(error)")
                 completion()
@@ -119,6 +119,10 @@ final class WorkoutSyncService {
                 let workouts = (samples as? [HKWorkout])?.filter {
                     $0.workoutActivityType == .running
                 } ?? []
+
+                if !workouts.isEmpty || !(deleted ?? []).isEmpty {
+                    NotificationCenter.default.post(name: .healthWorkoutsChanged, object: nil)
+                }
 
                 guard !workouts.isEmpty else {
                     completion()
@@ -224,4 +228,8 @@ final class WorkoutSyncService {
         guard let data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true) else { return }
         UserDefaults.standard.set(data, forKey: anchorKey)
     }
+}
+
+extension Notification.Name {
+    static let healthWorkoutsChanged = Notification.Name("healthWorkoutsChanged")
 }

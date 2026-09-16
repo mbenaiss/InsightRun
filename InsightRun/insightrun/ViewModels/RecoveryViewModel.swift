@@ -36,7 +36,6 @@ class RecoveryViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var selectedDate: Date
-    @Published var recentWorkoutsCount: Int = 0
     @Published var baselineStatus: BaselineStatus = .notAvailable
 
     init() {
@@ -45,7 +44,6 @@ class RecoveryViewModel: ObservableObject {
     }
 
     private let healthKitManager = HealthKitManager.shared
-    private var preloadTasks: [Task<Void, Never>] = []
 
     var recoveryMetrics: RecoveryMetrics? {
         let dateKey = Calendar.current.startOfDay(for: selectedDate)
@@ -59,9 +57,8 @@ class RecoveryViewModel: ObservableObject {
 
     func loadRecoveryMetrics(for date: Date? = nil) async {
         if DemoMode.isEnabled {
-            let dateKey = Calendar.current.startOfDay(for: selectedDate)
-            metricsCache[dateKey] = MockData.sampleRecoveryMetrics
-            recentWorkoutsCount = 4
+            let dateKey = Calendar.current.startOfDay(for: date ?? selectedDate)
+            metricsCache[dateKey] = MockData.recoveryMetrics(for: dateKey)
             baselineStatus = .ready(days: 14)
             isLoading = false
             errorMessage = nil
@@ -80,8 +77,9 @@ class RecoveryViewModel: ObservableObject {
         }
 
         do {
-            let metrics = try await healthKitManager.fetchRecoveryMetrics(for: targetDate)
+            let metrics = try await MetricTrendDataService.shared.recoveryMetrics(for: targetDate)
 
+            guard !Task.isCancelled else { return }
             metricsCache[dateKey] = metrics
 
             // Update baseline status for UI if this is the selected date
@@ -112,14 +110,6 @@ class RecoveryViewModel: ObservableObject {
                 }
             }
 
-            if Calendar.current.isDate(targetDate, inSameDayAs: selectedDate) {
-                await loadRecentWorkoutsCount()
-            }
-            
-            // Preload adjacent days if we just loaded the main date
-            if date == nil || Calendar.current.isDate(targetDate, inSameDayAs: selectedDate) {
-                await preloadAdjacentDays(for: targetDate)
-            }
 
         } catch {
             if Calendar.current.isDate(targetDate, inSameDayAs: selectedDate) {
@@ -132,57 +122,8 @@ class RecoveryViewModel: ObservableObject {
         }
     }
     
-    private func preloadAdjacentDays(for date: Date) async {
-        // Cancel any in-flight preloads from a previous selected date so they don't
-        // pile up (e.g. when the user swipes quickly through days).
-        cancelPreloadTasks()
-
-        let prevDay = Calendar.current.date(byAdding: .day, value: -1, to: date) ?? date
-        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date
-
-        // Check cache before loading
-        let prevKey = Calendar.current.startOfDay(for: prevDay)
-        if metricsCache[prevKey] == nil {
-            preloadTasks.append(Task { [weak self] in
-                try? await self?.loadRecoveryMetricsWithoutSideEffects(for: prevDay)
-            })
-        }
-
-        // Only preload next day if it's not in future (assuming we don't predict future recovery)
-        if nextDay <= Date() {
-            let nextKey = Calendar.current.startOfDay(for: nextDay)
-            if metricsCache[nextKey] == nil {
-                preloadTasks.append(Task { [weak self] in
-                    try? await self?.loadRecoveryMetricsWithoutSideEffects(for: nextDay)
-                })
-            }
-        }
-    }
-
-    private func cancelPreloadTasks() {
-        preloadTasks.forEach { $0.cancel() }
-        preloadTasks.removeAll()
-    }
-    
-    private func loadRecoveryMetricsWithoutSideEffects(for date: Date) async throws {
-        let metrics = try await healthKitManager.fetchRecoveryMetrics(for: date)
-        try Task.checkCancellation()
-        let dateKey = Calendar.current.startOfDay(for: date)
-        metricsCache[dateKey] = metrics
-    }
-
-    /// Load count of recent workouts (last 7 days)
-    private func loadRecentWorkoutsCount() async {
-        do {
-            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            recentWorkoutsCount = try await healthKitManager.getRecentWorkoutsCount(since: sevenDaysAgo)
-        } catch {
-            recentWorkoutsCount = 0
-        }
-    }
-
     func refresh() async {
-        cancelPreloadTasks()
+        MetricTrendDataService.shared.invalidateCache()
         metricsCache.removeAll() // Clear cache on pull-to-refresh
         await loadRecoveryMetrics()
     }
@@ -220,6 +161,7 @@ class RecoveryViewModel: ObservableObject {
         do {
             let newBaseline = try await healthKitManager.computePersonalBaseline()
             PersonalBaselineStorage.shared.save(newBaseline)
+            MetricTrendDataService.shared.invalidateCache()
             metricsCache.removeAll() // Invalidate all cached metrics as baseline changed
             await loadRecoveryMetrics()
         } catch {

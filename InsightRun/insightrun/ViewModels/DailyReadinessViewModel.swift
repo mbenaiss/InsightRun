@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import CryptoKit
 
 @MainActor
 class DailyReadinessViewModel: ObservableObject {
@@ -26,11 +27,17 @@ class DailyReadinessViewModel: ObservableObject {
     /// The dashboard swaps sleep-based cards for freshness (TSB) cards and the
     /// backend omits sleep from the AI coaching prompt.
     @Published var isNoSleepMode: Bool = false
+    @Published var updatedAt: Date?
+    private var requestID = UUID()
     private var hasPromptedConsent = false
 
     private let backendClient = BackendAPIClient.shared
     private let healthKitManager = HealthKitManager.shared
-    private let dailyCache = DailyMetricsCache.shared
+    private let dailyCache: DailyMetricsCache
+
+    init(dailyCache: DailyMetricsCache? = nil) {
+        self.dailyCache = dailyCache ?? .shared
+    }
 
     // MARK: - Fetch Daily Readiness
 
@@ -42,12 +49,32 @@ class DailyReadinessViewModel: ObservableObject {
     ///   - cardiacLoadStatus: Current cardiac load trend status
     ///   - forceRefresh: Skip cache and fetch fresh analysis from backend
     func fetchDailyReadiness(
+        for date: Date = Date(),
+        recoveryMetrics suppliedRecovery: RecoveryMetrics? = nil,
         activityData: DailyActivityData? = nil,
         effortScore: Int = 0,
         cardiacLoadScore: Int? = nil,
         cardiacLoadStatus: CardiacLoadStatus = .detraining,
+        freshnessAvailable: Bool = false,
         forceRefresh: Bool = false
     ) async {
+        let id = UUID()
+        requestID = id
+        isLoading = true
+        errorMessage = nil
+        defer { if requestID == id { isLoading = false } }
+        if !Calendar.current.isDateInToday(date) {
+            let cached = dailyCache.getReadiness(for: date)
+            readinessScore = cached?.score ?? dailyCache.getHistoricalReadinessScore(for: date)
+            status = cached.map { ReadinessStatus(from: $0.status) } ?? .unknown
+            recommendation = cached?.recommendation ?? ""
+            recommendationSummary = cached?.summary ?? recommendation
+            insights = []
+            updatedAt = cached?.cacheDate
+            return
+        }
+        isNoSleepMode = await SleepDataAvailabilityService.shared.isNoSleepMode()
+        guard requestID == id, !Task.isCancelled else { return }
         if DemoMode.isEnabled {
             readinessScore = 82
             status = .good
@@ -78,37 +105,28 @@ class DailyReadinessViewModel: ObservableObject {
             return
         }
 
-        // Refresh the no-sleep flag up-front so the dashboard picks the right card
-        // even when the readiness cache hits below and we skip the network call.
-        // Backed by a 12h disk cache, so this is effectively free on hot paths.
-        let noSleepMode = await SleepDataAvailabilityService.shared.isNoSleepMode()
-        self.isNoSleepMode = noSleepMode
-
-        // Return cached readiness only if the inputs are unchanged (effort + cardiac load).
-        // A new workout or shifting effort score will mismatch the cache and force a fresh analysis.
-        if !forceRefresh,
-           let cached = dailyCache.getCachedReadiness(
-               effortScore: effortScore,
-               cardiacLoadScore: cardiacLoadScore
-           ) {
-            readinessScore = cached.score
-            status = ReadinessStatus(from: cached.status)
-            recommendation = cached.recommendation
-            recommendationSummary = cached.summary?.nilIfEmpty ?? cached.recommendation
-            suggestedWorkoutType = SuggestedWorkoutType(from: cached.suggestedWorkoutType)
-            return
-        }
-
         isLoading = true
         errorMessage = nil
 
         do {
-            async let recoveryMetricsFetch = healthKitManager.fetchRecoveryMetrics(for: Date())
-            async let recentWorkoutsFetch = healthKitManager.fetchWorkouts(limit: 3)
+            let recoveryMetrics = try await recoveryMetrics(for: date, supplied: suppliedRecovery)
+            let baseline = recoveryMetrics.baseline
+            guard requestID == id, !Task.isCancelled else { return }
+            let noSleepMode = isNoSleepMode
+            guard recoveryMetrics.hasRecoveryMeasurements(includeSleep: !noSleepMode) else {
+                readinessScore = nil
+                status = .unknown
+                recommendation = ""
+                recommendationSummary = ""
+                insights = []
+                updatedAt = nil
+                errorMessage = String(localized: "recovery.insufficient_data", defaultValue: "Not enough health data to assess your recovery yet.")
+                return
+            }
 
-            let recoveryMetrics = try await recoveryMetricsFetch
-            let workoutPayloads = buildRecentWorkoutPayloads(from: await recentWorkoutsFetch)
-            let baseline = PersonalBaselineStorage.shared.load()
+            let recentWorkouts = try? await healthKitManager.fetchRunningWorkouts(from: Date().addingTimeInterval(-8 * 86_400), to: Date())
+            guard requestID == id, !Task.isCancelled else { return }
+            let workoutPayloads = buildRecentWorkoutPayloads(from: recentWorkouts ?? [])
 
             let activityPayload: DailyActivityPayload? = activityData.map {
                 DailyActivityPayload(
@@ -125,7 +143,29 @@ class DailyReadinessViewModel: ObservableObject {
 
             // Pull the morning score for today (if any) so the backend keeps it stable
             // when only effort/cardiac context has shifted.
-            let frozenScore = dailyCache.getCachedScoreForToday()
+            let recoverySignature = Self.signature([
+                "recovery-v2",
+                Self.signature(buildRecoveryPayload(from: recoveryMetrics)),
+                Self.signature(baseline.map { buildBaselinePayload(from: $0) }),
+                String(noSleepMode)
+            ])
+            let inputSignature = Self.signature([
+                recoverySignature, String(describing: activityData),
+                String(effortScore), String(describing: cardiacLoadScore), cardiacLoadStatus.rawValue,
+                workoutPayloads.map { "\($0.date):\($0.distanceMeters):\($0.durationSeconds):\(String(describing: $0.avgHeartRate)):\(String(describing: $0.maxHeartRate)):\(String(describing: $0.pace))" }.joined(separator: ";")
+            ])
+            if !forceRefresh, let cached = dailyCache.getCachedReadiness(
+                effortScore: effortScore, cardiacLoadScore: cardiacLoadScore, inputSignature: inputSignature
+            ) {
+                readinessScore = cached.score
+                status = ReadinessStatus(from: cached.status)
+                recommendation = cached.recommendation
+                recommendationSummary = cached.summary?.nilIfEmpty ?? cached.recommendation
+                suggestedWorkoutType = SuggestedWorkoutType(from: cached.suggestedWorkoutType)
+                updatedAt = cached.cacheDate
+                return
+            }
+            let frozenScore = dailyCache.getCachedScoreForToday(recoverySignature: recoverySignature)
 
             let request = DailyReadinessRequest(
                 recovery: buildRecoveryPayload(from: recoveryMetrics),
@@ -140,6 +180,8 @@ class DailyReadinessViewModel: ObservableObject {
             )
 
             let response = try await backendClient.fetchDailyReadiness(request: request)
+
+            guard requestID == id, !Task.isCancelled else { return }
 
             // Defensive freeze: if the user already has a morning score for today,
             // keep it regardless of what the backend returned. Covers older backends
@@ -164,18 +206,24 @@ class DailyReadinessViewModel: ObservableObject {
                 summary: response.summary,
                 workoutType: response.suggestedWorkoutType,
                 effortScore: effortScore,
-                cardiacLoadScore: cardiacLoadScore
+                cardiacLoadScore: cardiacLoadScore,
+                inputSignature: inputSignature,
+                recoverySignature: recoverySignature,
+                date: date
             )
+
+            updatedAt = Date()
 
             // Tracked here (not on cache hits) so the metric reflects real backend
             // computations and stays cheap. `freshness_available` lets us split the
             // no-sleep cohort into "TSB ready" vs. "still building baseline".
             AnalyticsService.shared.trackDailyReadinessComputed(
                 noSleepMode: noSleepMode,
-                freshnessAvailable: TrainingLoadService.shared.freshnessScore != nil
+                freshnessAvailable: freshnessAvailable
             )
 
         } catch {
+            guard requestID == id, !Task.isCancelled else { return }
             print("❌ DailyReadinessViewModel: Failed to fetch readiness: \(error)")
             // Surface specific backend errors (rate limit + retry delay, blocked, …)
             // instead of masking a 429 behind a generic "try again" message.
@@ -189,26 +237,24 @@ class DailyReadinessViewModel: ObservableObject {
             }
         }
 
-        isLoading = false
+    }
+
+    private func recoveryMetrics(for date: Date, supplied: RecoveryMetrics?) async throws -> RecoveryMetrics {
+        if let supplied { return supplied }
+        return try await healthKitManager.fetchRecoveryMetrics(for: date)
+    }
+
+    private static func signature<Value: Encodable>(_ value: Value) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let data = (try? encoder.encode(value)) ?? Data()
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Payload Builders
 
     private func buildRecoveryPayload(from metrics: RecoveryMetrics) -> RecoveryData {
-        RecoveryData(
-            restingHeartRate: metrics.restingHeartRate.map { Int($0) },
-            hrv: metrics.hrvAverage.map { Int($0) },
-            walkingHeartRate: metrics.walkingHeartRate.map { Int($0) },
-            respiratoryRate: metrics.respiratoryRate.map { Int($0) },
-            sleepData: metrics.sleepData.map { sleep in
-                SleepDataPayload(
-                    totalDuration: sleep.totalSleepDuration,
-                    efficiency: Int(sleep.sleepEfficiency),
-                    deepDuration: sleep.deepSleepDuration,
-                    remDuration: sleep.remSleepDuration
-                )
-            }
-        )
+        RecoveryData(metrics: metrics)
     }
 
     // ISO 8601: the backend parses this via `new Date(w.date)`. A locale-formatted
@@ -236,18 +282,7 @@ class DailyReadinessViewModel: ObservableObject {
     }
 
     private func buildBaselinePayload(from baseline: PersonalBaseline) -> PersonalBaselineData {
-        PersonalBaselineData(
-            restingHeartRateAverage: baseline.restingHeartRateAverage,
-            restingHeartRateStdDev: baseline.restingHeartRateStdDev,
-            hrvAverage: baseline.hrvAverage,
-            hrvStdDev: baseline.hrvStdDev,
-            sleepDurationAverage: baseline.sleepDurationAverage,
-            sleepEfficiencyAverage: baseline.sleepEfficiencyAverage,
-            respiratoryRateAverage: baseline.respiratoryRateAverage,
-            respiratoryRateStdDev: baseline.respiratoryRateStdDev,
-            dataPointCount: baseline.dataPointCount,
-            isReliable: baseline.isReliable
-        )
+        PersonalBaselineData(baseline: baseline)
     }
 }
 

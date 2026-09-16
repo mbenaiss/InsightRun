@@ -526,6 +526,9 @@ class BackendAPIClient {
 
     /// Fetch daily readiness score from backend
     func fetchDailyReadiness(request: DailyReadinessRequest) async throws -> DailyReadinessResponse {
+        #if DEBUG
+        DashboardDiagnostics.record("api.daily-readiness")
+        #endif
         let url = URL(string: "\(baseURL)/api/daily-readiness")!
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"

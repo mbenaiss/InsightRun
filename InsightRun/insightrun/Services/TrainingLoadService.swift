@@ -95,7 +95,7 @@ final class TrainingLoadService: ObservableObject {
     /// Used only during first ~6 weeks until CTL stabilizes
     private let fallbackATLNormalization: Double = 80
 
-    private init() {}
+    init() {}
 
     // MARK: - Training Load Analysis
 
@@ -178,15 +178,8 @@ final class TrainingLoadService: ObservableObject {
     func analyzeDailyEffort(for date: Date) async {
         let activity = await healthKitManager.fetchDailyActivityData(for: date)
 
-        let caloriesTarget = activity.activeCaloriesGoal ?? defaultActiveCaloriesTarget
-        let exerciseTarget = activity.exerciseMinutesGoal ?? defaultExerciseMinutesTarget
-
-        let stepsScore = min(activity.steps / stepsTarget, 1.0)
-        let caloriesScore = min(activity.activeCalories / caloriesTarget, 1.0)
-        let exerciseScore = min(activity.exerciseMinutes / exerciseTarget, 1.0)
-
-        let composite = stepsScore * 0.30 + caloriesScore * 0.35 + exerciseScore * 0.35
-        dailyEffortScore = min(100, Int((composite * 100).rounded()))
+        guard !Task.isCancelled else { return }
+        dailyEffortScore = MetricTrendDataService.computeEffortScore(activity: activity)
     }
 
     // MARK: - Cardiac Load Analysis (TRIMP + EWMA ATL/CTL + ACWR)
@@ -197,13 +190,16 @@ final class TrainingLoadService: ObservableObject {
     /// - Williams S et al. (2017). EWMA-based ACWR superior to rolling averages. ATL α=2/8, CTL α=2/43.
     /// - Gabbett TJ (2016). ACWR sweet spot 0.8-1.3 for injury prevention.
     /// - Hulin BT et al. (2016). Validated ACWR thresholds in elite athletes.
-    func analyzeCardiacLoad() async {
+    func analyzeCardiacLoad(for date: Date = Date()) async {
+        #if DEBUG
+        DashboardDiagnostics.record("cardiac.load", date: date)
+        #endif
         do {
             let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
+            let today = calendar.startOfDay(for: date)
             guard let startDate = calendar.date(byAdding: .day, value: -lookbackDays, to: today) else { return }
 
-            let workouts = try await healthKitManager.fetchRunningWorkouts(from: startDate, to: Date())
+            let workouts = try await healthKitManager.fetchRunningWorkouts(from: startDate, to: min(Date(), calendar.date(byAdding: .day, value: 1, to: today)!))
 
             // Fetch resting HR from personal baseline (fallback: 65 bpm)
             let baseline = PersonalBaselineStorage.shared.load()
@@ -259,12 +255,7 @@ final class TrainingLoadService: ObservableObject {
             // Score: personalized via CTL, or fixed fallback for new users
             // CTL ≥ threshold: score = ATL/CTL × 10 (maintaining = 10/20)
             // CTL < threshold: score = ATL/fallback × 20 (absolute scale)
-            let score: Int
-            if ctlEWMA >= minCTLForNormalization {
-                score = min(Int(maxScore), Int((atlEWMA / ctlEWMA) * 10))
-            } else {
-                score = min(Int(maxScore), Int((atlEWMA / fallbackATLNormalization) * maxScore))
-            }
+            let score = cardiacScore(acuteLoad: atlEWMA, chronicLoad: ctlEWMA)
 
             // Build trend data (last 14 days, recompute EWMA for each day)
             var trendATL: Double = 0
@@ -276,17 +267,14 @@ final class TrainingLoadService: ObservableObject {
                 trendCTL = ctlAlpha * load + (1 - ctlAlpha) * trendCTL
 
                 if let daysAgo = calendar.dateComponents([.day], from: day, to: today).day, daysAgo < trendDays {
-                    let normalizedValue: Double
-                    if trendCTL >= minCTLForNormalization {
-                        normalizedValue = min(maxScore, (trendATL / trendCTL) * 10)
-                    } else {
-                        normalizedValue = min(maxScore, (trendATL / fallbackATLNormalization) * maxScore)
-                    }
-                    trendPoints.append(TrendDataPoint(date: day, value: normalizedValue))
+                    let normalizedValue = cardiacScore(acuteLoad: trendATL, chronicLoad: trendCTL)
+                    trendPoints.append(TrendDataPoint(date: day, value: Double(normalizedValue)))
 
-                    let dayTSB = trendCTL - trendATL
-                    let dayFreshness = Self.freshnessScoreFromTSB(dayTSB)
-                    freshnessTrend.append(TrendDataPoint(date: day, value: Double(dayFreshness)))
+                    if trendCTL >= minCTLForNormalization {
+                        let dayTSB = trendCTL - trendATL
+                        let dayFreshness = Self.freshnessScoreFromTSB(dayTSB)
+                        freshnessTrend.append(TrendDataPoint(date: day, value: Double(dayFreshness)))
+                    }
                 }
             }
 
@@ -315,6 +303,7 @@ final class TrainingLoadService: ObservableObject {
                 status = atlEWMA > 0 ? .increasing : .detraining
             }
 
+            guard !Task.isCancelled else { return }
             cardiacLoadScore = score
             cardiacLoadStatus = status
             cardiacLoadTrendData = trendPoints
@@ -332,8 +321,20 @@ final class TrainingLoadService: ObservableObject {
             print("📊 TrainingLoadService: ATL=\(String(format: "%.1f", atlEWMA)) CTL=\(String(format: "%.1f", ctlEWMA)) TSB=\(String(format: "%.1f", tsb)) freshness=\(freshnessLog) ACWR=\(computedACWR.map { String(format: "%.2f", $0) } ?? "n/a") score=\(score) status=\(status.rawValue)")
         } catch {
             print("⚠️ TrainingLoadService: Failed to analyze cardiac load: \(error)")
+            guard !Task.isCancelled else { return }
             cardiacLoadScore = nil
+            freshnessScore = nil
+            cardiacLoadTrendData = []
+            freshnessTrendData = []
         }
+    }
+
+    func cardiacScore(acuteLoad: Double, chronicLoad: Double) -> Int {
+        guard acuteLoad.isFinite, chronicLoad.isFinite else { return 0 }
+        let normalized = chronicLoad >= minCTLForNormalization
+            ? acuteLoad / chronicLoad * 10
+            : acuteLoad / fallbackATLNormalization * maxScore
+        return Int(min(maxScore, max(0, normalized)))
     }
 
     /// Map Training Stress Balance to a 0-100 freshness score.
@@ -352,7 +353,7 @@ final class TrainingLoadService: ObservableObject {
 
     /// TRIMP when HR available, otherwise fallback to pace-based intensity
     /// Source: Banister (1991) — TRIMP = duration × ΔHR × weight(ΔHR)
-    private func workoutLoad(
+    func workoutLoad(
         workout: WorkoutModel,
         restingHR: Double,
         maxHR: Double,

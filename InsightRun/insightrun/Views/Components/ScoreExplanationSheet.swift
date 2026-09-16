@@ -44,8 +44,10 @@ struct ScoreExplanationSheet: View {
 
     // Score properties
     private let score: Int
+    private let isScoreAvailable: Bool
     private let sleepDurationHours: Double?
     private let sleepEfficiency: Double?
+    private let readinessStatus: ReadinessStatus?
     private let cardiacLoadStatus: CardiacLoadStatus?
     private let activityData: DailyActivityData?
 
@@ -67,7 +69,9 @@ struct ScoreExplanationSheet: View {
     @State private var selectedDate: Date?
     @State private var showSubscriptionPaywall = false
     @State private var showMedicalSources = false
-    @State private var historyData: [TrendDataPoint] = []
+    private var historyData: [TrendDataPoint] { trendData ?? [] }
+    @State private var analysisRetryID = UUID()
+    @State private var analysisTask: Task<Void, Never>?
     @State private var lastTrackedAnalysis: String?
 
     // MARK: - Score Init
@@ -80,9 +84,13 @@ struct ScoreExplanationSheet: View {
         trendData: [TrendDataPoint]? = nil,
         cardiacLoadStatus: CardiacLoadStatus? = nil,
         recoveryMetrics: RecoveryMetrics? = nil,
-        activityData: DailyActivityData? = nil
+        activityData: DailyActivityData? = nil,
+        isScoreAvailable: Bool = true,
+        readinessStatus: ReadinessStatus? = nil
     ) {
         self.mode = .score(scoreType)
+        self.isScoreAvailable = isScoreAvailable
+        self.readinessStatus = readinessStatus
         self.score = score
         self.sleepDurationHours = sleepDurationHours
         self.sleepEfficiency = sleepEfficiency
@@ -111,6 +119,8 @@ struct ScoreExplanationSheet: View {
         caloriesBreakdown: [CaloriesBreakdownPoint]? = nil
     ) {
         self.mode = .metric(metricType)
+        self.isScoreAvailable = true
+        self.readinessStatus = nil
         self.metricValue = currentValue
         self.metricUnit = unit
         self.deviationStatus = deviationStatus
@@ -143,6 +153,17 @@ struct ScoreExplanationSheet: View {
             }
             .background(Color.irBackgroundApp)
             .navigationTitle(navigationTitle)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let date = recoveryMetrics?.date {
+                    Text(date, format: .dateTime.day().month(.wide).year())
+                        .font(IRFont.caption)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.sm)
+                        .background(Color.irBackgroundApp)
+                        .accessibilityIdentifier("score-reference-date")
+                }
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -154,25 +175,24 @@ struct ScoreExplanationSheet: View {
                     .accessibilityIdentifier("sheet-close")
                 }
             }
-            .onAppear {
-                if case .metric = mode, historyData.isEmpty, let data = trendData, !data.isEmpty {
-                    historyData = data
+            .task(id: analysisRequestID) {
+                if let analysisTask {
+                    analysisTask.cancel()
+                    await analysisTask.value
                 }
-            }
-            .task {
-                guard revenueCatManager.hasAIAccess, let metrics = recoveryMetrics else { return }
-                switch mode {
-                case .score(let scoreType):
-                    await analysisVM.analyze(scoreType: scoreType, score: score, recoveryMetrics: metrics, trendData: trendData)
-                case .metric(let metricType):
-                    await analysisVM.analyzeMetric(
-                        metricType: metricType,
-                        value: metricValue,
-                        unit: metricUnit,
-                        recoveryMetrics: metrics,
-                        activityData: activityData
-                    )
+                guard !Task.isCancelled, isScoreAvailable, revenueCatManager.hasAIAccess,
+                      let metrics = recoveryMetrics else { return }
+                let task = Task {
+                    switch mode {
+                    case .score(let scoreType):
+                        await analysisVM.analyze(scoreType: scoreType, score: score, recoveryMetrics: metrics, trendData: trendData)
+                    case .metric(let metricType):
+                        await analysisVM.analyzeMetric(metricType: metricType, value: metricValue, unit: metricUnit,
+                                                       recoveryMetrics: metrics, activityData: activityData)
+                    }
                 }
+                analysisTask = task
+                await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
             }
             .sheet(isPresented: $analysisVM.needsConsent) {
                 AIConsentSheet(
@@ -195,6 +215,11 @@ struct ScoreExplanationSheet: View {
                 await analysisVM.resumePendingAnalysis()
             }
         }
+    }
+
+    private var analysisRequestID: String {
+        let context = recoveryMetrics.map { ScoreAnalysisViewModel.contextSignature($0, activity: activityData, trend: trendData) } ?? ""
+        return "\(analysisRetryID):\(navigationTitle):\(score):\(metricValue):\(isScoreAvailable):\(revenueCatManager.hasAIAccess):\(context)"
     }
 
     // MARK: - Navigation Title
@@ -230,9 +255,9 @@ struct ScoreExplanationSheet: View {
         VStack(spacing: Spacing.dash) {
             scoreValueCard(scoreType)
 
-            aiInsightCard
+            if isScoreAvailable { aiInsightCard }
 
-            if let data = trendData, !data.isEmpty {
+            if isScoreAvailable, let data = trendData, !data.isEmpty {
                 scoreTrendChart(data, scoreType: scoreType)
             }
 
@@ -260,9 +285,9 @@ struct ScoreExplanationSheet: View {
         VStack(spacing: Spacing.dash) {
             cardiacLoadValueCard
 
-            aiInsightCard
+            if isScoreAvailable { aiInsightCard }
 
-            if let data = trendData, !data.isEmpty {
+            if isScoreAvailable, let data = trendData, !data.isEmpty {
                 cardiacLoadChartCard(data)
             }
 
@@ -279,7 +304,7 @@ struct ScoreExplanationSheet: View {
         VStack(spacing: Spacing.dash) {
             metricValueCard
 
-            aiInsightCard
+            if isScoreAvailable { aiInsightCard }
 
             if case .metric(.totalCalories) = mode,
                let breakdown = caloriesBreakdown,
@@ -311,17 +336,17 @@ struct ScoreExplanationSheet: View {
             rows: [
                 DetailComponentRow(
                     label: String(localized: "Resting", comment: "Basal/resting calories label"),
-                    value: String(format: "%.0f", activity.basalCalories),
+                    value: Formatters.integer(Int(activity.totalCalories.rounded() - activity.activeCalories.rounded())),
                     unit: "kcal"
                 ),
                 DetailComponentRow(
                     label: String(localized: "Active", comment: "Active calories label"),
-                    value: String(format: "%.0f", activity.activeCalories),
+                    value: Formatters.integer(Int(activity.activeCalories.rounded())),
                     unit: "kcal"
                 ),
                 DetailComponentRow(
                     label: String(localized: "Total calories", comment: "Total calories metric title"),
-                    value: String(format: "%.0f", activity.totalCalories),
+                    value: Formatters.integer(Int(activity.totalCalories.rounded())),
                     unit: "kcal"
                 )
             ]
@@ -340,7 +365,7 @@ struct ScoreExplanationSheet: View {
                 ),
                 DetailComponentRow(
                     label: String(localized: "Active Calories", comment: "Active calories metric label"),
-                    value: String(format: "%.0f", activity.activeCalories),
+                    value: Formatters.integer(Int(activity.activeCalories.rounded())),
                     unit: "kcal"
                 ),
                 DetailComponentRow(
@@ -535,9 +560,16 @@ struct ScoreExplanationSheet: View {
                     .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("score-analysis-error")
+                Button(String(localized: "Retry")) { analysisRetryID = UUID() }
+                    .accessibilityIdentifier("score-analysis-retry")
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.sm)
+        } else if analysisVM.needsConsent || analysisVM.needsIndexation {
+            Button(String(localized: "View analysis")) {
+                Task { await analysisVM.resumePendingAnalysis() }
+            }
         } else {
             aiInsightLoading(label: String(localized: "Loading analysis...", comment: "AI analysis loading"))
         }
@@ -589,17 +621,17 @@ struct ScoreExplanationSheet: View {
 
     private func scoreValueCard(_ scoreType: ScoreType) -> some View {
         DetailHeroCard(
-            valueLabel: "\(score)",
+            valueLabel: isScoreAvailable ? "\(score)" : "—",
             unitLabel: "/100",
-            statusLabel: scoreLabel,
+            statusLabel: isScoreAvailable ? scoreLabel : String(localized: "No data available"),
             accent: scoreAccentColor,
-            progress: Double(score) / 100.0
+            progress: isScoreAvailable ? Double(score) / 100.0 : nil
         )
     }
 
     private var cardiacLoadValueCard: some View {
         DetailHeroCard(
-            valueLabel: "\(score)",
+            valueLabel: isScoreAvailable ? "\(score)" : "—",
             unitLabel: "/20",
             statusLabel: cardiacLoadStatus?.title ?? "—",
             accent: cardiacLoadStatus?.color ?? Color.irPrimaryAccent,
@@ -621,9 +653,9 @@ struct ScoreExplanationSheet: View {
         let formatted: String
         switch metricType {
         case .respiratoryRate:
-            formatted = String(format: "%.1f", metricValue)
+            formatted = Formatters.decimal(metricValue, fractionDigits: 1)
         case .totalCalories, .hrv, .restingHeartRate, .oxygenSaturation, .sleepDuration, .sleepEfficiency, .recoveryScore:
-            formatted = String(format: "%.0f", metricValue)
+            formatted = Formatters.integer(Int(metricValue.rounded()))
         }
 
         return AnyView(
@@ -877,7 +909,7 @@ struct ScoreExplanationSheet: View {
                 if let selected {
                     VStack(alignment: .trailing, spacing: 2) {
                         HStack(spacing: Spacing.xxs) {
-                            Text(String(format: "%.0f", selected.total))
+                            Text(Formatters.integer(Int(selected.total.rounded())))
                                 .font(IRFont.title3)
                                 .fontWeight(.bold)
                                 .foregroundStyle(Color.irTextPrimary)
@@ -940,7 +972,7 @@ struct ScoreExplanationSheet: View {
             if let selected {
                 HStack(spacing: Spacing.base) {
                     breakdownLegendItem(color: activeColor, label: activeLabel, value: selected.active)
-                    breakdownLegendItem(color: restingColor, label: restingLabel, value: selected.resting)
+                    breakdownLegendItem(color: restingColor, label: restingLabel, value: selected.total.rounded() - selected.active.rounded())
                     Spacer()
                 }
             }
@@ -958,7 +990,7 @@ struct ScoreExplanationSheet: View {
                 Text(label)
                     .font(IRFont.microLabel)
                     .foregroundStyle(Color.irTextSecondary)
-                Text(String(format: "%.0f kcal", value))
+                Text("\(Formatters.integer(Int(value.rounded()))) kcal")
                     .font(IRFont.monoMD)
                     .foregroundStyle(Color.irTextPrimary)
             }
@@ -1179,11 +1211,19 @@ struct ScoreExplanationSheet: View {
     @ViewBuilder
     private func calculationSection(_ scoreType: ScoreType) -> some View {
         switch scoreType {
-        case .effort, .sleep, .readiness:
+        case .effort, .readiness:
             DetailFormulaCard(
                 slices: formulaSlices(for: scoreType),
                 explanation: scoreCalculationExplanation(scoreType)
             )
+        case .sleep:
+            VStack(alignment: .leading, spacing: Spacing.base) {
+                Text(scoreCalculationExplanation(.sleep))
+                    .font(IRFont.caption).foregroundStyle(Color.irTextSecondary)
+                sleepCalculationContent
+            }
+            .padding(Spacing.cardPadding)
+            .detailCard()
         case .cardiacLoad:
             VStack(alignment: .leading, spacing: Spacing.base) {
                 HStack {
@@ -1223,11 +1263,7 @@ struct ScoreExplanationSheet: View {
                 DetailFormulaSlice(label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), weight: 35, color: Color.irError)
             ]
         case .sleep:
-            return [
-                DetailFormulaSlice(label: String(localized: "Duration", comment: "Sleep duration label"), weight: 30, color: Color.irPrimaryAccent),
-                DetailFormulaSlice(label: String(localized: "Efficiency", comment: "Sleep efficiency label"), weight: 30, color: Color.irSuccess),
-                DetailFormulaSlice(label: String(localized: "Stages", comment: "Sleep stages label"), weight: 40, color: Color.irPrimaryAccent)
-            ]
+            return []
         case .readiness:
             return [
                 DetailFormulaSlice(label: String(localized: "Sleep", comment: "Sleep weight label"), weight: 40, color: Color.irPrimaryAccent),
@@ -1246,9 +1282,9 @@ struct ScoreExplanationSheet: View {
         case .effort:
             return String(localized: "Daily score measuring your progress towards your personal activity goals. Calorie and exercise targets come from your Apple Activity Rings when available; defaults to 400 kcal and 30 min (WHO, 2020). Step target is 10,000/day (Tudor-Locke, 2004). Each component is capped at 100%.", comment: "Effort calculation explanation")
         case .sleep:
-            return String(localized: "Score combining sleep duration (~30%), efficiency (~30%) and balance of sleep stages (~40%). Optimal range: 7\u{2013}9h with at least 85% efficiency and 15\u{2013}20% deep sleep + 20\u{2013}25% REM (Hirshkowitz et al., 2015).", comment: "Sleep calculation explanation")
+            return String(localized: "score.sleep.calculation", defaultValue: "The score starts at 50 points. Sleep duration adds up to 25 points (or subtracts 20 below 5 hours); efficiency adds up to 25 points. Sleep stages are shown separately and do not contribute to this score.")
         case .readiness:
-            return String(localized: "Composite score weighting recovery signals from your autonomic nervous system, sleep quality and recent training load. Uses personal baseline deviation (z-score) when enough data is available; a normal day at your baseline scores around 50%.", comment: "Readiness calculation explanation")
+            return String(localized: "score.readiness.calculation", defaultValue: "These weights apply when all measurements are available. Missing signals are excluded and the remaining weights are normalized. Measurements are compared with your personal baseline when available. Very short sleep and recent intense efforts can cap or reduce the score.")
         case .cardiacLoad, .freshness:
             return ""
         }
@@ -1433,7 +1469,12 @@ struct ScoreExplanationSheet: View {
         if case .metric(let metricType) = mode {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 DetailReferencesCard(sources: metricReferenceSources(metricType))
-                allSourcesButton
+                if metricType == .totalCalories {
+                    Link("Apple HealthKit", destination: URL(string: "https://developer.apple.com/documentation/healthkit/hkquantitytypeidentifier/basalenergyburned")!)
+                        .font(IRFont.caption)
+                } else {
+                    allSourcesButton
+                }
             }
         }
     }
@@ -1464,6 +1505,7 @@ struct ScoreExplanationSheet: View {
     // MARK: - Score Helpers
 
     private var scoreAccentColor: Color {
+        if case .score(.readiness) = mode, let readinessStatus { return readinessStatus.color }
         switch score {
         case 80...100: return Color.irSuccess
         case 60..<80: return Color.irWarning
@@ -1473,6 +1515,7 @@ struct ScoreExplanationSheet: View {
     }
 
     private var scoreLabel: String {
+        if case .score(.readiness) = mode, let readinessStatus { return readinessStatus.title }
         switch score {
         case 80...100: return String(localized: "Excellent", comment: "Score label")
         case 60..<80: return String(localized: "Good", comment: "Score label")
@@ -1644,6 +1687,11 @@ struct ScoreExplanationSheet: View {
             return [
                 String(localized: "WHO \u{00B7} Pulse oximetry guidelines", comment: "SpO2 source 1"),
                 String(localized: "Normal range 95\u{2013}100%; values below 94% may warrant medical attention.", comment: "SpO2 source 2")
+            ]
+        case .totalCalories:
+            return [
+                "Apple HealthKit · " + String(localized: "Resting", comment: "Basal/resting calories label"),
+                "Apple HealthKit · " + String(localized: "Active", comment: "Active calories label")
             ]
         default:
             return [

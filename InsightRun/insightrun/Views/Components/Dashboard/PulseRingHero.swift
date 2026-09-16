@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PulseRingHero: View {
-    let score: Int
+    let score: Int?
     let yesterdayScore: Int?
     let statusTitle: String
     let statusColor: Color
@@ -50,7 +50,7 @@ struct PulseRingHero: View {
         .accessibilityIdentifier("pulse-ring-hero")
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Availability", comment: "Pulse ring eyebrow"))
-        .accessibilityValue("\(score)/100, \(statusTitle)")
+        .accessibilityValue("\(score.map(String.init) ?? "—")/100, \(statusTitle)")
         .onAppear { halo = true }
     }
 
@@ -127,7 +127,7 @@ struct PulseRingHero: View {
     }
 
     private func gaugeShape(cx: CGFloat, cy: CGFloat, radius: CGFloat, stroke: CGFloat) -> some View {
-        let progress = max(0, min(1, Double(score) / 100.0))
+        let progress = max(0, min(1, Double(score ?? 0) / 100.0))
         let arcGradient = AngularGradient(
             gradient: Gradient(stops: [
                 .init(color: Color.irError, location: 0.50),
@@ -195,7 +195,7 @@ struct PulseRingHero: View {
     }
 
     private func needle(cx: CGFloat, cy: CGFloat, radius: CGFloat) -> some View {
-        let progress: CGFloat = CGFloat(max(0, min(1, Double(score) / 100.0)))
+        let progress: CGFloat = CGFloat(max(0, min(1, Double(score ?? 0) / 100.0)))
         let angle: CGFloat = .pi + progress * .pi
         let inner: CGFloat = radius - 18
         let needleEnd = CGPoint(x: cx + cos(angle) * inner, y: cy + sin(angle) * inner)
@@ -222,7 +222,7 @@ struct PulseRingHero: View {
 
     private func centerScore(cx: CGFloat, cy: CGFloat) -> some View {
         VStack(spacing: 2) {
-            Text("\(score)")
+            Text(score.map(String.init) ?? "—")
                 .font(IRFont.numXL.weight(.heavy))
                 .kerning(-3.5)
                 .foregroundStyle(Color.irTextPrimary)
@@ -241,7 +241,7 @@ struct PulseRingHero: View {
 
     private func footer(summary: String) -> some View {
         HStack {
-            if let yesterday = yesterdayScore {
+            if let yesterday = yesterdayScore, let score {
                 let delta = score - yesterday
                 let isUp = delta >= 0
                 HStack(spacing: Spacing.xs) {

@@ -172,7 +172,7 @@ struct WeeklySummaryView: View {
                         .foregroundStyle(Color.irTextTertiary)
 
                     HStack(alignment: .lastTextBaseline, spacing: 4) {
-                        Text("\(viewModel.averageRecoveryScore)")
+                        Text(viewModel.averageRecoveryScore.map(String.init) ?? "—")
                             .font(IRFont.numeric(size: 72, weight: .heavy))
                             .kerning(-2.8)
                             .foregroundStyle(Color.irTextPrimary)
@@ -198,8 +198,10 @@ struct WeeklySummaryView: View {
 
                 Spacer()
 
-                RecoveryRing(score: viewModel.averageRecoveryScore)
-                    .frame(width: 88, height: 88)
+                if let score = viewModel.averageRecoveryScore {
+                    RecoveryRing(score: score)
+                        .frame(width: 88, height: 88)
+                }
             }
         }
         .padding(Spacing.lg)
@@ -661,8 +663,8 @@ struct WeeklySummaryView: View {
         if let recDelta = viewModel.recoveryScoreChange {
             rows.append(ComparisonRow(
                 label: String(localized: "Recovery score", comment: "Recovery score comparison row label"),
-                current: "\(viewModel.averageRecoveryScore)",
-                previous: "\(viewModel.prevAverageRecoveryScore)",
+                current: viewModel.averageRecoveryScore.map(String.init) ?? "—",
+                previous: viewModel.prevAverageRecoveryScore.map(String.init) ?? "—",
                 delta: deltaPointsLabel(recDelta),
                 isNegative: recDelta < 0
             ))

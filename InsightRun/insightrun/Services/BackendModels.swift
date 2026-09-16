@@ -152,17 +152,30 @@ struct SplitData: Encodable {
 
 // MARK: - Recovery Data
 
-struct RecoveryData: Encodable {
-    let restingHeartRate: Int?
-    let hrv: Int?
-    let walkingHeartRate: Int?
-    let respiratoryRate: Int?
+struct RecoveryData: Codable {
+    let restingHeartRate: Double?
+    let hrv: Double?
+    let walkingHeartRate: Double?
+    let respiratoryRate: Double?
+    let oxygenSaturation: Double?
     let sleepData: SleepDataPayload?
+
+    init(metrics: RecoveryMetrics) {
+        restingHeartRate = metrics.restingHeartRate
+        hrv = metrics.hrvAverage
+        walkingHeartRate = metrics.walkingHeartRate
+        respiratoryRate = metrics.respiratoryRate
+        oxygenSaturation = metrics.oxygenSaturation
+        sleepData = metrics.sleepData.map {
+            SleepDataPayload(totalDuration: $0.totalSleepDuration, efficiency: $0.sleepEfficiency,
+                             deepDuration: $0.deepSleepDuration, remDuration: $0.remSleepDuration)
+        }
+    }
 }
 
-struct SleepDataPayload: Encodable {
+struct SleepDataPayload: Codable {
     let totalDuration: Double
-    let efficiency: Int
+    let efficiency: Double
     let deepDuration: Double?
     let remDuration: Double?
 }
@@ -195,7 +208,7 @@ struct HealthProfileData: Encodable {
 
 // MARK: - Personal Baseline Data
 
-struct PersonalBaselineData: Encodable {
+struct PersonalBaselineData: Codable {
     let restingHeartRateAverage: Double?
     let restingHeartRateStdDev: Double?
     let hrvAverage: Double?
@@ -206,6 +219,23 @@ struct PersonalBaselineData: Encodable {
     let respiratoryRateStdDev: Double?
     let dataPointCount: Int
     let isReliable: Bool
+    let deepSleepPercentageAverage: Double?
+    let remSleepPercentageAverage: Double?
+
+    init(baseline: PersonalBaseline) {
+        restingHeartRateAverage = baseline.restingHeartRateAverage
+        restingHeartRateStdDev = baseline.restingHeartRateStdDev
+        hrvAverage = baseline.hrvAverage
+        hrvStdDev = baseline.hrvStdDev
+        sleepDurationAverage = baseline.sleepDurationAverage
+        sleepEfficiencyAverage = baseline.sleepEfficiencyAverage
+        respiratoryRateAverage = baseline.respiratoryRateAverage
+        respiratoryRateStdDev = baseline.respiratoryRateStdDev
+        dataPointCount = baseline.dataPointCount
+        isReliable = baseline.isReliable
+        deepSleepPercentageAverage = baseline.deepSleepPercentageAverage
+        remSleepPercentageAverage = baseline.remSleepPercentageAverage
+    }
 }
 
 // MARK: - Recent Workouts Data

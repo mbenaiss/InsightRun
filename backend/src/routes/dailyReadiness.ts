@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { z } from 'zod'
 import { RequestType, selectModelFromRequest } from '../modelRouter'
 import type {
   CardiacLoadData,
@@ -38,7 +39,7 @@ interface DailyReadinessRequest {
    * AI coaching text refreshes as the day's context evolves.
    */
   cachedScore?: number
-  /** Status paired with `cachedScore`; falls back to derivation from the score. */
+  /** Accepted for older clients; response status is derived from the score. */
   cachedStatus?: string
   /**
    * Set by the iOS client when fewer than 3 nights of sleep have been tracked over
@@ -165,15 +166,29 @@ function scoreSpO2(spo2: number): number {
   return 0.0
 }
 
+function normalizeSleepData(
+  sleep: NonNullable<RecoveryData['sleepData']>
+): RecoveryData['sleepData'] {
+  if (sleep.totalDuration === 0) return undefined
+  // Older clients can send phases that overlap across HealthKit sources.
+  if ((sleep.deepDuration ?? 0) + (sleep.remDuration ?? 0) > sleep.totalDuration + 0.001) {
+    return { totalDuration: sleep.totalDuration, efficiency: sleep.efficiency }
+  }
+  return sleep
+}
+
 // Calculate readiness score based on recovery metrics and personal baseline
 // Aligned with iOS RecoveryMetrics.calculateRecoveryScore()
 // Uses z-score deviation from personal baseline when available (Whoop/Oura style)
 // Scientific basis: Plews et al. (2013), Buchheit (2014), Flatt & Esco (2016)
-function calculateReadinessScore(
+export function calculateReadinessScore(
   recovery: RecoveryData,
   baseline?: PersonalBaselineData,
   noSleepMode?: boolean
 ): { score: number; insights: ReadinessInsight[] } {
+  if (recovery.sleepData) {
+    recovery = { ...recovery, sleepData: normalizeSleepData(recovery.sleepData) }
+  }
   const insights: ReadinessInsight[] = []
   const useBaseline = baseline?.isReliable === true
   let totalScore = 0
@@ -342,7 +357,7 @@ function calculateReadinessScore(
 
       // Efficiency score: use baseline deviation when available (aligned with iOS)
       let efficiencyScore: number
-      if (baseline?.sleepEfficiencyAverage) {
+      if (baseline?.sleepEfficiencyAverage !== undefined) {
         // stdDev 5.0 = typical population standard deviation for sleep efficiency (%)
         efficiencyScore = scoreFromDeviation(
           efficiency,
@@ -358,30 +373,33 @@ function calculateReadinessScore(
       // Duration + efficiency: averaged 50/50 (aligned with iOS scoreSleepVsBaseline)
       const durationEfficiencyScore = (durationScore + efficiencyScore) / 2
 
-      // Sleep stages scoring (deep + REM) - uses fixed ranges because baseline stage
-      // percentages are not sent from iOS. Note: iOS scoreSleepStages uses baseline
-      // deepSleepPercentageAverage/remSleepPercentageAverage when available.
-      if (recovery.sleepData.deepDuration && recovery.sleepData.remDuration) {
+      let stagesScore = 0.5
+      if (
+        recovery.sleepData.deepDuration !== undefined &&
+        recovery.sleepData.remDuration !== undefined
+      ) {
         const totalSleep = recovery.sleepData.totalDuration
         const deepPct = (recovery.sleepData.deepDuration / totalSleep) * 100
         const remPct = (recovery.sleepData.remDuration / totalSleep) * 100
-
-        let deepScore: number
-        if (deepPct >= 15 && deepPct <= 20) deepScore = 1.0
-        else if (deepPct >= 13 && deepPct <= 25) deepScore = 0.7
-        else deepScore = 0.3
-
-        let remScore: number
-        if (remPct >= 20 && remPct <= 25) remScore = 1.0
-        else if (remPct >= 18 && remPct <= 28) remScore = 0.7
-        else remScore = 0.3
-
-        const stagesScore = (deepScore + remScore) / 2
-        // 60% duration/efficiency, 40% stages (aligned with iOS)
-        sleepRawScore = durationEfficiencyScore * 0.6 + stagesScore * 0.4
-      } else {
-        sleepRawScore = durationEfficiencyScore
+        const deepScore =
+          baseline?.deepSleepPercentageAverage !== undefined
+            ? scoreFromDeviation(deepPct, baseline.deepSleepPercentageAverage, 5, true, 0.1)
+            : deepPct >= 15 && deepPct <= 20
+              ? 1
+              : deepPct >= 13 && deepPct <= 25
+                ? 0.7
+                : 0.3
+        const remScore =
+          baseline?.remSleepPercentageAverage !== undefined
+            ? scoreFromDeviation(remPct, baseline.remSleepPercentageAverage, 5, true, 0.1)
+            : remPct >= 20 && remPct <= 25
+              ? 1
+              : remPct >= 18 && remPct <= 28
+                ? 0.7
+                : 0.3
+        stagesScore = (deepScore + remScore) / 2
       }
+      sleepRawScore = durationEfficiencyScore * 0.6 + stagesScore * 0.4
     } else {
       // Fixed-range path (aligned with iOS calculateSleepScore)
       let durationScore: number
@@ -987,13 +1005,94 @@ function extractJSONStringField(content: string, key: string): string | null {
   return value.trim() || null
 }
 
+const measurement = z.number().positive().optional()
+const nonnegative = z.number().nonnegative().optional()
+const readinessRequestSchema = z.object({
+  recovery: z.object({
+    restingHeartRate: measurement,
+    hrv: measurement,
+    walkingHeartRate: measurement,
+    respiratoryRate: measurement,
+    oxygenSaturation: z.number().positive().max(100).optional(),
+    sleepData: z
+      .object({
+        totalDuration: z.number().nonnegative(),
+        efficiency: z.number().min(0).max(100),
+        deepDuration: nonnegative,
+        remDuration: nonnegative,
+      })
+      .transform(normalizeSleepData)
+      .optional(),
+  }),
+  baseline: z
+    .object({
+      restingHeartRateAverage: measurement,
+      restingHeartRateStdDev: nonnegative,
+      hrvAverage: measurement,
+      hrvStdDev: nonnegative,
+      respiratoryRateAverage: measurement,
+      respiratoryRateStdDev: nonnegative,
+      sleepDurationAverage: measurement,
+      sleepEfficiencyAverage: z.number().min(0).max(100).optional(),
+      deepSleepPercentageAverage: z.number().min(0).max(100).optional(),
+      remSleepPercentageAverage: z.number().min(0).max(100).optional(),
+      dataPointCount: z.number().int().nonnegative(),
+      isReliable: z.boolean(),
+    })
+    .optional(),
+  dailyActivity: z
+    .object({
+      steps: z.number().nonnegative(),
+      activeCalories: z.number().nonnegative(),
+      exerciseMinutes: z.number().nonnegative(),
+      effortScore: z.number().min(0).max(100),
+    })
+    .optional(),
+  cardiacLoad: z
+    .object({
+      score: z.number().min(0).max(20),
+      status: z.enum(['increasing', 'maintaining', 'decreasing', 'detraining', 'overreaching']),
+    })
+    .optional(),
+  recentWorkouts: z
+    .array(
+      z.object({
+        date: z.string(),
+        distanceMeters: z.number().nonnegative(),
+        durationSeconds: z.number().nonnegative(),
+        avgHeartRate: measurement,
+        maxHeartRate: measurement,
+        pace: nonnegative,
+        hoursAgo: z.number().nonnegative(),
+      })
+    )
+    .optional(),
+  language: z.string().default('en'),
+  cachedScore: z.number().int().min(0).max(100).optional(),
+  cachedStatus: z.string().optional(),
+  noSleepMode: z.boolean().optional(),
+})
+
 // POST /api/daily-readiness
 app.post('/', async (c) => {
   try {
-    const body = (await c.req.json()) as DailyReadinessRequest
-
-    if (!body.recovery) {
-      return c.json({ error: 'Bad Request', message: 'Recovery data is required' }, 400)
+    const parsed = readinessRequestSchema.safeParse(await c.req.json().catch(() => null))
+    if (!parsed.success) {
+      return c.json({ error: 'Bad Request', message: 'Invalid readiness data' }, 400)
+    }
+    const body: DailyReadinessRequest = parsed.data
+    const recovery = body.recovery
+    const hasMeasurements =
+      recovery.hrv !== undefined ||
+      recovery.restingHeartRate !== undefined ||
+      recovery.respiratoryRate !== undefined ||
+      recovery.oxygenSaturation !== undefined ||
+      (recovery.sleepData !== undefined && !body.noSleepMode)
+    if (!hasMeasurements) {
+      return c.json(
+        { error: 'Insufficient Data', message: 'No recovery measurements available' },
+        422
+      )
     }
 
     const language = body.language || 'en'
@@ -1007,7 +1106,7 @@ app.post('/', async (c) => {
       body.noSleepMode === true
     )
     const hasFrozenScore = typeof body.cachedScore === 'number'
-    let score = hasFrozenScore ? (body.cachedScore as number) : computed.score
+    let score = body.cachedScore ?? computed.score
     const insights = computed.insights
 
     // Add daily activity insights
@@ -1108,15 +1207,7 @@ app.post('/', async (c) => {
       }
     }
 
-    // Honor the client-provided status when a frozen score is in play, so the
-    // displayed status, AI prompt context, and suggested workout stay coherent.
-    // Validate at runtime — TypeScript can't protect us from buggy/old clients.
-    const isValidStatus = (s: unknown): s is ReadinessStatus =>
-      typeof s === 'string' && (READINESS_STATUSES as readonly string[]).includes(s)
-    const status: ReadinessStatus =
-      hasFrozenScore && isValidStatus(body.cachedStatus)
-        ? body.cachedStatus
-        : getStatusFromScore(score)
+    const status = getStatusFromScore(score)
     const suggestedWorkoutType = getWorkoutType(status, body.cardiacLoad, body.dailyActivity)
 
     // Generate AI recommendation with fallback to static one

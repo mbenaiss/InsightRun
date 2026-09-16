@@ -152,6 +152,8 @@ export interface PersonalBaselineData {
   hrvStdDev?: number
   sleepDurationAverage?: number // in seconds
   sleepEfficiencyAverage?: number // percentage
+  deepSleepPercentageAverage?: number
+  remSleepPercentageAverage?: number
   respiratoryRateAverage?: number
   respiratoryRateStdDev?: number
   oxygenSaturationAverage?: number

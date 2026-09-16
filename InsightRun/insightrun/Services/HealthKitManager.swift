@@ -2540,7 +2540,10 @@ class HealthKitManager: ObservableObject {
     }
 
     private func loadRecoveryMetrics(for date: Date) async throws -> RecoveryMetrics {
-        if DemoMode.isEnabled { return MockData.sampleRecoveryMetrics }
+        #if DEBUG
+        DashboardDiagnostics.record("healthkit.recovery", date: date)
+        #endif
+        if DemoMode.isEnabled { return MockData.recoveryMetrics(for: date) }
 
         // Fetch metrics for the given day
         let calendar = Calendar.current
@@ -2702,24 +2705,9 @@ class HealthKitManager: ObservableObject {
         guard !samples.isEmpty else { return nil }
 
         // Group samples into continuous sleep sessions
-        let sleepSessions = groupSleepSessions(samples)
+        let sleepSessions = Self.groupSleepSessions(samples)
 
-        // Find the main sleep session that ends on the morning of the target date
-        // Look for sessions ending between 4 AM and 2 PM on the target date
-        let morningStart = calendar.date(byAdding: .hour, value: 4, to: startOfDay)!
-        let afternoonEnd = calendar.date(byAdding: .hour, value: 14, to: startOfDay)!
-
-        let mainSession = sleepSessions.first { session in
-            let sessionEnd = session.last!.endDate
-            return sessionEnd >= morningStart && sessionEnd <= afternoonEnd
-        }
-
-        // If no session found in morning window, take the session that overlaps most with the target date
-        let targetSession = mainSession ?? sleepSessions.max { session1, session2 in
-            let overlap1 = calculateOverlap(session: session1, with: startOfDay, calendar: calendar)
-            let overlap2 = calculateOverlap(session: session2, with: startOfDay, calendar: calendar)
-            return overlap1 < overlap2
-        }
+        let targetSession = Self.selectSleepSession(sleepSessions, for: startOfDay, calendar: calendar)
 
         guard let session = targetSession, !session.isEmpty else { return nil }
 
@@ -2752,14 +2740,15 @@ class HealthKitManager: ObservableObject {
             awake = Self.mergedDuration(of: session.filter { $0.value == HKCategoryValueSleepAnalysis.awake.rawValue })
         }
 
+        guard totalSleep > 0 else { return nil }
+
         // If timeInBed wasn't recorded, use total sleep + awake time
         if timeInBed == 0 {
             timeInBed = totalSleep + awake
         }
 
-        // Get session start and end times
-        let sessionStart = session.first!.startDate
-        let sessionEnd = session.last!.endDate
+        let sessionStart = session.map(\.startDate).min()!
+        let sessionEnd = session.map(\.endDate).max()!
 
         // Calculate naps: all other sessions during the day (midnight to midnight), excluding main sleep
         let napDuration = calculateNapDuration(
@@ -2970,6 +2959,9 @@ class HealthKitManager: ObservableObject {
 
     /// Fetch daily activity metrics (steps, active calories, exercise minutes) and personal ring goals
     func fetchDailyActivityData(for date: Date) async -> DailyActivityData {
+        #if DEBUG
+        DashboardDiagnostics.record("healthkit.activity", date: date)
+        #endif
         if DemoMode.isEnabled { return MockData.sampleDailyActivityData }
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: date)
@@ -3026,28 +3018,29 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Sleep Session Grouping
 
-    private func groupSleepSessions(_ samples: [HKCategorySample]) -> [[HKCategorySample]] {
+    private static func groupSleepSessions(_ samples: [HKCategorySample]) -> [[HKCategorySample]] {
         guard !samples.isEmpty else { return [] }
 
         var sessions: [[HKCategorySample]] = []
         var currentSession: [HKCategorySample] = [samples[0]]
+        var sessionEnd = samples[0].endDate
 
         // Group samples into sessions if they are within 2 hours of each other
         let maxGapBetweenSamples: TimeInterval = 2 * 3600 // 2 hours
 
         for i in 1..<samples.count {
-            let previousSample = samples[i - 1]
             let currentSample = samples[i]
-
-            let gap = currentSample.startDate.timeIntervalSince(previousSample.endDate)
+            let gap = currentSample.startDate.timeIntervalSince(sessionEnd)
 
             if gap <= maxGapBetweenSamples {
                 // Same session - add to current
                 currentSession.append(currentSample)
+                sessionEnd = max(sessionEnd, currentSample.endDate)
             } else {
                 // New session - save current and start new one
                 sessions.append(currentSession)
                 currentSession = [currentSample]
+                sessionEnd = currentSample.endDate
             }
         }
 
@@ -3059,11 +3052,26 @@ class HealthKitManager: ObservableObject {
         return sessions
     }
 
-    private func calculateOverlap(session: [HKCategorySample], with targetDate: Date, calendar: Calendar) -> TimeInterval {
+    static func selectSleepSession(_ sessions: [[HKCategorySample]], for date: Date, calendar: Calendar = .current) -> [HKCategorySample]? {
+        let startOfDay = calendar.startOfDay(for: date)
+        let morningStart = calendar.date(byAdding: .hour, value: 4, to: startOfDay)!
+        let afternoonEnd = calendar.date(byAdding: .hour, value: 14, to: startOfDay)!
+        let candidates = sessions.filter { calculateOverlap(session: $0, with: startOfDay, calendar: calendar) > 0 }
+        let morning = candidates.first { session in
+            guard let end = session.map(\.endDate).max() else { return false }
+            return end >= morningStart && end <= afternoonEnd
+        }
+        return morning ?? candidates.max {
+            calculateOverlap(session: $0, with: startOfDay, calendar: calendar)
+                < calculateOverlap(session: $1, with: startOfDay, calendar: calendar)
+        }
+    }
+
+    private static func calculateOverlap(session: [HKCategorySample], with targetDate: Date, calendar: Calendar) -> TimeInterval {
         guard !session.isEmpty else { return 0 }
 
-        let sessionStart = session.first!.startDate
-        let sessionEnd = session.last!.endDate
+        let sessionStart = session.map(\.startDate).min()!
+        let sessionEnd = session.map(\.endDate).max()!
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: targetDate)!
 
         // Calculate overlap between session and target day

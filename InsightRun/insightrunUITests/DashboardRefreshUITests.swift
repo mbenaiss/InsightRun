@@ -1,0 +1,85 @@
+import XCTest
+
+final class DashboardRefreshUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+
+    func testCardsKeepTheirValuesInDetailsAndShowReferenceDate() {
+        let app = launchDemo()
+        for id in ["pulse-ring-hero", "score-effort", "score-sleep"] {
+            let card = app.descendants(matching: .any)[id].firstMatch
+            XCTAssertTrue(card.waitForExistence(timeout: 15))
+            if !card.isHittable { app.swipeUp() }
+            card.tap()
+            let hero = app.descendants(matching: .any)["detail-hero-value"].firstMatch
+            XCTAssertTrue(hero.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["score-reference-date"].exists)
+            if id == "pulse-ring-hero" { XCTAssertTrue(hero.label.contains("82")) }
+            XCTAssertFalse(app.staticTexts["score-analysis-error"].exists)
+            app.buttons["sheet-close"].tap()
+            XCTAssertTrue(app.buttons["sheet-close"].waitForNonExistence(timeout: 5))
+        }
+    }
+
+    func testCalendarSelectionRefreshesCardsAndMissingHistoricalReadinessStaysUnavailable() {
+        let app = launchDemo()
+        app.buttons["dashboard-calendar"].tap()
+        XCTAssertTrue(app.buttons["recovery-calendar-close"].waitForExistence(timeout: 10))
+        app.buttons["recovery-calendar-previous-month"].tap()
+        app.buttons["dashboard-day-10"].tap()
+        XCTAssertTrue(app.buttons["recovery-calendar-close"].waitForNonExistence(timeout: 10))
+        let hero = app.buttons["pulse-ring-hero"]
+        XCTAssertTrue(hero.waitForExistence(timeout: 20))
+        hero.tap()
+        let date = app.staticTexts["score-reference-date"]
+        XCTAssertTrue(date.waitForExistence(timeout: 10))
+        XCTAssertTrue(date.label.contains("10"))
+        let detail = app.descendants(matching: .any)["detail-hero-value"].firstMatch
+        XCTAssertTrue(detail.label.contains("—"))
+        app.buttons["sheet-close"].tap()
+        app.buttons["dashboard-calendar"].tap()
+        app.buttons["Aujourd'hui"].tap()
+        XCTAssertTrue(hero.waitForExistence(timeout: 20))
+        hero.tap()
+        XCTAssertTrue(detail.waitForExistence(timeout: 10))
+        XCTAssertTrue(detail.label.contains("82"))
+    }
+
+    func testAllSignalsAndWeeklySummaryOpenWithoutLosingDashboardState() {
+        let app = launchDemo()
+        for label in ["VFC au repos", "FC repos", "Fréquence respiratoire", "Saturation en oxygène", "Charge cardiaque", "Calories"] {
+            let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", label)).firstMatch
+            for _ in 0..<6 where !card.isHittable { app.swipeUp() }
+            XCTAssertTrue(card.isHittable, label)
+            card.tap()
+            let value = app.descendants(matching: .any)["detail-hero-value"].firstMatch
+            XCTAssertTrue(value.waitForExistence(timeout: 10), label)
+            XCTAssertTrue(app.staticTexts["score-reference-date"].exists, label)
+            XCTAssertFalse(app.staticTexts["score-analysis-error"].exists, label)
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = label
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            app.swipeUp()
+            app.swipeUp()
+            app.buttons["sheet-close"].tap()
+            XCTAssertTrue(app.buttons["sheet-close"].waitForNonExistence(timeout: 5))
+        }
+        let weekly = app.buttons["weekly-summary-link"]
+        for _ in 0..<6 where !weekly.isHittable { app.swipeDown() }
+        XCTAssertTrue(weekly.isHittable)
+        weekly.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["weekly-summary-content"].firstMatch.waitForExistence(timeout: 15))
+        app.swipeUp()
+        app.swipeUp()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["dashboard-settings"].waitForExistence(timeout: 10))
+    }
+
+    private func launchDemo() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-DEMO_MODE", "-DASHBOARD_DIAGNOSTICS", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["pulse-ring-hero"].waitForExistence(timeout: 20))
+        return app
+    }
+}

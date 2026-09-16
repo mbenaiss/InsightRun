@@ -13,11 +13,14 @@ struct DashboardView: View {
     @StateObject private var weeklySummaryVM = WeeklySummaryViewModel()
     @StateObject private var notificationRouter = NotificationRouter.shared
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared // swiftlint:disable:this private_state_object
-    @ObservedObject private var trainingLoadService = TrainingLoadService.shared // swiftlint:disable:this private_state_object
+    @StateObject private var trainingLoadService = TrainingLoadService()
     @Environment(ThemeManager.self) private var themeManager
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
+    @StateObject private var refreshCoordinator = DashboardRefreshCoordinator()
+    @State private var loadedDate: Date?
+    @State private var lastActiveDay = Calendar.current.startOfDay(for: Date())
     @State private var showSettings = false
     @State private var showingCalendar = false
     @State private var showWorkoutPlan = false
@@ -85,10 +88,6 @@ struct DashboardView: View {
                     isPresented: $showingCalendar,
                     onDateSelected: { date in
                         hasForwardPage = !Calendar.current.isDateInToday(date)
-                        Task {
-                            await recoveryVM.loadRecoveryMetrics(for: date)
-                            await TrainingLoadService.shared.analyzeDailyEffort(for: date)
-                        }
                     }
                 )
                 .presentationDetents([.large])
@@ -130,7 +129,9 @@ struct DashboardView: View {
                     trendData: trend,
                     cardiacLoadStatus: type == .cardiacLoad ? trainingLoadService.cardiacLoadStatus : nil,
                     recoveryMetrics: recoveryVM.recoveryMetrics,
-                    activityData: type == .effort ? latestActivityData : nil
+                    activityData: type == .effort ? latestActivityData : nil,
+                    isScoreAvailable: scoreAvailable(for: type),
+                    readinessStatus: type == .readiness ? readinessVM.status : nil
                 )
                 .environmentObject(revenueCatManager)
                 .presentationDetents([.large])
@@ -138,14 +139,14 @@ struct DashboardView: View {
             .sheet(item: $selectedMetricSheet) { item in
                 ScoreExplanationSheet(
                     metricType: item.metricType,
-                    currentValue: item.value,
+                    currentValue: metricValue(for: item.metricType) ?? item.value,
                     unit: item.unit,
-                    deviationStatus: item.deviationStatus,
-                    baseline: item.baseline,
-                    trendData: item.trend,
+                    deviationStatus: metricDeviation(for: item.metricType) ?? item.deviationStatus,
+                    baseline: recoveryVM.recoveryMetrics?.baseline,
+                    trendData: metricTrend(for: item.metricType),
                     recoveryMetrics: recoveryVM.recoveryMetrics,
-                    activityData: item.activityData,
-                    caloriesBreakdown: item.caloriesBreakdown
+                    activityData: item.activityData == nil ? nil : latestActivityData,
+                    caloriesBreakdown: item.caloriesBreakdown == nil ? nil : caloriesBreakdownTrend
                 )
                 .environmentObject(revenueCatManager)
                 .presentationDetents([.large])
@@ -165,7 +166,7 @@ struct DashboardView: View {
                             if await HistoricalSummaryStorage.shared.requiresIndexation() {
                                 readinessVM.needsIndexation = true
                             } else {
-                                await refreshAll()
+                                await refreshAll(forceRefresh: true)
                             }
                         }
                     },
@@ -175,33 +176,31 @@ struct DashboardView: View {
                 )
             }
             .indexationGate(isPresented: $readinessVM.needsIndexation) {
+                await refreshAll(forceRefresh: true)
+            }
+            .task(id: recoveryVM.selectedDate) {
                 await refreshAll()
             }
-            .task {
-                loadTodaySession()
-                async let latestWorkoutLoad: Void = loadLatestWorkout()
-                await refreshAll()
-                await loadTrendData()
-                await latestWorkoutLoad
-
-                if let recovery = recoveryVM.recoveryMetrics {
-                    contextProvider.recoveryMetrics = recovery
-                }
-            }
+            .onDisappear { refreshCoordinator.cancel() }
             .onReceive(NotificationCenter.default.publisher(for: .trainingDayCompleted)) { _ in
                 loadTodaySession()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .healthWorkoutsChanged)) { _ in
+                guard scenePhase == .active else { return }
+                Task { await refreshAll(forceRefresh: true) }
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 let today = Calendar.current.startOfDay(for: Date())
-                if recoveryVM.selectedDate != today {
+                let wasShowingToday = recoveryVM.selectedDate == lastActiveDay
+                let dayChanged = today != lastActiveDay
+                lastActiveDay = today
+                if dayChanged && wasShowingToday {
                     recoveryVM.selectedDate = today
-                    recoveryVM.metricsCache.removeAll()
                     hasForwardPage = false
                     currentPage = 1
-                    Task { await refreshAll(forceRefresh: true) }
                 } else {
-                    Task { await refreshCoaching() }
+                    Task { await refreshAll() }
                 }
             }
         }
@@ -211,71 +210,151 @@ struct DashboardView: View {
 
     @MainActor
     private func refreshAll(forceRefresh: Bool = false) async {
-        let tls = trainingLoadService
-        let selectedDate = recoveryVM.selectedDate
-
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await recoveryVM.loadRecoveryMetrics() }
-            group.addTask { await weeklySummaryVM.load(includeCoaching: false) }
-            group.addTask { await tls.analyzeCardiacLoad() }
-            group.addTask { await tls.analyzeDailyEffort(for: selectedDate) }
+        let date = recoveryVM.selectedDate
+        await refreshCoordinator.refresh(for: date, force: forceRefresh) {
+            await loadDashboard(for: date, forceRefresh: forceRefresh)
         }
-
-        let activityData = await HealthKitManager.shared.fetchDailyActivityData(for: selectedDate)
-        latestActivityData = activityData
-        await readinessVM.fetchDailyReadiness(
-            activityData: activityData,
-            effortScore: tls.dailyEffortScore,
-            cardiacLoadScore: tls.cardiacLoadScore,
-            cardiacLoadStatus: tls.cardiacLoadStatus,
-            forceRefresh: forceRefresh
-        )
     }
 
     @MainActor
-    private func refreshCoaching(forceRefresh: Bool = false) async {
-        let tls = trainingLoadService
-        let selectedDate = recoveryVM.selectedDate
-
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await recoveryVM.loadRecoveryMetrics() }
-            group.addTask { await tls.analyzeDailyEffort(for: selectedDate) }
-            group.addTask { await tls.analyzeCardiacLoad() }
+    private func loadDashboard(for date: Date, forceRefresh: Bool) async {
+        #if DEBUG
+        DashboardDiagnostics.record("dashboard.refresh", date: date)
+        #endif
+        loadTodaySession()
+        if forceRefresh || Calendar.current.isDateInToday(date) {
+            MetricTrendDataService.shared.invalidateCache(keepingHistoricalData: !forceRefresh)
         }
-
-        let activityData = await HealthKitManager.shared.fetchDailyActivityData(for: selectedDate)
-        latestActivityData = activityData
+        async let weekly: Void = weeklySummaryVM.load(for: date, minimumRefreshInterval: forceRefresh ? 0 : 60,
+                                                       includeCoaching: false, includeDetails: false)
+        async let latest: Void = loadLatestWorkout()
+        async let recovery: Void = recoveryVM.loadRecoveryMetrics(for: date)
+        async let cardiac: Void = trainingLoadService.analyzeCardiacLoad(for: date)
+        let activity = await HealthKitManager.shared.fetchDailyActivityData(for: date)
+        await recovery
+        await cardiac
+        guard !Task.isCancelled, recoveryVM.selectedDate == date else { return }
+        latestActivityData = activity
+        trainingLoadService.dailyEffortScore = MetricTrendDataService.computeEffortScore(activity: activity)
+        MetricTrendDataService.shared.seedActivity(activity, for: date)
+        if let metrics = recoveryVM.recoveryMetrics {
+            MetricTrendDataService.shared.seedRecovery(metrics, for: date)
+        }
+        readinessVM.readinessScore = DailyMetricsCache.shared.getReadiness(for: date)?.score
+            ?? DailyMetricsCache.shared.getHistoricalReadinessScore(for: date)
+        readinessVM.status = DailyMetricsCache.shared.getReadiness(for: date).map { ReadinessStatus(from: $0.status) } ?? .unknown
+        if Calendar.current.isDateInToday(date), let metrics = recoveryVM.recoveryMetrics {
+            contextProvider.recoveryMetrics = metrics
+        }
+        if loadedDate != date {
+            readinessVM.recommendation = ""
+            readinessVM.recommendationSummary = ""
+            readinessVM.updatedAt = nil
+            hrvTrend = []
+            rhrTrend = []
+            respTrend = []
+            spo2Trend = []
+            effortTrend = []
+            sleepTrend = []
+            readinessTrend = []
+            caloriesTotalTrend = []
+            caloriesBreakdownTrend = []
+        }
+        loadedDate = date
+        async let trends: Void = loadTrendData(for: date)
         await readinessVM.fetchDailyReadiness(
-            activityData: activityData,
-            effortScore: tls.dailyEffortScore,
-            cardiacLoadScore: tls.cardiacLoadScore,
-            cardiacLoadStatus: tls.cardiacLoadStatus,
+            for: date,
+            recoveryMetrics: recoveryVM.recoveryMetrics,
+            activityData: activity,
+            effortScore: trainingLoadService.dailyEffortScore,
+            cardiacLoadScore: trainingLoadService.cardiacLoadScore,
+            cardiacLoadStatus: trainingLoadService.cardiacLoadStatus,
+            freshnessAvailable: trainingLoadService.freshnessScore != nil,
             forceRefresh: forceRefresh
         )
+        await trends
+        await weekly
+        await latest
+        guard !Task.isCancelled, recoveryVM.selectedDate == date else { return }
+        readinessTrend = await MetricTrendDataService.shared.readinessTrend(endingOn: date)
     }
 
     @MainActor
-    private func loadTrendData() async {
+    private func loadTrendData(for date: Date) async {
         let service = MetricTrendDataService.shared
-        async let hrv = service.metricTrend(for: .hrv)
-        async let rhr = service.metricTrend(for: .restingHeartRate)
-        async let resp = service.metricTrend(for: .respiratoryRate)
-        async let spo2 = service.metricTrend(for: .oxygenSaturation)
-        async let effort = service.effortTrend()
-        async let sleep = service.sleepTrend()
-        async let readiness = service.readinessTrend()
-        async let caloriesTotal = service.caloriesTotalTrend()
-        async let caloriesBreakdown = service.caloriesBreakdownTrend()
+        async let hrv = service.metricTrend(for: .hrv, endingOn: date)
+        async let rhr = service.metricTrend(for: .restingHeartRate, endingOn: date)
+        async let resp = service.metricTrend(for: .respiratoryRate, endingOn: date)
+        async let spo2 = service.metricTrend(for: .oxygenSaturation, endingOn: date)
+        async let effort = service.effortTrend(endingOn: date)
+        async let sleep = service.sleepTrend(endingOn: date)
+        async let readiness = service.readinessTrend(endingOn: date)
+        async let caloriesTotal = service.caloriesTotalTrend(endingOn: date)
+        async let caloriesBreakdown = service.caloriesBreakdownTrend(endingOn: date)
 
-        hrvTrend = await hrv
-        rhrTrend = await rhr
-        respTrend = await resp
-        spo2Trend = await spo2
-        effortTrend = await effort
-        sleepTrend = await sleep
-        readinessTrend = await readiness
-        caloriesTotalTrend = await caloriesTotal
-        caloriesBreakdownTrend = await caloriesBreakdown
+        let values = await (hrv, rhr, resp, spo2, effort, sleep, readiness, caloriesTotal, caloriesBreakdown)
+        guard !Task.isCancelled, recoveryVM.selectedDate == date else { return }
+        let metrics = recoveryVM.recoveryMetrics
+        hrvTrend = replacingEndpoint(values.0, value: metrics?.hrvAverage, date: date)
+        rhrTrend = replacingEndpoint(values.1, value: metrics?.restingHeartRate, date: date)
+        respTrend = replacingEndpoint(values.2, value: metrics?.respiratoryRate, date: date)
+        spo2Trend = replacingEndpoint(values.3, value: metrics?.oxygenSaturation, date: date)
+        effortTrend = values.4
+        sleepTrend = values.5
+        readinessTrend = values.6
+        caloriesTotalTrend = values.7
+        caloriesBreakdownTrend = values.8
+    }
+
+    private func replacingEndpoint(_ points: [TrendDataPoint], value: Double?, date: Date) -> [TrendDataPoint] {
+        guard let value else { return points }
+        return points.filter { !Calendar.current.isDate($0.date, inSameDayAs: date) }
+            + [TrendDataPoint(date: date, value: value)]
+    }
+
+    private func metricValue(for type: MetricType) -> Double? {
+        let metrics = recoveryVM.recoveryMetrics
+        switch type {
+        case .hrv: return metrics?.hrvAverage
+        case .restingHeartRate: return metrics?.restingHeartRate
+        case .respiratoryRate: return metrics?.respiratoryRate
+        case .oxygenSaturation: return metrics?.oxygenSaturation
+        case .totalCalories: return latestActivityData?.totalCalories
+        default: return nil
+        }
+    }
+
+    private func metricDeviation(for type: MetricType) -> DeviationStatus? {
+        guard let value = metricValue(for: type) else { return nil }
+        let baseline = recoveryVM.recoveryMetrics?.baseline
+        switch type {
+        case .hrv: return hrvDeviationStatus(value, baseline: baseline)
+        case .restingHeartRate: return rhrDeviationStatus(value, baseline: baseline)
+        case .respiratoryRate: return respDeviationStatus(value, baseline: baseline)
+        case .oxygenSaturation: return spo2DeviationStatus(value)
+        default: return nil
+        }
+    }
+
+    private func metricTrend(for type: MetricType) -> [TrendDataPoint] {
+        switch type {
+        case .hrv: return hrvTrend
+        case .restingHeartRate: return rhrTrend
+        case .respiratoryRate: return respTrend
+        case .oxygenSaturation: return spo2Trend
+        case .totalCalories: return caloriesTotalTrend
+        default: return []
+        }
+    }
+
+    private func scoreAvailable(for type: ScoreType) -> Bool {
+        switch type {
+        case .readiness: return readinessVM.readinessScore != nil
+        case .sleep: return recoveryVM.recoveryMetrics?.sleepData != nil
+        case .freshness: return trainingLoadService.freshnessScore != nil
+        case .cardiacLoad: return trainingLoadService.cardiacLoadScore != nil
+        case .effort: return latestActivityData != nil
+        }
     }
 
     // MARK: - Day Page
@@ -286,6 +365,9 @@ struct DashboardView: View {
                 dateHeader
                     .padding(.horizontal)
 
+                if loadedDate != recoveryVM.selectedDate {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                } else {
                 if !hasViewedWorkoutDetail {
                     section(title: String(localized: "Next action", comment: "Dashboard activation section title")) {
                         activationActionCard
@@ -295,7 +377,7 @@ struct DashboardView: View {
                 // Disponibilité
                 section(title: String(localized: "Availability", comment: "Dashboard section: availability")) {
                     PulseRingHero(
-                        score: readinessVM.readinessScore ?? 0,
+                        score: readinessVM.readinessScore,
                         yesterdayScore: yesterdayReadinessScore,
                         statusTitle: readinessVM.status.title,
                         statusColor: readinessVM.status.color,
@@ -312,7 +394,7 @@ struct DashboardView: View {
                         SecondaryScoreCard(
                             title: String(localized: "Effort", comment: "Dashboard effort label"),
                             score: trainingLoadService.dailyEffortScore,
-                            baseline: 55,
+                            baseline: averagePreviousScores(effortTrend),
                             accent: .irWarning,
                             trend: effortTrend.suffix(7).map(\.value),
                             onTap: { selectedScoreType = .effort }
@@ -330,7 +412,7 @@ struct DashboardView: View {
                             SecondaryScoreCard(
                                 title: String(localized: "Freshness", comment: "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable"),
                                 score: freshness,
-                                baseline: 55,
+                                baseline: averagePreviousScores(trainingLoadService.freshnessTrendData),
                                 accent: .irSuccess,
                                 trend: trainingLoadService.freshnessTrendData.suffix(7).map(\.value),
                                 onTap: { selectedScoreType = .freshness }
@@ -346,8 +428,8 @@ struct DashboardView: View {
                         } else {
                             SecondaryScoreCard(
                                 title: String(localized: "Sleep", comment: "Dashboard sleep label"),
-                                score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0,
-                                baseline: 75,
+                                score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore,
+                                baseline: averagePreviousScores(sleepTrend),
                                 accent: .irSuccess,
                                 trend: sleepTrend.suffix(7).map(\.value),
                                 onTap: { selectedScoreType = .sleep }
@@ -411,7 +493,7 @@ struct DashboardView: View {
                 ) {
                     signalsGrid
                 }
-
+                }
             }
             .padding(.top, Spacing.sm)
             .padding(.bottom, 100)
@@ -555,7 +637,10 @@ struct DashboardView: View {
             latestWorkout = nil
             return
         }
-        latestWorkout = (try? await HealthKitManager.shared.fetchRunningWorkouts(limit: 1))?.workouts.first
+        guard !hasViewedWorkoutDetail else { return }
+        let workout = (try? await HealthKitManager.shared.fetchRunningWorkouts(limit: 1))?.workouts.first
+        guard !Task.isCancelled else { return }
+        latestWorkout = workout
     }
 
     private func routeToWorkout(_ workout: WorkoutModel, source: String) {
@@ -592,7 +677,6 @@ struct DashboardView: View {
         currentNavID = navID
         recoveryVM.selectedDate = newDate
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        Task { await refreshAll() }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             guard currentNavID == navID else { return }
@@ -835,7 +919,7 @@ struct DashboardView: View {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         formatter.setLocalizedDateFormatFromTemplate("d MMM jmm")
-        return formatter.string(from: Date())
+        return readinessVM.updatedAt.map { formatter.string(from: $0) } ?? "—"
     }
 
     private var coachingRecommendation: String {
@@ -888,11 +972,14 @@ struct DashboardView: View {
     // MARK: - Pulse Ring helpers
 
     private var yesterdayReadinessScore: Int? {
-        let trend = readinessTrend
-        guard trend.count >= 2 else { return nil }
-        let yesterday = trend[trend.count - 2]
-        let value = Int(yesterday.value.rounded())
-        return value > 0 ? value : nil
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: recoveryVM.selectedDate) else { return nil }
+        return readinessTrend.first { Calendar.current.isDate($0.date, inSameDayAs: yesterday) }.map { Int($0.value.rounded()) }
+    }
+
+    private func averagePreviousScores(_ trend: [TrendDataPoint]) -> Int? {
+        let previous = trend.filter { $0.date < Calendar.current.startOfDay(for: recoveryVM.selectedDate) }
+        guard !previous.isEmpty else { return nil }
+        return Int((previous.map(\.value).reduce(0, +) / Double(previous.count)).rounded())
     }
 
     private var footerSummary: String? {
@@ -904,8 +991,8 @@ struct DashboardView: View {
     // MARK: - Weekly activity helpers
 
     private var weeklyActivityWeekLabel: String {
-        let weekOfYear = Calendar.current.component(.weekOfYear, from: Date())
-        let runs = weeklySummaryVM.runCount
+        let weekOfYear = Calendar.current.component(.weekOfYear, from: recoveryVM.selectedDate)
+        let runs = weeklySummaryVM.dailyRunDistancesKm.filter { $0 > 0 }.count
         let week = String(localized: "Week", comment: "Week prefix in weekly activity card")
         let dayWord = String(localized: "days", comment: "Days suffix in weekly activity card")
         return "\(week) \(weekOfYear) · \(runs)/7 \(dayWord)"

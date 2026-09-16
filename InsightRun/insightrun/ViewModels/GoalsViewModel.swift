@@ -237,7 +237,7 @@ class GoalsViewModel: ObservableObject {
             goals[goalIdx].trainingPlan != nil
         else { return }
 
-        guard !isGeneratingPlan, !isAdaptingPlan, goals[goalIdx].completedWorkouts == 0 else { return }
+        guard !isGeneratingPlan, !isAdaptingPlan, goals[goalIdx].canStartPlan(on: newStart) else { return }
         var updated = goals[goalIdx]
         updated.planStartDate = Calendar.current.startOfDay(for: newStart)
         goals[goalIdx] = updated

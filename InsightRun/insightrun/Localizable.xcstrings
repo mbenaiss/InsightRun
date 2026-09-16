@@ -1,6 +1,190 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "workout.search.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, date or source"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom, date ou source"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre, fecha u origen"
+          }
+        }
+      }
+    },
+    "workout.rename.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename workout"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renommer la séance"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renombrar sesión"
+          }
+        }
+      }
+    },
+    "workout.rename.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workout name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom de la séance"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre de la sesión"
+          }
+        }
+      }
+    },
+    "workout.rename.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use original name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom d’origine"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar nombre original"
+          }
+        }
+      }
+    },
+    "workout.rename.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This name will be used in InsightRun."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce nom sera utilisé dans InsightRun."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este nombre se usará en InsightRun."
+          }
+        }
+      }
+    },
+    "workout.distance.all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas"
+          }
+        }
+      }
+    },
+    "workout.distance.half" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Half"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Semi"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Media"
+          }
+        }
+      }
+    },
+    "workout.distance.marathon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marathon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marathon"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maratón"
+          }
+        }
+      }
+    },
     "recovery.insufficient_data" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Not enough health data to assess your recovery yet." } },
@@ -6655,13 +6839,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Set a race goal and get a personalized training plan, or log your past races."
+            "value" : "Set a race goal and get a personalized training plan."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fixe un objectif de course et obtiens un plan d'entraînement personnalisé, ou enregistre tes courses passées."
+            "value" : "Fixe un objectif de course et obtiens un plan d'entraînement personnalisé."
           }
         }
       }
@@ -6684,19 +6868,19 @@
         }
       }
     },
-    "goals.eyebrow.plansAndRaces" : {
+    "goals.eyebrow.plansAndGoals" : {
       "comment" : "Goals tab - top eyebrow",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plans & Races"
+            "value" : "Plans & Goals"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plan & Courses"
+            "value" : "Plans & Objectifs"
           }
         }
       }
@@ -6719,24 +6903,6 @@
         }
       }
     },
-    "goals.form.dateSection" : {
-      "comment" : "Goal form - date section",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Race Date"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Date de course"
-          }
-        }
-      }
-    },
     "goals.form.details" : {
       "comment" : "Goal form - details label",
       "extractionState" : "extracted_with_value",
@@ -6751,24 +6917,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Détails"
-          }
-        }
-      }
-    },
-    "goals.form.finishTime" : {
-      "comment" : "Goal form - finish time label",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Finish Time"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps d'arrivée"
           }
         }
       }
@@ -6845,60 +6993,6 @@
         }
       }
     },
-    "goals.form.notes" : {
-      "comment" : "Goal form - notes placeholder",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "How did it go? (optional)"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notes (optionnel)"
-          }
-        }
-      }
-    },
-    "goals.form.pastRace" : {
-      "comment" : "Goal form - past race toggle",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Past Race"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Course passée"
-          }
-        }
-      }
-    },
-    "goals.form.pastRaceHint" : {
-      "comment" : "Goal form - past race hint",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Log a completed race to build your history."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enregistre une course déjà effectuée pour construire ton historique."
-          }
-        }
-      }
-    },
     "goals.form.raceName" : {
       "comment" : "Goal form - race name placeholder",
       "extractionState" : "extracted_with_value",
@@ -6935,24 +7029,6 @@
         }
       }
     },
-    "goals.form.save" : {
-      "comment" : "Save button",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Save"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enregistrer"
-          }
-        }
-      }
-    },
     "goals.form.targetDateSection" : {
       "comment" : "Goal form - target date section",
       "extractionState" : "extracted_with_value",
@@ -6967,78 +7043,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Date cible"
-          }
-        }
-      }
-    },
-    "goals.history.delete" : {
-      "comment" : "Race history - delete",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Delete"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Supprimer"
-          }
-        }
-      }
-    },
-    "goals.history.deleteButton" : {
-      "comment" : "Delete button",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Delete"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Supprimer"
-          }
-        }
-      }
-    },
-    "goals.history.deleteConfirmation" : {
-      "comment" : "Race history - delete confirmation",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Delete this race?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Supprimer cette course ?"
-          }
-        }
-      }
-    },
-    "goals.history.finishTime" : {
-      "comment" : "Race history - finish time label",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Finish Time"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps d'arrivée"
           }
         }
       }
@@ -7304,24 +7308,6 @@
         }
       }
     },
-    "goals.section.history" : {
-      "comment" : "Goals tab - history section",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Race History"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Historique des courses"
-          }
-        }
-      }
-    },
     "goals.section.past" : {
       "comment" : "Goals tab - past section",
       "extractionState" : "extracted_with_value",
@@ -7347,13 +7333,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Upcoming Races"
+            "value" : "Upcoming Goals"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Courses à venir"
+            "value" : "Objectifs à venir"
           }
         }
       }
@@ -18431,6 +18417,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zone"
+          }
+        }
+      }
+    },
+    "goals.plan.minimumDuration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow at least four weeks between the plan start and race day."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prévois au moins quatre semaines entre le début du plan et la course."
+          }
+        }
+      }
+    },
+    "goals.detail.regenerateConfirmation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace this plan and its completion history?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer ce plan et ses validations de séances ?"
           }
         }
       }

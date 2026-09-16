@@ -14,6 +14,7 @@ struct GoalDetailView: View {
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
     @State private var showDeleteConfirmation = false
     @State private var showRenameAlert = false
+    @State private var showRegenerateConfirmation = false
     @State private var renameText = ""
     @State private var selectedPlanTab = 0 // 0 = current week, 1 = full plan
     @State private var showSubscriptionPaywall = false
@@ -50,7 +51,9 @@ struct GoalDetailView: View {
                     pastRaceFooter
                 }
 
-                if let plan = currentGoal.trainingPlan {
+                if viewModel.generatingGoalID == currentGoal.id {
+                    generatingPlanView
+                } else if let plan = currentGoal.trainingPlan {
                     trainingPlanSection(plan)
                 } else if !currentGoal.isPastRace {
                     generatePlanCard
@@ -74,6 +77,17 @@ struct GoalDetailView: View {
                 dismiss()
             }
         }
+        .confirmationDialog(
+            String(
+                localized: "goals.detail.regenerateConfirmation",
+                defaultValue: "Replace this plan and its completion history?"),
+            isPresented: $showRegenerateConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "goals.detail.regenerate", defaultValue: "Regenerate Plan")) {
+                handleGenerateTap(for: currentGoal)
+            }
+        }
         .alert(
             String(localized: "goals.detail.renameTitle", defaultValue: "Rename Goal", comment: "Goal detail - rename title"),
             isPresented: $showRenameAlert
@@ -89,7 +103,7 @@ struct GoalDetailView: View {
         .alert(
             String(localized: "goals.detail.errorTitle", defaultValue: "Generation Error", comment: "Goal detail - error title"),
             isPresented: Binding(
-                get: { viewModel.generationError != nil },
+                get: { viewModel.generationErrorGoalID == currentGoal.id && viewModel.generationError != nil },
                 set: { if !$0 { viewModel.generationError = nil } }
             )
         ) {
@@ -104,7 +118,7 @@ struct GoalDetailView: View {
         .alert(
             String(localized: "goals.detail.adaptErrorTitle", defaultValue: "Adaptation Error", comment: "Goal detail - adapt error title"),
             isPresented: Binding(
-                get: { viewModel.adaptationError != nil },
+                get: { viewModel.adaptationErrorGoalID == currentGoal.id && viewModel.adaptationError != nil },
                 set: { if !$0 { viewModel.adaptationError = nil } }
             )
         ) {
@@ -167,14 +181,18 @@ struct GoalDetailView: View {
                         )
                     }
 
+                    .disabled(
+                        viewModel.isGeneratingPlan || viewModel.isAdaptingPlan || currentGoal.completedWorkouts > 0)
+
                     Button {
-                        handleGenerateTap(for: currentGoal)
+                        showRegenerateConfirmation = true
                     } label: {
                         Label(
                             String(localized: "goals.detail.regenerate", defaultValue: "Regenerate Plan", comment: "Goal detail - regenerate"),
                             systemImage: "arrow.clockwise"
                         )
                     }
+                    .disabled(viewModel.isGeneratingPlan || viewModel.isAdaptingPlan)
                 }
 
                 Button(role: .destructive) {
@@ -488,7 +506,7 @@ struct GoalDetailView: View {
 
     private var generatePlanCard: some View {
         VStack(spacing: Spacing.xl) {
-            if viewModel.isGeneratingPlan {
+            if viewModel.generatingGoalID == currentGoal.id {
                 generatingPlanView
             } else {
                 generatePlanCallToAction
@@ -564,6 +582,7 @@ struct GoalDetailView: View {
                 .clipShape(Capsule())
                 .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 8, x: 0, y: 4)
             }
+            .disabled(viewModel.isGeneratingPlan || viewModel.isAdaptingPlan)
         }
     }
 
@@ -571,7 +590,7 @@ struct GoalDetailView: View {
 
     private func trainingPlanSection(_ plan: TrainingPlan) -> some View {
         VStack(alignment: .leading, spacing: Spacing.dash) {
-            if viewModel.isAdaptingPlan {
+            if viewModel.adaptingGoalID == currentGoal.id {
                 HStack(spacing: Spacing.sm) {
                     ProgressView()
                         .controlSize(.small)

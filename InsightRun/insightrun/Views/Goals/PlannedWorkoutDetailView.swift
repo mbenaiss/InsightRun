@@ -508,50 +508,11 @@ struct PlannedWorkoutDetailView: View {
         isExporting = true
         exportError = nil
 
-        // Convert PlannedWorkout → AIGeneratedWorkout
-        let steps = workout.steps.map { step in
-            let goalType: WorkoutGoal.GoalType
-            let goalValue: Double
-            if let distance = step.distance {
-                goalType = .distance
-                goalValue = distance
-            } else if let duration = step.duration {
-                goalType = .duration
-                goalValue = duration
-            } else {
-                goalType = .open
-                goalValue = 0
-            }
-
-            let stepType: WorkoutStep.StepType = switch step.type {
-            case .warmup: .warmup
-            case .work: .work
-            case .recovery: .recovery
-            case .cooldown: .cooldown
-            case .interval: .interval
-            case .rest: .recovery
-            }
-
-            return WorkoutStep(
-                type: stepType,
-                goal: WorkoutGoal(type: goalType, value: goalValue),
-                targetPace: step.targetPace,
-                repetitions: step.repetitions,
-                instructions: step.description
-            )
-        }
-
-        let aiWorkout = AIGeneratedWorkout(
-            name: workout.name,
-            description: workout.description,
-            sport: .running,
-            steps: steps,
-            totalDistance: workout.targetDistance,
-            estimatedDuration: workout.targetDuration
-        )
+        let aiWorkout = workout.exportWorkout
 
         do {
-            try await WorkoutKitManager.shared.exportToFitnessApp(aiWorkout, destination: exportDestination)
+            try await WorkoutKitManager.shared.exportToFitnessApp(
+                aiWorkout, destination: exportDestination, scheduledDate: currentDate)
             isExporting = false
             showExportSuccess = true
         } catch {

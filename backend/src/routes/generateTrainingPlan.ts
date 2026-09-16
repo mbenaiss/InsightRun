@@ -424,6 +424,38 @@ app.post('/', async (c) => {
       )
     }
 
+    if (!['beginner', 'intermediate', 'advanced'].includes(body.fitnessLevel)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid fitness level' }, 400)
+    }
+    if (
+      body.trainingDaysPerWeek !== undefined &&
+      (!Number.isInteger(body.trainingDaysPerWeek) ||
+        body.trainingDaysPerWeek < 1 ||
+        body.trainingDaysPerWeek > 7)
+    ) {
+      return c.json({ error: 'Bad Request', message: 'Choose between 1 and 7 training days' }, 400)
+    }
+    if (
+      body.preferredDays !== undefined &&
+      (!Array.isArray(body.preferredDays) ||
+        body.preferredDays.length === 0 ||
+        body.preferredDays.some((day) => !Number.isInteger(day) || day < 1 || day > 7) ||
+        new Set(body.preferredDays).size !== body.preferredDays.length ||
+        (body.trainingDaysPerWeek !== undefined &&
+          body.preferredDays.length !== body.trainingDaysPerWeek))
+    ) {
+      return c.json(
+        { error: 'Bad Request', message: 'Training days must match the selected weekdays' },
+        400
+      )
+    }
+    if (
+      body.targetTimeSeconds !== undefined &&
+      (!Number.isFinite(body.targetTimeSeconds) || body.targetTimeSeconds <= 0)
+    ) {
+      return c.json({ error: 'Bad Request', message: 'Invalid target time' }, 400)
+    }
+
     // Calculate weeks available from the user-chosen start date (or now as fallback)
     const targetDate = new Date(body.targetDate)
     const now = new Date()
@@ -434,7 +466,18 @@ app.post('/', async (c) => {
     const startDate = parsedStart
     const msPerWeek = 7 * 24 * 60 * 60 * 1000
     const weeksFromDates = (targetDate.getTime() - startDate.getTime()) / msPerWeek
-    if (targetDate <= now || weeksFromDates < 4) {
+    // Date-only clients schedule inclusive calendar days; retain timestamp semantics for older apps.
+    const usesCalendarDays =
+      /^\d{4}-\d{2}-\d{2}$/.test(body.targetDate) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(body.startDate ?? '')
+    if (
+      usesCalendarDays &&
+      (targetDate.toISOString().slice(0, 10) !== body.targetDate ||
+        parsedStart.toISOString().slice(0, 10) !== body.startDate)
+    ) {
+      return c.json({ error: 'Bad Request', message: 'Invalid calendar date' }, 400)
+    }
+    if (targetDate <= now || weeksFromDates < (usesCalendarDays ? 27 / 7 : 4)) {
       return c.json(
         {
           error: 'Bad Request',
@@ -443,7 +486,9 @@ app.post('/', async (c) => {
         400
       )
     }
-    const weeksAvailable = Math.ceil(weeksFromDates)
+    const weeksAvailable = usesCalendarDays
+      ? Math.floor(weeksFromDates) + 1
+      : Math.ceil(weeksFromDates)
 
     // Cap at reasonable plan length
     const maxWeeks = Math.min(weeksAvailable, 24)

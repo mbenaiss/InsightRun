@@ -242,6 +242,10 @@ struct StravaActivity: Codable, Identifiable {
     let calories: Double?
     let trainer: Bool? // true if activity was done on a treadmill/trainer
 
+    var isRunning: Bool {
+        ["Run", "TrailRun", "VirtualRun"].contains(type)
+    }
+
     // Computed properties for display
     var distanceKm: Double {
         distance / 1000.0

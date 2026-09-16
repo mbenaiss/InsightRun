@@ -105,6 +105,9 @@ extension WorkoutModel {
         if let rawID = metadata?["strava_id"], let stravaID = Int64(String(describing: rawID)), stravaID > 0 {
             identifiers.insert("strava-\(stravaID)")
         }
+        if let suuntoID = metadata?["suunto_id"] as? String, !suuntoID.isEmpty {
+            identifiers.insert(suuntoID.lowercased())
+        }
         return identifiers
     }
 

@@ -15,8 +15,8 @@ class UnifiedWorkoutCache {
 
     private var modelContext: ModelContext?
 
-    private init() {
-        print("⚠️ UnifiedWorkoutCache: Initialized without context (will be set from environment)")
+    init(modelContext: ModelContext? = nil) {
+        self.modelContext = modelContext
     }
 
     // Set the shared ModelContext from the app's unified container
@@ -88,6 +88,9 @@ class UnifiedWorkoutCache {
                 existing.notes = workout.notes
                 existing.cachedAt = Date()
                 existing.originalSourceName = workout.sourceName
+                existing.healthKitWorkoutId = workout.healthKitWorkout?.id.uuidString
+                existing.stravaActivityId = workout.stravaActivity?.id
+                existing.stravaActivityType = workout.stravaActivity?.type
 
                 print("🔄 Updated cached unified workout: \(workout.name)")
             } else {
@@ -113,7 +116,25 @@ class UnifiedWorkoutCache {
         )
 
         let cached = try context.fetch(descriptor)
-        return cached.map { $0.toUnifiedWorkout() }
+        let legacyStrava = cached.filter {
+            $0.source == WorkoutSource.strava.rawValue && $0.stravaActivityType == nil
+        }
+        if !legacyStrava.isEmpty {
+            // Older unified caches discarded the sport; recover it from the original Strava cache.
+            let activities = try context.fetch(FetchDescriptor<CachedStravaActivity>())
+            let types = Dictionary(activities.map { ($0.id, $0.type) }, uniquingKeysWith: { _, latest in latest })
+            for workout in legacyStrava {
+                if let id = workout.stravaActivityId {
+                    workout.stravaActivityType = types[id]
+                }
+            }
+            try context.save()
+        }
+        return cached.compactMap { entry in
+            let workout = entry.toUnifiedWorkout()
+            if let activity = workout.stravaActivity, !activity.isRunning { return nil }
+            return workout
+        }
     }
 
     /// Get total count of cached workouts

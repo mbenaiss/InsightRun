@@ -287,10 +287,11 @@ class UnifiedWorkoutViewModel: ObservableObject {
     }
 
     /// Core merge logic: Detect duplicates and combine data
-    private func mergeWorkouts(
+    func mergeWorkouts(
         healthKit: [WorkoutModel],
         strava: [StravaActivity]
     ) -> [UnifiedWorkout] {
+        let runningActivities = strava.filter(\.isRunning)
         var result: [UnifiedWorkout] = []
         var matchedStravaIDs = Set<Int64>()
 
@@ -307,7 +308,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
             // Try to find matching Strava activity
             if let matchingStrava = findMatchingStravaActivity(
                 for: hkWorkout,
-                in: strava,
+                in: runningActivities,
                 excluding: matchedStravaIDs
             ) {
                 // Found a match - create merged workout
@@ -334,7 +335,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
         }
 
         // STEP 2: Add unmatched Strava activities
-        for stravaActivity in strava {
+        for stravaActivity in runningActivities {
             if !matchedStravaIDs.contains(stravaActivity.id) {
                 let stravaOnly = UnifiedWorkout(from: stravaActivity)
                 result.append(stravaOnly)

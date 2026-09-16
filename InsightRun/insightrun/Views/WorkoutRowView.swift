@@ -142,6 +142,7 @@ private enum RowWorkoutSource {
 struct WorkoutRowView: View {
     let workout: WorkoutModel
     @ObservedObject private var raceStore = WorkoutRaceStore.shared
+    @ObservedObject private var nameStore = WorkoutNameStore.shared
 
     private var sessionType: WorkoutSessionType { WorkoutSessionType.classify(workout) }
     private var source: RowWorkoutSource { RowWorkoutSource.classify(sourceName: workout.sourceName) }
@@ -156,7 +157,7 @@ struct WorkoutRowView: View {
     private var dateLabel: String {
         let f = DateFormatter()
         f.locale = Locale.current
-        f.setLocalizedDateFormatFromTemplate("dMMM")
+        f.setLocalizedDateFormatFromTemplate("dMMMy")
         return f.string(from: workout.startDate)
     }
 
@@ -387,6 +388,7 @@ struct WorkoutRowView: View {
     }
 
     private var titleText: String {
+        if let name = nameStore.name(for: workout) { return name }
         if raceStore.isOfficialRace(workout) {
             return workout.raceDisplayName
         }

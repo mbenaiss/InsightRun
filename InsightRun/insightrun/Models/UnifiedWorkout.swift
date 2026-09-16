@@ -427,6 +427,7 @@ extension UnifiedWorkout {
 
             // If we have Suunto data, enrich the WorkoutModel with it
             if let suunto = suuntoActivity {
+                metadata["suunto_id"] = suunto.id
                 metadata["suunto_device"] = suunto.deviceName
                 metadata["suunto_avg_hr"] = suunto.averageHeartRate
                 metadata["suunto_max_hr"] = suunto.maxHeartRate
@@ -516,7 +517,7 @@ extension UnifiedWorkout {
 
             return WorkoutModel(
                 id: stableUUID,
-                workoutType: .running,
+                workoutType: stravaActivity.isRunning ? .running : .other,
                 startDate: startDate,
                 endDate: endDate,
                 duration: duration,
@@ -543,7 +544,7 @@ extension UnifiedWorkout {
                 totalEnergyBurned: totalEnergyBurned,
                 sourceName: source.rawValue,
                 sourceVersion: "Unknown",
-                metadata: nil,
+                metadata: suuntoActivity.map { ["suunto_id": $0.id] },
                 averageHeartRate: averageHeartRate,
                 maxHeartRate: maxHeartRate,
                 elevationGain: totalElevationGain,

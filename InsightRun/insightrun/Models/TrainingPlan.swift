@@ -18,6 +18,7 @@ struct TrainingPlan: Identifiable, Codable {
     var weeks: [TrainingWeek]
     let createdAt: Date
     var startDate: Date?
+    var calendarTimeZoneIdentifier: String?
     let isActive: Bool
 
     init(
@@ -28,7 +29,8 @@ struct TrainingPlan: Identifiable, Codable {
         weeks: [TrainingWeek],
         createdAt: Date = Date(),
         startDate: Date? = nil,
-        isActive: Bool = false
+        isActive: Bool = false,
+        calendarTimeZoneIdentifier: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -38,6 +40,7 @@ struct TrainingPlan: Identifiable, Codable {
         self.createdAt = createdAt
         self.startDate = startDate
         self.isActive = isActive
+        self.calendarTimeZoneIdentifier = calendarTimeZoneIdentifier
     }
 
     var lastAdaptationDate: Date?
@@ -57,11 +60,19 @@ struct TrainingPlan: Identifiable, Codable {
         return !workoutDays.isEmpty && workoutDays.allSatisfy { $0.isCompleted }
     }
 
+    var calendar: Calendar {
+        var calendar = Calendar.current
+        if let identifier = calendarTimeZoneIdentifier, let zone = TimeZone(identifier: identifier) {
+            calendar.timeZone = zone
+        }
+        return calendar
+    }
+
     var currentWeekIndex: Int? {
         guard let start = startDate else { return nil }
-        let today = Calendar.current.startOfDay(for: Date())
-        let planStart = Calendar.current.startOfDay(for: start)
-        let daysSinceStart = Calendar.current.dateComponents([.day], from: planStart, to: today).day ?? 0
+        let today = calendar.startOfDay(for: Date())
+        let planStart = calendar.startOfDay(for: start)
+        let daysSinceStart = calendar.dateComponents([.day], from: planStart, to: today).day ?? 0
         guard daysSinceStart >= 0 else { return nil }
         let weekIndex = daysSinceStart / 7
         return weekIndex < weeks.count ? weekIndex : nil
@@ -71,7 +82,7 @@ struct TrainingPlan: Identifiable, Codable {
     /// Returns `nil` when the plan has no start date.
     func naturalDate(weekIndex: Int, day: TrainingDay) -> Date? {
         guard let start = startDate, weekIndex >= 0, weekIndex < weeks.count else { return nil }
-        let calendar = Calendar.current
+        let calendar = calendar
         let planStart = calendar.startOfDay(for: start)
         let planStartDOW = calendar.component(.weekday, from: planStart)
         var dayDelta = day.dayOfWeek.rawValue - planStartDOW
@@ -203,6 +214,59 @@ struct PlannedWorkout: Identifiable, Codable {
         self.targetPace = targetPace
         self.steps = steps
         self.intensity = intensity
+    }
+
+    var exportWorkout: AIGeneratedWorkout {
+        let source =
+            steps.isEmpty
+            ? [
+                PlannedWorkoutStep(
+                    type: .work, duration: targetDuration, distance: targetDistance,
+                    targetPace: targetPace, description: description
+                )
+            ] : steps
+        let steps = source.map { step in
+            let goalType: WorkoutGoal.GoalType
+            let goalValue: Double
+            if let distance = step.distance {
+                goalType = .distance
+                goalValue = distance
+            } else if let duration = step.duration {
+                goalType = .duration
+                goalValue = duration
+            } else {
+                goalType = .open
+                goalValue = 0
+            }
+
+            let stepType: WorkoutStep.StepType =
+                switch step.type {
+                case .warmup: .warmup
+                case .work: .work
+                case .recovery: .recovery
+                case .cooldown: .cooldown
+                case .interval: .interval
+                case .rest: .recovery
+                }
+
+            return WorkoutStep(
+                type: stepType,
+                goal: WorkoutGoal(type: goalType, value: goalValue),
+                targetPace: step.targetPace,
+                repetitions: step.repetitions,
+                instructions: step.description
+            )
+        }
+
+        return AIGeneratedWorkout(
+            name: name,
+            description: description,
+            sport: .running,
+            steps: steps,
+            totalDistance: targetDistance,
+            estimatedDuration: targetDuration
+        )
+
     }
 
     var formattedDuration: String {
@@ -485,5 +549,43 @@ enum DayOfWeek: Int, Codable, CaseIterable {
         case .friday: return "friday"
         case .saturday: return "saturday"
         }
+    }
+}
+
+struct TrainingPlanSchedule {
+    let start: Date
+    let target: Date
+    let weeksCount: Int
+    let calendar: Calendar
+
+    init(start: Date, target: Date, calendar: Calendar = .current) throws {
+        let raceDay = calendar.startOfDay(for: target)
+        let earliestStart = calendar.date(byAdding: .day, value: -167, to: raceDay)!
+        let effectiveStart = max(calendar.startOfDay(for: start), earliestStart)
+        let days = calendar.dateComponents([.day], from: effectiveStart, to: raceDay).day ?? 0
+        guard days >= 27 else { throw TrainingPlanScheduleError.tooShort }
+        self.start = effectiveStart
+        self.target = raceDay
+        self.weeksCount = days / 7 + 1
+        self.calendar = calendar
+    }
+
+    func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+}
+
+enum TrainingPlanScheduleError: LocalizedError {
+    case tooShort
+
+    var errorDescription: String? {
+        String(
+            localized: "goals.plan.minimumDuration",
+            defaultValue: "Allow at least four weeks between the plan start and race day.")
     }
 }

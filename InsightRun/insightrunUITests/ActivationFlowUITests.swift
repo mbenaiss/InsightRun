@@ -168,3 +168,38 @@ final class ActivationFlowUITests: XCTestCase {
         add(attachment)
     }
 }
+
+extension ActivationFlowUITests {
+    func testObjectiveWizardRequiresTrainingDaysAndKeepsManualLevel() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-DEMO_MODE", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["dashboard-settings"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Objectifs"].tap()
+        app.buttons["goals-add"].tap()
+        let name = app.textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 10))
+        name.tap()
+        name.typeText("QA Objectif jours\n")
+        app.buttons["Suivant"].tap()
+        app.swipeUp()
+        app.buttons["Avancé"].tap()
+        for day in ["lun.", "mer.", "ven.", "sam."] { app.buttons[day].tap() }
+        XCTAssertFalse(app.buttons["Suivant"].isEnabled)
+        attachScreenshot(of: app, named: "Goals-No-Training-Days")
+        for day in ["mar.", "jeu.", "dim."] { app.buttons[day].tap() }
+        XCTAssertTrue(app.buttons["Suivant"].isEnabled)
+        app.buttons["Suivant"].tap()
+        XCTAssertTrue(app.staticTexts["Avancé"].exists)
+        attachScreenshot(of: app, named: "Goals-Manual-Profile-Summary")
+        app.buttons["Créer l'objectif"].tap()
+        let created = app.staticTexts["QA Objectif jours"].firstMatch
+        XCTAssertTrue(created.waitForExistence(timeout: 10))
+        created.tap()
+        app.buttons["Options de l'objectif"].tap()
+        app.buttons["Supprimer l'objectif"].tap()
+        app.buttons["Supprimer"].tap()
+        XCTAssertTrue(app.buttons["goals-add"].waitForExistence(timeout: 10))
+        XCTAssertFalse(created.exists)
+    }
+}

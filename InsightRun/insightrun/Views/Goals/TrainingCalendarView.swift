@@ -50,11 +50,9 @@ struct TrainingCalendarView: View {
     }
 
     static func isDayPast(plan: TrainingPlan, weekIndex: Int, day: TrainingDay) -> Bool {
-        guard let currentWeek = plan.currentWeekIndex else { return false }
-        if weekIndex < currentWeek { return true }
-        if weekIndex > currentWeek { return false }
-        let todayWeekday = Calendar.current.component(.weekday, from: Date())
-        return day.dayOfWeek.rawValue < todayWeekday
+        guard let date = plan.effectiveDate(weekIndex: weekIndex, day: day) else { return false }
+        let calendar = Calendar.current
+        return calendar.startOfDay(for: date) < calendar.startOfDay(for: Date())
     }
 
     static func isRaceDay(plan: TrainingPlan, goal: RaceGoal, weekIndex: Int, day: TrainingDay) -> Bool {

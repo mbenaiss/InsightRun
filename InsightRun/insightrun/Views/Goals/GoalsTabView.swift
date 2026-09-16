@@ -16,15 +16,14 @@ struct GoalsTabView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if viewModel.activeGoals.isEmpty && viewModel.pastGoals.isEmpty && viewModel.raceHistory.isEmpty {
+                if viewModel.activeGoals.isEmpty && viewModel.pastGoals.isEmpty {
                     emptyState
                 } else {
                     VStack(alignment: .leading, spacing: Spacing.dash) {
-                        // Top row: "Plans & Races" eyebrow + "+" button (V4 dash header)
                         HStack(alignment: .center) {
                             Text(String(
-                                localized: "goals.eyebrow.plansAndRaces",
-                                defaultValue: "Plans & Races",
+                                localized: "goals.eyebrow.plansAndGoals",
+                                defaultValue: "Plans & Goals",
                                 comment: "Goals tab - top eyebrow"
                             ).uppercased())
                             .font(IRFont.eyebrow.weight(.bold))
@@ -72,7 +71,7 @@ struct GoalsTabView: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 DashboardEyebrow(title: String(
                                     localized: "goals.section.upcoming",
-                                    defaultValue: "Upcoming Races",
+                                    defaultValue: "Upcoming Goals",
                                     comment: "Goals tab - upcoming section"
                                 ))
 
@@ -106,24 +105,6 @@ struct GoalsTabView: View {
                                 }
                             }
                         }
-
-                        if !viewModel.raceHistory.isEmpty {
-                            VStack(alignment: .leading, spacing: 0) {
-                                DashboardEyebrow(title: String(
-                                    localized: "goals.section.history",
-                                    defaultValue: "Race History",
-                                    comment: "Goals tab - history section"
-                                ))
-
-                                LazyVStack(spacing: Spacing.sm) {
-                                    ForEach(viewModel.raceHistory) { goal in
-                                        RaceHistoryCard(goal: goal) {
-                                            viewModel.deleteGoal(goal)
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                     .padding(.horizontal, Spacing.cardPadding)
                     .padding(.top, Spacing.md)
@@ -138,7 +119,7 @@ struct GoalsTabView: View {
                 }
             }
             .navigationDestination(item: $deepLinkGoalId) { goalId in
-                if let goal = viewModel.goals.first(where: { $0.id == goalId }) {
+                if let goal = viewModel.goals.first(where: { $0.id == goalId && !$0.isPastRace }) {
                     GoalDetailView(goal: goal, viewModel: viewModel)
                 }
             }
@@ -187,7 +168,7 @@ struct GoalsTabView: View {
                     .fontWeight(.bold)
                     .foregroundStyle(Color.irTextPrimary)
 
-                Text(String(localized: "goals.empty.description", defaultValue: "Set a race goal and get a personalized training plan, or log your past races.", comment: "Goals tab - empty description"))
+                Text(String(localized: "goals.empty.description", defaultValue: "Set a race goal and get a personalized training plan.", comment: "Goals tab - empty description"))
                     .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
@@ -409,81 +390,5 @@ struct GoalCard: View {
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irPrimaryAccent.opacity(0.30), lineWidth: 0.5)
         )
-    }
-}
-
-// MARK: - Race History Card
-
-struct RaceHistoryCard: View {
-    let goal: RaceGoal
-    let onDelete: () -> Void
-    @State private var showDeleteConfirmation = false
-
-    private var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.setLocalizedDateFormatFromTemplate("dMMMMyyyy")
-        return formatter.string(from: goal.targetDate)
-    }
-
-    private var formattedDistance: String {
-        Formatters.distance(km: goal.raceType.distanceKm, fractionDigits: 1)
-    }
-
-    var body: some View {
-        HStack(spacing: Spacing.md) {
-            ZStack {
-                RoundedRectangle(cornerRadius: Radius.xs)
-                    .fill(Color.irPrimaryAccent.opacity(0.18))
-                    .frame(width: 40, height: 40)
-
-                Image(systemName: "trophy")
-                    .font(IRFont.title3.weight(.semibold))
-                    .foregroundStyle(Color.irPrimaryAccent)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(goal.raceName)
-                    .font(IRFont.body.weight(.bold))
-                    .foregroundStyle(Color.irTextPrimary)
-                    .lineLimit(1)
-
-                Text("\(formattedDate) · \(formattedDistance)")
-                    .font(IRFont.eyebrow)
-                    .foregroundStyle(Color.irTextSecondary)
-            }
-
-            Spacer()
-
-            if let time = goal.formattedFinishTime {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(time)
-                        .font(IRFont.monoSM.weight(.bold))
-                        .foregroundStyle(Color.irTextPrimary)
-                    Text(String(localized: "goals.history.finishTime", defaultValue: "Finish Time", comment: "Race history - finish time label").uppercased())
-                        .font(IRFont.eyebrow.weight(.bold))
-                        .tracking(0.9) // 0.1em on 9pt
-                        .foregroundStyle(Color.irTextSecondary.opacity(0.6))
-                }
-            }
-        }
-        .padding(Spacing.dash)
-        .detailCard()
-        .contextMenu {
-            Button(role: .destructive) {
-                showDeleteConfirmation = true
-            } label: {
-                Label(String(localized: "goals.history.delete", defaultValue: "Delete", comment: "Race history - delete"), systemImage: "trash")
-            }
-        }
-        .confirmationDialog(
-            String(localized: "goals.history.deleteConfirmation", defaultValue: "Delete this race?", comment: "Race history - delete confirmation"),
-            isPresented: $showDeleteConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(String(localized: "goals.history.deleteButton", defaultValue: "Delete", comment: "Delete button"), role: .destructive) {
-                onDelete()
-            }
-        }
     }
 }

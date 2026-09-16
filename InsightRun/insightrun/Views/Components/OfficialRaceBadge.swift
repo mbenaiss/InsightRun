@@ -15,6 +15,7 @@ struct OfficialRacesInPlanView: View {
     let plan: TrainingPlan
     let weekIndex: Int
     @ObservedObject private var raceStore = WorkoutRaceStore.shared
+    @ObservedObject private var nameStore = WorkoutNameStore.shared
 
     var body: some View {
         let races = raceStore.races(in: plan, weekIndex: weekIndex)
@@ -26,7 +27,7 @@ struct OfficialRacesInPlanView: View {
 
                 ForEach(races) { race in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text(race.name)
+                        Text(nameStore.name(for: race.identifiers) ?? race.name)
                             .font(IRFont.bodyEmphasized)
                             .foregroundStyle(Color.irTextPrimary)
                         Text(race.date.formatted(date: .abbreviated, time: .omitted))

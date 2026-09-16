@@ -23,8 +23,10 @@ struct WorkoutListView: View {
     @State private var selectedMonth: Date = Calendar.current.startOfMonth(for: Date())
     @State private var isSearching: Bool = false
     @State private var searchText: String = ""
+    @State private var distanceFilter: WorkoutDistanceFilter = .all
     @State private var showOfficialRacesOnly = false
     @ObservedObject private var raceStore = WorkoutRaceStore.shared
+    @ObservedObject private var nameStore = WorkoutNameStore.shared
     @FocusState private var searchFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
@@ -80,7 +82,7 @@ struct WorkoutListView: View {
         if canShowWorkouts {
             if hasWorkouts {
                 workoutList
-            } else if isLoadingWorkouts || viewModel.errorMessage == nil {
+            } else if isLoadingWorkouts || (viewModel.errorMessage == nil && unifiedViewModel.errorMessage == nil && unifiedViewModel.syncStatus != .completed) {
                 loadingView
             } else {
                 emptyView
@@ -122,10 +124,12 @@ struct WorkoutListView: View {
                     if !isLoading { updateContextProvider() }
                 }
                 .onReceive(unifiedViewModel.$unifiedWorkouts) { workouts in
+                    nameStore.reconcile(workouts.map { $0.toWorkoutModel() })
                     guard !raceStore.races.isEmpty else { return }
                     raceStore.reconcile(workouts.map { $0.toWorkoutModel() })
                 }
                 .onReceive(healthKitViewModel.$workouts) { workouts in
+                    nameStore.reconcile(workouts)
                     raceStore.reconcile(workouts)
                 }
                 .task(id: viewModel.authorizationStatus) {
@@ -231,21 +235,8 @@ struct WorkoutListView: View {
 
     private func filterWorkouts(_ workouts: [WorkoutModel]) -> [WorkoutModel] {
         let candidates = showOfficialRacesOnly ? raceStore.officialRaces(from: workouts) : workouts
-        let q = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if isSearching && !q.isEmpty {
-            // Search bypasses the month filter and looks across all workouts
-            let f = DateFormatter()
-            f.locale = Locale.current
-            f.dateFormat = "EEE d MMMM yyyy"
-            return candidates.filter { w in
-                let dateStr = f.string(from: w.startDate).lowercased()
-                let context = w.isIndoor ? "tapis indoor" : "plein air outdoor"
-                return dateStr.contains(q)
-                    || w.raceDisplayName.lowercased().contains(q)
-                    || w.sourceName.lowercased().contains(q)
-                    || context.contains(q)
-            }
+        if isSearching {
+            return WorkoutSearchFilter(query: searchText, distance: distanceFilter).apply(to: candidates, names: nameStore)
         }
 
         if showOfficialRacesOnly { return candidates }
@@ -565,7 +556,7 @@ struct WorkoutListView: View {
                         }
                     }
                 } else {
-                    if isSearching && !searchText.isEmpty {
+                    if isSearching {
                         searchEmptyState
                     } else if showOfficialRacesOnly {
                         ContentUnavailableView(
@@ -603,6 +594,7 @@ struct WorkoutListView: View {
 
             if isSearching {
                 searchBar
+                distanceFilters
             } else {
                 HStack(spacing: Spacing.sm) {
                     if showOfficialRacesOnly {
@@ -660,13 +652,15 @@ struct WorkoutListView: View {
                     .font(IRFont.caption.weight(.semibold))
                     .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 TextField(
-                    String(localized: "Search by date or source", comment: "Workout list search placeholder"),
+                    String(localized: "workout.search.placeholder", defaultValue: "Name, date or source"),
                     text: $searchText
                 )
                 .font(IRFont.footnote)
                 .foregroundStyle(Color.irTextPrimary)
                 .focused($searchFocused)
                 .submitLabel(.search)
+                .onSubmit { searchFocused = false }
+                .accessibilityIdentifier("workout-search-field")
                 if !searchText.isEmpty {
                     Button {
                         searchText = ""
@@ -687,6 +681,7 @@ struct WorkoutListView: View {
                 withAnimation(.easeInOut(duration: 0.15)) {
                     isSearching = false
                     searchText = ""
+                    distanceFilter = .all
                     searchFocused = false
                 }
             } label: {
@@ -695,6 +690,42 @@ struct WorkoutListView: View {
                     .foregroundStyle(Color.irTextSecondary)
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    private var distanceFilters: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.xs) {
+                    ForEach(WorkoutDistanceFilter.allCases, id: \.self) { filter in
+                        Button {
+                            distanceFilter = filter
+                            searchFocused = false
+                        } label: {
+                            Text(filter.title)
+                                .font(IRFont.caption.weight(.semibold))
+                                .foregroundStyle(distanceFilter == filter ? Color.irTextOnAccent : Color.irTextSecondary)
+                                .padding(.horizontal, Spacing.md)
+                                .frame(minHeight: 44)
+                                .background(Capsule().fill(distanceFilter == filter ? Color.irPrimaryAccent : Color.irCardBackground))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("workout-distance-\(filter.rawValue)")
+                        .accessibilityAddTraits(distanceFilter == filter ? [.isSelected] : [])
+                    }
+                }
+            }
+            HStack(spacing: Spacing.xs) {
+                Text(String(format: String(localized: "%lld sessions"), filterWorkouts(displayWorkouts).count))
+                Text("·")
+                Text(String(localized: "workout.race.allDates", defaultValue: "All dates"))
+                Spacer(minLength: 0)
+                if distanceFilter != .all {
+                    Text(distanceFilter.toleranceMeters == 1_000 ? "±1 km" : "±200 m")
+                }
+            }
+            .font(IRFont.caption)
+            .foregroundStyle(Color.irTextSecondary)
         }
     }
 

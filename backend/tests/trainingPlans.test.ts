@@ -285,3 +285,70 @@ test('tells the adaptation fallback which field must be corrected', async () => 
     'week 3, workout 0, step 0: repetitions must be an integer from 1 to 30 or omitted'
   )
 })
+
+describe('objective form validation and calendar boundaries', () => {
+  test.each([
+    { trainingDaysPerWeek: 0 },
+    { trainingDaysPerWeek: 8 },
+    { trainingDaysPerWeek: 2.5 },
+    { preferredDays: [] },
+    { preferredDays: [2, 2, 4] },
+    { preferredDays: [0, 2, 4] },
+    { trainingDaysPerWeek: 4, preferredDays: [2, 4, 6] },
+    { fitnessLevel: 'unknown' },
+    { targetTimeSeconds: -1 },
+    { targetDate: '2027-02-30', startDate: '2027-01-01' },
+  ])('rejects an invalid profile before spending quota: %j', async (invalid) => {
+    const fetchMock = spyOn(globalThis, 'fetch')
+    expect((await send('generate', { ...requestBody(), ...invalid })).status).toBe(400)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    ['2027-03-01', '2027-03-28', 4],
+    ['2027-03-01', '2027-03-29', 5],
+    ['2027-10-01', '2027-10-29', 5],
+    ['2027-01-01', '2027-06-17', 24],
+    ['2027-01-01', '2027-12-31', 24],
+  ])('includes race day in calendar %s → %s: %s weeks', async (start, target, weeks) => {
+    const fetchMock = spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const request = JSON.parse(String(init?.body))
+      const [, from, through] = request.messages[0].content.match(/ONLY weeks (\d+) through (\d+)/)
+      const output = plan(Number(from))
+      output.weeks = output.weeks.slice(0, Number(through) - Number(from) + 1)
+      output.weeks[output.weeks.length - 1].workouts[0].type = 'tempo'
+      return modelResponse(output)
+    })
+    const response = await send('generate', {
+      ...requestBody(),
+      startDate: String(start),
+      targetDate: String(target),
+    })
+    expect(response.status).toBe(200)
+    expect((await response.json()).metadata.weeksGenerated).toBe(weeks)
+    expect(fetchMock).toHaveBeenCalledTimes(Math.ceil(Number(weeks) / 4))
+  })
+
+  for (const race of ['5k', '10k', 'half_marathon', 'marathon', 'ultra']) {
+    for (const level of ['beginner', 'intermediate', 'advanced']) {
+      test(`forwards ${race}/${level} profile and constraint`, async () => {
+        const output = plan()
+        output.weeks[3].workouts[0].type = ['5k', '10k'].includes(race) ? 'tempo' : 'long_run'
+        const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValue(modelResponse(output))
+        const response = await send('generate', {
+          ...requestBody(),
+          raceType: race,
+          fitnessLevel: level,
+          ...{ targetTimeSeconds: 5400, injury: 'QA knee constraint' },
+        })
+        expect(response.status).toBe(200)
+        const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+        const prompt = JSON.stringify(request.messages)
+        expect(prompt).toContain(level)
+        expect(prompt).toContain('1h30')
+        expect(prompt).toContain('QA knee constraint')
+        expect(prompt).toContain('Monday, Wednesday, Friday')
+      })
+    }
+  }
+})

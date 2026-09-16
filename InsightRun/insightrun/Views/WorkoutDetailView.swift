@@ -26,6 +26,9 @@ struct WorkoutDetailView: View {
     @ObservedObject private var contextProvider = UnifiedAIContextProvider.shared
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var raceStore = WorkoutRaceStore.shared
+    @ObservedObject private var nameStore = WorkoutNameStore.shared
+    @State private var showRenameWorkout = false
+    @State private var workoutNameDraft = ""
     @AppStorage("hasDismissedPostAnalysisNotificationPrompt") private var dismissedNotificationPrompt = false
     @State private var showComparisonSheet = false
     @State private var similarWorkouts: [WorkoutModel] = []
@@ -171,6 +174,35 @@ struct WorkoutDetailView: View {
                 }
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !isSampleWorkout {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        workoutNameDraft = nameStore.name(for: workout) ?? originalWorkoutTitle
+                        showRenameWorkout = true
+                    } label: {
+                        Label(String(localized: "workout.rename.title", defaultValue: "Rename workout"), systemImage: "pencil")
+                    }
+                    .accessibilityIdentifier("workout-rename")
+                }
+            }
+        }
+        .alert(String(localized: "workout.rename.title", defaultValue: "Rename workout"), isPresented: $showRenameWorkout) {
+            TextField(String(localized: "workout.rename.name", defaultValue: "Workout name"), text: $workoutNameDraft)
+                .accessibilityIdentifier("workout-name-field")
+            Button(String(localized: "Save")) {
+                nameStore.rename(workout, to: workoutNameDraft)
+            }
+            .disabled(workoutNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            if nameStore.name(for: workout) != nil {
+                Button(String(localized: "workout.rename.reset", defaultValue: "Use original name")) {
+                    nameStore.resetName(for: workout)
+                }
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "workout.rename.message", defaultValue: "This name will be used in InsightRun."))
+        }
         .task {
             estimatedMaxHR = HeartRateReference.maximum(age: HealthKitManager.shared.currentAge)
             await notificationManager.checkPermissionStatus()
@@ -266,10 +298,10 @@ struct WorkoutDetailView: View {
         let type = sessionType(metrics: metrics)
         let heroText = workoutHeroText(type: type)
         let eyebrowDate = workout.startDate.formatted(
-            .dateTime.day().month(.abbreviated)
+            .dateTime.day().month(.abbreviated).year()
         ).uppercased()
         let fullDate = workout.startDate.formatted(
-            .dateTime.weekday(.abbreviated).day().month(.wide)
+            .dateTime.weekday(.abbreviated).day().month(.wide).year()
         ).capitalized
         let time = workout.startDate.formatted(date: .omitted, time: .shortened)
 
@@ -293,6 +325,7 @@ struct WorkoutDetailView: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(heroText.title)
+                        .accessibilityIdentifier("workout-title")
                         .font(IRFont.title1.weight(.heavy))
                         .kerning(IRTracking.title1)
                         .foregroundStyle(Color.irTextPrimary)
@@ -339,7 +372,17 @@ struct WorkoutDetailView: View {
     }
 
     private func workoutHeroText(type: WorkoutSessionType) -> (title: String, subtitle: String?) {
-        let title = metadataString(for: [
+        if let name = nameStore.name(for: workout) { return (name, nil) }
+
+        if let subtitle = metadataString(for: ["subtitle", "notes", "description"]) {
+            return (originalWorkoutTitle, subtitle)
+        }
+
+        return splitWorkoutHeroTitle(originalWorkoutTitle)
+    }
+
+    private var originalWorkoutTitle: String {
+        metadataString(for: [
             "display_name",
             "strava_name",
             "title",
@@ -347,12 +390,6 @@ struct WorkoutDetailView: View {
             "activity_name",
             "name"
         ]) ?? workoutListTitle
-
-        if let subtitle = metadataString(for: ["subtitle", "notes", "description"]) {
-            return (title, subtitle)
-        }
-
-        return splitWorkoutHeroTitle(title)
     }
 
     private var workoutListTitle: String {

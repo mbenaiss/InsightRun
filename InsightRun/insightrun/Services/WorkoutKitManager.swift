@@ -250,8 +250,14 @@ class WorkoutKitManager: ObservableObject {
 
     // MARK: - Export to Fitness App
 
+    static func exportDate(scheduledDate: Date?, now: Date = Date(), calendar: Calendar = .current) -> DateComponents {
+        calendar.dateComponents([.year, .month, .day, .hour, .minute], from: max(scheduledDate ?? now, now))
+    }
+
     /// Export workout to Apple Fitness app
-    func exportToFitnessApp(_ workout: AIGeneratedWorkout, destination: WorkoutExportDestination = .outdoor) async throws {
+    func exportToFitnessApp(
+        _ workout: AIGeneratedWorkout, destination: WorkoutExportDestination = .outdoor, scheduledDate: Date? = nil
+    ) async throws {
         await MainActor.run {
             isExporting = true
             exportError = nil
@@ -279,9 +285,8 @@ class WorkoutKitManager: ObservableObject {
             // Create workout plan
             let workoutPlan = WorkoutPlan(.custom(customWorkout))
 
-            // Schedule workout for immediate availability (now)
-            let now = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: Date())
-            await WorkoutScheduler.shared.schedule(workoutPlan, at: now)
+            let date = Self.exportDate(scheduledDate: scheduledDate)
+            await WorkoutScheduler.shared.schedule(workoutPlan, at: date)
 
             print("✅ WorkoutKitManager: Workout '\(workout.name)' exported successfully to Fitness app")
             print("📱 Check the Fitness app or Apple Watch Workout app to see your scheduled workout")

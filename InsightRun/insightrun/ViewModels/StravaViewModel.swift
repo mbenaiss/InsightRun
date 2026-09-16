@@ -289,7 +289,7 @@ class StravaViewModel: ObservableObject {
     // MARK: - Filtering
 
     var runningActivities: [StravaActivity] {
-        activities.filter { $0.type == "Run" }
+        activities.filter(\.isRunning)
     }
 
     var cyclingActivities: [StravaActivity] {

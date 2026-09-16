@@ -59,27 +59,28 @@ final class WorkoutMatchingService {
 
     func matchWorkouts(_ hkWorkouts: [HKWorkout]) {
         let goals = storage.load()
-        let activeGoals = goals.filter { $0.isActive && !$0.isPast && $0.hasTrainingPlan }
+        var activeGoals = goals.filter { $0.isActive && !$0.isPast && $0.hasTrainingPlan }
         guard !activeGoals.isEmpty else { return }
 
         for hkWorkout in hkWorkouts {
-            matchWorkout(hkWorkout, activeGoals: activeGoals)
+            matchWorkout(hkWorkout, activeGoals: &activeGoals)
         }
     }
 
-    private func matchWorkout(_ hkWorkout: HKWorkout, activeGoals: [RaceGoal]) {
+    private func matchWorkout(_ hkWorkout: HKWorkout, activeGoals: inout [RaceGoal]) {
 
         let workoutDate = Calendar.current.startOfDay(for: hkWorkout.startDate)
         let workoutDistance = hkWorkout.totalDistance?.doubleValue(for: .meter()) ?? 0
         let workoutDuration = hkWorkout.duration
 
-        for goal in activeGoals {
+        for goalIndex in activeGoals.indices {
+            let goal = activeGoals[goalIndex]
             guard let plan = goal.trainingPlan, plan.startDate != nil else { continue }
 
             guard let (weekIndex, dayIndex) = Self.locateDay(in: plan, for: workoutDate) else { continue }
             let day = plan.weeks[weekIndex].days[dayIndex]
 
-            guard let planned = day.workout, !day.isCompleted else { continue }
+            guard let planned = day.workout, !day.isCompleted, !day.isSkipped else { continue }
             guard Self.shouldAttemptAutoMatch(planned.type) else { continue }
 
             guard Self.isMatch(
@@ -92,7 +93,8 @@ final class WorkoutMatchingService {
             var updatedGoal = goal
             updatedGoal.trainingPlan!.weeks[weekIndex].days[dayIndex].isCompleted = true
             updatedGoal.trainingPlan!.weeks[weekIndex].days[dayIndex].completedWorkoutId = hkWorkout.uuid.uuidString
-            storage.updateGoal(updatedGoal)
+            guard storage.updateGoal(updatedGoal) else { continue }
+            activeGoals[goalIndex] = updatedGoal
 
             NotificationCenter.default.post(
                 name: .trainingDayCompleted,
@@ -167,8 +169,8 @@ final class WorkoutMatchingService {
 
         switch planned.type {
         case .easyRun, .recovery:
-            let distanceOK = withinTolerance(hkDistance, target: targetDistance, tol: easyDistanceTolerance) ?? true
-            let durationOK = withinTolerance(hkDuration, target: targetDuration, tol: easyDurationTolerance) ?? true
+            let distanceOK = withinTolerance(hkDistance, target: targetDistance, tol: easyDistanceTolerance) ?? false
+            let durationOK = withinTolerance(hkDuration, target: targetDuration, tol: easyDurationTolerance) ?? false
             return distanceOK || durationOK
 
         case .longRun:

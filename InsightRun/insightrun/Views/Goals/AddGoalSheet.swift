@@ -3,7 +3,6 @@
 //  InsightRun
 //
 //  Multi-step wizard for creating a race goal — V4 visual language.
-//  Past races: step 1 only (direct save). Future races: step 1 → 2 → 3.
 //
 
 import SwiftUI
@@ -13,14 +12,9 @@ struct AddGoalSheet: View {
     @State private var currentStep = 0
 
     // Step 1 — Race
-    @State private var isPastRace = false
     @State private var raceType: RaceType = .halfMarathon
     @State private var customName = ""
     @State private var targetDate = Calendar.current.date(byAdding: .month, value: 4, to: Date()) ?? Date()
-    @State private var finishTimeHours = 0
-    @State private var finishTimeMinutes = 0
-    @State private var finishTimeSeconds = 0
-    @State private var raceNotes = ""
 
     // Step 2 — Training profile
     @State private var fitnessLevel: FitnessLevel = .intermediate
@@ -34,6 +28,7 @@ struct AddGoalSheet: View {
 
     // History analysis
     @State private var historyAnalyzed = false
+    @State private var hasSelectedFitnessLevel = false
     @State private var historyRunCount = 0
     @State private var historyAvgPace: Double? // min/km
     @State private var historyWeeklyKm: Double?
@@ -43,15 +38,10 @@ struct AddGoalSheet: View {
     let onAdd: (RaceGoal) -> Void
 
     private var isStep1Valid: Bool {
-        isPastRace || targetDate > Date()
+        targetDate > Date()
     }
 
-    private var finishTimeInterval: TimeInterval? {
-        let total = finishTimeHours * 3600 + finishTimeMinutes * 60 + finishTimeSeconds
-        return total > 0 ? TimeInterval(total) : nil
-    }
-
-    private var totalSteps: Int { isPastRace ? 1 : 3 }
+    private let totalSteps = 3
 
     var body: some View {
         NavigationStack {
@@ -81,9 +71,7 @@ struct AddGoalSheet: View {
                     }
                 }
                 .onChange(of: targetDate) { _, _ in
-                    if planStartDate > maxPlanStartDate {
-                        planStartDate = maxPlanStartDate
-                    }
+                    planStartDate = min(maxPlanStartDate, max(minPlanStartDate, planStartDate))
                 }
 
                 bottomBar
@@ -189,16 +177,10 @@ struct AddGoalSheet: View {
             VStack(alignment: .leading, spacing: Spacing.cardPadding) {
                 step1DetailsSection
                 step1RaceTypeSection
-                step1PastRaceCard
                 step1TargetDateCard
-
-                if isPastRace {
-                    step1PastRaceExtras
-                }
             }
             .padding(.horizontal, Spacing.base)
             .padding(.vertical, Spacing.base)
-            .animation(.easeInOut(duration: 0.3), value: isPastRace)
         }
         .scrollDismissesKeyboard(.immediately)
     }
@@ -262,40 +244,6 @@ struct AddGoalSheet: View {
         }
     }
 
-    private var step1PastRaceCard: some View {
-        HStack(spacing: Spacing.md) {
-            ZStack {
-                RoundedRectangle(cornerRadius: Radius.xs)
-                    .fill(Color.irPrimaryAccent.opacity(0.14))
-                    .frame(width: 36, height: 36)
-                Image(systemName: "arrow.counterclockwise")
-                    .font(IRFont.numSM)
-                    .foregroundStyle(Color.irPrimaryAccent)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(String(localized: "goals.form.pastRace", defaultValue: "Past Race", comment: "Goal form - past race toggle"))
-                    .font(IRFont.footnote.weight(.bold))
-                    .foregroundStyle(Color.irTextPrimary)
-                Text(String(localized: "goals.form.pastRaceHint", defaultValue: "Log a completed race to build your history.", comment: "Goal form - past race hint"))
-                    .font(IRFont.eyebrow)
-                    .lineSpacing(1)
-                    .foregroundStyle(Color.irTextSecondary)
-            }
-
-            Spacer(minLength: 8)
-
-            v4Toggle(isOn: $isPastRace)
-        }
-        .padding(Spacing.dash)
-        .background(Color.irCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(Color.irBorder, lineWidth: 0.5)
-        )
-    }
-
     private var step1TargetDateCard: some View {
         HStack(spacing: Spacing.md) {
             ZStack {
@@ -307,9 +255,10 @@ struct AddGoalSheet: View {
                     .foregroundStyle(Color.irPrimaryAccent)
             }
 
-            Text(isPastRace
-                ? String(localized: "goals.form.dateSection", defaultValue: "Race Date", comment: "Goal form - date section")
-                : String(localized: "goals.form.targetDateSection", defaultValue: "Target Date", comment: "Goal form - target date section")
+            Text(
+                String(
+                    localized: "goals.form.targetDateSection", defaultValue: "Target Date",
+                    comment: "Goal form - target date section")
             )
             .font(IRFont.footnote.weight(.semibold))
             .foregroundStyle(Color.irTextPrimary)
@@ -327,15 +276,9 @@ struct AddGoalSheet: View {
                     .clipShape(Capsule())
                     .overlay(Capsule().strokeBorder(Color.irBorder, lineWidth: 0.5))
 
-                if isPastRace {
-                    DatePicker("", selection: $targetDate, in: ...Date(), displayedComponents: .date)
-                        .labelsHidden()
-                        .blendMode(.destinationOver)
-                } else {
-                    DatePicker("", selection: $targetDate, in: Date()..., displayedComponents: .date)
-                        .labelsHidden()
-                        .blendMode(.destinationOver)
-                }
+                DatePicker("", selection: $targetDate, in: Date()..., displayedComponents: .date)
+                    .labelsHidden()
+                    .blendMode(.destinationOver)
             }
         }
         .padding(Spacing.dash)
@@ -345,69 +288,6 @@ struct AddGoalSheet: View {
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
-    }
-
-    private var step1PastRaceExtras: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            // Finish time
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "stopwatch")
-                        .font(IRFont.body)
-                        .foregroundStyle(Color.irPrimaryAccent)
-                    Text(String(localized: "goals.form.finishTime", defaultValue: "Finish Time", comment: "Goal form - finish time label"))
-                        .font(IRFont.footnote.weight(.bold))
-                        .foregroundStyle(Color.irTextPrimary)
-                }
-
-                HStack(spacing: 0) {
-                    timePickerColumn(value: $finishTimeHours, range: 0..<24, label: "h")
-                    Rectangle().fill(Color.irBorder).frame(width: 1)
-                    timePickerColumn(value: $finishTimeMinutes, range: 0..<60, label: "m")
-                    Rectangle().fill(Color.irBorder).frame(width: 1)
-                    timePickerColumn(value: $finishTimeSeconds, range: 0..<60, label: "s")
-                }
-                .frame(height: 110)
-                .background(Color.irCard2)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.sm).strokeBorder(Color.irBorder, lineWidth: 0.5)
-                )
-            }
-
-            // Notes
-            TextField(
-                String(localized: "goals.form.notes", defaultValue: "How did it go? (optional)", comment: "Goal form - notes placeholder"),
-                text: $raceNotes,
-                axis: .vertical
-            )
-            .padding(Spacing.md)
-            .background(Color.irCard2)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.sm).strokeBorder(Color.irBorder, lineWidth: 0.5)
-            )
-            .lineLimit(3)
-        }
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-    }
-
-    private func timePickerColumn(value: Binding<Int>, range: Range<Int>, label: String) -> some View {
-        HStack(spacing: 0) {
-            Picker("", selection: value) {
-                ForEach(range, id: \.self) { i in
-                    Text("\(i)").tag(i)
-                        .font(IRFont.monoSM)
-                }
-            }
-            .pickerStyle(.wheel)
-            .frame(maxWidth: .infinity)
-
-            Text(label)
-                .font(IRFont.monoSM.weight(.heavy))
-                .foregroundStyle(Color.irTextSecondary)
-                .padding(.trailing, Spacing.sm)
-        }
     }
 
     // V4 TypeTile
@@ -563,7 +443,10 @@ struct AddGoalSheet: View {
                 HStack(spacing: 0) {
                     ForEach(FitnessLevel.allCases, id: \.self) { level in
                         Button {
-                            withAnimation(.easeInOut(duration: 0.15)) { fitnessLevel = level }
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                fitnessLevel = level
+                                hasSelectedFitnessLevel = true
+                            }
                         } label: {
                             Text(level.displayName)
                                 .font(IRFont.caption.weight(.semibold))
@@ -653,7 +536,7 @@ struct AddGoalSheet: View {
                 DatePicker(
                     "",
                     selection: $planStartDate,
-                    in: Calendar.current.startOfDay(for: Date())...maxPlanStartDate,
+                    in: minPlanStartDate...maxPlanStartDate,
                     displayedComponents: .date
                 )
                 .labelsHidden()
@@ -994,20 +877,14 @@ struct AddGoalSheet: View {
 
     private var bottomBar: some View {
         Group {
-            if isPastRace {
-                nextButton(
-                    title: String(localized: "goals.form.save", defaultValue: "Save", comment: "Save button")
-                ) {
-                    saveGoal()
-                }
-                .disabled(!isStep1Valid)
-            } else if currentStep < 2 {
+            if currentStep < 2 {
                 nextButton(
                     title: String(localized: "goals.wizard.next", defaultValue: "Next", comment: "Wizard - next button")
                 ) {
                     withAnimation { currentStep += 1 }
                 }
-                .disabled(currentStep == 0 && !isStep1Valid)
+                .disabled((currentStep == 0 && !isStep1Valid) || (currentStep == 1 && preferredDays.isEmpty))
+                .opacity(currentStep == 1 && preferredDays.isEmpty ? 0.4 : 1)
             } else {
                 nextButton(
                     title: String(localized: "goals.wizard.create", defaultValue: "Create Goal ✓", comment: "Wizard - create button")
@@ -1042,19 +919,17 @@ struct AddGoalSheet: View {
             return total > 0 ? TimeInterval(total) : nil
         }()
 
+        let name = customName.trimmingCharacters(in: .whitespacesAndNewlines)
         let goal = RaceGoal(
             raceType: raceType,
-            raceName: customName.isEmpty ? nil : customName,
+            raceName: name.isEmpty ? nil : name,
             targetDate: targetDate,
             fitnessLevel: fitnessLevel,
-            isPastRace: isPastRace,
-            finishTime: finishTimeInterval,
-            notes: raceNotes.isEmpty ? nil : raceNotes,
             trainingDaysPerWeek: trainingDaysPerWeek,
             preferredDays: Array(preferredDays),
             injury: hasInjury && !injuryDescription.isEmpty ? injuryDescription : nil,
             targetTime: targetTimeSeconds,
-            planStartDate: isPastRace ? nil : planStartDate
+            planStartDate: planStartDate
         )
         onAdd(goal)
         dismiss()
@@ -1072,7 +947,7 @@ struct AddGoalSheet: View {
             let runs = workouts.filter { $0.distance != nil && $0.distance! > 0 }
             historyRunCount = runs.count
 
-            if !runs.isEmpty {
+            if !runs.isEmpty, !hasSelectedFitnessLevel {
                 let paces = runs.compactMap { w -> Double? in
                     guard let dist = w.distance, dist > 0 else { return nil }
                     return (w.duration / 60.0) / (dist / 1000.0)
@@ -1109,6 +984,12 @@ struct AddGoalSheet: View {
 
     /// Latest allowed plan start date = race date - 4 weeks (backend minimum).
     /// Falls back to today if the race is closer than 4 weeks (defensive — step 1 validates `> now`).
+    private var minPlanStartDate: Date {
+        let today = Calendar.current.startOfDay(for: Date())
+        let earliest = Calendar.current.date(byAdding: .day, value: -167, to: targetDate) ?? today
+        return max(today, Calendar.current.startOfDay(for: earliest))
+    }
+
     private var maxPlanStartDate: Date {
         let today = Calendar.current.startOfDay(for: Date())
         let latest = Calendar.current.date(byAdding: .weekOfYear, value: -4, to: targetDate) ?? today

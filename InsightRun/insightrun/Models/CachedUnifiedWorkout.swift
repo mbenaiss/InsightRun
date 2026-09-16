@@ -33,6 +33,7 @@ class CachedUnifiedWorkout {
     // Original IDs for tracking
     var healthKitWorkoutId: String?
     var stravaActivityId: Int64?
+    var stravaActivityType: String?
 
     // Original source name for display (e.g., "Apple Watch", "Suunto Run")
     var originalSourceName: String?
@@ -59,6 +60,7 @@ class CachedUnifiedWorkout {
         // Store original IDs for tracking
         self.healthKitWorkoutId = unified.healthKitWorkout?.id.uuidString
         self.stravaActivityId = unified.stravaActivity?.id
+        self.stravaActivityType = unified.stravaActivity?.type
 
         // Store original source name for display (e.g., "Apple Watch", "Suunto Run")
         self.originalSourceName = unified.sourceName
@@ -81,7 +83,7 @@ class CachedUnifiedWorkout {
                 movingTime: Int(duration),
                 elapsedTime: Int(duration),
                 totalElevationGain: totalElevationGain ?? 0,
-                type: "Run",
+                type: stravaActivityType ?? "Workout",
                 startDate: ISO8601DateFormatter().string(from: startDate),
                 startDateLocal: ISO8601DateFormatter().string(from: startDate),
                 averageSpeed: averageSpeed,
@@ -111,6 +113,11 @@ class CachedUnifiedWorkout {
                         metadata?["strava_id"] = String(stravaActivityId)
                     }
                 }
+            }
+
+            if source == WorkoutSource.suunto.rawValue {
+                metadata = metadata ?? [:]
+                metadata?["suunto_id"] = id
             }
 
             let fallbackWorkout = WorkoutModel(

@@ -172,6 +172,7 @@ struct WorkoutListView: View {
                     navigateToActivationWorkout(workout)
                 }
                 .onChange(of: displayWorkouts) { _, _ in
+                    if contextProvider.currentPage == .workouts { updateContextProvider() }
                     trackListViewedIfReady()
                     if let uuid = notificationRouter.pendingWorkoutUUID {
                         navigateToWorkout(uuid: uuid)

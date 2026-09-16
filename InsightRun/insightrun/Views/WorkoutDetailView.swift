@@ -205,7 +205,6 @@ struct WorkoutDetailView: View {
         }
         .task {
             estimatedMaxHR = HeartRateReference.maximum(age: HealthKitManager.shared.currentAge)
-            await notificationManager.checkPermissionStatus()
 
             // Compute similar workouts once instead of on every render
             similarWorkouts = SimilarWorkoutFinder.findSimilar(to: workout, from: allWorkouts)
@@ -217,6 +216,7 @@ struct WorkoutDetailView: View {
             }
             await loadInitialAnalysis()
         }
+        .task { await notificationManager.checkPermissionStatus() }
         .onAppear {
             // Track workout detail viewed
             AnalyticsService.shared.trackWorkoutDetailViewed()

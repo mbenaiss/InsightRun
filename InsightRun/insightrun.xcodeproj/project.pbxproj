@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EF8050FB39E24B7DBF8BAB95 /* WorkoutDetailDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E8806C06CA420B86EA5D0A /* WorkoutDetailDataTests.swift */; };
 		A5232C8B87204F5B823CEAC6 /* DailyReadinessViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8181863787FB493F961291F4 /* DailyReadinessViewModelTests.swift */; };
 		B195B38548D448EF97377901 /* StatisticsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B195B38548D448EF97377902 /* StatisticsViewModelTests.swift */; };
 		A16092026000000000000001 /* recovery-scores.json in Resources */ = {isa = PBXBuildFile; fileRef = A16092026000000000000002 /* recovery-scores.json */; };
@@ -79,6 +80,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		57E8806C06CA420B86EA5D0A /* WorkoutDetailDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutDetailDataTests.swift; sourceTree = "<group>"; };
 		8181863787FB493F961291F4 /* DailyReadinessViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyReadinessViewModelTests.swift; sourceTree = "<group>"; };
 		B195B38548D448EF97377902 /* StatisticsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsViewModelTests.swift; sourceTree = "<group>"; };
 		A16092026000000000000002 /* recovery-scores.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = "recovery-scores.json"; path = "../../backend/tests/fixtures/recovery-scores.json"; sourceTree = "<group>"; };
@@ -231,6 +233,7 @@
 				AC93FE0D507E4B5A86063101 /* WorkoutNameStoreTests.swift */,
 				FCBA47A38CBA46CB90741702 /* TrainingPlanStabilityTests.swift */,
 				8181863787FB493F961291F4 /* DailyReadinessViewModelTests.swift */,
+				57E8806C06CA420B86EA5D0A /* WorkoutDetailDataTests.swift */,
 				B195B38548D448EF97377902 /* StatisticsViewModelTests.swift */,
 				A0D170000000000000000009 /* SubscriptionOutcomeTrackerTests.swift */,
 				A0D170000000000000000006 /* MetricTrendLoadingTests.swift */,
@@ -494,6 +497,7 @@
 				AC93FE0D507E4B5A86063102 /* WorkoutNameStoreTests.swift in Sources */,
 				FCBA47A38CBA46CB90741701 /* TrainingPlanStabilityTests.swift in Sources */,
 				A5232C8B87204F5B823CEAC6 /* DailyReadinessViewModelTests.swift in Sources */,
+				EF8050FB39E24B7DBF8BAB95 /* WorkoutDetailDataTests.swift in Sources */,
 				B195B38548D448EF97377901 /* StatisticsViewModelTests.swift in Sources */,
 				A0D180000000000000000009 /* SubscriptionOutcomeTrackerTests.swift in Sources */,
 				A0D180000000000000000006 /* MetricTrendLoadingTests.swift in Sources */,

@@ -41,9 +41,10 @@ export const workoutDataSchema = z.object({
         kilometer: z.number(),
         pace: z.string().max(16),
         time: z.string().max(16),
+        distanceMeters: z.number().positive().optional(),
       })
     )
-    .max(100) // cap to keep prompt size bounded (ultra-marathon headroom)
+    .max(1000)
     .optional(),
 })
 
@@ -106,6 +107,7 @@ export interface WorkoutData {
     kilometer: number
     pace: string
     time: string
+    distanceMeters?: number
   }>
 }
 

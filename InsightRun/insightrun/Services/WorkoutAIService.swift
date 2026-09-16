@@ -462,7 +462,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     // ISO 8601 keeps WorkoutData.date machine-parseable on the backend (no localized format).
     private static let isoDateFormatter = ISO8601DateFormatter()
 
-    private func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
+    func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
         return WorkoutData(
             date: Self.isoDateFormatter.string(from: workout.startDate),
             duration: workout.duration,
@@ -498,11 +498,12 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 stairAscentSpeed: metrics?.stairAscentSpeed,
                 stairDescentSpeed: metrics?.stairDescentSpeed
             ) : nil,
-            splits: metrics?.splits?.prefix(10).map { split in
+            splits: metrics?.splits?.filter { $0.pace.isFinite && $0.pace > 0 && $0.time.isFinite && $0.time > 0 && $0.distance.isFinite && $0.distance > 0 }.prefix(1000).map { split in
                 SplitData(
                     kilometer: split.kilometer,
-                    pace: split.paceFormatted,
-                    time: split.timeFormatted
+                    pace: Formatters.paceClock(split.pace * 60),
+                    time: split.timeFormatted,
+                    distanceMeters: split.distance
                 )
             }
         )

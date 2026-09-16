@@ -24,18 +24,23 @@ import {
 
 // Parse a pace string (either "M:SS" or "M'SS\"") to seconds for calculations
 function parsePaceToSeconds(paceStr: string): number | null {
-  const match = paceStr.match(/(\d+)[:'](\d+)/)
-  if (!match) return null
-  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10)
+  const match = paceStr.trim().match(/^(\d+)[:'](\d{2})(?:"|″)?(?:\s*\/km)?$/)
+  if (!match || Number(match[2]) >= 60) return null
+  const seconds = Number(match[1]) * 60 + Number(match[2])
+  return seconds > 0 ? seconds : null
 }
 
 // Analyze splits for pacing strategy and consistency
-function analyzeSplits(splits: Array<{ kilometer: number; pace: string; time: string }>): string {
+function analyzeSplits(splits: NonNullable<WorkoutData['splits']>): string {
   if (splits.length < 2) return ''
 
-  const paceSeconds = splits
-    .map((s) => parsePaceToSeconds(s.pace))
-    .filter((p): p is number => p !== null)
+  const validSplits = splits.flatMap((split) => {
+    const pace = parsePaceToSeconds(split.pace)
+    if (pace === null || (split.distanceMeters !== undefined && split.distanceMeters < 900))
+      return []
+    return [{ kilometer: split.kilometer, pace }]
+  })
+  const paceSeconds = validSplits.map((split) => split.pace)
   if (paceSeconds.length < 2) return ''
 
   // Pace consistency (coefficient of variation)
@@ -54,10 +59,10 @@ function analyzeSplits(splits: Array<{ kilometer: number; pace: string; time: st
   // Fastest and slowest splits
   const fastest = Math.min(...paceSeconds)
   const slowest = Math.max(...paceSeconds)
-  const fastestKm = splits[paceSeconds.indexOf(fastest)]?.kilometer
-  const slowestKm = splits[paceSeconds.indexOf(slowest)]?.kilometer
+  const fastestKm = validSplits[paceSeconds.indexOf(fastest)]?.kilometer
+  const slowestKm = validSplits[paceSeconds.indexOf(slowest)]?.kilometer
 
-  let analysis = `\nDerived Split Analysis:\n`
+  let analysis = `\nDerived Split Analysis (${paceSeconds.length} valid full-km splits):\n`
   analysis += `- Pace Consistency (CV): ${cv.toFixed(1)}%`
   if (cv < 3) analysis += ` → Excellent pacing`
   else if (cv < 6) analysis += ` → Good pacing`
@@ -194,8 +199,17 @@ function buildWorkoutContext(workout: WorkoutData, estimatedMaxHR: number | null
   // Splits
   if (workout.splits && workout.splits.length > 0) {
     context += `\n## Splits (per km)\n`
-    for (const split of workout.splits.slice(0, 10)) {
-      context += `  km ${split.kilometer}: ${normalizePaceString(split.pace)} (${split.time})\n`
+    const shownSplits =
+      workout.splits.length > 10
+        ? [...workout.splits.slice(0, 5), ...workout.splits.slice(-5)]
+        : workout.splits
+    if (workout.splits.length > 10) {
+      context += `Showing the first and last 5 of ${workout.splits.length} splits; derived analysis uses all valid full-km splits.\n`
+    }
+    for (const split of shownSplits) {
+      const distance =
+        split.distanceMeters === undefined ? '' : `, ${Math.round(split.distanceMeters)} m`
+      context += `  km ${split.kilometer}: ${normalizePaceString(split.pace)} (${split.time}${distance})\n`
     }
     // Add derived split analysis
     context += analyzeSplits(workout.splits)

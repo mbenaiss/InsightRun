@@ -459,6 +459,32 @@ function validateAdaptedPlanJSON(
   return true
 }
 
+function summarizePlanValidation(
+  data: unknown,
+  firstWeek: number,
+  count: number,
+  raceType: string
+): string {
+  const plan = data as AdaptedTrainingPlan
+  if (!Array.isArray(plan?.weeks)) return 'missing weeks'
+  if (plan.weeks.length !== count) return 'incorrect week count'
+  if (plan.weeks.some((week, index) => week.weekNumber !== firstWeek + index))
+    return 'incorrect week numbering'
+  if (plan.weeks.at(-1)?.workouts?.[0]?.type !== raceType)
+    return 'incorrect race workout type or position'
+  if (
+    !plan.adaptation ||
+    typeof plan.adaptation.assessment !== 'string' ||
+    typeof plan.adaptation.goalAchievable !== 'boolean'
+  )
+    return 'missing adaptation assessment'
+  if (
+    plan.weeks.some((week) => !['base', 'build', 'peak', 'taper', 'recovery'].includes(week.phase))
+  )
+    return 'incorrect phase'
+  return 'invalid workout or step fields'
+}
+
 // Backfill fields a strict iOS decoder requires but the model occasionally omits
 // (workout/step descriptions, step.type, adaptation.adjustments/confidenceLevel),
 // so an otherwise valid adaptation stays decodable client-side.
@@ -579,9 +605,11 @@ app.post('/', async (c) => {
           )
         } else {
           console.warn(`Invalid adapted plan structure on attempt ${attempts}`)
-          retryFeedback = `the JSON did not match the required schema (need exactly ${body.remainingWeeksCount} weeks, the last week's first workout must be type "${raceType}", and every workout/step plus the adaptation object need their required fields).`
+          retryFeedback = `${summarizePlanValidation(parsedData, body.currentWeekNumber + 1, body.remainingWeeksCount, raceType)}: the JSON did not match the required schema (need exactly ${body.remainingWeeksCount} weeks, the last week's first workout must be type "${raceType}", and every workout/step plus the adaptation object need their required fields).`
           if (attempts >= maxAttempts) {
-            throw new Error('Generated adapted plan failed validation')
+            throw new Error(
+              `Generated adapted plan failed validation: ${summarizePlanValidation(parsedData, body.currentWeekNumber + 1, body.remainingWeeksCount, raceType)}`
+            )
           }
         }
       } catch (parseError) {

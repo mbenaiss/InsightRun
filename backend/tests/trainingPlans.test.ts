@@ -194,3 +194,46 @@ describe('plan schedule validation', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('long training plans', () => {
+  test('assembles every week in order from bounded concurrent blocks', async () => {
+    const body = requestBody()
+    body.targetDate = new Date(new Date(body.startDate).getTime() + 126 * 86400000).toISOString()
+    body.weeksCount = 18
+    let calls = 0
+    const fetchMock = spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const request = JSON.parse(String(init?.body))
+      const firstWeek = calls++ * 4 + 1
+      const count = Math.min(4, 19 - firstWeek)
+      expect(request.messages[0].content).toContain(
+        `ONLY weeks ${firstWeek} through ${firstWeek + count - 1}`
+      )
+      const output = plan(firstWeek)
+      output.weeks = output.weeks.slice(0, count)
+      if (firstWeek === 17) output.weeks[1].workouts[0].type = 'tempo'
+      await new Promise((resolve) => setTimeout(resolve, 19 - firstWeek))
+      return modelResponse(output)
+    })
+    const response = await send('generate', body)
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    const result = await response.json()
+    expect(result.plan.weeks.map((week: { weekNumber: number }) => week.weekNumber)).toEqual(
+      Array.from({ length: 18 }, (_, index) => index + 1)
+    )
+    expect(result.plan.weeks[17].workouts[0].type).toBe('tempo')
+  })
+
+  test('does not return a partial plan when a block fails both attempts', async () => {
+    const body = requestBody()
+    body.targetDate = new Date(new Date(body.startDate).getTime() + 35 * 86400000).toISOString()
+    let calls = 0
+    spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls++
+      return modelResponse(calls === 1 ? plan() : { weeks: [] })
+    })
+    const response = await send('generate', body)
+    expect(response.status).toBe(500)
+    expect((await response.json()).plan).toBeUndefined()
+  })
+})

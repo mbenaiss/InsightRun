@@ -1,10 +1,16 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
+import * as analytics from '../src/posthog'
 import app from '../src/routes/analyzeHistory'
 
 afterEach(() => mock.restore())
 
-async function requestAnalysis(route: 'batch' | 'consolidate', cached: string | null = null) {
+async function requestAnalysis(
+  route: 'batch' | 'consolidate',
+  cached: string | null = null,
+  reportErrors = false
+) {
   const put = mock(async () => {})
+  const pending: Promise<unknown>[] = []
   const response = await app.request(
     `/${route}`,
     {
@@ -24,17 +30,23 @@ async function requestAnalysis(route: 'batch' | 'consolidate', cached: string | 
     {
       OPENROUTER_API_KEY: 'test-key',
       APP_SECRET: 'test-secret',
-      POSTHOG_API_KEY: '',
-      POSTHOG_HOST: '',
+      POSTHOG_API_KEY: reportErrors ? 'test-key' : '',
+      POSTHOG_HOST: reportErrors ? 'https://example.invalid' : '',
       RATE_LIMITER: { get: async () => cached, put } as unknown as KVNamespace,
     },
-    { waitUntil: () => {}, passThroughOnException: () => {} }
+    {
+      waitUntil: (promise: Promise<unknown>) => {
+        pending.push(promise)
+      },
+      passThroughOnException: () => {},
+    }
   )
+  await Promise.all(pending)
   return { response, put }
 }
 
 async function analyze(content: unknown, cached: string | null = null, finishReason = 'stop') {
-  const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+  const fetchMock = spyOn(globalThis, 'fetch').mockImplementation(async () =>
     Response.json({ choices: [{ message: { content }, finish_reason: finishReason }] })
   )
   return { ...(await requestAnalysis('batch', cached)), fetchMock }
@@ -64,14 +76,18 @@ describe('history analysis summaries', () => {
     '  \n\t',
     null,
   ])('rejects empty output %p without caching it as successful', async (content) => {
-    const { response, put } = await analyze(content)
-    expect(response.status).toBe(500)
+    fastForwardTimers()
+    const { response, put, fetchMock } = await analyze(content)
+    expect(response.status).toBe(502)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(put).not.toHaveBeenCalled()
   })
 
   test('does not cache output cut off by the token limit', async () => {
-    const { response, put } = await analyze('Partial analysis', null, 'length')
-    expect(response.status).toBe(500)
+    fastForwardTimers()
+    const { response, put, fetchMock } = await analyze('Partial analysis', null, 'length')
+    expect(response.status).toBe(502)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(put).not.toHaveBeenCalled()
   })
 
@@ -97,6 +113,80 @@ describe('history analysis summaries', () => {
 })
 
 describe('history analysis retries', () => {
+  test.each([
+    ['batch', '', 'stop', 1000],
+    ['batch', null, 'length', 4000],
+    ['batch', 'Partial analysis', 'length', 4000],
+    ['consolidate', '', 'stop', 3000],
+    ['consolidate', null, 'length', 12000],
+    ['consolidate', 'Partial analysis', 'length', 12000],
+  ] as const)('%s recovers from output %p ending with %s', async (route, content, finishReason, budget) => {
+    fastForwardTimers()
+    const fetchMock = spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json({ choices: [{ message: { content }, finish_reason: finishReason }] })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          choices: [{ message: { content: 'One 5 km run.' }, finish_reason: 'stop' }],
+        })
+      )
+
+    const { response, put } = await requestAnalysis(route)
+
+    expect(response.status).toBe(200)
+    const result = await response.json()
+    expect(route === 'batch' ? result.partialSummary : result.summary).toBe('One 5 km run.')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const firstRequest = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+    const secondRequest = JSON.parse(String(fetchMock.mock.calls[1][1]?.body))
+    expect(secondRequest.max_tokens).toBe(budget)
+    expect(secondRequest.messages[0].content).toContain(firstRequest.messages[0].content)
+    expect(secondRequest.messages[1]).toEqual(firstRequest.messages[1])
+    expect(put).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(String(put.mock.calls[0][1]))).toEqual(
+      route === 'batch'
+        ? { partialSummary: 'One 5 km run.', workoutCount: 1 }
+        : { summary: 'One 5 km run.' }
+    )
+  })
+
+  test('recovers when the provider omits the completion choice', async () => {
+    fastForwardTimers()
+    const fetchMock = spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ choices: [] }))
+      .mockResolvedValueOnce(
+        Response.json({ choices: [{ message: { content: 'One 5 km run.' } }] })
+      )
+
+    const { response, put } = await requestAnalysis('batch')
+
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  test.each([
+    { content: '', finishReason: 'content_filter', refusal: null },
+    { content: 'Partial analysis', finishReason: 'content_filter', refusal: null },
+    { content: '', finishReason: 'stop', refusal: 'Request refused.' },
+    { content: '', finishReason: 'tool_calls', refusal: null },
+  ])('does not retry or cache blocked or non-text completions: %p', async ({
+    content,
+    finishReason,
+    refusal,
+  }) => {
+    const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json({ choices: [{ message: { content, refusal }, finish_reason: finishReason }] })
+    )
+
+    const { response, put } = await requestAnalysis('batch')
+
+    expect(response.status).toBe(502)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(put).not.toHaveBeenCalled()
+  })
+
   test.each([
     ['batch', 429],
     ['batch', 503],
@@ -144,5 +234,61 @@ describe('history analysis retries', () => {
     expect((await response.json()).summary).toBe('One 5 km run.')
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  test('does not add a third attempt if the retry returns an incomplete summary', async () => {
+    fastForwardTimers()
+    const fetchMock = spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('Unavailable', { status: 503 }))
+      .mockResolvedValueOnce(
+        Response.json({ choices: [{ message: { content: 'Partial' }, finish_reason: 'length' }] })
+      )
+
+    const { response, put } = await requestAnalysis('consolidate')
+
+    expect(response.status).toBe(502)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  test('reports incomplete output diagnostics without exporting summary or reasoning content', async () => {
+    fastForwardTimers()
+    const capture = mock(async () => {})
+    spyOn(analytics, 'createPostHogClient').mockReturnValue({
+      captureImmediate: capture,
+      shutdown: mock(async () => {}),
+    } as unknown as ReturnType<typeof analytics.createPostHogClient>)
+    const fetchMock = spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      Response.json({
+        choices: [
+          { message: { content: null, reasoning: 'Private reasoning' }, finish_reason: 'length' },
+        ],
+        usage: { completion_tokens: 4000, completion_tokens_details: { reasoning_tokens: 4000 } },
+      })
+    )
+
+    const { response, put } = await requestAnalysis('batch', null, true)
+
+    expect(response.status).toBe(502)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(put).not.toHaveBeenCalled()
+    expect(capture).toHaveBeenCalledTimes(1)
+    expect(capture).toHaveBeenCalledWith({
+      distinctId: 'test-user',
+      event: 'indexation_failed_backend',
+      properties: {
+        route: 'batch',
+        error_type: 'OpenRouterSummaryError',
+        error_message: 'History analysis returned an empty or incomplete summary. Please retry.',
+        openrouter_status: undefined,
+        model: 'test-model',
+        finish_reason: 'length',
+        max_tokens: 4000,
+        output_length: 0,
+        completion_tokens: 4000,
+        reasoning_tokens: 4000,
+        timestamp: expect.any(Number),
+      },
+    })
   })
 })

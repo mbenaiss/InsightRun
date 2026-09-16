@@ -206,10 +206,40 @@ class OpenRouterTimeoutError extends Error {
   }
 }
 
+class OpenRouterSummaryError extends Error {
+  constructor(
+    readonly model: string,
+    readonly finishReason: string | null,
+    readonly maxTokens: number,
+    readonly outputLength: number,
+    readonly completionTokens?: number,
+    readonly reasoningTokens?: number
+  ) {
+    super('History analysis returned an empty or incomplete summary. Please retry.')
+    this.name = 'OpenRouterSummaryError'
+  }
+
+  get retryable(): boolean {
+    return this.finishReason === null || ['stop', 'length'].includes(this.finishReason)
+  }
+
+  get diagnostics() {
+    return {
+      model: this.model,
+      finish_reason: this.finishReason,
+      max_tokens: this.maxTokens,
+      output_length: this.outputLength,
+      completion_tokens: this.completionTokens,
+      reasoning_tokens: this.reasoningTokens,
+    }
+  }
+}
+
 const OPENROUTER_RETRY_DELAY_MS = 2000
 
 function isTransientOpenRouterError(error: unknown): boolean {
   if (error instanceof OpenRouterTimeoutError) return true
+  if (error instanceof OpenRouterSummaryError) return error.retryable
   return error instanceof OpenRouterError && (error.status === 429 || error.status >= 500)
 }
 
@@ -221,7 +251,8 @@ function reportIndexationError(
   error: unknown
 ) {
   const message = error instanceof Error ? error.message : String(error)
-  console.error(`Indexation ${route} error: ${message.slice(0, 500)}`)
+  const diagnostics = error instanceof OpenRouterSummaryError ? error.diagnostics : {}
+  console.error(`Indexation ${route} error: ${message.slice(0, 500)}`, diagnostics)
 
   if (!c.env.POSTHOG_API_KEY || !c.env.POSTHOG_HOST) return
 
@@ -241,6 +272,7 @@ function reportIndexationError(
             error_type: error instanceof Error ? error.name : 'Unknown',
             error_message: message.slice(0, 500),
             openrouter_status: error instanceof OpenRouterError ? error.status : undefined,
+            ...diagnostics,
             timestamp: Date.now(),
           },
         })
@@ -263,11 +295,12 @@ function indexationErrorResponse(
   if (error instanceof OpenRouterTimeoutError) {
     return c.json({ error: 'AI Service Timeout', message }, 504)
   }
+  if (error instanceof OpenRouterSummaryError) {
+    return c.json({ error: 'AI Service Error', message }, 502)
+  }
   return c.json({ error: 'Internal Server Error', message }, 500)
 }
 
-// Retries once on transient OpenRouter failures (429, 5xx, timeout): the same
-/// model answered fine minutes after the last observed batch failure.
 async function callOpenRouterNonStreaming(
   apiKey: string,
   model: string,
@@ -280,11 +313,25 @@ async function callOpenRouterNonStreaming(
     return await callOpenRouterOnce(apiKey, model, systemPrompt, prompt, maxTokens, timeout)
   } catch (error) {
     if (!isTransientOpenRouterError(error)) throw error
+    const summaryError = error instanceof OpenRouterSummaryError ? error : undefined
+    // Reasoning can consume the entire generation budget before visible text is produced.
+    const retryMaxTokens = summaryError?.finishReason === 'length' ? maxTokens * 4 : maxTokens
+    const retrySystemPrompt = summaryError
+      ? `${systemPrompt}\n\nReturn a complete, concise summary within ${maxTokens} visible tokens. Prioritize the key quantitative facts and finish every sentence.`
+      : systemPrompt
     console.warn(
-      `OpenRouter transient failure, retrying once: ${(error as Error).message.slice(0, 200)}`
+      `OpenRouter transient failure, retrying once: ${(error as Error).message.slice(0, 200)}`,
+      { ...summaryError?.diagnostics, retry_max_tokens: retryMaxTokens }
     )
     await new Promise((resolve) => setTimeout(resolve, OPENROUTER_RETRY_DELAY_MS))
-    return await callOpenRouterOnce(apiKey, model, systemPrompt, prompt, maxTokens, timeout)
+    return await callOpenRouterOnce(
+      apiKey,
+      model,
+      retrySystemPrompt,
+      prompt,
+      retryMaxTokens,
+      timeout
+    )
   }
 }
 
@@ -329,13 +376,31 @@ async function callOpenRouterOnce(
     }
 
     const data = (await response.json()) as {
-      choices: Array<{ message: { content: string | null }; finish_reason?: string }>
+      choices?: Array<{
+        message?: { content?: string | null; refusal?: string | null }
+        finish_reason?: string
+      }>
+      usage?: {
+        completion_tokens?: number
+        completion_tokens_details?: { reasoning_tokens?: number }
+      }
     }
 
     const choice = data.choices?.[0]
-    const summary = choice?.message?.content?.trim()
-    if (!summary || choice?.finish_reason === 'length') {
-      throw new Error('History analysis returned an empty or incomplete summary. Please retry.')
+    const summary =
+      typeof choice?.message?.content === 'string' ? choice.message.content.trim() : ''
+    const finishReason = choice?.message?.refusal
+      ? 'content_filter'
+      : (choice?.finish_reason ?? null)
+    if (!summary || (finishReason !== null && finishReason !== 'stop')) {
+      throw new OpenRouterSummaryError(
+        model,
+        finishReason,
+        maxTokens,
+        summary.length,
+        data.usage?.completion_tokens,
+        data.usage?.completion_tokens_details?.reasoning_tokens
+      )
     }
     return summary
   } catch (error) {

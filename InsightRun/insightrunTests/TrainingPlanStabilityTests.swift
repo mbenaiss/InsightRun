@@ -502,3 +502,13 @@ extension TrainingPlanStabilityTests {
         XCTAssertEqual(consumed, 1)
     }
 }
+
+extension TrainingPlanStabilityTests {
+    func testStartingTodayIsUnavailableWhenItCannotReachRaceWithinSupportedWindow() {
+        let distant = RaceGoal(raceType: .marathon, targetDate: date(365))
+        XCTAssertFalse(distant.canStartPlan(on: date(0)))
+        XCTAssertTrue(distant.canStartPlan(on: date(198)))
+        let nearby = RaceGoal(raceType: .fiveK, targetDate: date(10))
+        XCTAssertFalse(nearby.canStartPlan(on: date(0)))
+    }
+}

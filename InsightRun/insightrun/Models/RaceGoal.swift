@@ -79,6 +79,13 @@ struct RaceGoal: Identifiable, Codable {
         isPastRace || targetDate < Date()
     }
 
+    func canStartPlan(on date: Date, calendar: Calendar = .current) -> Bool {
+        guard completedWorkouts == 0,
+            let schedule = try? TrainingPlanSchedule(start: date, target: targetDate, calendar: calendar)
+        else { return false }
+        return schedule.start == calendar.startOfDay(for: date)
+    }
+
     var hasTrainingPlan: Bool {
         trainingPlan != nil
     }

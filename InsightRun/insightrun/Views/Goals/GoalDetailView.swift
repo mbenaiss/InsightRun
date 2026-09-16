@@ -182,7 +182,7 @@ struct GoalDetailView: View {
                     }
 
                     .disabled(
-                        viewModel.isGeneratingPlan || viewModel.isAdaptingPlan || currentGoal.completedWorkouts > 0)
+                        viewModel.isGeneratingPlan || viewModel.isAdaptingPlan || !currentGoal.canStartPlan(on: Date()))
 
                     Button {
                         showRegenerateConfirmation = true

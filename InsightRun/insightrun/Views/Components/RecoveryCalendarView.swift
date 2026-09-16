@@ -23,6 +23,13 @@ struct RecoveryCalendarView: View {
         return formatter.veryShortWeekdaySymbols.rotatedToStartOnMonday()
     }()
 
+    init(selectedDate: Binding<Date>, isPresented: Binding<Bool>, onDateSelected: @escaping (Date) async -> Void) {
+        _selectedDate = selectedDate
+        _isPresented = isPresented
+        self.onDateSelected = onDateSelected
+        _displayedMonth = State(initialValue: selectedDate.wrappedValue)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -206,6 +213,7 @@ struct RecoveryCalendarView: View {
         .buttonStyle(.plain)
         .disabled(isFuture)
         .accessibilityLabel(dayCellAccessibilityLabel(for: date, score: score, isFuture: isFuture))
+        .accessibilityIdentifier("dashboard-day-\(calendar.component(.day, from: date))")
     }
 
     // MARK: - Bottom Bar
@@ -214,10 +222,11 @@ struct RecoveryCalendarView: View {
         HStack {
             // Today Button
             Button {
-                displayedMonth = Date()
-                selectedDate = Date()
+                let today = calendar.startOfDay(for: Date())
+                displayedMonth = today
+                selectedDate = today
                 Task {
-                    await onDateSelected(Date())
+                    await onDateSelected(today)
                     isPresented = false
                 }
             } label: {
@@ -340,7 +349,7 @@ struct RecoveryCalendarView: View {
         }
 
         // Load scores for each day of the month
-        let healthKitManager = HealthKitManager.shared
+        let metricsCache = DailyMetricsCache.shared
         var scores: [Date: Int] = [:]
 
         let numberOfDays = calendar.range(of: .day, in: .month, for: displayedMonth)?.count ?? 30
@@ -355,17 +364,12 @@ struct RecoveryCalendarView: View {
                     continue
                 }
 
-                do {
-                    let metrics = try await healthKitManager.fetchRecoveryMetrics(for: date)
-                    if Task.isCancelled { return }
-                    scores[startOfDay] = metrics.recoveryScore
-                    recoveryScores = scores
-                } catch {
-                    // Skip days with no data
+                if let score = metricsCache.getHistoricalReadinessScore(for: startOfDay) {
+                    scores[startOfDay] = score
                 }
             }
         }
-
+        recoveryScores = scores
     }
 }
 

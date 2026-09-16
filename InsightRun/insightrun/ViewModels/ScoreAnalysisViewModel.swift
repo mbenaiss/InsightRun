@@ -7,12 +7,13 @@
 
 import Foundation
 import Combine
+import CryptoKit
 
 @MainActor
 class ScoreAnalysisViewModel: ObservableObject {
     private enum PendingAnalysis {
         case score(ScoreType, Int, RecoveryMetrics, [TrendDataPoint]?)
-        case metric(MetricType, Double, String, RecoveryMetrics)
+        case metric(MetricType, Double, String, RecoveryMetrics, DailyActivityData?)
     }
 
     @Published var analysisText: String?
@@ -22,7 +23,6 @@ class ScoreAnalysisViewModel: ObservableObject {
     @Published var needsIndexation = false
 
     private let aiService = WorkoutAIService()
-    private var cancellables = Set<AnyCancellable>()
     private var pendingAnalysis: PendingAnalysis?
 
     private static let cachePrefix = "ai_analysis_"
@@ -32,52 +32,18 @@ class ScoreAnalysisViewModel: ObservableObject {
     static let defaults: UserDefaults = .standard
     #endif
 
-    init() {
-        aiService.$streamedResponse
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] response in
-                let isSystemMessage = response.isEmpty
-
-                if !isSystemMessage {
-                    self?.analysisText = response
-                }
-            }
-            .store(in: &cancellables)
-
-        aiService.$error
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] errorMsg in
-                self?.error = errorMsg
-            }
-            .store(in: &cancellables)
-
-        aiService.$needsConsent
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] needsConsent in
-                self?.needsConsent = needsConsent
-            }
-            .store(in: &cancellables)
-
-        aiService.$needsIndexation
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] needsIndexation in
-                self?.needsIndexation = needsIndexation
-            }
-            .store(in: &cancellables)
-    }
-
     // MARK: - Cache
 
     // Cache key includes the value so that a changing score/metric invalidates
     // the cached analysis instead of returning a stale explanation.
-    private static func cacheKey(for identifier: String, value: String) -> String {
-        let dateString = DateFormatter.cacheDateFormatter.string(from: Date())
+    private static func cacheKey(for identifier: String, value: String, date: Date = Date()) -> String {
+        let dateString = DateFormatter.cacheDateFormatter.string(from: date)
         let lang = AppLanguage.current
         return "\(cachePrefix)\(identifier)_\(lang)_\(dateString)_v\(value)"
     }
 
-    private static func cachedAnalysis(for identifier: String, value: String) -> String? {
-        let key = cacheKey(for: identifier, value: value)
+    private static func cachedAnalysis(for identifier: String, value: String, date: Date = Date()) -> String? {
+        let key = cacheKey(for: identifier, value: value, date: date)
         guard let cached = Self.defaults.string(forKey: key) else { return nil }
         // Defensive: discard caches written by older builds that may have stored a
         // truncated chunk (e.g. interrupted streaming). Re-fetch a fresh analysis instead.
@@ -88,9 +54,9 @@ class ScoreAnalysisViewModel: ObservableObject {
         return cached
     }
 
-    private static func saveAnalysis(_ text: String, for identifier: String, value: String) {
+    private static func saveAnalysis(_ text: String, for identifier: String, value: String, date: Date = Date()) {
         guard AIResponseValidator.isComplete(text) else { return }
-        let key = cacheKey(for: identifier, value: value)
+        let key = cacheKey(for: identifier, value: value, date: date)
         Self.defaults.set(text, forKey: key)
         cleanOldCache(currentKey: key, identifier: identifier)
     }
@@ -98,26 +64,33 @@ class ScoreAnalysisViewModel: ObservableObject {
     private static func cleanOldCache(currentKey: String, identifier: String) {
         let prefix = "\(cachePrefix)\(identifier)_"
         for key in Self.defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key != currentKey {
-            Self.defaults.removeObject(forKey: key)
+            let keyDate = key.split(separator: "_").compactMap { DateFormatter.cacheDateFormatter.date(from: String($0)) }.first
+            let currentDate = currentKey.split(separator: "_").compactMap { DateFormatter.cacheDateFormatter.date(from: String($0)) }.first
+            if keyDate == currentDate || keyDate.map({ Date().timeIntervalSince($0) > 30 * 86_400 }) != false {
+                Self.defaults.removeObject(forKey: key)
+            }
         }
     }
 
     // MARK: - Score Analysis
 
     func analyze(scoreType: ScoreType, score: Int, recoveryMetrics: RecoveryMetrics, trendData: [TrendDataPoint]? = nil) async {
-        guard !isLoading else { return }
+        guard !isLoading, !Task.isCancelled else { return }
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
         pendingAnalysis = .score(scoreType, score, recoveryMetrics, trendData)
 
         if DemoMode.isEnabled {
-            analysisText = MockData.sampleScoreAnalysis(for: scoreType)
+            analysisText = MockData.sampleScoreAnalysis(for: scoreType, score: score)
             pendingAnalysis = nil
             return
         }
 
         let identifier = "score_\(scoreType.id)"
-        let valueKey = String(score)
+        let valueKey = "\(score)_\(Self.contextSignature(recoveryMetrics, trend: trendData))"
 
-        if let cached = Self.cachedAnalysis(for: identifier, value: valueKey) {
+        if let cached = Self.cachedAnalysis(for: identifier, value: valueKey, date: recoveryMetrics.date) {
             analysisText = cached
             pendingAnalysis = nil
             return
@@ -134,34 +107,37 @@ class ScoreAnalysisViewModel: ObservableObject {
             return
         }
 
-        isLoading = true
-        error = nil
+        guard !Task.isCancelled else { return }
         analysisText = nil
-        pendingAnalysis = nil
 
-        let prompt = buildPrompt(scoreType: scoreType, score: score, trendData: trendData)
+        let prompt = datedPrompt(buildPrompt(scoreType: scoreType, score: score, trendData: trendData), date: recoveryMetrics.date)
         let userLanguage = AppLanguage.current
 
         // askQuestion only returns once the stream is fully consumed, so the final
         // text is available synchronously on aiService.streamedResponse afterwards.
+        #if DEBUG
+        DashboardDiagnostics.record("api.score-analysis", date: recoveryMetrics.date)
+        #endif
         await aiService.askQuestion(
             question: prompt,
             mode: .recoveryCoaching(recoveryMetrics),
             language: userLanguage
         )
 
-        isLoading = false
+        guard !Task.isCancelled else { return }
 
-        // Read the service flags directly: they are set synchronously inside askQuestion,
-        // whereas the @Published mirrors arrive through an async Combine sink a tick later.
-        if aiService.needsConsent || aiService.needsIndexation {
+        error = aiService.error
+        needsConsent = aiService.needsConsent
+        needsIndexation = aiService.needsIndexation
+        if needsConsent || needsIndexation {
             return
         }
 
         let text = aiService.streamedResponse
         if aiService.error == nil, AIResponseValidator.isComplete(text) {
             analysisText = text
-            Self.saveAnalysis(text, for: identifier, value: valueKey)
+            Self.saveAnalysis(text, for: identifier, value: valueKey, date: recoveryMetrics.date)
+            pendingAnalysis = nil
         } else if aiService.error == nil {
             // Stream finished without throwing but produced a truncated/empty payload —
             // surface as an error and clear the partial text so the sheet doesn't display
@@ -174,19 +150,22 @@ class ScoreAnalysisViewModel: ObservableObject {
     // MARK: - Metric Analysis
 
     func analyzeMetric(metricType: MetricType, value: Double, unit: String, recoveryMetrics: RecoveryMetrics, activityData: DailyActivityData? = nil) async {
-        guard !isLoading else { return }
-        pendingAnalysis = .metric(metricType, value, unit, recoveryMetrics)
+        guard !isLoading, !Task.isCancelled else { return }
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+        pendingAnalysis = .metric(metricType, value, unit, recoveryMetrics, activityData)
 
         if DemoMode.isEnabled {
-            analysisText = MockData.sampleMetricAnalysis(for: metricType)
+            analysisText = MockData.sampleMetricAnalysis(for: metricType, value: value)
             pendingAnalysis = nil
             return
         }
 
         let identifier = "metric_\(metricType)"
-        let valueKey = String(format: "%.1f", value)
+        let valueKey = String(format: "%.1f", value) + "_" + Self.contextSignature(recoveryMetrics, activity: activityData)
 
-        if let cached = Self.cachedAnalysis(for: identifier, value: valueKey) {
+        if let cached = Self.cachedAnalysis(for: identifier, value: valueKey, date: recoveryMetrics.date) {
             analysisText = cached
             pendingAnalysis = nil
             return
@@ -203,34 +182,37 @@ class ScoreAnalysisViewModel: ObservableObject {
             return
         }
 
-        isLoading = true
-        error = nil
+        guard !Task.isCancelled else { return }
         analysisText = nil
-        pendingAnalysis = nil
 
-        let prompt = buildMetricPrompt(metricType: metricType, value: value, unit: unit, activityData: activityData)
+        let prompt = datedPrompt(buildMetricPrompt(metricType: metricType, value: value, unit: unit, activityData: activityData), date: recoveryMetrics.date)
         let userLanguage = AppLanguage.current
 
         // askQuestion only returns once the stream is fully consumed, so the final
         // text is available synchronously on aiService.streamedResponse afterwards.
+        #if DEBUG
+        DashboardDiagnostics.record("api.score-analysis", date: recoveryMetrics.date)
+        #endif
         await aiService.askQuestion(
             question: prompt,
             mode: .recoveryCoaching(recoveryMetrics),
             language: userLanguage
         )
 
-        isLoading = false
+        guard !Task.isCancelled else { return }
 
-        // Read the service flags directly: they are set synchronously inside askQuestion,
-        // whereas the @Published mirrors arrive through an async Combine sink a tick later.
-        if aiService.needsConsent || aiService.needsIndexation {
+        error = aiService.error
+        needsConsent = aiService.needsConsent
+        needsIndexation = aiService.needsIndexation
+        if needsConsent || needsIndexation {
             return
         }
 
         let text = aiService.streamedResponse
         if aiService.error == nil, AIResponseValidator.isComplete(text) {
             analysisText = text
-            Self.saveAnalysis(text, for: identifier, value: valueKey)
+            Self.saveAnalysis(text, for: identifier, value: valueKey, date: recoveryMetrics.date)
+            pendingAnalysis = nil
         } else if aiService.error == nil {
             analysisText = nil
             error = String(localized: "Unable to generate analysis", comment: "Score analysis error")
@@ -243,9 +225,27 @@ class ScoreAnalysisViewModel: ObservableObject {
         switch pendingAnalysis {
         case .score(let scoreType, let score, let recoveryMetrics, let trendData):
             await analyze(scoreType: scoreType, score: score, recoveryMetrics: recoveryMetrics, trendData: trendData)
-        case .metric(let metricType, let value, let unit, let recoveryMetrics):
-            await analyzeMetric(metricType: metricType, value: value, unit: unit, recoveryMetrics: recoveryMetrics)
+        case .metric(let metricType, let value, let unit, let recoveryMetrics, let activityData):
+            await analyzeMetric(metricType: metricType, value: value, unit: unit, recoveryMetrics: recoveryMetrics, activityData: activityData)
         }
+    }
+
+    static func contextSignature(_ metrics: RecoveryMetrics, activity: DailyActivityData? = nil, trend: [TrendDataPoint]? = nil) -> String {
+        let values = [
+            String(Calendar.current.startOfDay(for: metrics.date).timeIntervalSinceReferenceDate),
+            String(describing: metrics.hrvAverage), String(describing: metrics.restingHeartRate),
+            String(describing: metrics.respiratoryRate), String(describing: metrics.oxygenSaturation),
+            String(describing: metrics.sleepData?.totalSleepDuration), String(describing: metrics.sleepData?.sleepEfficiency),
+            String(describing: metrics.sleepData?.deepSleepDuration), String(describing: metrics.sleepData?.remSleepDuration),
+            String(describing: metrics.baseline?.hrvAverage), String(describing: metrics.baseline?.restingHeartRateAverage),
+            String(describing: activity),
+            trend?.map { "\($0.date.timeIntervalSinceReferenceDate):\($0.value)" }.joined(separator: ";") ?? ""
+        ]
+        return SHA256.hash(data: Data(values.joined(separator: "|").utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func datedPrompt(_ prompt: String, date: Date) -> String {
+        "Reference date: \(DateFormatter.cacheDateFormatter.string(from: date)). All metrics and references to today below concern that date only. " + prompt
     }
 
     // MARK: - Prompts
@@ -316,7 +316,7 @@ class ScoreAnalysisViewModel: ObservableObject {
         guard let data = trendData, !data.isEmpty else { return nil }
 
         let sorted = data.sorted { $0.date < $1.date }
-        let today = Calendar.current.startOfDay(for: Date())
+        let today = Calendar.current.startOfDay(for: sorted.last!.date)
 
         let entries: [String] = sorted.map { point in
             let pointDay = Calendar.current.startOfDay(for: point.date)
@@ -362,6 +362,7 @@ class ScoreAnalysisViewModel: ObservableObject {
 private extension DateFormatter {
     static let cacheDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()

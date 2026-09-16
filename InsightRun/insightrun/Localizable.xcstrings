@@ -1,6 +1,18 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "score.readiness.calculation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "These weights apply when all measurements are available. Missing signals are excluded and the remaining weights are normalized. Measurements are compared with your personal baseline when available. Very short sleep and recent intense efforts can cap or reduce the score." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ces poids s’appliquent lorsque toutes les mesures sont disponibles. Les signaux absents sont exclus et les poids restants sont rééquilibrés. Les mesures sont comparées à votre référence personnelle lorsqu’elle est disponible. Un sommeil très court et des efforts intenses récents peuvent plafonner ou réduire le score." } }
+      }
+    },
+    "score.sleep.calculation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The score starts at 50 points. Sleep duration adds up to 25 points (or subtracts 20 below 5 hours); efficiency adds up to 25 points. Sleep stages are shown separately and do not contribute to this score." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Le score part de 50 points. La durée de sommeil ajoute jusqu’à 25 points (ou retire 20 points sous 5 heures) ; l’efficacité ajoute jusqu’à 25 points. Les phases de sommeil sont présentées séparément et n’entrent pas dans ce score." } }
+      }
+    },
     "statistics.coach.demo.summary" : {
       "extractionState": "manual",
       "localizations": {

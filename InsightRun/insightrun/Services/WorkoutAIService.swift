@@ -588,18 +588,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     }
 
     private func convertToRecoveryData(metrics: RecoveryMetrics) -> RecoveryData {
-        return RecoveryData(
-            restingHeartRate: metrics.restingHeartRate.map { Int($0) },
-            hrv: metrics.hrvAverage.map { Int($0) },
-            walkingHeartRate: metrics.walkingHeartRate.map { Int($0) },
-            respiratoryRate: metrics.respiratoryRate.map { Int($0) },
-            sleepData: metrics.sleepData != nil ? SleepDataPayload(
-                totalDuration: metrics.sleepData!.totalSleepDuration,
-                efficiency: Int(metrics.sleepData!.sleepEfficiency),
-                deepDuration: metrics.sleepData?.deepSleepDuration,
-                remDuration: metrics.sleepData?.remSleepDuration
-            ) : nil
-        )
+        return RecoveryData(metrics: metrics)
     }
 
     // MARK: - Contextual Suggestions
@@ -702,17 +691,6 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
             return nil
         }
 
-        return PersonalBaselineData(
-            restingHeartRateAverage: baseline.restingHeartRateAverage,
-            restingHeartRateStdDev: baseline.restingHeartRateStdDev,
-            hrvAverage: baseline.hrvAverage,
-            hrvStdDev: baseline.hrvStdDev,
-            sleepDurationAverage: baseline.sleepDurationAverage,
-            sleepEfficiencyAverage: baseline.sleepEfficiencyAverage,
-            respiratoryRateAverage: baseline.respiratoryRateAverage,
-            respiratoryRateStdDev: baseline.respiratoryRateStdDev,
-            dataPointCount: baseline.dataPointCount,
-            isReliable: baseline.isReliable
-        )
+        return PersonalBaselineData(baseline: baseline)
     }
 }

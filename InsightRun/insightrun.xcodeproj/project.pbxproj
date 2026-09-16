@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B195B38548D448EF97377901 /* StatisticsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B195B38548D448EF97377902 /* StatisticsViewModelTests.swift */; };
+		A16092026000000000000001 /* recovery-scores.json in Resources */ = {isa = PBXBuildFile; fileRef = A16092026000000000000002 /* recovery-scores.json */; };
 		FCBA47A38CBA46CB90741701 /* TrainingPlanStabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBA47A38CBA46CB90741702 /* TrainingPlanStabilityTests.swift */; };
 		A0D180000000000000000004 /* AgentStreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000004 /* AgentStreamParserTests.swift */; };
 		A0D180000000000000000007 /* WorkoutRaceStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D170000000000000000007 /* WorkoutRaceStoreTests.swift */; };
@@ -78,6 +79,7 @@
 
 /* Begin PBXFileReference section */
 		B195B38548D448EF97377902 /* StatisticsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsViewModelTests.swift; sourceTree = "<group>"; };
+		A16092026000000000000002 /* recovery-scores.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = "recovery-scores.json"; path = "../../backend/tests/fixtures/recovery-scores.json"; sourceTree = "<group>"; };
 		FCBA47A38CBA46CB90741702 /* TrainingPlanStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingPlanStabilityTests.swift; sourceTree = "<group>"; };
 		A0D170000000000000000004 /* AgentStreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStreamParserTests.swift; sourceTree = "<group>"; };
 		A0D170000000000000000007 /* WorkoutRaceStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutRaceStoreTests.swift; sourceTree = "<group>"; };
@@ -235,6 +237,7 @@
 				A0D170000000000000000001 /* NoSleepModeTests.swift */,
 				A0D170000000000000000000 /* NotificationManagerTests.swift */,
 				55A8CDCEC4A8EA7F1B02A498 /* open-intervals.json */,
+				A16092026000000000000002 /* recovery-scores.json */,
 			);
 			name = insightrunTests;
 			path = insightrunTests;
@@ -441,6 +444,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B787DBFCABD776FF1DBB64D9 /* open-intervals.json in Resources */,
+				A16092026000000000000001 /* recovery-scores.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,0 +1,305 @@
+[
+  {
+    "name": "personal-baseline-and-stages",
+    "expected": 61,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90,
+        "deepDuration": 5184,
+        "remDuration": 6336
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "unavailable-stages-are-neutral",
+    "expected": 61,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "stages-without-personal-reference",
+    "expected": 69,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90,
+        "deepDuration": 5184,
+        "remDuration": 6336
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "zero-deviation-uses-coefficient-of-variation",
+    "expected": 66,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 75,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90,
+        "deepDuration": 5184,
+        "remDuration": 6336
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 0,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "missing-metric-baseline-uses-fixed-range",
+    "expected": 65,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90,
+        "deepDuration": 5184,
+        "remDuration": 6336
+      }
+    },
+    "baseline": {
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "without-personal-baseline",
+    "expected": 74,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90,
+        "deepDuration": 5184,
+        "remDuration": 6336
+      }
+    }
+  },
+  {
+    "name": "no-sleep-mode-excludes-sleep",
+    "expected": 58,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90,
+        "deepDuration": 5184,
+        "remDuration": 6336
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    },
+    "noSleepMode": true
+  },
+  {
+    "name": "critical-sleep-caps-score",
+    "expected": 32,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 16200.0,
+        "efficiency": 90
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "short-sleep-and-low-hrv-cap",
+    "expected": 30,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 25,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 19800.0,
+        "efficiency": 90
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "single-oxygen-measurement-normalizes-available-weight",
+    "expected": 100,
+    "recovery": {
+      "oxygenSaturation": 98
+    }
+  },
+  {
+    "name": "conflicting-stages-preserve-other-signals",
+    "expected": 61,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 28800,
+        "efficiency": 90,
+        "deepDuration": 21600,
+        "remDuration": 21600
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  },
+  {
+    "name": "zero-duration-sleep-is-unavailable",
+    "expected": 58,
+    "recovery": {
+      "restingHeartRate": 50,
+      "hrv": 60,
+      "respiratoryRate": 15,
+      "oxygenSaturation": 98,
+      "sleepData": {
+        "totalDuration": 0,
+        "efficiency": 0
+      }
+    },
+    "baseline": {
+      "restingHeartRateAverage": 50,
+      "restingHeartRateStdDev": 4,
+      "hrvAverage": 60,
+      "hrvStdDev": 18,
+      "respiratoryRateAverage": 15,
+      "respiratoryRateStdDev": 1.8,
+      "sleepEfficiencyAverage": 90,
+      "deepSleepPercentageAverage": 18,
+      "remSleepPercentageAverage": 22,
+      "dataPointCount": 14,
+      "isReliable": true
+    }
+  }
+]

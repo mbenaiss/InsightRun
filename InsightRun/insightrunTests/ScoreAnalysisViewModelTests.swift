@@ -397,7 +397,7 @@ final class MetricTrendDataServiceTests: XCTestCase {
         XCTAssertTrue(points.isEmpty, "Should return empty when no historical scores exist")
     }
 
-    func testReadinessTrendCachesNonEmptyResult() async {
+    func testReadinessTrendReadsPersistedScoresWithoutStaleCache() async {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let key = "readiness_score_\(formatter.string(from: Date()))"
@@ -406,8 +406,10 @@ final class MetricTrendDataServiceTests: XCTestCase {
         let metricsCache = DailyMetricsCache.createForTesting(defaults: testDefaults)
         _ = await service.readinessTrend(days: 7, metricsCache: metricsCache)
 
-        XCTAssertEqual(service.testCacheCount, 1, "Non-empty result should be cached")
-        XCTAssertNotNil(service.testGetCachedData(key: "readiness_7"), "Cache key should be readiness_7")
+        testDefaults.set(42, forKey: key)
+        let updated = await service.readinessTrend(days: 7, metricsCache: metricsCache)
+        XCTAssertEqual(updated.last?.value, 42)
+        XCTAssertEqual(service.testCacheCount, 0)
     }
 
     func testEmptyResultIsNotCached() async {
@@ -510,5 +512,40 @@ final class DailyMetricsCacheHistoricalTests: XCTestCase {
 
         XCTAssertEqual(testCache.getHistoricalReadinessScore(for: today), 80)
         XCTAssertEqual(testCache.getHistoricalReadinessScore(for: yesterday), 65)
+    }
+}
+
+extension ScoreAnalysisViewModelTests {
+    func testAnalysisContextIgnoresGeneratedIdentifiersButIncludesReferenceDate() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let first = MockData.recoveryMetrics(for: today)
+        let second = MockData.recoveryMetrics(for: today)
+        XCTAssertNotEqual(first.id, second.id)
+        XCTAssertEqual(ScoreAnalysisViewModel.contextSignature(first), ScoreAnalysisViewModel.contextSignature(second))
+        let yesterday = MockData.recoveryMetrics(for: today.addingTimeInterval(-86_400))
+        XCTAssertNotEqual(ScoreAnalysisViewModel.contextSignature(first), ScoreAnalysisViewModel.contextSignature(yesterday))
+    }
+
+    func testAnalysisContextChangesWhenCalorieSplitChangesWithSameTotal() {
+        let recovery = MockData.sampleRecoveryMetrics
+        let first = DailyActivityData(steps: 1000, activeCalories: 100, basalCalories: 1000,
+                                      exerciseMinutes: 10, activeCaloriesGoal: nil, exerciseMinutesGoal: nil)
+        let second = DailyActivityData(steps: 1000, activeCalories: 200, basalCalories: 900,
+                                       exerciseMinutes: 10, activeCaloriesGoal: nil, exerciseMinutesGoal: nil)
+        XCTAssertEqual(first.totalCalories, second.totalCalories)
+        XCTAssertNotEqual(ScoreAnalysisViewModel.contextSignature(recovery, activity: first),
+                          ScoreAnalysisViewModel.contextSignature(recovery, activity: second))
+    }
+
+    func testAnalysisContextChangesWithTrendValuesButNotPointIdentifiers() {
+        let recovery = MockData.sampleRecoveryMetrics
+        let date = Calendar.current.startOfDay(for: Date())
+        let first = [TrendDataPoint(date: date, value: 12)]
+        let same = [TrendDataPoint(date: date, value: 12)]
+        let changed = [TrendDataPoint(date: date, value: 16)]
+        XCTAssertEqual(ScoreAnalysisViewModel.contextSignature(recovery, trend: first),
+                       ScoreAnalysisViewModel.contextSignature(recovery, trend: same))
+        XCTAssertNotEqual(ScoreAnalysisViewModel.contextSignature(recovery, trend: first),
+                          ScoreAnalysisViewModel.contextSignature(recovery, trend: changed))
     }
 }

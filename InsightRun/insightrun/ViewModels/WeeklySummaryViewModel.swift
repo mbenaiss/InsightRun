@@ -45,7 +45,7 @@ class WeeklySummaryViewModel: ObservableObject {
     @Published var averageRemPercent: Double = 0
 
     // Recovery
-    @Published var averageRecoveryScore: Int = 0
+    @Published var averageRecoveryScore: Int?
     @Published var averageHRV: Double?
     @Published var averageRestingHR: Double?
     @Published var averageSpO2: Double?
@@ -66,7 +66,7 @@ class WeeklySummaryViewModel: ObservableObject {
     // Previous-week averages (for strikethrough comparison)
     @Published var prevTotalDistance: Double = 0
     @Published var prevTotalDuration: TimeInterval = 0
-    @Published var prevAverageRecoveryScore: Int = 0
+    @Published var prevAverageRecoveryScore: Int?
     @Published var prevAverageSleepDuration: TimeInterval = 0
     @Published var prevAverageHRV: Double?
 
@@ -90,7 +90,9 @@ class WeeklySummaryViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager.shared
     private let calendar = Calendar.current
     private var lastLoadedAt: Date?
-    private var isFetching = false
+    private var loadTask: Task<Void, Never>?
+    private var detailsLoaded = false
+    private(set) var selectedDate = Calendar.current.startOfDay(for: Date())
 
     var formattedWeekRange: String {
         let formatter = DateFormatter()
@@ -138,20 +140,42 @@ class WeeklySummaryViewModel: ObservableObject {
         return String(format: "%dh%02d", hours, minutes)
     }
 
-    func load(forceCoachingRefresh: Bool = false, minimumRefreshInterval: TimeInterval = 0, includeCoaching: Bool = true) async {
-        guard !isFetching else { return }
-        if !forceCoachingRefresh, let lastLoadedAt,
+    func load(for date: Date? = nil, forceCoachingRefresh: Bool = false, minimumRefreshInterval: TimeInterval = 0, includeCoaching: Bool = true, includeDetails: Bool = true) async {
+        if let loadTask { await loadTask.value }
+        guard !Task.isCancelled else { return }
+        let targetDate = Calendar.current.startOfDay(for: date ?? selectedDate)
+        let task = Task { await self.performLoad(for: targetDate, forceCoachingRefresh: forceCoachingRefresh,
+                                               minimumRefreshInterval: minimumRefreshInterval,
+                                               includeCoaching: includeCoaching, includeDetails: includeDetails) }
+        loadTask = task
+        await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        loadTask = nil
+    }
+
+    private func performLoad(for date: Date, forceCoachingRefresh: Bool, minimumRefreshInterval: TimeInterval, includeCoaching: Bool, includeDetails: Bool) async {
+        if selectedDate == date, (!includeDetails || detailsLoaded), !forceCoachingRefresh, let lastLoadedAt,
            Date().timeIntervalSince(lastLoadedAt) < minimumRefreshInterval,
            calendar.isDateInToday(lastLoadedAt) {
             return
         }
-        isFetching = true
-        defer { isFetching = false }
-        isLoading = lastLoadedAt == nil
+        let canReuseRunning = selectedDate == date && lastLoadedAt.map { Date().timeIntervalSince($0) < minimumRefreshInterval } == true
+        if selectedDate != date || !canReuseRunning {
+            detailsLoaded = false
+            coachingTimestamp = nil
+            coachingTLDR = ""
+            coachingDetail = ""
+            coachingHighlight = nil
+        }
+        selectedDate = date
+        #if DEBUG
+        DashboardDiagnostics.record(includeDetails ? "weekly.details" : "weekly.card", date: date)
+        #endif
+        isLoading = includeDetails ? !detailsLoaded : lastLoadedAt == nil
+        defer { isLoading = false }
         errorMessage = nil
 
-        let now = Date()
-        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
+        let now = min(Date(), calendar.date(byAdding: .day, value: 1, to: date)!.addingTimeInterval(-0.001))
+        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
         weekStart = startOfWeek
         weekEnd = now
 
@@ -159,32 +183,69 @@ class WeeklySummaryViewModel: ObservableObject {
 
         do {
             // Fetch current week running workouts
-            let workouts = try await healthKitManager.fetchRunningWorkouts(from: startOfWeek, to: now)
-            aggregateRunning(workouts)
+            if !canReuseRunning {
+                let workouts = try await healthKitManager.fetchRunningWorkouts(from: startOfWeek, to: now)
+                try Task.checkCancellation()
+                aggregateRunning(workouts)
+                lastLoadedAt = Date()
+            }
+            guard includeDetails else { return }
+            resetDetails()
 
             // Fetch previous week for comparison
-            let prevWorkouts = try await healthKitManager.fetchRunningWorkouts(from: prevWeekStart, to: startOfWeek)
+            let comparisonEnd = calendar.date(byAdding: .weekOfYear, value: -1, to: now)!
+            let prevWorkouts = try await healthKitManager.fetchRunningWorkouts(from: prevWeekStart, to: comparisonEnd)
+            try Task.checkCancellation()
             computeRunningComparison(previous: prevWorkouts)
 
-            // Fetch sleep data for each day (including previous week for delta)
-            await loadSleepData(from: startOfWeek, to: now, prevStart: prevWeekStart, prevEnd: startOfWeek)
-
             // Fetch recovery metrics for each day
-            await loadRecoveryData(from: startOfWeek, to: now, prevStart: prevWeekStart, prevEnd: startOfWeek)
+            await loadRecoveryData(from: startOfWeek, to: now, prevStart: prevWeekStart, prevEnd: comparisonEnd)
+            try Task.checkCancellation()
+            detailsLoaded = true
             lastLoadedAt = Date()
         } catch {
+            guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
         }
 
         isLoading = false
 
-        if includeCoaching { await loadCoaching(forceRefresh: forceCoachingRefresh) }
+        if includeCoaching && !Task.isCancelled { await loadCoaching(forceRefresh: forceCoachingRefresh) }
+    }
+
+    private func resetDetails() {
+        averageSleepDuration = 0
+        averageSleepEfficiency = 0
+        averageQualityScore = 0
+        averageDeepPercent = 0
+        averageCorePercent = 0
+        averageRemPercent = 0
+        prevAverageSleepDuration = 0
+        averageRecoveryScore = nil
+        prevAverageRecoveryScore = nil
+        averageHRV = nil
+        averageRestingHR = nil
+        averageSpO2 = nil
+        averageRespRate = nil
+        prevAverageHRV = nil
+        hrvDelta = nil
+        restingHRDelta = nil
+        spo2Delta = nil
+        respRateDelta = nil
+        distanceChange = nil
+        durationChange = nil
+        recoveryScoreChange = nil
+        sleepDurationChange = nil
+        dailyHRV = []
+        dailyRestingHR = []
+        dailySpO2 = []
+        dailyRespRate = []
     }
 
     // MARK: - Coaching
 
     func loadCoachingIfNeeded() async {
-        guard lastLoadedAt != nil, coachingTimestamp == nil else { return }
+        guard detailsLoaded, !isCoachingLoading, coachingTimestamp == nil else { return }
         await loadCoaching(forceRefresh: false)
     }
 
@@ -236,8 +297,8 @@ class WeeklySummaryViewModel: ObservableObject {
 
     private func applyLocalCoachingFallback() {
         coachingTLDR = coachingInsight ?? String(
-            localized: "Recovery is stable this week. Maintain your rhythm.",
-            comment: "Weekly coaching insight: stable recovery"
+            localized: "recovery.insufficient_data",
+            defaultValue: "Not enough health data to assess your recovery yet."
         )
         coachingHighlight = nil
         coachingDetail = ""
@@ -315,7 +376,7 @@ class WeeklySummaryViewModel: ObservableObject {
 
         let bucketed = bucketRunsByDayOfWeek(workouts)
         dailyRunDistancesKm = bucketed
-        todayIndexInWeek = dayIndexInWeek(for: Date())
+        todayIndexInWeek = dayIndexInWeek(for: selectedDate)
     }
 
     /// Returns 7 distances (km) ordered Mon→Sun (or per `calendar.firstWeekday`),
@@ -351,12 +412,7 @@ class WeeklySummaryViewModel: ObservableObject {
         }
     }
 
-    private func loadSleepData(from start: Date, to end: Date, prevStart: Date, prevEnd: Date) async {
-        let sleepHistory = await healthKitManager.fetchSleepHistory(start: start, end: end)
-
-        // Previous week sleep duration for comparison (always loaded so the row appears
-        // even when current week has no sleep data).
-        let prevSleep = await healthKitManager.fetchSleepHistory(start: prevStart, end: prevEnd)
+    private func aggregateSleep(_ sleepHistory: [SleepData], previous prevSleep: [SleepData]) {
         if !prevSleep.isEmpty {
             prevAverageSleepDuration = prevSleep.map(\.totalSleepDuration).reduce(0, +) / Double(prevSleep.count)
         }
@@ -393,33 +449,24 @@ class WeeklySummaryViewModel: ObservableObject {
 
     private func loadRecoveryData(from start: Date, to end: Date, prevStart: Date, prevEnd: Date) async {
         var scores: [Int] = []
+        var currentMetrics: [RecoveryMetrics] = []
 
         var currentDate = start
         while currentDate < end {
-            if let metrics = try? await healthKitManager.fetchRecoveryMetrics(for: currentDate) {
-                scores.append(metrics.recoveryScore)
+            guard !Task.isCancelled else { return }
+            if let metrics = try? await MetricTrendDataService.shared.recoveryMetrics(for: currentDate) {
+                if metrics.hasRecoveryMeasurements() {
+                    scores.append(metrics.recoveryScore)
+                }
+                currentMetrics.append(metrics)
             }
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
 
-        // Daily series — use the same trend service as the dashboard sparklines.
-        // It pulls raw HealthKit averages directly (more reliable than per-day
-        // RecoveryMetrics, which only populate when a full score is computed).
-        let trendService = MetricTrendDataService.shared
-        async let hrvTrend = trendService.metricTrend(for: .hrv, days: 7)
-        async let rhrTrend = trendService.metricTrend(for: .restingHeartRate, days: 7)
-        async let spo2Trend = trendService.metricTrend(for: .oxygenSaturation, days: 7)
-        async let respTrend = trendService.metricTrend(for: .respiratoryRate, days: 7)
-
-        let hrvPoints = await hrvTrend
-        let rhrPoints = await rhrTrend
-        let spo2Points = await spo2Trend
-        let respPoints = await respTrend
-
-        dailyHRV = hrvPoints.map(\.value)
-        dailyRestingHR = rhrPoints.map(\.value)
-        dailySpO2 = spo2Points.map(\.value)
-        dailyRespRate = respPoints.map(\.value)
+        dailyHRV = currentMetrics.compactMap(\.hrvAverage)
+        dailyRestingHR = currentMetrics.compactMap(\.restingHeartRate)
+        dailySpO2 = currentMetrics.compactMap(\.oxygenSaturation)
+        dailyRespRate = currentMetrics.compactMap(\.respiratoryRate)
 
         if !scores.isEmpty {
             averageRecoveryScore = scores.reduce(0, +) / scores.count
@@ -430,6 +477,7 @@ class WeeklySummaryViewModel: ObservableObject {
         averageRespRate = dailyRespRate.isEmpty ? nil : dailyRespRate.reduce(0, +) / Double(dailyRespRate.count)
 
         // Previous week recovery for comparison
+        var previousMetrics: [RecoveryMetrics] = []
         var prevScores: [Int] = []
         var prevHRV: [Double] = []
         var prevRHR: [Double] = []
@@ -438,8 +486,12 @@ class WeeklySummaryViewModel: ObservableObject {
 
         var prevDate = prevStart
         while prevDate < prevEnd {
-            if let metrics = try? await healthKitManager.fetchRecoveryMetrics(for: prevDate) {
-                prevScores.append(metrics.recoveryScore)
+            guard !Task.isCancelled else { return }
+            if let metrics = try? await MetricTrendDataService.shared.recoveryMetrics(for: prevDate) {
+                previousMetrics.append(metrics)
+                if metrics.hasRecoveryMeasurements() {
+                    prevScores.append(metrics.recoveryScore)
+                }
                 if let hrv = metrics.hrvAverage { prevHRV.append(hrv) }
                 if let rhr = metrics.restingHeartRate { prevRHR.append(rhr) }
                 if let spo2 = metrics.oxygenSaturation { prevSpO2.append(spo2) }
@@ -448,7 +500,9 @@ class WeeklySummaryViewModel: ObservableObject {
             prevDate = calendar.date(byAdding: .day, value: 1, to: prevDate)!
         }
 
-        if !scores.isEmpty, !prevScores.isEmpty {
+        aggregateSleep(currentMetrics.compactMap(\.sleepData), previous: previousMetrics.compactMap(\.sleepData))
+
+        if let averageRecoveryScore, !prevScores.isEmpty {
             let prevAvg = prevScores.reduce(0, +) / prevScores.count
             prevAverageRecoveryScore = prevAvg
             recoveryScoreChange = averageRecoveryScore - prevAvg
@@ -496,7 +550,7 @@ class WeeklySummaryViewModel: ObservableObject {
             return String(localized: "Volume is up significantly. Watch fatigue indicators and plan an easy day.", comment: "Weekly coaching insight: high volume jump")
         }
         // Default: only show insight when there's enough data
-        if averageRecoveryScore == 0 && runCount == 0 {
+        if averageRecoveryScore == nil {
             return nil
         }
         return String(localized: "Recovery is stable this week. Maintain your rhythm.", comment: "Weekly coaching insight: stable recovery")

@@ -80,13 +80,14 @@ struct RecoveryMetrics: Identifiable {
         self.hrvMin = hrvMin
         self.hrvMax = hrvMax
         self.walkingHeartRate = walkingHeartRate
-        self.sleepData = sleepData
+        let availableSleep = sleepData.flatMap { $0.totalSleepDuration.isFinite && $0.totalSleepDuration > 0 ? $0 : nil }
+        self.sleepData = availableSleep
         self.respiratoryRate = respiratoryRate
         self.oxygenSaturation = oxygenSaturation
         self.baseline = baseline
         self.recoveryScore = Self.calculateRecoveryScore(
             baseline: baseline,
-            sleepData: sleepData,
+            sleepData: availableSleep,
             hrvAverage: hrvAverage,
             restingHeartRate: restingHeartRate,
             oxygenSaturation: oxygenSaturation,
@@ -109,10 +110,15 @@ struct RecoveryMetrics: Identifiable {
         )
     }
 
-    var coachingRecommendation: String {
+    func hasRecoveryMeasurements(includeSleep: Bool = true) -> Bool {
         let measurements = [restingHeartRate, hrvAverage, respiratoryRate, oxygenSaturation]
-        guard measurements.contains(where: { $0.map { $0.isFinite && $0 > 0 } == true })
-                || (sleepData?.totalSleepDuration ?? 0) > 0 else {
+        let sleepDuration = sleepData?.totalSleepDuration ?? 0
+        return measurements.contains { $0.map { $0.isFinite && $0 > 0 } == true }
+            || (includeSleep && sleepDuration.isFinite && sleepDuration > 0)
+    }
+
+    var coachingRecommendation: String {
+        guard hasRecoveryMeasurements() else {
             return String(localized: "recovery.insufficient_data", defaultValue: "Not enough health data to assess your recovery yet.")
         }
         return recoveryStatus.recommendation
@@ -195,7 +201,7 @@ struct RecoveryMetrics: Identifiable {
 
         // HRV Score (higher is better)
         if let hrv = hrvAverage {
-            let score = scoreFromDeviation(
+            let score = baseline.hrvAverage == nil ? calculateHRVScore(hrv) : scoreFromDeviation(
                 value: hrv,
                 average: baseline.hrvAverage,
                 stdDev: baseline.hrvStdDev,
@@ -208,7 +214,7 @@ struct RecoveryMetrics: Identifiable {
 
         // RHR Score (lower is better)
         if let rhr = restingHeartRate {
-            let score = scoreFromDeviation(
+            let score = baseline.restingHeartRateAverage == nil ? calculateRHRScore(rhr) : scoreFromDeviation(
                 value: rhr,
                 average: baseline.restingHeartRateAverage,
                 stdDev: baseline.restingHeartRateStdDev,
@@ -228,7 +234,7 @@ struct RecoveryMetrics: Identifiable {
 
         // Respiratory Rate Score (lower is better)
         if let respRate = respiratoryRate {
-            let score = scoreFromDeviation(
+            let score = baseline.respiratoryRateAverage == nil ? calculateRespiratoryScore(respRate) : scoreFromDeviation(
                 value: respRate,
                 average: baseline.respiratoryRateAverage,
                 stdDev: baseline.respiratoryRateStdDev,
@@ -281,7 +287,7 @@ struct RecoveryMetrics: Identifiable {
             return 0.5
         }
 
-        let std = stdDev ?? (avg * defaultCV)
+        let std = stdDev.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? (avg * defaultCV)
         guard std > 0 else { return 0.5 }
 
         let zScore = (value - avg) / std

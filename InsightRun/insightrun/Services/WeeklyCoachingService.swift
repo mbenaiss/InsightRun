@@ -24,7 +24,7 @@ final class WeeklyCoachingService {
 
     private let backendClient = BackendAPIClient.shared
     private let cacheDefaults = UserDefaults.standard
-    private let cachePrefix = "weeklyCoaching."
+    private let cachePrefix = "weeklyCoaching.v2."
 
     /// Snapshot of the metrics needed to generate a coaching insight for a given week.
     struct Snapshot {
@@ -39,7 +39,7 @@ final class WeeklyCoachingService {
         let prevTotalDistanceKm: Double
         let prevTotalDurationMin: Int
 
-        let averageRecoveryScore: Int
+        let averageRecoveryScore: Int?
         let recoveryScoreChange: Int?
         let averageHRV: Double?
         let hrvDelta: Double?
@@ -159,7 +159,9 @@ final class WeeklyCoachingService {
         if let pace = s.averagePaceMinPerKm {
             lines.append(String(format: "Average pace: %.2f min/km", pace))
         }
-        lines.append("Average recovery score: \(s.averageRecoveryScore)/100")
+        if let score = s.averageRecoveryScore {
+            lines.append("Average recovery score: \(score)/100")
+        }
         if let delta = s.recoveryScoreChange {
             lines.append("Recovery delta vs previous week: \(formatSignedInt(delta)) pts")
         }

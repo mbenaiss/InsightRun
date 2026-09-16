@@ -5,8 +5,8 @@
 //  Interactive chart card showing metric progression over time
 //
 
-import SwiftUI
 import Charts
+import SwiftUI
 
 struct MetricProgressionCard: View {
     let series: StatisticsViewModel.MetricSeries
@@ -15,7 +15,9 @@ struct MetricProgressionCard: View {
 
     private var selectedPoint: (date: Date, value: Double)? {
         guard let selectedDate else { return nil }
-        return series.points.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
+        return series.points.min {
+            abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate))
+        }
     }
 
     var body: some View {
@@ -50,7 +52,11 @@ struct MetricProgressionCard: View {
                         .foregroundStyle(Color.irTextSecondary.opacity(0.7))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(String(localized: "progression.info.label", defaultValue: "About this metric", comment: "Accessibility label for the metric info button"))
+                .accessibilityLabel(
+                    String(
+                        localized: "progression.info.label", defaultValue: "About this metric",
+                        comment: "Accessibility label for the metric info button")
+                )
                 .sheet(isPresented: $showingInfo) {
                     MetricInfoSheet(metricInfo: MetricInfo(key: infoKey, currentValue: series.average))
                 }
@@ -100,10 +106,10 @@ struct MetricProgressionCard: View {
             }
 
             Chart {
-                ForEach(Array(series.points.enumerated()), id: \.offset) { _, point in
+                ForEach(Array(series.chartPoints.enumerated()), id: \.offset) { _, point in
                     AreaMark(
                         x: .value("Date", point.date),
-                        y: .value("Value", point.value)
+                        y: .value("Value", displayValue(point.value))
                     )
                     .foregroundStyle(
                         LinearGradient(
@@ -112,23 +118,23 @@ struct MetricProgressionCard: View {
                             endPoint: .bottom
                         )
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.linear)
                 }
 
-                ForEach(Array(series.points.enumerated()), id: \.offset) { _, point in
+                ForEach(Array(series.chartPoints.enumerated()), id: \.offset) { _, point in
                     LineMark(
                         x: .value("Date", point.date),
-                        y: .value("Value", point.value)
+                        y: .value("Value", displayValue(point.value))
                     )
                     .foregroundStyle(series.color)
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.linear)
                     .lineStyle(StrokeStyle(lineWidth: 2))
                 }
 
                 if let selected = selectedPoint {
                     PointMark(
                         x: .value("Date", selected.date),
-                        y: .value("Value", selected.value)
+                        y: .value("Value", displayValue(selected.value))
                     )
                     .foregroundStyle(series.color)
                     .symbolSize(50)
@@ -139,11 +145,12 @@ struct MetricProgressionCard: View {
                 }
             }
             .frame(height: 150)
+            .chartXScale(range: .plotDimension(padding: 20))
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { value in
                     AxisValueLabel {
                         if let date = value.as(Date.self) {
-                            Text(formatAxisDate(date))
+                            Text(formatAxisDate(date)).fixedSize(horizontal: true, vertical: false)
                         }
                     }
                 }
@@ -168,9 +175,16 @@ struct MetricProgressionCard: View {
 
     // MARK: - Formatters
 
+    private func displayValue(_ value: Double) -> Double {
+        if series.id == "averagePace" || series.id == "minPace" {
+            return value / Formatters.distanceValue(km: 1)
+        }
+        return value
+    }
+
     private func formatValue(_ value: Double) -> String {
         if series.id == "minPace" || series.id == "averagePace" {
-            return Formatters.paceClock(value * 60)
+            return Formatters.paceClock(displayValue(value) * 60)
         }
         if value >= 100 {
             return Formatters.decimal(value, fractionDigits: 0)

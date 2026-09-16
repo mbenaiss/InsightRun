@@ -1,6 +1,176 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "statistics.coach.demo.summary" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This month: %@ covered in %@, with an average pace of %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce mois-ci : %@ parcourus en %@, avec une allure moyenne de %@."
+          }
+        }
+      }
+    },
+    "statistics.loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading runs…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement des courses…"
+          }
+        }
+      }
+    },
+    "statistics.comparison.dates": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compared with %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparé au %@"
+          }
+        }
+      }
+    },
+    "statistics.records.scope": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All-time bests from complete runs"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meilleures séances sur tout l’historique"
+          }
+        }
+      }
+    },
+    "statistics.pace.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average pace per run; these are not training zones."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allure moyenne de chaque séance, sans correspondance avec des zones d’entraînement."
+          }
+        }
+      }
+    },
+    "statistics.source.health": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs recorded in Apple Health"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Courses enregistrées dans Apple Santé"
+          }
+        }
+      }
+    },
+    "statistics.load.failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to refresh runs"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’actualiser les courses"
+          }
+        }
+      }
+    },
+    "statistics.period.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No runs in this period"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune course sur cette période"
+          }
+        }
+      }
+    },
+    "statistics.period.showAll": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all runs"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir toutes les courses"
+          }
+        }
+      }
+    },
+    "statistics.coach.regenerate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regenerate monthly read"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Régénérer la lecture du mois"
+          }
+        }
+      }
+    },
     "workout.search.placeholder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12106,24 +12276,25 @@
         }
       }
     },
-    "progression.empty.message" : {
-      "comment" : "Progression empty state message",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "At least 2 workouts are needed in this period to show progression."
+    "progression.empty.message": {
+      "comment": "Progression empty state message",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At least two runs with comparable measurements are needed in this period."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Au moins 2 entraînements sont nécessaires sur cette période pour afficher la progression."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Au moins deux courses avec des mesures comparables sont nécessaires sur cette période."
           }
         }
       }
     },
+
     "progression.empty.title" : {
       "comment" : "Progression empty state title",
       "extractionState" : "manual",
@@ -14157,23 +14328,24 @@
         }
       }
     },
-    "statistics.coach.generate.caption" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Get a one-line read of how this month compared to last month."
+    "statistics.coach.generate.caption": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare this month with the same elapsed portion of the previous month."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Obtiens une lecture en une phrase de la comparaison entre ce mois et le précédent."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare ce mois à la même durée écoulée du mois précédent."
           }
         }
       }
     },
+
     "statistics.coach.generate.cta" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14242,23 +14414,24 @@
         }
       }
     },
-    "statistics.coach.teaser.placeholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Volume down −21% vs last month, but quality preserved: average pace improved by 5\"/km. You ran less, but better."
+    "statistics.coach.teaser.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A monthly read of your distance, pace and running frequency."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Volume en baisse de −21 % vs mars, mais qualité préservée : ton allure moyenne s'est améliorée de 5\"/km. Tu cours moins, mais mieux."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une lecture de ton volume, de ton allure et de ta fréquence de course."
           }
         }
       }
     },
+
     "statistics.coach.teaser.unlock" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14367,18 +14540,42 @@
       }
     },
     "statistics.distribution.workoutsCount" : {
-      "comment" : "Number of workouts",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d workouts"
+      "comment": "Number of workouts",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld run"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld runs"
+                }
+              }
+            }
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d entraînements"
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld séance"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld séances"
+                }
+              }
+            }
           }
         }
       }
@@ -14526,19 +14723,43 @@
       }
     },
     "statistics.header.sessionsCount" : {
-      "comment" : "Header subtitle: number of sessions",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%lld sessions"
+      "comment": "Header subtitle: number of sessions",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld session"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld sessions"
+                }
+              }
+            }
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld séances"
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld séance"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld séances"
+                }
+              }
+            }
           }
         }
       }
@@ -14955,24 +15176,25 @@
         }
       }
     },
-    "statistics.records.new" : {
-      "comment" : "Badge for recent personal record",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "★ NEW"
+    "statistics.records.new": {
+      "comment": "Badge for recent personal record",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "★ NEW"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récent"
           }
         }
       }
     },
+
     "statistics.records.title" : {
       "comment" : "Records section title",
       "extractionState" : "manual",

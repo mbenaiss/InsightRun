@@ -21,6 +21,7 @@ final class MonthlyStatsAnalysis {
     /// entry as soon as the user logs another session in the same month.
     var workoutCount: Int
 
+    var dataFingerprint: String?
     var analyzedAt: Date
 
     init(monthKey: String, body: String, workoutCount: Int, analyzedAt: Date = Date()) {

@@ -642,7 +642,7 @@ class HealthKitManager: ObservableObject {
             workout = try? await findWorkoutByDate(startDate: workoutModel.startDate, duration: workoutModel.duration)
         }
 
-        guard let workout else {
+        guard let workout, !Task.isCancelled else {
             return ProgressionDataPoint(
                 workoutId: workoutId, date: date,
                 averagePace: averagePace, minPace: nil, maxSpeed: nil,
@@ -653,20 +653,16 @@ class HealthKitManager: ObservableObject {
             )
         }
 
-        async let paceData = safePaceData(for: workout)
         async let strideLengthData = safeStrideLength(for: workout)
         async let powerData = safeRunningPower(for: workout)
         async let vo2MaxData = safeVO2Max(around: date)
         async let advancedMetrics = safeAdvancedRunningMetrics(for: workout)
-        async let mobilityMetrics = fetchMobilityMetrics(for: workout)
         async let stepCountData = fetchStepCount(for: workout)
 
-        let pace = await paceData
         let stride = await strideLengthData
         let power = await powerData
         let vo2Max = await vo2MaxData
         let advanced = await advancedMetrics
-        let mobility = await mobilityMetrics
         let steps = await stepCountData
 
         let cadence: Double? = {
@@ -678,18 +674,18 @@ class HealthKitManager: ObservableObject {
             workoutId: workoutId,
             date: date,
             averagePace: averagePace,
-            minPace: pace.min,
-            maxSpeed: pace.maxSpeed,
+            minPace: nil,
+            maxSpeed: nil,
             averageCadence: cadence,
             strideLength: stride,
             runningPower: power,
             vo2Max: vo2Max,
             groundContactTime: advanced.groundContactTime,
             verticalOscillation: advanced.verticalOscillation,
-            walkingAsymmetry: mobility.walkingAsymmetry,
-            doubleSupportPercentage: mobility.doubleSupportPercentage,
-            walkingSpeed: mobility.walkingSpeed,
-            stairDescentSpeed: mobility.stairDescentSpeed
+            walkingAsymmetry: nil,
+            doubleSupportPercentage: nil,
+            walkingSpeed: nil,
+            stairDescentSpeed: nil
         )
     }
 

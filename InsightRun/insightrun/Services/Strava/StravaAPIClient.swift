@@ -155,6 +155,7 @@ class StravaAPIClient {
         let url = URL(string: "\(backendURL)/activities/\(id)")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 15
         request.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         request.setValue(userId, forHTTPHeaderField: "X-User-ID")
 

@@ -45,12 +45,7 @@ class WorkoutDetailViewModel: ObservableObject {
 
         let stravaId: Int64? = (workout.metadata?["strava_id"] as? String).flatMap { Int64($0) }
 
-        // A Strava-only workout was reconstructed with sourceName "Strava" and has
-        // no HealthKit backing. A merged workout carries a strava_id but keeps its
-        // HealthKit source (e.g. "Apple Watch"), so we must still load HK route,
-        // intervals and HR samples on top of the Strava detail.
-        let isStravaOnly = workout.sourceName.lowercased().contains("strava")
-        let isMerged = !isStravaOnly && stravaId != nil
+        let isStravaOnly = workout.sourceName.caseInsensitiveCompare("Strava") == .orderedSame
 
         if isStravaOnly {
             metrics = createMetricsFromWorkout()
@@ -82,14 +77,11 @@ class WorkoutDetailViewModel: ObservableObject {
                 metrics = createMetricsFromWorkout()
             }
 
-            // Merged workout: layer Strava splits/elevation on top of HK metrics.
-            if isMerged, let stravaId {
-                await loadStravaDetailedData(activityId: stravaId)
-            }
         }
 
-        // Enrich with Suunto data if available (fills gaps where HealthKit has no data)
-        enrichWithSuuntoData()
+        if workout.metadata?["suunto_id"] != nil || workout.sourceName == "Import" {
+            enrichWithSuuntoData()
+        }
 
         isLoading = false
 
@@ -269,29 +261,29 @@ class WorkoutDetailViewModel: ObservableObject {
             // Update metrics with detailed data
             if var currentMetrics = metrics {
                 // Update with detailed data
-                if let avgSpeed = detailedActivity.averageSpeed {
+                if currentMetrics.averageSpeed == nil, let avgSpeed = detailedActivity.averageSpeed {
                     currentMetrics.averageSpeed = avgSpeed * 3.6 // m/s to km/h
                 }
-                if let maxSpeed = detailedActivity.maxSpeed {
+                if currentMetrics.maxSpeed == nil, let maxSpeed = detailedActivity.maxSpeed {
                     currentMetrics.maxSpeed = maxSpeed * 3.6 // m/s to km/h
                 }
-                if let avgHR = detailedActivity.averageHeartrate {
+                if currentMetrics.averageHeartRate == nil, let avgHR = detailedActivity.averageHeartrate {
                     currentMetrics.averageHeartRate = avgHR
                 }
-                if let maxHR = detailedActivity.maxHeartrate {
+                if currentMetrics.maxHeartRate == nil, let maxHR = detailedActivity.maxHeartrate {
                     currentMetrics.maxHeartRate = maxHR
                 }
-                if let cadence = detailedActivity.averageCadence {
+                if currentMetrics.averageCadence == nil, let cadence = detailedActivity.averageCadence {
                     currentMetrics.averageCadence = cadence * 2 // Strava reports single-leg, we want spm
                 }
 
                 // Update elevation from detailed activity
-                if detailedActivity.totalElevationGain > 0 {
+                if currentMetrics.totalElevationAscent == nil, detailedActivity.totalElevationGain > 0 {
                     currentMetrics.totalElevationAscent = detailedActivity.totalElevationGain
                 }
 
                 // Calculate min pace (best pace) from splits
-                if let splits = splits, !splits.isEmpty {
+                if currentMetrics.splits?.isEmpty != false, let splits = splits, !splits.isEmpty {
                     let minPace = splits.map { $0.pace }.min()
                     currentMetrics.minPace = minPace
                     currentMetrics.splits = splits

@@ -2034,6 +2034,22 @@ class HealthKitManager: ObservableObject {
             return nil
         }
 
+        if workout.sourceRevision.source.bundleIdentifier.hasPrefix("com.apple.health."),
+           workout.workoutActivities.count <= 1,
+           let intervals = WorkoutSplitBoundaries.kilometers(
+               events: workout.workoutEvents ?? [], distance: distance,
+               start: workout.startDate, end: workout.endDate
+           ) {
+            var splits: [Split] = []
+            for (index, interval) in intervals.enumerated() {
+                let splitDistance = min(1000, distance - Double(index) * 1000)
+                splits.append(await makeSplit(kilometer: index + 1, distance: splitDistance,
+                                              from: interval.start, to: interval.end,
+                                              workout: workout, routePoints: routePoints))
+            }
+            return splits
+        }
+
         // Prefer Apple's fused distance for km boundaries: raw GPS straight-line sums
         // over-count, making splits read ~6s/km faster than Apple Fitness.
         if let splits = await calculateSplitsFromDistanceSamples(workout: workout, totalDistance: distance, routePoints: routePoints) {

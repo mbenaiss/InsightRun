@@ -94,8 +94,8 @@ struct Split: Identifiable {
     let elevationLoss: Double? // meters
 
     var timeFormatted: String {
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
+        let minutes = Int(time.rounded()) / 60
+        let seconds = Int(time.rounded()) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
 

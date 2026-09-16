@@ -181,7 +181,7 @@ struct WorkoutRowView: View {
 
     private var heartRateText: String? {
         guard let hr = workout.averageHeartRate else { return nil }
-        return Formatters.integer(Int(hr))
+        return Formatters.integer(Int(hr.rounded()))
     }
 
     private var effortScore: Double? {
@@ -326,19 +326,6 @@ struct WorkoutRowView: View {
     private var chipsRow: some View {
         if raceStore.isOfficialRace(workout) {
             OfficialRaceBadge()
-        }
-        if workout.isIndoor {
-            HStack(spacing: Spacing.xxs) {
-                Text(String(localized: "Indoor", comment: "Workout chip: indoor"))
-                    .font(IRFont.eyebrow.weight(.semibold))
-                    .foregroundStyle(Color.irTextSecondary)
-                    .padding(.horizontal, Spacing.xs)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.irBorder)
-                    )
-            }
         }
     }
 

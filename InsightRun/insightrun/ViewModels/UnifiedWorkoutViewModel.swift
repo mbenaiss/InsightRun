@@ -7,7 +7,7 @@
 //  1. Load workouts from HealthKit (source of truth on iOS)
 //  2. Load activities from Strava
 //  3. Detect duplicates (same workout in both sources)
-//  4. Merge duplicates to create enhanced workouts
+//  4. Keep HealthKit data for duplicates
 //  5. Present unified list sorted by date
 //
 
@@ -214,6 +214,13 @@ class UnifiedWorkoutViewModel: ObservableObject {
             print("⚠️ Background HealthKit sync failed: \(error.localizedDescription)")
         }
 
+        if !healthKitFailed, !healthKitWorkouts.isEmpty {
+            let cachedStrava = unifiedWorkouts.compactMap(\.stravaActivity)
+            unifiedWorkouts = mergeWorkouts(healthKit: healthKitWorkouts, strava: cachedStrava)
+                .sorted { $0.startDate > $1.startDate }
+            updateStats()
+        }
+
         var stravaActivities: [StravaActivity] = []
         if stravaAuthService.isAuthenticated {
             do {
@@ -263,7 +270,12 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 workout.name,
                 String(workout.duration),
                 String(workout.distance ?? -1),
-                workout.source.rawValue
+                workout.source.rawValue,
+                String(workout.toWorkoutModel().isIndoor),
+                String(workout.healthKitWorkout?.effortScore ?? -1),
+                String(workout.healthKitWorkout?.effortIsEstimated ?? false),
+                String(workout.averageHeartRate ?? -1),
+                String(workout.maxHeartRate ?? -1)
             ].joined(separator: "|")
         }
 
@@ -286,7 +298,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
         return stravaViewModel.activities
     }
 
-    /// Core merge logic: Detect duplicates and combine data
+    /// Prefer HealthKit workouts and include unmatched external activities.
     func mergeWorkouts(
         healthKit: [WorkoutModel],
         strava: [StravaActivity]
@@ -311,14 +323,8 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 in: runningActivities,
                 excluding: matchedStravaIDs
             ) {
-                // Found a match - create merged workout
-                let merged = UnifiedWorkout(merging: hkWorkout, with: matchingStrava)
-                result.append(merged)
+                result.append(UnifiedWorkout(from: hkWorkout))
                 matchedStravaIDs.insert(matchingStrava.id)
-
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "MMM dd HH:mm"
-                print("🔗 Merged: \(dateFormatter.string(from: hkWorkout.startDate)) - HK: \(hkWorkout.sourceName) + Strava: \(matchingStrava.name)")
             } else if let matchingSuunto = findMatchingSuuntoWorkout(for: hkWorkout, in: suuntoWorkouts) {
                 // Found Suunto match - create merged workout with Suunto data
                 let merged = UnifiedWorkout(merging: hkWorkout, with: matchingSuunto)

@@ -1701,19 +1701,31 @@ struct SplitRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.md) {
-            Text(String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), split.kilometer))
+            Text(split.distance >= 900
+                 ? String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), split.kilometer)
+                 : Formatters.elevation(meters: split.distance))
                 .font(IRFont.eyebrow.weight(.semibold))
                 .foregroundStyle(Color.irTextTertiary)
                 .frame(width: 36, alignment: .leading)
 
-            Text(split.paceFormatted)
-                .font(IRFont.monoSM.weight(.bold))
-                .foregroundStyle(paceColor)
-                .frame(width: 56, alignment: .leading)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(split.paceFormatted)
+                    .font(IRFont.monoSM.weight(.bold))
+                    .foregroundStyle(paceColor)
+                if split.distance < 900 {
+                    Text(split.timeFormatted)
+                        .font(IRFont.microLabel)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+            }
+            .frame(width: 56, alignment: .leading)
 
-            deltaBar
-                .frame(height: 16)
-                .frame(maxWidth: .infinity)
+            Group {
+                if split.distance >= 900 { deltaBar }
+                else { Color.clear }
+            }
+            .frame(height: 16)
+            .frame(maxWidth: .infinity)
 
             if let hr = split.averageHeartRate {
                 HStack(spacing: Spacing.xxs) {
@@ -2824,22 +2836,24 @@ struct TabbedSplitsSection: View {
 struct SplitsByKmContent: View {
     let splits: [Split]
 
-    private var best: Split? { splits.min(by: { $0.pace < $1.pace }) }
-    private var worst: Split? { splits.max(by: { $0.pace < $1.pace }) }
+    private var fullSplits: [Split] { splits.filter { $0.distance >= 900 && $0.pace.isFinite && $0.pace > 0 } }
+
+    private var best: Split? { fullSplits.min(by: { $0.pace < $1.pace }) }
+    private var worst: Split? { fullSplits.max(by: { $0.pace < $1.pace }) }
 
     private var averagePace: Double {
-        let paces = splits.map { $0.pace }
+        let paces = fullSplits.map { $0.pace }
         guard !paces.isEmpty else { return 0 }
         return paces.reduce(0, +) / Double(paces.count)
     }
 
     private var maxAbsDelta: Double {
-        max(0.001, splits.map { abs($0.pace - averagePace) }.max() ?? 0)
+        max(0.001, fullSplits.map { abs($0.pace - averagePace) }.max() ?? 0)
     }
 
     private var variabilityFormatted: String {
-        guard let bestPace = splits.map({ $0.pace }).min(),
-              let worstPace = splits.map({ $0.pace }).max() else {
+        guard let bestPace = fullSplits.map({ $0.pace }).min(),
+              let worstPace = fullSplits.map({ $0.pace }).max() else {
             return "—"
         }
         let halfRange = (worstPace - bestPace) / 2

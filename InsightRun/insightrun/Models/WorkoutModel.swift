@@ -129,7 +129,9 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         maxHeartRate: Double?,
         elevationGain: Double?,
         hasRoute: Bool,
-        isIndoor: Bool = false
+        isIndoor: Bool = false,
+        effortScore: Double? = nil,
+        effortIsEstimated: Bool = false
     ) {
         self.id = id
         self.workoutType = workoutType
@@ -146,6 +148,8 @@ struct WorkoutModel: Identifiable, Codable, Hashable {
         self.elevationGain = elevationGain
         self.hasRoute = hasRoute
         self.isIndoor = isIndoor
+        self.effortScore = effortScore
+        self.effortIsEstimated = effortIsEstimated
     }
 
     // Computed properties for display

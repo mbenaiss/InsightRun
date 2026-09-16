@@ -37,6 +37,8 @@ class CachedUnifiedWorkout {
 
     // Original source name for display (e.g., "Apple Watch", "Suunto Run")
     var originalSourceName: String?
+    var originalWorkoutData: Data?
+    var stravaTrainer: Bool?
 
     init(from unified: UnifiedWorkout) {
         self.id = unified.id
@@ -63,43 +65,33 @@ class CachedUnifiedWorkout {
         self.stravaActivityType = unified.stravaActivity?.type
 
         // Store original source name for display (e.g., "Apple Watch", "Suunto Run")
-        self.originalSourceName = unified.sourceName
+        self.originalSourceName = unified.healthKitWorkout?.sourceName ?? unified.sourceName
+        self.originalWorkoutData = unified.healthKitWorkout.flatMap { _ in try? JSONEncoder().encode(unified.toWorkoutModel()) }
+        self.stravaTrainer = unified.stravaActivity?.trainer
     }
 
-    // Convert back to UnifiedWorkout from cached fields
-    // Note: This creates a fallback UnifiedWorkout from cached data only
-    // The original WorkoutModel/StravaActivity objects are NOT preserved
     func toUnifiedWorkout() -> UnifiedWorkout {
+        if let originalWorkoutData,
+           let workout = try? JSONDecoder().decode(WorkoutModel.self, from: originalWorkoutData) {
+            var restored = UnifiedWorkout(from: workout)
+            restored.source = WorkoutSource(rawValue: source) ?? .healthKit
+            if stravaActivityId != nil { restored.stravaActivity = cachedStravaActivity() }
+            return restored
+        }
+
         // Compare via the enum so the canonical rawValue casing
         // ("HealthKit"/"Strava"/"Merged") is honored.
         switch WorkoutSource(rawValue: source) {
         case .strava:
             // Create minimal StravaActivity for Strava-only workouts
-            let stravaId = stravaActivityId ?? Int64(id.hashValue)
-            let stravaActivity = StravaActivity(
-                id: stravaId,
-                name: name,
-                distance: distance ?? 0,
-                movingTime: Int(duration),
-                elapsedTime: Int(duration),
-                totalElevationGain: totalElevationGain ?? 0,
-                type: stravaActivityType ?? "Workout",
-                startDate: ISO8601DateFormatter().string(from: startDate),
-                startDateLocal: ISO8601DateFormatter().string(from: startDate),
-                averageSpeed: averageSpeed,
-                maxSpeed: nil,
-                averageHeartrate: averageHeartRate,
-                maxHeartrate: maxHeartRate,
-                calories: totalEnergyBurned,
-                trainer: nil
-            )
+            let stravaActivity = cachedStravaActivity()
             return UnifiedWorkout(from: stravaActivity)
 
         case .healthKit, .merged, .suunto:
             // Create minimal WorkoutModel for HealthKit, merged or Suunto workouts.
             // Use originalSourceName to preserve the device name (e.g., "Apple Watch")
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
-            let displaySourceName = originalSourceName ?? "Apple Watch"
+            let displaySourceName = (originalSourceName ?? "Apple Watch").replacingOccurrences(of: "Strava + ", with: "")
             var metadata: [String: Any]? = nil
 
             if !name.isEmpty {
@@ -141,7 +133,7 @@ class CachedUnifiedWorkout {
         case nil:
             // Unknown source, use originalSourceName if available
             let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
-            let displaySourceName = originalSourceName ?? "Apple Watch"
+            let displaySourceName = (originalSourceName ?? "Apple Watch").replacingOccurrences(of: "Strava + ", with: "")
             let fallbackWorkout = WorkoutModel(
                 id: workoutId,
                 workoutType: .running,
@@ -161,4 +153,25 @@ class CachedUnifiedWorkout {
             return UnifiedWorkout(from: fallbackWorkout)
         }
     }
+    private func cachedStravaActivity() -> StravaActivity {
+        let stravaId = stravaActivityId ?? Int64(id.hashValue)
+        return StravaActivity(
+            id: stravaId,
+            name: name,
+            distance: distance ?? 0,
+            movingTime: Int(duration),
+            elapsedTime: Int(duration),
+            totalElevationGain: totalElevationGain ?? 0,
+            type: stravaActivityType ?? "Workout",
+            startDate: ISO8601DateFormatter().string(from: startDate),
+            startDateLocal: ISO8601DateFormatter().string(from: startDate),
+            averageSpeed: averageSpeed,
+            maxSpeed: nil,
+            averageHeartrate: averageHeartRate,
+            maxHeartrate: maxHeartRate,
+            calories: totalEnergyBurned,
+            trainer: stravaTrainer
+        )
+    }
+
 }

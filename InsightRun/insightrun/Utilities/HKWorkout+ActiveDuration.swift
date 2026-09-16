@@ -53,3 +53,34 @@ extension HKWorkout {
         return min(duration, max(0, elapsed - pausedDuration))
     }
 }
+
+enum WorkoutSplitBoundaries {
+    nonisolated static func kilometers(
+        events: [HKWorkoutEvent], distance: Double, start: Date, end: Date
+    ) -> [DateInterval]? {
+        guard distance.isFinite, distance >= 1000, distance <= 1_000_000 else { return nil }
+        var segments: [DateInterval] = []
+        for event in events {
+            guard event.type == .segment, event.dateInterval.duration > 0,
+                  event.dateInterval.start >= start, event.dateInterval.end <= end,
+                  event.metadata?.isEmpty != false else { continue }
+            segments.append(event.dateInterval)
+        }
+        segments.sort { first, second in
+            if first.start == second.start { return first.end < second.end }
+            return first.start < second.start
+        }
+
+        // Apple records overlapping kilometer and mile chains; the earliest
+        // contiguous boundary selects kilometers without mixing the two series.
+        var selected: [DateInterval] = []
+        var cursor = start
+        for segment in segments where abs(segment.start.timeIntervalSince(cursor)) < 0.1 {
+            selected.append(segment)
+            cursor = segment.end
+        }
+        guard selected.count == Int(ceil(distance / 1000)),
+              abs(end.timeIntervalSince(cursor)) <= 5 else { return nil }
+        return selected
+    }
+}

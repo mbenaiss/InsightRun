@@ -472,7 +472,9 @@ extension UnifiedWorkout {
                     maxHeartRate: suunto.maxHeartRate ?? hkWorkout.maxHeartRate,
                     elevationGain: suunto.elevationGain > 0 ? suunto.elevationGain : hkWorkout.elevationGain,
                     hasRoute: hkWorkout.hasRoute || suunto.hasRoute,
-                    isIndoor: hkWorkout.isIndoor
+                    isIndoor: hkWorkout.isIndoor,
+                    effortScore: hkWorkout.effortScore,
+                    effortIsEstimated: hkWorkout.effortIsEstimated
                 )
             }
 
@@ -492,7 +494,9 @@ extension UnifiedWorkout {
                     maxHeartRate: hkWorkout.maxHeartRate,
                     elevationGain: hkWorkout.elevationGain,
                     hasRoute: hkWorkout.hasRoute,
-                    isIndoor: hkWorkout.isIndoor
+                    isIndoor: hkWorkout.isIndoor,
+                    effortScore: hkWorkout.effortScore,
+                    effortIsEstimated: hkWorkout.effortIsEstimated
                 )
             }
 

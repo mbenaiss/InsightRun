@@ -42,6 +42,7 @@ final class WorkoutNameStoreTests: XCTestCase {
       cached.source = WorkoutSource.suunto.rawValue
       cached.id = "suunto-1700000000.0"
       cached.healthKitWorkoutId = nil
+      cached.originalWorkoutData = nil
       let first = cached.toUnifiedWorkout().toWorkoutModel()
       store.rename(first, to: "Sortie Suunto")
       let reloaded = cached.toUnifiedWorkout().toWorkoutModel()

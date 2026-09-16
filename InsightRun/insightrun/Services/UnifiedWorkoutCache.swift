@@ -87,7 +87,9 @@ class UnifiedWorkoutCache {
                 existing.name = workout.name
                 existing.notes = workout.notes
                 existing.cachedAt = Date()
-                existing.originalSourceName = workout.sourceName
+                existing.originalSourceName = workout.healthKitWorkout?.sourceName ?? workout.sourceName
+                existing.originalWorkoutData = workout.healthKitWorkout.flatMap { _ in try? JSONEncoder().encode(workout.toWorkoutModel()) }
+                existing.stravaTrainer = workout.stravaActivity?.trainer
                 existing.healthKitWorkoutId = workout.healthKitWorkout?.id.uuidString
                 existing.stravaActivityId = workout.stravaActivity?.id
                 existing.stravaActivityType = workout.stravaActivity?.type

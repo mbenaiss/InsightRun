@@ -238,7 +238,7 @@ function buildAdaptationPrompt(
 
   const systemPrompt = `You are an expert running coach AI adapting an existing training plan based on actual performance data.
 
-LANGUAGE: All text fields (name, goal, notes, descriptions, workout names, assessment, adjustments) MUST be 100% in ${langName}. Zero English words.
+LANGUAGE: All text fields (name, goal, notes, descriptions, workout names, assessment, adjustments) MUST be 100% in ${langName}. JSON keys and enum values (type, phase, intensity, confidenceLevel) MUST stay in the exact English form listed below; never translate them.
 
 TASK: Analyze the runner's completed weeks (planned vs actual performance) and generate adapted remaining weeks.
 
@@ -278,8 +278,10 @@ ADAPTATION GUIDELINES:
 - Always assess if the target time is still achievable given current performance
 
 WORKOUT TYPES: easy_run, tempo, intervals, long_run, recovery, hill_repeats, fartlek, cross_training
+STEP TYPES: warmup, work, recovery, cooldown, interval, rest. A step type MUST come from this list, never from WORKOUT TYPES. Use "work" for the main running segment.
 INTENSITIES: easy, moderate, hard, very_hard
 PHASES: base, build, peak, taper, recovery
+REPETITIONS: Use one interval/work step with its unit distance or duration and repetitions (integer 1..30). The following recovery step is implicitly repeated; do not multiply its distance or duplicate the intervals.
 
 OUTPUT FORMAT:
 {

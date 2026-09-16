@@ -156,7 +156,7 @@ function buildTrainingPlanPrompt(
 
   const systemPrompt = `You are an expert running coach AI. Generate structured multi-week training plans as valid JSON.
 
-LANGUAGE: All text fields (name, goal, notes, descriptions, workout names) MUST be 100% in ${langName}. Zero English words.
+LANGUAGE: All text fields (name, goal, notes, descriptions, workout names) MUST be 100% in ${langName}. JSON keys and enum values (type, phase, intensity, confidenceLevel) MUST stay in the exact English form listed below; never translate them.
 
 CRITICAL RULES:
 - Output ONLY valid JSON. No markdown, no code blocks, no explanation text.

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { RequestType, selectModelFromRequest } from '../modelRouter'
+import { callOpenRouterWithRetry } from '../openrouter'
 import type {
   CardiacLoadData,
   DailyActivityData,
@@ -68,6 +69,7 @@ interface ReadinessResponse {
   detail?: string
   suggestedWorkoutType: 'intense' | 'moderate' | 'easy' | 'rest'
   insights: ReadinessInsight[]
+  coachingSource: 'ai' | 'fallback'
 }
 
 interface ReadinessInsight {
@@ -558,7 +560,8 @@ function getStatusFromScore(score: number): ReadinessStatus {
 function getWorkoutType(
   status: string,
   cardiacLoad?: CardiacLoadData,
-  activity?: DailyActivityData
+  activity?: DailyActivityData,
+  recentWorkouts: ReadinessWorkoutData[] = []
 ): 'intense' | 'moderate' | 'easy' | 'rest' {
   const clStatus = cardiacLoad?.status
 
@@ -570,11 +573,14 @@ function getWorkoutType(
     return 'rest'
   }
 
+  if (recentWorkouts.some(isRecentRaceEffort)) return 'rest'
+  const recentHardEffort = recentWorkouts.some(isRecentHardEffort)
+
   // Cardiac load increasing → downgrade by one level
   if (clStatus === 'increasing') {
     switch (status) {
       case 'excellent':
-        return 'moderate'
+        return recentHardEffort ? 'easy' : 'moderate'
       case 'good':
         return 'easy'
       default:
@@ -585,14 +591,31 @@ function getWorkoutType(
   // Default: based on recovery status
   switch (status) {
     case 'excellent':
-      return 'intense'
+      return recentHardEffort ? 'easy' : 'intense'
     case 'good':
-      return 'moderate'
+      return recentHardEffort ? 'easy' : 'moderate'
     case 'fair':
       return 'easy'
     default:
       return 'rest'
   }
+}
+
+function isRecentRaceEffort(workout: ReadinessWorkoutData): boolean {
+  return (
+    workout.hoursAgo <= EffortThresholds.race.recencyHours &&
+    (workout.distanceMeters / 1000 >= EffortThresholds.race.distanceKm ||
+      workout.durationSeconds / 3600 >= EffortThresholds.race.durationHours)
+  )
+}
+
+function isRecentHardEffort(workout: ReadinessWorkoutData): boolean {
+  return (
+    workout.hoursAgo <= EffortThresholds.hard.recencyHours &&
+    (workout.distanceMeters / 1000 >= EffortThresholds.hard.distanceKm ||
+      workout.durationSeconds / 3600 >= EffortThresholds.hard.durationHours ||
+      (workout.avgHeartRate ?? 0) >= EffortThresholds.hard.avgHeartRate)
+  )
 }
 
 // Get recommendation text based on status, daily context, and language.
@@ -601,7 +624,8 @@ function getRecommendation(
   status: string,
   language: string,
   activity?: DailyActivityData,
-  cardiacLoad?: CardiacLoadData
+  cardiacLoad?: CardiacLoadData,
+  recentWorkouts: ReadinessWorkoutData[] = []
 ): string {
   const lang = language.toLowerCase().slice(0, 2)
   const isFr = lang === 'fr'
@@ -615,6 +639,17 @@ function getRecommendation(
     return isFr
       ? 'Votre charge cardiaque est en zone de surcharge. Repos complet ou récupération active légère (marche, étirements) pour éviter le surentraînement.'
       : 'Your cardiac load is in the overreaching zone. Take a full rest day or very light active recovery (walking, stretching) to avoid overtraining.'
+  }
+
+  if (recentWorkouts.some(isRecentRaceEffort)) {
+    return isFr
+      ? 'Votre effort long récent demande encore de la récupération. Privilégiez le repos ou une marche légère selon vos sensations, même si le score du matin est bon.'
+      : 'Your recent long effort still calls for recovery. Prioritize rest or gentle walking according to how you feel, even if your morning score is good.'
+  }
+  if (recentWorkouts.some(isRecentHardEffort)) {
+    return isFr
+      ? 'Votre séance exigeante récente invite à récupérer. Repos ou activité très facile selon vos sensations, sans ajouter d’intensité aujourd’hui.'
+      : 'Your recent hard session calls for recovery. Rest or very easy activity according to how you feel, without adding intensity today.'
   }
 
   // 2. Already exercised today — don't push more, acknowledge the effort
@@ -648,8 +683,8 @@ function getRecommendation(
         : 'Good recovery but your cardiac load is rising. Go for an easy or moderate session rather than high-intensity to avoid overloading.'
     }
     return isFr
-      ? 'Récupération incomplète et charge cardiaque en hausse. Repos ou sortie très facile recommandé (30 min max, FC < 130 bpm).'
-      : 'Incomplete recovery with rising cardiac load. Rest or a very easy session recommended (30 min max, HR < 130 bpm).'
+      ? 'Récupération incomplète et charge cardiaque en hausse. Repos ou sortie très facile recommandé.'
+      : 'Incomplete recovery with rising cardiac load. Rest or a very easy session recommended.'
   }
 
   // 4. Base recommendations by recovery status
@@ -695,15 +730,8 @@ function getRecommendation(
   return text
 }
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
-// Sized to fit a structured JSON response with summary + 2-3 sentence detail in
-// verbose languages like French. Bumped from 200 because truncated responses
-// produced invalid JSON that fell through to the raw-string fallback and leaked
-// `{"summary":...,"detail":...}` into the dashboard card.
 const READINESS_MAX_TOKENS = 600
-const READINESS_TEMPERATURE = 0.6
-// iOS aborts this request at 15s; bound the single upstream call well under that so the
-// route can still fall back to the static recommendation before the client gives up.
+const READINESS_TEMPERATURE = 0.3
 const READINESS_TIMEOUT_MS = 12_000
 const READINESS_FALLBACK_MODEL = 'google/gemini-2.5-flash-lite'
 
@@ -723,7 +751,7 @@ function buildReadinessContext(
   ctx += `Recovery Score: ${score}/100 (status: ${status})\n`
 
   if (noSleepMode) {
-    ctx += 'Sleep tracking: NOT AVAILABLE (user does not wear a sleep tracker).\n'
+    ctx += 'Sleep measurements: NOT AVAILABLE.\n'
   }
 
   if (recovery.hrv !== undefined) {
@@ -841,168 +869,55 @@ async function generateAIRecommendation(
     noSleepMode
   )
 
-  const noSleepRule = noSleepMode
-    ? `\n- This runner does NOT track sleep. You MUST NOT mention sleep, sleep quality, sleep duration, or suggest tracking sleep. Do NOT apologize for missing data. Base your advice exclusively on HRV, resting HR, recent workouts, and cardiac load trend.`
-    : ''
-  const detailMetricsHint = noSleepMode
-    ? 'HRV, resting HR, recent workout distance, cardiac load'
-    : 'sleep duration, HRV, recent workout distance'
-
-  const systemPrompt = `You are an expert running coach analyzing daily readiness data.
-Produce two pieces of coaching text based on the runner's metrics:
-- "summary": one short sentence (max 90 characters) — the actionable TL;DR.
-- "detail": 2-3 sentences with specific metric values and reasoning.
-
-Rules:
-- If cardiac load status is "overreaching", you MUST recommend rest or very light active recovery.
-- If the runner already exercised today (exercise minutes >= 20), acknowledge the session and do not push for more training.
-- If recent workouts data is provided, factor the training load into your recommendation:
-  * Race effort (>=${EffortThresholds.race.distanceKm} km or >=${EffortThresholds.race.durationHours}h): requires 5-7 days recovery. Even 3-4 days after a marathon, recommend only easy walks, stretching, or complete rest. Be explicit about the remaining recovery time needed.
-  * Hard effort (>=${EffortThresholds.hard.distanceKm} km, >=${EffortThresholds.hard.durationHours}h, or avg HR >=${EffortThresholds.hard.avgHeartRate} bpm) in the last ${EffortThresholds.hard.recencyHours}h: push towards easier training or rest.
-- Always factor the cardiac load trend into your recommendation.
-- Respond in ${langName}. No markdown, no bullet points — plain text only.
-- Be specific in the detail: reference actual metric values (e.g., ${detailMetricsHint}).
-- Write every number as digits ("17/20", "158 bpm"), never spelled out in words.
-- Keep it warm, motivating, and actionable.${noSleepRule}
-
-Return strictly a JSON object with exactly these two string fields: {"summary": "...", "detail": "..."}. No prose, no code fences.`
+  const workoutType = getWorkoutType(status, cardiacLoad, activity, recentWorkouts)
+  const systemPrompt = `You are a running coach explaining today's measured recovery and training context.
+Return only JSON: {"summary":"...","detail":"..."}, in ${langName}.
+Summary: one actionable sentence, at most 90 characters. Detail: 2-3 short sentences, at most 80 words. No markdown.
+The score and status are supplied by the app: never recalculate them or infer a different status.
+Today's training ceiling is ${workoutType}: do not suggest a harder session. Rest allows only rest or gentle recovery activity.
+Acknowledge today's completed exercise. Do not prescribe another session after 20 minutes of exercise with effort >=60.
+Use at most 2 relevant measured values to explain the advice, prioritizing recent hard/long runs and cardiac load over a good morning score.
+Only reference supplied data. Missing measurements are unknown, not zero or normal. A building baseline is not reliable for personal trend claims.
+Do not invent a training plan, injury, diagnosis, heart-rate zone, pace target, or exact recovery deadline. Adapt to the runner's sensations.
+${noSleepMode ? 'Sleep is unavailable: do not mention sleep or recommend tracking it.' : 'Mention sleep only if sleep measurements are supplied.'}
+Use digits for numbers and explicit units. Keep the advice concise and consistent between summary and detail.`
 
   const userPrompt = `Here is the runner's readiness data for today:\n\n${readinessContext}\n\nReturn the JSON object now.`
 
-  const requestBody = {
+  const { content } = await callOpenRouterWithRetry({
+    apiKey,
     model,
-    // Native OpenRouter fallback: if `model` 429s/5xx, retry transparently on the next entry.
-    models: [model, READINESS_FALLBACK_MODEL],
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    max_tokens: READINESS_MAX_TOKENS,
-    temperature: READINESS_TEMPERATURE,
-    stream: false,
-    response_format: { type: 'json_object' as const },
-  }
-
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), READINESS_TIMEOUT_MS)
-
-  let response: Response
-  try {
-    response = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://insightrun.ai',
-        'X-Title': 'InsightRun Daily Readiness',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
-    })
-  } finally {
-    clearTimeout(timer)
-  }
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-  }
-
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>
-  }
-
-  const content = (data.choices[0]?.message?.content || '').trim()
-  if (!content) {
-    throw new Error('Empty response from AI model')
-  }
-
+    fallbackModel: READINESS_FALLBACK_MODEL,
+    timeoutMs: READINESS_TIMEOUT_MS,
+    networkAttempts: 1,
+    title: 'InsightRun Daily Readiness',
+    throwOnTruncation: true,
+    body: {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: READINESS_MAX_TOKENS,
+      temperature: READINESS_TEMPERATURE,
+      reasoning: { effort: 'low', exclude: true },
+      stream: false,
+      response_format: { type: 'json_object' },
+    },
+  })
   return parseCoachingJSON(content)
 }
 
-// Parse the model's structured response, with graceful fallback to plain-text splitting.
-// Some models occasionally wrap JSON in code fences, add prose, or run out of tokens
-// mid-string; we try strict parsing first, then field-level regex extraction so that
-// a truncated response still surfaces clean text instead of leaking raw JSON to the UI.
+const coachingSchema = z.object({
+  summary: z.string().trim().min(1).max(180),
+  detail: z.string().trim().min(1).max(1200),
+})
+
 function parseCoachingJSON(content: string): CoachingText {
-  const tryParse = (raw: string): CoachingText | null => {
-    try {
-      const obj = JSON.parse(raw) as { summary?: unknown; detail?: unknown }
-      if (typeof obj.summary === 'string' && typeof obj.detail === 'string') {
-        const summary = obj.summary.trim()
-        const detail = obj.detail.trim()
-        if (summary && detail) return { summary, detail }
-      }
-    } catch {
-      // Fall through to other strategies.
-    }
-    return null
-  }
-
-  const direct = tryParse(content)
-  if (direct) return direct
-
-  const match = content.match(/\{[\s\S]*\}/)
-  if (match) {
-    const fromMatch = tryParse(match[0])
-    if (fromMatch) return fromMatch
-  }
-
-  // Truncated JSON (e.g. response hit max_tokens mid-`detail`): pull each field
-  // out individually so we still render meaningful coaching text.
-  const summary = extractJSONStringField(content, 'summary')
-  const detail = extractJSONStringField(content, 'detail')
-  if (summary && detail) return { summary, detail }
-  if (summary) return { summary, detail: summary }
-  if (detail) return deriveCoachingText(detail)
-
-  return deriveCoachingText(content)
-}
-
-// Extract a single JSON string value by key, tolerating an unterminated trailing
-// quote (truncated response). Handles standard JSON escapes inside the value.
-function extractJSONStringField(content: string, key: string): string | null {
-  const keyPattern = new RegExp(`"${key}"\\s*:\\s*"`)
-  const keyMatch = keyPattern.exec(content)
-  if (!keyMatch) return null
-
-  const escapes: Record<string, string> = {
-    '"': '"',
-    '\\': '\\',
-    '/': '/',
-    n: '\n',
-    t: '\t',
-    r: '\r',
-    b: '\b',
-    f: '\f',
-  }
-  let i = keyMatch.index + keyMatch[0].length
-  let value = ''
-  while (i < content.length) {
-    const ch = content[i]
-    if (ch === '\\') {
-      const next = content[i + 1]
-      // Truncated right after a backslash — drop the dangling escape.
-      if (next === undefined) break
-      if (next === 'u') {
-        const hex = content.slice(i + 2, i + 6)
-        if (!/^[0-9a-fA-F]{4}$/.test(hex)) break // truncated/invalid \u escape
-        value += String.fromCharCode(parseInt(hex, 16))
-        i += 6
-        continue
-      }
-      value += escapes[next] ?? next
-      i += 2
-      continue
-    }
-    if (ch === '"') {
-      return value.trim() || null
-    }
-    value += ch
-    i += 1
-  }
-  // Reached end of buffer without a closing quote — response was truncated.
-  return value.trim() || null
+  const cleaned = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+  return coachingSchema.parse(JSON.parse(cleaned))
 }
 
 const measurement = z.number().positive().optional()
@@ -1208,10 +1123,16 @@ app.post('/', async (c) => {
     }
 
     const status = getStatusFromScore(score)
-    const suggestedWorkoutType = getWorkoutType(status, body.cardiacLoad, body.dailyActivity)
+    const suggestedWorkoutType = getWorkoutType(
+      status,
+      body.cardiacLoad,
+      body.dailyActivity,
+      body.recentWorkouts
+    )
 
     // Generate AI recommendation with fallback to static one
     let coachingText: CoachingText
+    let coachingSource: 'ai' | 'fallback' = 'ai'
     try {
       const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
       const { modelId } = await selectModelFromRequest(
@@ -1236,8 +1157,15 @@ app.post('/', async (c) => {
         body.noSleepMode === true
       )
     } catch (aiError) {
+      coachingSource = 'fallback'
       console.warn('AI recommendation failed, falling back to static:', aiError)
-      const staticText = getRecommendation(status, language, body.dailyActivity, body.cardiacLoad)
+      const staticText = getRecommendation(
+        status,
+        language,
+        body.dailyActivity,
+        body.cardiacLoad,
+        body.recentWorkouts
+      )
       coachingText = deriveCoachingText(staticText)
     }
 
@@ -1250,6 +1178,7 @@ app.post('/', async (c) => {
       detail: coachingText.detail,
       suggestedWorkoutType,
       insights,
+      coachingSource,
     }
 
     return c.json(response)

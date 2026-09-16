@@ -48,20 +48,25 @@ final class DailyMetricsCache {
         let cardiacLoadScore: Int?
         let inputSignature: String?
         let recoverySignature: String?
+        let coachingSource: String?
     }
 
     // MARK: - Readiness
 
     /// Returns today's cached readiness only if the inputs (effort + cardiac load) still match.
     /// Used to skip the backend call entirely when nothing relevant has changed.
-    func getCachedReadiness(effortScore: Int, cardiacLoadScore: Int?, inputSignature: String? = nil) -> CachedReadiness? {
+    func getCachedReadiness(effortScore: Int, cardiacLoadScore: Int?, inputSignature: String? = nil, now: Date = Date()) -> CachedReadiness? {
         guard let data = defaults.data(forKey: readinessKey),
               let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
               Calendar.current.isDateInToday(cached.cacheDate),
-              cached.effortScore == effortScore,
-              cached.cardiacLoadScore == cardiacLoadScore,
-              inputSignature == nil || cached.inputSignature == inputSignature else {
+              now.timeIntervalSince(cached.cacheDate) >= 0,
+              now.timeIntervalSince(cached.cacheDate) < (cached.coachingSource == "fallback" ? 300 : 3600) else {
             return nil
+        }
+        if let inputSignature {
+            guard cached.inputSignature == inputSignature else { return nil }
+        } else {
+            guard cached.effortScore == effortScore, cached.cardiacLoadScore == cardiacLoadScore else { return nil }
         }
         return cached
     }
@@ -88,6 +93,7 @@ final class DailyMetricsCache {
         cardiacLoadScore: Int? = nil,
         inputSignature: String? = nil,
         recoverySignature: String? = nil,
+        coachingSource: String? = nil,
         date: Date = Date()
     ) {
         let now = Calendar.current.isDateInToday(date) ? Date() : date
@@ -101,7 +107,8 @@ final class DailyMetricsCache {
             effortScore: effortScore,
             cardiacLoadScore: cardiacLoadScore,
             inputSignature: inputSignature,
-            recoverySignature: recoverySignature
+            recoverySignature: recoverySignature,
+            coachingSource: coachingSource
         )
         if let data = try? JSONEncoder().encode(cached) {
             defaults.set(data, forKey: readinessKey)

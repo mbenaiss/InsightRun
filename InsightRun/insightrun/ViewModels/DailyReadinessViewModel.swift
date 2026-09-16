@@ -31,12 +31,64 @@ class DailyReadinessViewModel: ObservableObject {
     private var requestID = UUID()
     private var hasPromptedConsent = false
 
-    private let backendClient = BackendAPIClient.shared
-    private let healthKitManager = HealthKitManager.shared
+    @Published private(set) var isFallback = false
+    private var displayedDay: Date?
+    private var activeRequest: Task<DailyReadinessResponse, Error>?
+    private var activeSignature: String?
+    private let hasConsent: @MainActor () -> Bool
+    private let requiresIndexation: @MainActor () async -> Bool
+    private let loadNoSleepMode: @MainActor () async -> Bool
+    private let loadRecovery: @MainActor (Date) async throws -> RecoveryMetrics
+    private let loadWorkouts: @MainActor (Date, Date) async throws -> [WorkoutModel]
+    private let fetchReadiness: @MainActor (DailyReadinessRequest) async throws -> DailyReadinessResponse
+    private let isDemo: @MainActor () -> Bool
     private let dailyCache: DailyMetricsCache
 
-    init(dailyCache: DailyMetricsCache? = nil) {
+    init(
+        dailyCache: DailyMetricsCache? = nil,
+        hasConsent: @escaping @MainActor () -> Bool = { ConsentService.shared.hasConsentedToAIDataSharing },
+        requiresIndexation: @escaping @MainActor () async -> Bool = { await HistoricalSummaryStorage.shared.requiresIndexation() },
+        loadNoSleepMode: @escaping @MainActor () async -> Bool = { await SleepDataAvailabilityService.shared.isNoSleepMode() },
+        loadRecovery: @escaping @MainActor (Date) async throws -> RecoveryMetrics = { try await HealthKitManager.shared.fetchRecoveryMetrics(for: $0) },
+        loadWorkouts: @escaping @MainActor (Date, Date) async throws -> [WorkoutModel] = { try await HealthKitManager.shared.fetchRunningWorkouts(from: $0, to: $1) },
+        fetchReadiness: @escaping @MainActor (DailyReadinessRequest) async throws -> DailyReadinessResponse = { try await BackendAPIClient.shared.fetchDailyReadiness(request: $0) },
+        isDemo: @escaping @MainActor () -> Bool = { DemoMode.isEnabled }
+    ) {
         self.dailyCache = dailyCache ?? .shared
+        self.hasConsent = hasConsent
+        self.requiresIndexation = requiresIndexation
+        self.loadNoSleepMode = loadNoSleepMode
+        self.loadRecovery = loadRecovery
+        self.loadWorkouts = loadWorkouts
+        self.fetchReadiness = fetchReadiness
+        self.isDemo = isDemo
+    }
+
+    func restoreCachedReadiness(for date: Date) {
+        let day = Calendar.current.startOfDay(for: date)
+        guard displayedDay != day || recommendation.isEmpty else { return }
+        if displayedDay != day {
+            cancel()
+            displayedDay = day
+        }
+        let cached = dailyCache.getReadiness(for: date)
+        readinessScore = cached?.score ?? dailyCache.getHistoricalReadinessScore(for: date)
+        status = cached.map { ReadinessStatus(from: $0.status) } ?? .unknown
+        recommendation = cached?.recommendation ?? ""
+        recommendationSummary = cached?.summary?.nilIfEmpty ?? recommendation
+        suggestedWorkoutType = cached.map { SuggestedWorkoutType(from: $0.suggestedWorkoutType) } ?? .rest
+        insights = []
+        updatedAt = cached?.cacheDate
+        isFallback = cached?.coachingSource == "fallback"
+        errorMessage = nil
+    }
+
+    func cancel() {
+        requestID = UUID()
+        activeRequest?.cancel()
+        activeRequest = nil
+        activeSignature = nil
+        isLoading = false
     }
 
     // MARK: - Fetch Daily Readiness
@@ -58,24 +110,17 @@ class DailyReadinessViewModel: ObservableObject {
         freshnessAvailable: Bool = false,
         forceRefresh: Bool = false
     ) async {
+        restoreCachedReadiness(for: date)
         let id = UUID()
         requestID = id
         isLoading = true
         errorMessage = nil
         defer { if requestID == id { isLoading = false } }
-        if !Calendar.current.isDateInToday(date) {
-            let cached = dailyCache.getReadiness(for: date)
-            readinessScore = cached?.score ?? dailyCache.getHistoricalReadinessScore(for: date)
-            status = cached.map { ReadinessStatus(from: $0.status) } ?? .unknown
-            recommendation = cached?.recommendation ?? ""
-            recommendationSummary = cached?.summary ?? recommendation
-            insights = []
-            updatedAt = cached?.cacheDate
-            return
-        }
-        isNoSleepMode = await SleepDataAvailabilityService.shared.isNoSleepMode()
+        guard Calendar.current.isDateInToday(date) else { return }
+        let noSleepMode = await loadNoSleepMode()
         guard requestID == id, !Task.isCancelled else { return }
-        if DemoMode.isEnabled {
+        isNoSleepMode = noSleepMode
+        if isDemo() {
             readinessScore = 82
             status = .good
             recommendation = String(localized: "Good recovery. You can do a moderate to intense workout.", comment: "Demo readiness recommendation")
@@ -88,7 +133,8 @@ class DailyReadinessViewModel: ObservableObject {
         }
 
         // Check AI consent before sending health data
-        guard ConsentService.shared.hasConsentedToAIDataSharing else {
+        guard hasConsent() else {
+            cancel()
             if !hasPromptedConsent {
                 needsConsent = true
                 hasPromptedConsent = true
@@ -98,15 +144,18 @@ class DailyReadinessViewModel: ObservableObject {
         }
 
         // Check historical indexation
-        if await HistoricalSummaryStorage.shared.requiresIndexation() {
+        let indexationRequired = await requiresIndexation()
+        guard requestID == id, !Task.isCancelled else { return }
+        if indexationRequired {
+            cancel()
             AnalyticsService.shared.trackIndexationGateTriggered(source: "daily_readiness")
             needsIndexation = true
             isLoading = false
             return
         }
 
-        isLoading = true
-        errorMessage = nil
+        needsConsent = false
+        needsIndexation = false
 
         do {
             let recoveryMetrics = try await recoveryMetrics(for: date, supplied: suppliedRecovery)
@@ -114,6 +163,7 @@ class DailyReadinessViewModel: ObservableObject {
             guard requestID == id, !Task.isCancelled else { return }
             let noSleepMode = isNoSleepMode
             guard recoveryMetrics.hasRecoveryMeasurements(includeSleep: !noSleepMode) else {
+                cancel()
                 readinessScore = nil
                 status = .unknown
                 recommendation = ""
@@ -124,9 +174,10 @@ class DailyReadinessViewModel: ObservableObject {
                 return
             }
 
-            let recentWorkouts = try? await healthKitManager.fetchRunningWorkouts(from: Date().addingTimeInterval(-8 * 86_400), to: Date())
+            let now = Date()
+            let recentWorkouts = try await loadWorkouts(now.addingTimeInterval(-8 * 86_400), now)
             guard requestID == id, !Task.isCancelled else { return }
-            let workoutPayloads = buildRecentWorkoutPayloads(from: recentWorkouts ?? [])
+            let workoutPayloads = buildRecentWorkoutPayloads(from: recentWorkouts)
 
             let activityPayload: DailyActivityPayload? = activityData.map {
                 DailyActivityPayload(
@@ -150,11 +201,12 @@ class DailyReadinessViewModel: ObservableObject {
                 String(noSleepMode)
             ])
             let inputSignature = Self.signature([
-                recoverySignature, String(describing: activityData),
-                String(effortScore), String(describing: cardiacLoadScore), cardiacLoadStatus.rawValue,
+                "coaching-v3", AppLanguage.current, recoverySignature,
+                activityData.map { "\(($0.steps / 500).rounded(.down)):\(($0.activeCalories / 50).rounded(.down)):\(($0.exerciseMinutes / 5).rounded(.down))" } ?? "no-activity",
+                String(effortScore / 5), String(describing: cardiacLoadScore), cardiacLoadStatus.rawValue,
                 workoutPayloads.map { "\($0.date):\($0.distanceMeters):\($0.durationSeconds):\(String(describing: $0.avgHeartRate)):\(String(describing: $0.maxHeartRate)):\(String(describing: $0.pace))" }.joined(separator: ";")
             ])
-            if !forceRefresh, let cached = dailyCache.getCachedReadiness(
+            if !forceRefresh, activeRequest == nil, let cached = dailyCache.getCachedReadiness(
                 effortScore: effortScore, cardiacLoadScore: cardiacLoadScore, inputSignature: inputSignature
             ) {
                 readinessScore = cached.score
@@ -163,6 +215,7 @@ class DailyReadinessViewModel: ObservableObject {
                 recommendationSummary = cached.summary?.nilIfEmpty ?? cached.recommendation
                 suggestedWorkoutType = SuggestedWorkoutType(from: cached.suggestedWorkoutType)
                 updatedAt = cached.cacheDate
+                isFallback = cached.coachingSource == "fallback"
                 return
             }
             let frozenScore = dailyCache.getCachedScoreForToday(recoverySignature: recoverySignature)
@@ -179,9 +232,39 @@ class DailyReadinessViewModel: ObservableObject {
                 noSleepMode: noSleepMode ? true : nil
             )
 
-            let response = try await backendClient.fetchDailyReadiness(request: request)
+            guard hasConsent() else {
+                cancel()
+                return
+            }
+            let work: Task<DailyReadinessResponse, Error>
+            if let activeRequest, activeSignature == inputSignature, !activeRequest.isCancelled {
+                work = activeRequest
+            } else {
+                activeRequest?.cancel()
+                let fetch = fetchReadiness
+                work = Task { try await fetch(request) }
+                activeRequest = work
+                activeSignature = inputSignature
+            }
+            defer {
+                if requestID == id {
+                    activeRequest = nil
+                    activeSignature = nil
+                }
+            }
+            let response = try await withTaskCancellationHandler {
+                try await work.value
+            } onCancel: {
+                Task { @MainActor [weak self] in
+                    if self?.requestID == id { self?.cancel() }
+                }
+            }
 
-            guard requestID == id, !Task.isCancelled else { return }
+            guard requestID == id, !Task.isCancelled, hasConsent() else { return }
+            guard (0...100).contains(response.score),
+                  !response.recommendation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw URLError(.cannotParseResponse)
+            }
 
             // Defensive freeze: if the user already has a morning score for today,
             // keep it regardless of what the backend returned. Covers older backends
@@ -198,6 +281,7 @@ class DailyReadinessViewModel: ObservableObject {
             recommendationSummary = response.summary?.nilIfEmpty ?? detailText
             suggestedWorkoutType = SuggestedWorkoutType(from: response.suggestedWorkoutType)
             insights = response.insights.map { ReadinessInsight(from: $0) }
+            isFallback = response.coachingSource == "fallback"
 
             dailyCache.cacheReadiness(
                 score: displayScore,
@@ -209,6 +293,7 @@ class DailyReadinessViewModel: ObservableObject {
                 cardiacLoadScore: cardiacLoadScore,
                 inputSignature: inputSignature,
                 recoverySignature: recoverySignature,
+                coachingSource: response.coachingSource,
                 date: date
             )
 
@@ -241,7 +326,7 @@ class DailyReadinessViewModel: ObservableObject {
 
     private func recoveryMetrics(for date: Date, supplied: RecoveryMetrics?) async throws -> RecoveryMetrics {
         if let supplied { return supplied }
-        return try await healthKitManager.fetchRecoveryMetrics(for: date)
+        return try await loadRecovery(date)
     }
 
     private static func signature<Value: Encodable>(_ value: Value) -> String {
@@ -267,8 +352,8 @@ class DailyReadinessViewModel: ObservableObject {
 
     private func buildRecentWorkoutPayloads(from workouts: [WorkoutModel]) -> [ReadinessWorkoutData] {
         let now = Date()
-        return workouts.map { workout in
-            let hoursAgo = now.timeIntervalSince(workout.endDate) / 3600
+        return workouts.filter { $0.endDate <= now }.sorted { $0.startDate > $1.startDate }.map { workout in
+            let hoursAgo = max(0, now.timeIntervalSince(workout.endDate) / 3600)
             return ReadinessWorkoutData(
                 date: Self.workoutDateFormatter.string(from: workout.startDate),
                 distanceMeters: workout.distance ?? 0,
@@ -328,6 +413,7 @@ struct DailyReadinessResponse: Decodable {
     let detail: String?
     let suggestedWorkoutType: String
     let insights: [DailyReadinessInsightResponse]
+    var coachingSource: String? = nil
 }
 
 struct DailyReadinessInsightResponse: Decodable {

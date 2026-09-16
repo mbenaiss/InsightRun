@@ -1,6 +1,81 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "dashboard.coach.fallback": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Advice based on your metrics. AI analysis is temporarily unavailable."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Conseil basé sur tes mesures. L’analyse IA est temporairement indisponible."
+        }
+      }
+    }
+  },
+  "dashboard.coach.previous": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Update unavailable. Your last analysis is still displayed."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Mise à jour indisponible. Ta dernière analyse reste affichée."
+        }
+      }
+    }
+  },
+  "dashboard.coach.refreshing": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Updating your analysis…"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Mise à jour de ton analyse…"
+        }
+      }
+    }
+  },
+  "dashboard.coach.unavailable": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Your coaching analysis is not available yet."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ton analyse de coaching n’est pas encore disponible."
+        }
+      }
+    }
+  },
+    "progression.availability" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Each chart needs this metric in at least 2 workouts within the selected period. The number of available metrics can vary by period." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Chaque courbe nécessite cette mesure sur au moins 2 séances de la période. Le nombre de métriques disponibles peut donc varier selon la période." } }
+      }
+    },
     "score.readiness.calculation" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "These weights apply when all measurements are available. Missing signals are excluded and the remaining weights are normalized. Measurements are compared with your personal baseline when available. Very short sleep and recent intense efforts can cap or reduce the score." } },

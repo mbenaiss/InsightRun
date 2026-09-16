@@ -56,7 +56,7 @@ struct StatisticsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: Spacing.xl) {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     editorialHeader
                     pulseRingTabs
                     periodChipsScroll
@@ -387,7 +387,7 @@ struct StatisticsView: View {
 
     private var personalRecordsCarousel: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: Spacing.sm) {
+            HStack(alignment: .top, spacing: Spacing.sm) {
                 ForEach(personalRecords, id: \.id) { record in
                     PRCard(record: record)
                 }

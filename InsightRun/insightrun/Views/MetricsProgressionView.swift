@@ -74,7 +74,7 @@ struct MetricsProgressionView: View {
     // MARK: - Metrics Content
 
     private var metricsContent: some View {
-        LazyVStack(spacing: Spacing.lg) {
+        VStack(spacing: Spacing.lg) {
             if viewModel.isLoadingProgression {
                 ProgressView(value: viewModel.progressionLoadingProgress)
                     .tint(Color.irPrimaryAccent)
@@ -82,7 +82,7 @@ struct MetricsProgressionView: View {
             }
 
             if !viewModel.performanceMetrics.isEmpty {
-                LazyVStack(alignment: .leading, spacing: Spacing.md) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(
                         String(
                             localized: "progression.section.performance", defaultValue: "Performance",
@@ -99,7 +99,7 @@ struct MetricsProgressionView: View {
             }
 
             if !viewModel.advancedMetrics.isEmpty {
-                LazyVStack(alignment: .leading, spacing: Spacing.md) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(
                         String(
                             localized: "progression.section.advanced", defaultValue: "Advanced metrics",

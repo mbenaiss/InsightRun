@@ -16,6 +16,7 @@
 - La « Meilleure allure » est retirée des records et de Progression à la demande de l’utilisateur. La requête détaillée d’allure correspondante est supprimée de ce parcours.
 - Six requêtes Santé de mobilité supprimées par séance dans ce parcours. Les courbes de marche et la vitesse maximale, redondante avec la meilleure allure, sont retirées de Progression.
 - Les graphiques de progression rendent au plus 160 points en conservant les extrêmes et les bornes ; les calculs et la sélection utilisent toujours les données complètes.
+- Les sections et le carrousel utilisent une disposition simple : le test de défilement a révélé une boucle de mise en page des conteneurs différés imbriqués après le retrait d’une carte. Le nombre de cartes est borné et les séries restent échantillonnées pour le rendu.
 - Les chiffres de la période apparaissent avant les records. Les plages d’allure remplacent les zones d’entraînement arbitraires. La répartition des distances indique le nombre de séances représentées.
 - Le résumé mensuel IA est généré sur demande. Son cache tient compte des deux périodes et des modifications de distance/durée à identifiant constant. Une réponse incomplète ne remplace pas le résumé sauvegardé.
 - Affichage des distances et allures adapté aux miles ; libellés et pluriels français/anglais corrigés.
@@ -23,7 +24,7 @@
 ## Mesures et validation
 
 - Même banc d’essai local avant/après : 2 000 séances, 20 lectures des indicateurs et répartitions. Avant : **395,4 ms**. Après : **22,3 à 28,5 ms** selon l’exécution, soit environ **14 à 18 fois moins de temps de calcul**. Cette mesure ne couvre ni les accès Santé réels, ni le réseau, ni la fréquence d’affichage.
-- Compilation iOS Simulator réussie ; **185 tests réussis**, dont **18 tests Statistiques** couvrant calendriers et changements d’heure, données invalides, caches, concurrence, annulation, résumé IA et migration du stockage SwiftData existant.
+- Compilation iOS Simulator réussie ; **186 tests réussis**, dont **18 tests unitaires Statistiques et un test de défilement UI** couvrant calendriers et changements d’heure, données invalides, caches, concurrence, annulation, résumé IA et migration du stockage SwiftData existant.
 - Lint Swift des fichiers concernés sans avertissement ; `git diff --check` réussi.
 - Parcours XCTest sur simulateur iPhone 17 Pro/iOS 26.2 : périodes semaine/mois/tout, défilement, Progression, changements rapides de filtre, retour depuis le tableau de bord ; captures en français sombre/clair et anglais avec unités impériales.
 
@@ -33,3 +34,8 @@
 - La vérification visuelle utilise des données de démonstration. Aucun test de performances sur iPhone physique ni nouvel appel IA de production n’a été effectué pour cette page.
 - Deux avertissements StoreKit apparaissent dans les tests d’achat existants, sans échec ; ils sont indépendants de Statistiques.
 - Les changements restent limités à Statistiques et à sa lecture mensuelle. Le travail simultané sur le tableau de bord est conservé dans une branche distincte.
+
+## Version préparée
+
+- Version iOS **2.0.9**, numéro de build local **345**, app et extensions alignées. Xcode Cloud utilise sa propre numérotation pour la distribution.
+- Version **2.0.9** créée dans App Store Connect en préparation de soumission, avec publication manuelle. Métadonnées de 2.0.8 reprises et nouveautés actualisées en français, anglais et espagnol.

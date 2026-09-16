@@ -70,7 +70,7 @@ jobs:
           # Rules: lowercase, alphanumeric + dashes, must start with letter, max 63 chars with worker name
           BRANCH_NAME="${{ github.head_ref }}"
           # Convert to lowercase, replace non-alphanumeric with dash, remove leading/trailing dashes
-          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | sed 's/-*$//' | cut -c1-30)
+          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | cut -c1-30 | sed 's/-*$//')
           # Ensure it starts with a letter
           if ! [[ $ALIAS =~ ^[a-z] ]]; then
             ALIAS="pr-$ALIAS"
@@ -141,7 +141,7 @@ jobs:
           # Rules: lowercase, alphanumeric + dashes, must start with letter, max 63 chars with worker name
           BRANCH_NAME="${{ github.head_ref }}"
           # Convert to lowercase, replace non-alphanumeric with dash, remove leading/trailing dashes
-          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | sed 's/-*$//' | cut -c1-30)
+          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | cut -c1-30 | sed 's/-*$//')
           # Ensure it starts with a letter
           if ! [[ $ALIAS =~ ^[a-z] ]]; then
             ALIAS="pr-$ALIAS"
@@ -207,7 +207,7 @@ jobs:
         run: |
           # Generate valid preview alias from branch name
           BRANCH_NAME="${{ github.head_ref }}"
-          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | sed 's/-*$//' | cut -c1-30)
+          ALIAS=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/^-*//' | cut -c1-30 | sed 's/-*$//')
           if ! [[ $ALIAS =~ ^[a-z] ]]; then
             ALIAS="pr-$ALIAS"
           fi

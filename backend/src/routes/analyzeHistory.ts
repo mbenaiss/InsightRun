@@ -160,17 +160,17 @@ This summary will be used as long-term context for future coaching conversations
 
   if (profile) {
     system += `\n\n${buildHealthProfileContext(profile)}`
-    system += `\nUse this profile to calibrate training zones, recovery expectations, and physiological baselines.`
+    system += `\nUse this profile as descriptive context. Do not infer personal training zones or physiological thresholds from age or population formulas.`
   }
 
   let user = `Consolidate these ${batchSummaries.length} batch summaries (oldest → most recent) into ONE comprehensive athlete profile:
 
 1. **PERFORMANCE TRAJECTORY**: Pace evolution over time (specific numbers), best performances, current fitness level estimate
-2. **TRAINING IDENTITY**: Typical weekly volume/frequency, preferred distances, training variety (easy/hard ratio), consistency score
+2. **TRAINING IDENTITY**: Typical weekly volume/frequency, preferred distances, recorded session types and consistency. Only include an easy/hard ratio when explicitly supported by session goals or feedback, not age-based heart-rate estimates.
 3. **PHYSIOLOGICAL PROFILE**: Typical HR ranges at different paces, cadence baseline, VO2 max trend, biomechanics baseline (GCT, stride, asymmetry)
 4. **STRENGTHS**: What this runner does well (backed by data — e.g., "consistent 175 spm cadence", "good negative split tendency")
-5. **AREAS TO DEVELOP**: Specific weaknesses with quantified gaps (e.g., "GCT averaging 285ms vs optimal 220-250ms", "no runs >10km in dataset")
-6. **RISK FACTORS**: Injury indicators, overtraining patterns, recovery deficits observed
+5. **AREAS TO DEVELOP**: Gaps relative to explicitly stated goals, supported by data. Do not invent universal ideal cadence or biomechanics ranges, or label an unknown goal as a weakness.
+6. **RECOVERY CONTEXT**: Reported fatigue, discomfort and observed workload changes. Do not diagnose injury or overtraining from wearable metrics. Distinguish observations from earlier AI opinions.
 7. **KEY NUMBERS**: Total distance/time, PR paces, average metrics across all workouts
 
 Focus on patterns that persist across batches. Short-term fluctuations matter less than long-term trends.

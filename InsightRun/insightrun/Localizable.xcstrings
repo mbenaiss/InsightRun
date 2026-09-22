@@ -1,6 +1,1103 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "insights.rmssd.reference.short" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reference"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Référence"
+          }
+        }
+      }
+    },
+    "insights.rmssd.source.link" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV measurement standards · ESC / NASPE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normes de mesure de la VFC · ESC / NASPE"
+          }
+        }
+      }
+    },
+    "insights.rmssd.interpretation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare your trend across several nights with your own reference, alongside sleep, resting heart rate and how you feel. One value alone does not establish your recovery level. RMSSD does not change your recovery score. While your reference is building, the app shows your measurements without assigning a good or bad rating."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare l’évolution sur plusieurs nuits à ta propre référence, en tenant compte du sommeil, de la fréquence cardiaque au repos et de ton ressenti. Une valeur isolée ne suffit pas à établir ton niveau de récupération. La RMSSD ne modifie pas ton score de récupération. Pendant la construction de ta référence, l’app affiche tes mesures sans les classer comme bonnes ou mauvaises."
+          }
+        }
+      }
+    },
+    "insights.rmssd.calculation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "InsightRun shows the median of the RMSSD measurements recorded during sleep. A night needs at least 3 measurements. Your reference is built from at least 7 usable previous nights within the last 28 days, excluding the selected night. Only measurements from the same device and software source are combined."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "InsightRun affiche la médiane des mesures RMSSD enregistrées pendant le sommeil. Une nuit doit comporter au moins 3 mesures. Ta référence est construite à partir d’au moins 7 nuits précédentes exploitables sur les 28 derniers jours, sans inclure la nuit sélectionnée. Seules les mesures provenant du même appareil et de la même source logicielle sont regroupées."
+          }
+        }
+      }
+    },
+    "insights.rmssd.explanation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RMSSD describes how much the time between successive heartbeats varies, in milliseconds. It is a different measure from SDNN, the HRV shown in the resting HRV card. The two values are tracked separately."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La RMSSD décrit les variations du temps entre deux battements cardiaques successifs, en millisecondes. Elle se distingue de la SDNN, la mesure affichée dans la carte VFC au repos. Les deux valeurs sont suivies séparément."
+          }
+        }
+      }
+    },
+    "insights.rmssd.interpretation.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How to read it"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment l’interpréter ?"
+          }
+        }
+      }
+    },
+    "insights.rmssd.calculation.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How it is calculated"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment est-ce calculé ?"
+          }
+        }
+      }
+    },
+    "insights.rmssd.reference.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your personal reference"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta référence personnelle"
+          }
+        }
+      }
+    },
+    "insights.rmssd.history" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Night-time measurements"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesures nocturnes"
+          }
+        }
+      }
+    },
+    "insights.rmssd.progress" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reference: %lld/7 nights"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Référence : %lld/7 nuits"
+          }
+        }
+      }
+    },
+    "insights.rmssd.ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reference ready"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Référence disponible"
+          }
+        }
+      }
+    },
+    "insights.rmssd.short" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV · RMSSD"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VFC · RMSSD"
+          }
+        }
+      }
+    },
+    "≤ %lld bpm" : {
+      "shouldTranslate" : false
+    },
+    "× %lld" : {
+      "shouldTranslate" : false
+    },
+    "%lld/10" : {
+      "shouldTranslate" : false
+    },
+    "Z%lld" : {
+      "shouldTranslate" : false
+    },
+    "Apple HealthKit" : {
+      "shouldTranslate" : false
+    },
+    "%@ kcal" : {
+      "shouldTranslate" : false
+    },
+    "%@, %@" : {
+      "shouldTranslate" : false
+    },
+    "%@, %@/100" : {
+      "shouldTranslate" : false
+    },
+    "RMSSD" : {
+      "shouldTranslate" : false
+    },
+    "%lld ms" : {
+      "shouldTranslate" : false
+    },
+    "±200 m" : {
+      "shouldTranslate" : false
+    },
+    "±1 km" : {
+      "shouldTranslate" : false
+    },
+    "%@/100, %@" : {
+      "shouldTranslate" : false
+    },
+    "%@/10" : {
+      "shouldTranslate" : false
+    },
+    "Test plan" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plan de test"
+          }
+        }
+      }
+    },
+    "Link Styles (per Strava Guidelines):" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styles de liens (selon les recommandations Strava) :"
+          }
+        }
+      }
+    },
+    "View analysis" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voir l’analyse"
+          }
+        }
+      }
+    },
+    "workout.detail.timeline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How the run unfolded"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déroulé de la séance"
+          }
+        }
+      }
+    },
+    "workout.detail.effort_technique": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effort and running form"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effort et technique"
+          }
+        }
+      }
+    },
+    "workout.detail.running_form": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running form"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technique de course"
+          }
+        }
+      }
+    },
+    "workout.detail.information": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session information"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informations de la séance"
+          }
+        }
+      }
+    },
+    "workout.conditions.temperature": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Température"
+          }
+        }
+      }
+    },
+    "workout.conditions.humidity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Humidity"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Humidité"
+          }
+        }
+      }
+    },
+    "workout.conditions.effort.estimated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple estimate"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimation Apple"
+          }
+        }
+      }
+    },
+    "workout.conditions.effort.recorded": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorded perceived effort"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ressenti enregistré"
+          }
+        }
+      }
+    },
+  "insights.feedback.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Session feedback"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ressenti"
+        }
+      }
+    }
+  },
+  "insights.zones.recorded": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "recorded zones"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "zones enregistrées"
+        }
+      }
+    }
+  },
+  "insights.form.change": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ground contact, first to last third: %@%%"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Contact au sol, du premier au dernier tiers : %@ %%"
+        }
+      }
+    }
+  },
+  "insights.zones": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Recorded heart-rate zones"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Zones cardiaques enregistrées"
+        }
+      }
+    }
+  },
+  "insights.zones.system": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Apple automatic zones"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Zones automatiques Apple"
+        }
+      }
+    }
+  },
+  "insights.zones.custom": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Custom workout zones"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Zones personnalisées de la séance"
+        }
+      }
+    }
+  },
+  "insights.evidence": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Evidence behind the analysis"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Données utilisées pour l’analyse"
+        }
+      }
+    }
+  },
+  "insights.hr.change": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Heart rate, first to last third: %@%%"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Fréquence cardiaque, du premier au dernier tiers : %@ %%"
+        }
+      }
+    }
+  },
+  "insights.comparable.speed": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Speed differs by at most 5%. This observation alone does not explain the cause."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La vitesse varie de 5 % au maximum. Cette observation seule ne permet pas d’en expliquer la cause."
+        }
+      }
+    }
+  },
+  "insights.comparable.power": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Power differs by at most 5%. This observation alone does not explain the cause."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La puissance varie de 5 % au maximum. Cette observation seule ne permet pas d’en expliquer la cause."
+        }
+      }
+    }
+  },
+  "insights.targets": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Intervals within target: %lld/%lld"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Répétitions dans la cible : %lld/%lld"
+        }
+      }
+    }
+  },
+  "insights.gap": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Longest gap: %lld seconds"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Plus longue interruption : %lld secondes"
+        }
+      }
+    }
+  },
+  "insights.coverage": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Coverage estimates the observed active time. Missing measurements remain unknown."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La couverture estime la part du temps actif observée. Les mesures manquantes restent inconnues."
+        }
+      }
+    }
+  },
+  "insights.feedback": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "How did it feel?"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ton ressenti après la séance"
+        }
+      }
+    }
+  },
+  "insights.feedback.effort": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Perceived effort"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Effort ressenti"
+        }
+      }
+    }
+  },
+  "insights.unspecified": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Not specified"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Non renseigné"
+        }
+      }
+    }
+  },
+  "insights.feedback.intent": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Session goal"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Objectif de la séance"
+        }
+      }
+    }
+  },
+  "insights.intent.easy": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Easy run"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Footing facile"
+        }
+      }
+    }
+  },
+  "insights.intent.long": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Long run"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Sortie longue"
+        }
+      }
+    }
+  },
+  "insights.intent.tempo": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Tempo"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Allure soutenue"
+        }
+      }
+    }
+  },
+  "insights.intent.intervals": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Intervals"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Fractionné"
+        }
+      }
+    }
+  },
+  "insights.intent.race": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Race"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Compétition"
+        }
+      }
+    }
+  },
+  "insights.feedback.legs": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "How your legs felt"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "État des jambes"
+        }
+      }
+    }
+  },
+  "insights.legs.fresh": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Fresh"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Fraîches"
+        }
+      }
+    }
+  },
+  "insights.legs.normal": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Normal"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Normales"
+        }
+      }
+    }
+  },
+  "insights.legs.heavy": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Heavy"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Lourdes"
+        }
+      }
+    }
+  },
+  "insights.legs.sore": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Sore"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Douloureuses"
+        }
+      }
+    }
+  },
+  "insights.feedback.achieved": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Goal achieved"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Objectif atteint"
+        }
+      }
+    }
+  },
+  "insights.achieved.yes": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Yes"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Oui"
+        }
+      }
+    }
+  },
+  "insights.achieved.partly": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Partly"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "En partie"
+        }
+      }
+    }
+  },
+  "insights.achieved.no": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Non"
+        }
+      }
+    }
+  },
+  "insights.rmssd": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Night-time HRV · RMSSD"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "VFC nocturne · RMSSD"
+        }
+      }
+    }
+  },
+  "insights.rmssd.samples": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "%lld measurements during sleep"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "%lld mesures pendant le sommeil"
+        }
+      }
+    }
+  },
+  "insights.rmssd.no.night": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No usable measurements for this night."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Aucune mesure exploitable pour cette nuit."
+        }
+      }
+    }
+  },
+  "insights.rmssd.baseline": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Reference: %lld ms across %lld previous nights"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Référence : %lld ms sur %lld nuits précédentes"
+        }
+      }
+    }
+  },
+  "insights.rmssd.building": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Building your reference: %lld/7 previous nights"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Référence en construction : %lld/7 nuits précédentes"
+        }
+      }
+    }
+  },
+  "insights.rmssd.source": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Device or software changed. The reference uses the latest source only."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La montre ou son logiciel a changé. La référence utilise uniquement la source la plus récente."
+        }
+      }
+    }
+  },
+  "insights.rmssd.separate": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "RMSSD is tracked separately from SDNN and interpreted with sleep, resting heart rate and your own feedback."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La RMSSD est suivie séparément de la SDNN et interprétée avec le sommeil, la fréquence cardiaque au repos et ton ressenti."
+        }
+      }
+    }
+  },
+  "insights.rmssd.empty": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Requires RMSSD measurements and recorded sleep. No data can also mean access is unavailable."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Nécessite des mesures RMSSD et du sommeil enregistré. L’absence de données peut aussi correspondre à un accès indisponible."
+        }
+      }
+    }
+  },
+  "insights.rmssd.enable": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Enable RMSSD access"
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Autoriser l’accès à la RMSSD"
+        }
+      }
+    }
+  },
+  "insights.rmssd.error": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Unable to request Health access. Try again from Settings."
+        }
+      },
+      "fr": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Impossible de demander l’accès à Santé. Réessaie depuis les Réglages."
+        }
+      }
+    }
+  },
     "progression.vo2_context" : {
       "extractionState": "manual",
       "localizations": {
@@ -1647,6 +2744,12 @@
             "state" : "new",
             "value" : "%1$@ — %2$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ — %2$@"
+          }
         }
       }
     },
@@ -1766,6 +2869,12 @@
             "state" : "new",
             "value" : "%1$@, %2$@ %3$@%4$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$@ %3$@%4$@"
+          }
         }
       }
     },
@@ -1776,6 +2885,12 @@
             "state" : "new",
             "value" : "%1$@, %2$@, %3$@, %4$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$@, %3$@, %4$@"
+          }
         }
       }
     },
@@ -1784,6 +2899,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "%1$@, %2$lld/100"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$@, %2$lld/100"
           }
         }
@@ -1807,6 +2928,12 @@
             "state" : "new",
             "value" : "%1$@%2$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@%2$@"
+          }
         }
       }
     },
@@ -1815,6 +2942,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "%1$@%2$@, %3$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$@%2$@, %3$@"
           }
         }
@@ -2223,6 +3356,12 @@
             "state" : "new",
             "value" : "%1$lld/100, %2$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld/100, %2$@"
+          }
         }
       }
     },
@@ -2340,7 +3479,14 @@
       }
     },
     "+%@" : {
-
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@"
+          }
+        }
+      }
     },
     "< 4:00 /km" : {
       "localizations" : {
@@ -2392,7 +3538,14 @@
       }
     },
     "−%@" : {
-
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "−%@"
+          }
+        }
+      }
     },
     "≥ 65%" : {
       "comment" : "Sleep efficiency",
@@ -3029,13 +4182,19 @@
     },
     "Afficher paywall" : {
       "comment" : "Debug button to show the paywall",
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher paywall"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show paywall"
           }
         }
       }
@@ -5835,7 +6994,15 @@
       }
     },
     "Edit workout" : {
-      "comment" : "Edit workout accessibility label"
+      "comment" : "Edit workout accessibility label",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier la séance"
+          }
+        }
+      }
     },
     "Editable workout plans" : {
       "comment" : "Feature",
@@ -6337,7 +7504,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Feedback"
+            "value" : "Avis et suggestions"
           }
         }
       }
@@ -12228,13 +13395,19 @@
     },
     "Outils de test pour simuler différents états d'abonnement. Redémarrez l'app après avoir réinitialisé." : {
       "comment" : "A footer in the \"Debug\" section of the settings view, providing instructions on how to use the debug features.",
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Outils de test pour simuler différents états d'abonnement. Redémarrez l'app après avoir réinitialisé."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test tools for simulating different subscription states. Restart the app after resetting."
           }
         }
       }
@@ -13471,12 +14644,18 @@
       }
     },
     "Réinitialiser consentement IA" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réinitialiser consentement IA"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset AI consent"
           }
         }
       }
@@ -13501,13 +14680,19 @@
     },
     "Réinitialiser le paywall" : {
       "comment" : "A button that resets the paywall state for testing purposes.",
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réinitialiser le paywall"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset paywall"
           }
         }
       }
@@ -13695,7 +14880,15 @@
       }
     },
     "Resuming…" : {
-      "comment" : "Status: resuming a previously interrupted run"
+      "comment" : "Status: resuming a previously interrupted run",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprise…"
+          }
+        }
+      }
     },
     "Retry" : {
       "comment" : "Retry button\nRetry button after indexation failure\nRetry export authorization button",
@@ -13997,7 +15190,15 @@
       }
     },
     "Search workouts" : {
-      "comment" : "Accessibility label for workout search button"
+      "comment" : "Accessibility label for workout search button",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher des séances"
+          }
+        }
+      }
     },
     "sec" : {
       "comment" : "Seconds abbreviation",
@@ -14236,7 +15437,7 @@
     },
     "Simuler abonné" : {
       "comment" : "A button that simulates a subscribed user in the settings view.",
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
@@ -14244,12 +15445,18 @@
             "state" : "translated",
             "value" : "Simuler abonné"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulate subscriber"
+          }
         }
       }
     },
     "Simuler non-abonné" : {
       "comment" : "A button that simulates a non-subscribed user in the settings view.",
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
@@ -14257,27 +15464,45 @@
             "state" : "translated",
             "value" : "Simuler non-abonné"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulate non-subscriber"
+          }
         }
       }
     },
     "Simuler Production" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Simuler Production"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulate Production"
+          }
         }
       }
     },
     "Simuler TestFlight" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Simuler TestFlight"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulate TestFlight"
           }
         }
       }

@@ -258,12 +258,18 @@
       }
     },
     "20–30 min footing, no more.": {
-      "comment": "Widget coaching: easy short",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "20–30 min de footing, pas plus."
+      "comment" : "Widget coaching: easy short",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "20–30 min de footing, pas plus."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "20–30 min easy run, no more."
           }
         }
       }

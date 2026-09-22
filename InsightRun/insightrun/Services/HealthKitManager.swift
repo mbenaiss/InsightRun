@@ -157,6 +157,7 @@ class HealthKitManager: ObservableObject {
         ]
 
         typesToRead.formUnion(characteristicTypes)
+        if let rmssd = HealthInsightReader.rmssdType { typesToRead.insert(rmssd) }
 
         // Activity Summary (ring goals)
         typesToRead.insert(HKObjectType.activitySummaryType())
@@ -728,6 +729,7 @@ class HealthKitManager: ObservableObject {
         async let advancedMetrics = safeAdvancedRunningMetrics(for: workout)
         async let weatherData = extractWeatherData(from: workout)
         async let intervalsData = fetchWorkoutIntervals(for: workout)
+        async let evidence = HealthInsightReader(store: healthStore).workoutEvidence(for: workout)
 
         // Await all results (none will throw now)
         let steps = await stepCountData
@@ -796,7 +798,8 @@ class HealthKitManager: ObservableObject {
             temperature: weather.temperature,
             humidity: weather.humidity,
             movingTime: calculateMovingTime(for: workout),
-            pausedTime: workout.pausedDuration
+            pausedTime: workout.pausedDuration,
+            evidence: await evidence
         )
     }
 
@@ -2483,6 +2486,7 @@ class HealthKitManager: ObservableObject {
             unit: HKUnit.count().unitDivided(by: .minute())
         )
         async let hrvStats = fetchNightHRVStatistics(for: sleep)
+        async let rmssd = HealthInsightReader(store: healthStore).rmssdTrend(for: date)
         async let walkingHR = fetchLatestQuantitySafe(
             for: .walkingHeartRateAverage,
             before: endOfDay,
@@ -2513,7 +2517,8 @@ class HealthKitManager: ObservableObject {
             sleepData: sleep,
             respiratoryRate: respRateResult.value,
             oxygenSaturation: spO2Result.value.map { $0 * 100 }, // Convert to percentage
-            baseline: baseline
+            baseline: baseline,
+            rmssd: await rmssd
         )
     }
 
@@ -2938,7 +2943,7 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Sleep Session Grouping
 
-    private static func groupSleepSessions(_ samples: [HKCategorySample]) -> [[HKCategorySample]] {
+    static func groupSleepSessions(_ samples: [HKCategorySample]) -> [[HKCategorySample]] {
         guard !samples.isEmpty else { return [] }
 
         var sessions: [[HKCategorySample]] = []

@@ -27,6 +27,8 @@ struct WorkoutDetailView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var raceStore = WorkoutRaceStore.shared
     @ObservedObject private var nameStore = WorkoutNameStore.shared
+    @ObservedObject private var feedbackStore = WorkoutFeedbackStore.shared
+    @State private var showFeedback = false
     @State private var showRenameWorkout = false
     @State private var workoutNameDraft = ""
     @AppStorage("hasDismissedPostAnalysisNotificationPrompt") private var dismissedNotificationPrompt = false
@@ -76,95 +78,84 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.cardPadding) {
+                    VStack(alignment: .leading, spacing: Spacing.xxl) {
                         if viewModel.isLoading && viewModel.metrics == nil {
                             loadingSection
                         } else if let error = viewModel.errorMessage {
                             errorSection(error)
                         } else if let metrics = viewModel.metrics {
-                            // Editorial hero
-                            headerSection(metrics: metrics)
-
-                            if isSampleWorkout {
-                                sampleWorkoutBanner
-                            } else {
-                                officialRaceToggle
+                            VStack(alignment: .leading, spacing: Spacing.lg) {
+                                headerSection(metrics: metrics)
+                                if isSampleWorkout {
+                                    sampleWorkoutBanner
+                                }
+                                mainMetricsGrid(metrics: metrics)
                             }
 
-                            if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
-                                ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
-                            }
-
-                            // Coach narratif
-                            VStack(alignment: .leading, spacing: Spacing.md) {
-                                DashboardEyebrow(title: String(localized: "Coach verdict", comment: "Workout detail coach section eyebrow"))
+                            detailSection(title: String(localized: "Coach verdict", comment: "Workout detail coach section eyebrow"), identifier: "workout-section-coach") {
                                 aiAnalysisSection
                             }
 
-                            mainMetricsGrid(metrics: metrics)
+                            if !(metrics.routePoints ?? []).isEmpty || !(metrics.splits ?? []).isEmpty {
+                                detailSection(title: String(localized: "workout.detail.timeline", defaultValue: "How the run unfolded"), identifier: "workout-section-timeline") {
+                                    if let routePoints = metrics.routePoints, !routePoints.isEmpty {
+                                        routeMapSection(routePoints: routePoints)
+                                    }
+                                    if let splits = metrics.splits, !splits.isEmpty {
+                                        SwipeableChartsView(metrics: metrics)
+                                        TabbedSplitsSection(splits: splits, intervals: metrics.intervals)
+                                    }
+                                }
+                            }
 
-                            // Compare similar
+                            if !(metrics.evidence?.zones?.zones ?? []).isEmpty || hasPerformanceMetrics(metrics) || hasAdvancedMetrics(metrics) {
+                                detailSection(title: String(localized: "workout.detail.effort_technique", defaultValue: "Effort and running form"), identifier: "workout-section-effort") {
+                                    WorkoutHeartRateZonesView(metrics: metrics)
+                                    if hasPerformanceMetrics(metrics) {
+                                        MetricsCard {
+                                            VStack(alignment: .leading, spacing: Spacing.sm) {
+                                                metricCardTitle(String(localized: "Performance", comment: "Performance metrics section title"))
+                                                performanceContent(metrics: metrics)
+                                            }
+                                        }
+                                    }
+                                    if hasAdvancedMetrics(metrics) {
+                                        MetricsCard {
+                                            VStack(alignment: .leading, spacing: Spacing.sm) {
+                                                metricCardTitle(String(localized: "workout.detail.running_form", defaultValue: "Running form"))
+                                                advancedMetricsContent(metrics: metrics)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            detailSection(title: String(localized: "workout.detail.information", defaultValue: "Session information"), identifier: "workout-section-information") {
+                                if !isSampleWorkout {
+                                    officialRaceToggle
+                                }
+                                if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
+                                    ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
+                                }
+                                sourceSection
+                            }
+
                             if !similarWorkouts.isEmpty {
                                 compareWithSimilarSection
                             }
-
-                            // Parcours
-                            if let routePoints = metrics.routePoints, !routePoints.isEmpty {
-                                VStack(alignment: .leading, spacing: Spacing.md) {
-                                    DashboardEyebrow(title: String(localized: "Route", comment: "Workout detail route section eyebrow"))
-                                    routeMapSection(routePoints: routePoints)
-                                }
-                            }
-
-                            // Évolution (charts)
-                            if let splits = metrics.splits, !splits.isEmpty {
-                                VStack(alignment: .leading, spacing: Spacing.md) {
-                                    DashboardEyebrow(title: String(localized: "Evolution", comment: "Workout detail evolution section eyebrow"))
-                                    SwipeableChartsView(metrics: metrics)
-                                }
-                            }
-
-                            // Performance
-                            if hasPerformanceMetrics(metrics) {
-                                VStack(alignment: .leading, spacing: Spacing.md) {
-                                    DashboardEyebrow(title: String(localized: "Performance", comment: "Performance metrics section title"))
-                                    MetricsCard {
-                                        performanceContent(metrics: metrics)
-                                    }
-                                }
-                            }
-
-                            // Advanced
-                            if hasAdvancedMetrics(metrics) {
-                                VStack(alignment: .leading, spacing: Spacing.md) {
-                                    DashboardEyebrow(title: String(localized: "Advanced Metrics", comment: "Advanced metrics section title"))
-                                    MetricsCard {
-                                        advancedMetricsContent(metrics: metrics)
-                                    }
-                                }
-                            }
-
-                            // Splits
-                            if let splits = metrics.splits, !splits.isEmpty {
-                                VStack(alignment: .leading, spacing: Spacing.md) {
-                                    DashboardEyebrow(title: String(localized: "Splits", comment: "Splits section title"))
-                                    TabbedSplitsSection(
-                                        splits: splits,
-                                        intervals: metrics.intervals
-                                    )
-                                }
-                            }
-
-                            sourceSection
                         }
                     }
                     .padding(.horizontal, Spacing.cardPadding)
                     .padding(.top, Spacing.sm)
-                    .padding(.bottom, Spacing.lg)
+                    .padding(.bottom, Spacing.xxl)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .background(Color.irBackgroundApp.ignoresSafeArea())
                 .accessibilityIdentifier("workout-detail")
+                .sheet(isPresented: $showFeedback) { WorkoutFeedbackSheet(workout: workout) }
+                .onChange(of: feedbackStore.revision) {
+                    Task { await analysisViewModel.loadAnalysis(allowGeneration: false) }
+                }
                 .sheet(isPresented: $showComparisonSheet) {
                     WorkoutComparisonView(
                         referenceWorkout: workout,
@@ -266,6 +257,25 @@ struct WorkoutDetailView: View {
         }
     }
 
+    private func detailSection<Content: View>(title: String, identifier: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(title)
+                .font(IRFont.title3.weight(.bold))
+                .foregroundStyle(Color.irTextPrimary)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier(identifier)
+            content()
+        }
+    }
+
+    private func metricCardTitle(_ title: String) -> some View {
+        Text(title)
+            .font(IRFont.bodyEmphasized)
+            .foregroundStyle(Color.irTextPrimary)
+            .padding(.horizontal, Spacing.cardPadding)
+            .padding(.top, Spacing.cardPadding)
+    }
+
     private var officialRaceToggle: some View {
         Toggle(isOn: Binding(
             get: { raceStore.isOfficialRace(workout) },
@@ -300,27 +310,37 @@ struct WorkoutDetailView: View {
         let eyebrowDate = workout.startDate.formatted(
             .dateTime.day().month(.abbreviated).year()
         ).uppercased()
-        let fullDate = workout.startDate.formatted(
-            .dateTime.weekday(.abbreviated).day().month(.wide).year()
-        ).capitalized
         let time = workout.startDate.formatted(date: .omitted, time: .shortened)
 
         return VStack(alignment: .leading, spacing: Spacing.base) {
-            Text("\(String(localized: "workout.detail.hero_eyebrow", defaultValue: "Séance", comment: "Workout detail hero eyebrow").uppercased()) · \(eyebrowDate)")
-                .font(IRFont.eyebrow.weight(.heavy))
-                .tracking(IRTracking.eyebrow)
-                .foregroundStyle(Color.irTextTertiary)
-                .frame(maxWidth: .infinity, alignment: .center)
+            WorkoutConditionsView(
+                sessionLabel: "\(String(localized: "workout.detail.hero_eyebrow", defaultValue: "Workout", comment: "Workout detail hero eyebrow").uppercased()) · \(eyebrowDate)",
+                metrics: metrics,
+                feedback: feedbackStore.feedback(for: workout)
+            )
 
             VStack(alignment: .leading, spacing: Spacing.md) {
-                HStack(spacing: Spacing.xs) {
-                    Circle()
-                        .fill(type.color)
-                        .frame(width: Spacing.xs, height: Spacing.xs)
-                    Text("\(type.localizedLabel.uppercased()) · \(Formatters.distance(km: (workout.distance ?? 0) / 1000.0))")
-                        .font(IRFont.footnote.weight(.heavy))
-                        .tracking(IRTracking.eyebrow)
-                        .foregroundStyle(type.color)
+                FlowLayout(spacing: Spacing.sm) {
+                    HStack(spacing: Spacing.xs) {
+                        Circle()
+                            .fill(type.color)
+                            .frame(width: Spacing.xs, height: Spacing.xs)
+                        Text("\(type.localizedLabel.uppercased()) · \(Formatters.distance(km: (workout.distance ?? 0) / 1000.0))")
+                            .font(IRFont.footnote.weight(.heavy))
+                            .tracking(IRTracking.eyebrow)
+                            .foregroundStyle(type.color)
+                    }
+                    Label(time, systemImage: "clock")
+                        .font(IRFont.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.irTextSecondary)
+                        .accessibilityIdentifier("workout-start-time")
+                    Label(shortDuration(workout.duration), systemImage: "timer")
+                        .font(IRFont.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.irTextSecondary)
+                        .accessibilityLabel("\(String(localized: "Duration")), \(shortDuration(workout.duration))")
+                        .accessibilityIdentifier("workout-header-duration")
                 }
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -342,29 +362,22 @@ struct WorkoutDetailView: View {
                     }
                 }
 
-                HStack(spacing: Spacing.dash) {
-                    if let routePoints = metrics.routePoints,
-                       let firstPoint = routePoints.first {
-                        LocationText(coordinate: firstPoint.coordinate)
-                            .font(IRFont.body)
-                            .foregroundStyle(Color.irTextSecondary)
-                        Rectangle().fill(Color.irBorder).frame(width: 0.5, height: Spacing.xl)
-                    }
-
-                    Text("\(fullDate) · \(time)")
+                if let firstPoint = metrics.routePoints?.first {
+                    LocationText(coordinate: firstPoint.coordinate)
                         .font(IRFont.body)
                         .foregroundStyle(Color.irTextSecondary)
+                }
 
-                    if let temperature = metrics.temperature {
-                        Rectangle().fill(Color.irBorder).frame(width: 0.5, height: Spacing.xl)
-                        HStack(spacing: Spacing.xxs) {
-                            Text(verbatim: "\(Formatters.integer(Int(temperature.rounded())))°C")
-                            Image(systemName: "cloud.fill")
-                                .font(IRFont.body)
-                        }
-                        .font(IRFont.body)
-                        .foregroundStyle(Color.irTextSecondary)
+                if !isSampleWorkout {
+                    Button {
+                        showFeedback = true
+                    } label: {
+                        Label(String(localized: "insights.feedback", defaultValue: "How did it feel?"), systemImage: "text.bubble")
+                            .font(IRFont.footnote.weight(.semibold))
+                            .frame(minHeight: 44)
                     }
+                    .tint(Color.irPrimaryAccent)
+                    .accessibilityIdentifier("workout-feedback")
                 }
             }
         }
@@ -654,6 +667,9 @@ struct WorkoutDetailView: View {
     }
 
     private func hrZoneLabel(avgHR: Double) -> String? {
+        if let zone = recordedZone(avgHR: avgHR) {
+            return "Z\(zone) · " + String(localized: "insights.zones.recorded", defaultValue: "recorded zones")
+        }
         guard let estimatedMaxHR,
               let zone = HeartRateReference.zone(average: avgHR, maximum: estimatedMaxHR) else { return nil }
         let pctLabel = Formatters.percent((avgHR / Double(estimatedMaxHR) * 100).rounded())
@@ -661,7 +677,7 @@ struct WorkoutDetailView: View {
     }
 
     private func hrZoneColor(avgHR: Double) -> Color {
-        switch HeartRateReference.zone(average: avgHR, maximum: estimatedMaxHR) {
+        switch recordedZone(avgHR: avgHR) ?? HeartRateReference.zone(average: avgHR, maximum: estimatedMaxHR) {
         case nil: return .irTextSecondary
         case 1: return .irSuccess
         case 2: return .irSuccess
@@ -669,6 +685,12 @@ struct WorkoutDetailView: View {
         case 4: return .irWarning
         default: return .irError
         }
+    }
+
+    private func recordedZone(avgHR: Double) -> Int? {
+        viewModel.metrics?.evidence?.zones?.zones.first {
+            ($0.minimum == nil || avgHR >= $0.minimum!) && ($0.maximum == nil || avgHR < $0.maximum!)
+        }.map { $0.index + 1 }
     }
 
     // MARK: - Helper Functions

@@ -70,6 +70,7 @@ struct WorkoutMetrics {
     // Movement analysis
     var movingTime: TimeInterval?
     var pausedTime: TimeInterval?
+    var evidence: WorkoutEvidence? = nil
 }
 
 struct HeartRateZones {
@@ -277,7 +278,8 @@ extension WorkoutMetrics {
 
         return WorkoutAnalysisConfidence(
             availableSignals: availableSignals,
-            missingSignals: applicableSignals.filter { !availableSignals.contains($0) }
+            missingSignals: applicableSignals.filter { !availableSignals.contains($0) },
+            signalQuality: evidence?.signals ?? []
         )
     }
 
@@ -359,6 +361,7 @@ enum WorkoutAnalysisConfidenceLevel: String {
 struct WorkoutAnalysisConfidence {
     let availableSignals: [WorkoutAnalysisSignal]
     let missingSignals: [WorkoutAnalysisSignal]
+    var signalQuality: [WorkoutSignalQuality] = []
 
     var totalSignalCount: Int {
         availableSignals.count + missingSignals.count
@@ -370,6 +373,12 @@ struct WorkoutAnalysisConfidence {
     }
 
     var level: WorkoutAnalysisConfidenceLevel {
+        if let heartRate = signalQuality.first(where: { $0.metric == "heartRate" }), heartRate.coverage < 0.4 {
+            return .limited
+        }
+        if signalQuality.contains(where: { $0.sampleCount > 0 && ($0.coverage < 0.7 || $0.sourceCount > 1) }) {
+            return coverage >= 0.4 ? .moderate : .limited
+        }
         if coverage >= 0.7 {
             return .high
         }

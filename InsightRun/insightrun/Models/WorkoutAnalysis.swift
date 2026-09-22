@@ -10,13 +10,14 @@ import SwiftData
 
 @Model
 class WorkoutAnalysis {
-    static let currentContextVersion = 5
+    static let currentContextVersion = 8
 
     @Attribute(.unique) var workoutId: UUID
     var analysisText: String
     var analyzedAt: Date
     var contextVersion: Int?
     var estimatedMaxHR: Int?
+    var inputSignature: String?
 
     init(workoutId: UUID, analysisText: String, analyzedAt: Date = Date(), estimatedMaxHR: Int? = nil) {
         self.workoutId = workoutId

@@ -1,8 +1,10 @@
 // Type definitions for chat request data
 import { z } from 'zod'
+import { type rmssdTrendSchema, workoutInsightsSchema } from './trainingInsights'
 
 // Zod schema for WorkoutData validation
 export const workoutDataSchema = z.object({
+  ...workoutInsightsSchema.shape,
   id: z.string().optional(),
   date: z.string().min(1),
   duration: z.number().positive({ message: 'Duration must be a positive number' }),
@@ -42,6 +44,10 @@ export const workoutDataSchema = z.object({
         pace: z.string().max(16),
         time: z.string().max(16),
         distanceMeters: z.number().positive().optional(),
+        heartRate: z.number().positive().optional(),
+        power: z.number().positive().optional(),
+        elevationGain: z.number().nonnegative().optional(),
+        elevationLoss: z.number().nonnegative().optional(),
       })
     )
     .max(1000)
@@ -75,43 +81,11 @@ export const personalBaselineDataSchema = z.object({
   isReliable: z.boolean(),
 })
 
-export interface WorkoutData {
-  date: string
-  duration: number
-  distance: number
-  calories?: number
-  pace?: number
-  speed?: number
-  heartRate?: {
-    avg?: number
-    min?: number
-    max?: number
-  }
-  minPace?: number
-  cadence?: number
-  strideLength?: number
-  runningPower?: number
-  vo2Max?: number
-  elevationGain?: number
-  groundContactTime?: number
-  verticalOscillation?: number
-  mobility?: {
-    walkingSteadiness?: number
-    walkingAsymmetry?: number
-    doubleSupportPercentage?: number
-    walkingSpeed?: number
-    stairAscentSpeed?: number
-    stairDescentSpeed?: number
-  }
-  splits?: Array<{
-    kilometer: number
-    pace: string
-    time: string
-    distanceMeters?: number
-  }>
-}
+export type WorkoutData = z.infer<typeof workoutDataSchema>
 
 export interface RecoveryData {
+  date?: string
+  rmssd?: z.infer<typeof rmssdTrendSchema>
   restingHeartRate?: number
   hrv?: number
   walkingHeartRate?: number

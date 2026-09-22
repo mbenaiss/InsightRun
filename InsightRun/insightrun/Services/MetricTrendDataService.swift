@@ -119,6 +119,7 @@ final class MetricTrendDataService {
             let value: Double?
             switch metricType {
             case .hrv: value = metrics.hrvAverage
+            case .rmssd: value = metrics.rmssd?.currentNight?.median
             case .restingHeartRate: value = metrics.restingHeartRate
             case .respiratoryRate: value = metrics.respiratoryRate
             case .oxygenSaturation: value = metrics.oxygenSaturation

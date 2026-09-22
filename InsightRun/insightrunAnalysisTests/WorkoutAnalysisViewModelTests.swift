@@ -8,6 +8,58 @@ import XCTest
 
 @MainActor
 final class WorkoutAnalysisViewModelTests: XCTestCase {
+    func testCachedAnalysisInAnotherLanguageIsInvalidatedWithoutAutomaticTransmission() async throws {
+        let harness = try AnalysisHarness()
+        let otherLanguage = AppLanguage.current == "fr" ? "en" : "fr"
+        let analysis = WorkoutAnalysis(workoutId: harness.workout.id, analysisText: AnalysisHarness.completeResponse)
+        analysis.inputSignature = try XCTUnwrap(harness.viewModel.inputSignature(language: otherLanguage))
+        harness.modelContext.insert(analysis)
+        try harness.modelContext.save()
+
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+
+        XCTAssertNil(harness.viewModel.analysisText)
+        XCTAssertNil(harness.viewModel.analysisSource)
+        XCTAssertEqual(harness.client.requestCount, 0)
+
+        await harness.viewModel.generateAnalysis()
+
+        XCTAssertEqual(harness.client.requestCount, 1)
+        XCTAssertEqual(try harness.savedAnalyses().first?.inputSignature, harness.viewModel.inputSignature())
+    }
+
+    func testFeedbackChangeInvalidatesCachedAnalysisWithoutAutomaticTransmission() async throws {
+        let harness = try AnalysisHarness()
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        WorkoutFeedbackStore.shared.save(WorkoutFeedback(effort: 8, intent: "easy"), for: harness.workout)
+        defer { WorkoutFeedbackStore.shared.save(WorkoutFeedback(), for: harness.workout) }
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertNil(harness.viewModel.analysisText)
+        XCTAssertEqual(harness.client.requestCount, 0)
+        await harness.viewModel.generateAnalysis()
+        XCTAssertEqual(harness.client.requestCount, 1)
+        XCTAssertEqual(try harness.savedAnalyses().first?.inputSignature, harness.viewModel.inputSignature())
+    }
+
+    func testRefreshingIdenticalMeasurementsKeepsCachedAnalysisButNewCoverageInvalidatesIt() async throws {
+        let harness = try AnalysisHarness()
+        func metrics(date: String, coverage: Double) -> WorkoutMetrics {
+            WorkoutMetrics(workout: harness.workout, evidence: WorkoutEvidence(
+                measuredAt: date, source: "com.apple.health", device: "Watch", softwareVersion: "27", zones: nil,
+                signals: [WorkoutSignalQuality(metric: "heartRate", sampleCount: 100, coverage: coverage, longestGapSeconds: 5, sourceCount: 1)], phases: []))
+        }
+        harness.viewModel.updateMetrics(metrics(date: "2026-09-21T12:00:00Z", coverage: 0.8))
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        harness.viewModel.updateMetrics(metrics(date: "2026-09-21T13:00:00Z", coverage: 0.8))
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        harness.viewModel.updateMetrics(metrics(date: "2026-09-21T13:00:00Z", coverage: 0.9))
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertNil(harness.viewModel.analysisText)
+    }
+
     func testMissingConsentDoesNotStartGeneration() async throws {
         let harness = try AnalysisHarness()
         harness.hasConsent = false
@@ -328,6 +380,32 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         XCTAssertEqual(try harness.savedAnalyses().first?.contextVersion, WorkoutAnalysis.currentContextVersion)
     }
 
+    func testPreviousCoachingPromptCacheIsReplacedWithContextAwareRequest() async throws {
+        let harness = try AnalysisHarness()
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        let cached = try XCTUnwrap(harness.modelContext.fetch(FetchDescriptor<WorkoutAnalysis>()).first)
+        cached.contextVersion = 7
+        try harness.modelContext.save()
+
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertNil(harness.viewModel.analysisText)
+        XCTAssertEqual(harness.client.requestCount, 0)
+
+        await harness.viewModel.loadAnalysis()
+
+        XCTAssertEqual(harness.client.requestCount, 1)
+        let question = try XCTUnwrap(harness.client.requestedQuestion)
+        XCTAssertTrue(question.contains("180"))
+        XCTAssertTrue(question.contains("un seul paragraphe continu") || question.contains("one continuous paragraph"))
+        XCTAssertTrue(question.contains("aucun retour à la ligne") || question.contains("ni retour à la ligne") || question.contains("line breaks"))
+        XCTAssertFalse(question.contains("## "))
+        XCTAssertTrue(question.contains("pourquoi il est utile") || question.contains("why it is useful"))
+        XCTAssertTrue(question.contains("estimation Apple") || question.contains("Apple estimate"))
+        XCTAssertTrue(question.contains("Sur tapis") || question.contains("For treadmill runs"))
+        XCTAssertTrue(question.contains("cible cardiaque") || question.contains("heart-rate target"))
+        XCTAssertEqual(try harness.savedAnalyses().first?.contextVersion, WorkoutAnalysis.currentContextVersion)
+    }
+
     func testChangedHeartRateReferenceInvalidatesAnalysisWithoutLosingOfflineCache() async throws {
         let harness = try AnalysisHarness()
         harness.estimatedMaxHR = 190
@@ -502,7 +580,9 @@ private final class AnalysisHarness {
     }
 
     func cacheAnalysis(_ text: String, analyzedAt: Date = Date()) throws {
-        modelContext.insert(WorkoutAnalysis(workoutId: workout.id, analysisText: text, analyzedAt: analyzedAt, estimatedMaxHR: estimatedMaxHR))
+        let analysis = WorkoutAnalysis(workoutId: workout.id, analysisText: text, analyzedAt: analyzedAt, estimatedMaxHR: estimatedMaxHR)
+        analysis.inputSignature = viewModel.inputSignature()
+        modelContext.insert(analysis)
         try modelContext.save()
     }
 
@@ -519,6 +599,7 @@ private final class AnalysisClientStub: WorkoutAnalysisClient {
     private(set) var error: String?
     private(set) var requestCount = 0
     private(set) var requestedWorkoutID: UUID?
+    private(set) var requestedQuestion: String?
     var stubbedResponse = AnalysisHarness.completeResponse
     var stubbedError: String?
     var suspension: AnalysisSuspension?
@@ -529,6 +610,7 @@ private final class AnalysisClientStub: WorkoutAnalysisClient {
 
     func askQuestion(question: String, mode: AIAssistantMode) async {
         requestCount += 1
+        requestedQuestion = question
         if case .singleWorkout(let workout, _) = mode {
             requestedWorkoutID = workout.id
         }

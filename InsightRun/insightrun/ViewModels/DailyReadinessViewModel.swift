@@ -194,14 +194,17 @@ class DailyReadinessViewModel: ObservableObject {
 
             // Pull the morning score for today (if any) so the backend keeps it stable
             // when only effort/cardiac context has shifted.
+            var scoringRecovery = buildRecoveryPayload(from: recoveryMetrics)
+            scoringRecovery.rmssd = nil
             let recoverySignature = Self.signature([
                 "recovery-v2",
-                Self.signature(buildRecoveryPayload(from: recoveryMetrics)),
+                Self.signature(scoringRecovery),
                 Self.signature(baseline.map { buildBaselinePayload(from: $0) }),
                 String(noSleepMode)
             ])
             let inputSignature = Self.signature([
-                "coaching-v3", AppLanguage.current, recoverySignature,
+                "coaching-v4", AppLanguage.current, recoverySignature,
+                Self.signature(buildRecoveryPayload(from: recoveryMetrics)),
                 activityData.map { "\(($0.steps / 500).rounded(.down)):\(($0.activeCalories / 50).rounded(.down)):\(($0.exerciseMinutes / 5).rounded(.down))" } ?? "no-activity",
                 String(effortScore / 5), String(describing: cardiacLoadScore), cardiacLoadStatus.rawValue,
                 workoutPayloads.map { "\($0.date):\($0.distanceMeters):\($0.durationSeconds):\(String(describing: $0.avgHeartRate)):\(String(describing: $0.maxHeartRate)):\(String(describing: $0.pace))" }.joined(separator: ";")
@@ -332,7 +335,13 @@ class DailyReadinessViewModel: ObservableObject {
     private static func signature<Value: Encodable>(_ value: Value) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
-        let data = (try? encoder.encode(value)) ?? Data()
+        var data = (try? encoder.encode(value)) ?? Data()
+        if var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           var rmssd = object["rmssd"] as? [String: Any] {
+            rmssd.removeValue(forKey: "measuredAt")
+            object["rmssd"] = rmssd
+            data = (try? JSONSerialization.data(withJSONObject: object, options: .sortedKeys)) ?? data
+        }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 

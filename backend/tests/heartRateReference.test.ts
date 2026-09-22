@@ -11,7 +11,7 @@ describe('heart rate reference', () => {
     }
   })
 
-  test('uses the age reference instead of the session maximum', () => {
+  test('keeps an age estimate separate from measured intensity', () => {
     const prompt = buildWorkoutCoachPrompt(
       {
         profile: { age: 20 },
@@ -24,8 +24,9 @@ describe('heart rate reference', () => {
       },
       'en'
     )
-    expect(prompt).toContain('70% of estimated max HR (200 bpm)')
-    expect(prompt).not.toContain('93% of estimated max HR')
+    expect(prompt).toContain('Age-based maximum heart rate estimate: 200 bpm')
+    expect(prompt).not.toContain('% of estimated max HR')
+    expect(prompt).not.toContain('Estimated Intensity:')
   })
 
   test('does not invent a percentage when age is unavailable', () => {
@@ -41,5 +42,6 @@ describe('heart rate reference', () => {
       'en'
     )
     expect(prompt).not.toContain('Estimated Intensity:')
+    expect(prompt).not.toContain('Age-based maximum heart rate estimate:')
   })
 })

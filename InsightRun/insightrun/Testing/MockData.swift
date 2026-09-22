@@ -427,6 +427,10 @@ enum MockData {
             return lang == "fr"
                 ? "Score de récupération global très positif. Tous vos indicateurs physiologiques sont dans les plages optimales."
                 : "Overall recovery score is very positive. All your physiological indicators are within optimal ranges."
+        case .steps:
+            return lang == "fr"
+                ? "Tu as enregistré \(Formatters.integer(Int(value.rounded()))) pas sur cette journée, en marchant et en courant. Ce total décrit ton mouvement quotidien, mais pas à lui seul l'intensité de tes séances ni ta récupération ; observe son évolution avec ton ressenti."
+                : "You have recorded \(Formatters.integer(Int(value.rounded()))) steps on this day, from walking and running. This total describes daily movement, but does not establish workout intensity or recovery on its own; follow its trend alongside how you feel."
         case .totalCalories:
             return lang == "fr"
                 ? "Dépense totale de \(Formatters.calories(value)). La courbe distingue les calories actives et celles dépensées au repos."

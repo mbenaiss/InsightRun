@@ -19,10 +19,13 @@ final class MetricTrendLoadingTests: XCTestCase {
         }
         async let totals = service.caloriesTotalTrend(days: 7)
         async let breakdown = service.caloriesBreakdownTrend(days: 7)
-        let (totalPoints, breakdownPoints) = await (totals, breakdown)
+        async let steps = service.stepsTrend(days: 7)
+        let (totalPoints, breakdownPoints, stepPoints) = await (totals, breakdown, steps)
         XCTAssertEqual(calls, 7)
         XCTAssertEqual(maxActive, 1)
         XCTAssertEqual(totalPoints.count, 7)
+        XCTAssertEqual(stepPoints.map(\.value), Array(repeating: 100, count: 7))
+        XCTAssertEqual(stepPoints.map(\.date), totalPoints.map(\.date))
         XCTAssertEqual(totalPoints.map(\.value), breakdownPoints.map(\.total))
         XCTAssertEqual(totalPoints.map(\.date), breakdownPoints.map(\.date))
         _ = await service.caloriesTotalTrend(days: 7)
@@ -94,10 +97,12 @@ extension MetricTrendLoadingTests {
         async let effort = service.effortTrend(days: 7)
         async let totals = service.caloriesTotalTrend(days: 7)
         async let breakdown = service.caloriesBreakdownTrend(days: 7)
-        let values = await (effort, totals, breakdown)
+        async let steps = service.stepsTrend(days: 7)
+        let values = await (effort, totals, breakdown, steps)
         XCTAssertEqual(calls, 6)
         XCTAssertEqual(values.0.last?.value, Double(MetricTrendDataService.computeEffortScore(activity: activity)))
         XCTAssertEqual(values.1.last?.value, values.2.last?.total)
+        XCTAssertEqual(values.3.last?.value, activity.steps)
     }
 
     func testReadinessTrendReflectsNewScoreWithoutWaitingForCacheExpiry() async {

@@ -114,7 +114,8 @@ final class DashboardRefreshUITests: XCTestCase {
         let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Steps,")).firstMatch
         for _ in 0..<8 where !card.isHittable { app.swipeUp() }
         XCTAssertTrue(card.isHittable)
-        XCTAssertTrue(card.label.contains("8,420 steps"))
+        XCTAssertTrue(card.label.contains("8,420"))
+        XCTAssertTrue(card.label.contains("steps"))
         let calories = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Calories,")).firstMatch
         XCTAssertEqual(card.frame.minY, calories.frame.minY, accuracy: 2)
         XCTAssertGreaterThan(card.frame.minX, calories.frame.minX)

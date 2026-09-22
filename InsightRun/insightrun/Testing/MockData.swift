@@ -248,12 +248,20 @@ enum MockData {
     )
 
     static func recoveryMetrics(for date: Date) -> RecoveryMetrics {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-MISSING_METRICS_UI_TEST") {
+            return RecoveryMetrics(
+                date: date, restingHeartRate: 0, hrvAverage: 65,
+                respiratoryRate: 0)
+        }
+        #endif
         let sample = sampleRecoveryMetrics
-        return RecoveryMetrics(date: date, restingHeartRate: sample.restingHeartRate,
-                               hrvAverage: sample.hrvAverage, hrvMin: sample.hrvMin, hrvMax: sample.hrvMax,
-                               walkingHeartRate: sample.walkingHeartRate, sleepData: sample.sleepData,
-                               respiratoryRate: sample.respiratoryRate, oxygenSaturation: sample.oxygenSaturation,
-                               baseline: sample.baseline, rmssd: sampleRMSSD(for: date))
+        return RecoveryMetrics(
+            date: date, restingHeartRate: sample.restingHeartRate,
+            hrvAverage: sample.hrvAverage, hrvMin: sample.hrvMin, hrvMax: sample.hrvMax,
+            walkingHeartRate: sample.walkingHeartRate, sleepData: sample.sleepData,
+            respiratoryRate: sample.respiratoryRate, oxygenSaturation: sample.oxygenSaturation,
+            baseline: sample.baseline, rmssd: sampleRMSSD(for: date))
     }
 
     private static func sampleRMSSD(for date: Date) -> RMSSDTrend {
@@ -311,14 +319,23 @@ enum MockData {
 
     // MARK: - Sample Daily Activity Data
 
-    static let sampleDailyActivityData: DailyActivityData = DailyActivityData(
-        steps: 8420,
-        activeCalories: 512,
-        basalCalories: 1684,
-        exerciseMinutes: 38,
-        activeCaloriesGoal: 600,
-        exerciseMinutesGoal: 30
-    )
+    static var sampleDailyActivityData: DailyActivityData {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-MISSING_METRICS_UI_TEST") {
+            return DailyActivityData(
+                steps: 0, activeCalories: 0, basalCalories: 0,
+                exerciseMinutes: 0, activeCaloriesGoal: nil, exerciseMinutesGoal: nil)
+        }
+        #endif
+        return DailyActivityData(
+            steps: 8420,
+            activeCalories: 512,
+            basalCalories: 1684,
+            exerciseMinutes: 38,
+            activeCaloriesGoal: 600,
+            exerciseMinutesGoal: 30
+        )
+    }
 
     // MARK: - Sample Personal Baseline
 

@@ -6,11 +6,11 @@ struct WorkoutConditionsView: View {
   let feedback: WorkoutFeedback?
 
   private var temperature: Double? {
-    metrics.temperature.flatMap { $0.isFinite ? $0 : nil }
+    MetricDisplayValue.nonZero(metrics.temperature)
   }
 
   private var humidity: Double? {
-    metrics.humidity.flatMap { $0.isFinite && (0...100).contains($0) ? $0 : nil }
+    metrics.humidity.flatMap { $0.isFinite && $0 > 0 && $0 <= 100 ? $0 : nil }
   }
 
   private var recordedEffort: Double? {

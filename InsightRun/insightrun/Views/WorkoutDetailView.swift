@@ -78,90 +78,111 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.xxl) {
-                        if viewModel.isLoading && viewModel.metrics == nil {
-                            loadingSection
-                        } else if let error = viewModel.errorMessage {
-                            errorSection(error)
-                        } else if let metrics = viewModel.metrics {
-                            VStack(alignment: .leading, spacing: Spacing.lg) {
-                                headerSection(metrics: metrics)
-                                if isSampleWorkout {
-                                    sampleWorkoutBanner
-                                }
-                                mainMetricsGrid(metrics: metrics)
-                            }
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
+                if viewModel.isLoading && viewModel.metrics == nil {
+                    loadingSection
+                } else if let error = viewModel.errorMessage {
+                    errorSection(error)
+                } else if let metrics = viewModel.metrics {
+                    VStack(alignment: .leading, spacing: Spacing.lg) {
+                        headerSection(metrics: metrics)
+                        if isSampleWorkout {
+                            sampleWorkoutBanner
+                        }
+                        mainMetricsGrid(metrics: metrics)
+                    }
 
-                            detailSection(title: String(localized: "Coach verdict", comment: "Workout detail coach section eyebrow"), identifier: "workout-section-coach") {
-                                aiAnalysisSection
-                            }
+                    detailSection(
+                        title: String(localized: "Coach verdict", comment: "Workout detail coach section eyebrow"),
+                        identifier: "workout-section-coach"
+                    ) {
+                        aiAnalysisSection
+                    }
 
-                            if !(metrics.routePoints ?? []).isEmpty || !(metrics.splits ?? []).isEmpty {
-                                detailSection(title: String(localized: "workout.detail.timeline", defaultValue: "How the run unfolded"), identifier: "workout-section-timeline") {
-                                    if let routePoints = metrics.routePoints, !routePoints.isEmpty {
-                                        routeMapSection(routePoints: routePoints)
-                                    }
-                                    if let splits = metrics.splits, !splits.isEmpty {
-                                        SwipeableChartsView(metrics: metrics)
-                                        TabbedSplitsSection(splits: splits, intervals: metrics.intervals)
-                                    }
-                                }
+                    if !(metrics.routePoints ?? []).isEmpty || !metrics.displaySplits.isEmpty || !metrics.displayIntervals.isEmpty {
+                        detailSection(
+                            title: String(localized: "workout.detail.timeline", defaultValue: "How the run unfolded"),
+                            identifier: "workout-section-timeline"
+                        ) {
+                            if let routePoints = metrics.routePoints, !routePoints.isEmpty {
+                                routeMapSection(routePoints: routePoints)
                             }
-
-                            if !(metrics.evidence?.zones?.zones ?? []).isEmpty || hasPerformanceMetrics(metrics) || hasAdvancedMetrics(metrics) {
-                                detailSection(title: String(localized: "workout.detail.effort_technique", defaultValue: "Effort and running form"), identifier: "workout-section-effort") {
-                                    WorkoutHeartRateZonesView(metrics: metrics)
-                                    if hasPerformanceMetrics(metrics) {
-                                        MetricsCard {
-                                            VStack(alignment: .leading, spacing: Spacing.sm) {
-                                                metricCardTitle(String(localized: "Performance", comment: "Performance metrics section title"))
-                                                performanceContent(metrics: metrics)
-                                            }
-                                        }
-                                    }
-                                    if hasAdvancedMetrics(metrics) {
-                                        MetricsCard {
-                                            VStack(alignment: .leading, spacing: Spacing.sm) {
-                                                metricCardTitle(String(localized: "workout.detail.running_form", defaultValue: "Running form"))
-                                                advancedMetricsContent(metrics: metrics)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            detailSection(title: String(localized: "workout.detail.information", defaultValue: "Session information"), identifier: "workout-section-information") {
-                                if !isSampleWorkout {
-                                    officialRaceToggle
-                                }
-                                if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
-                                    ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
-                                }
-                                sourceSection
-                            }
-
-                            if !similarWorkouts.isEmpty {
-                                compareWithSimilarSection
+                            if !metrics.displaySplits.isEmpty || !metrics.displayIntervals.isEmpty {
+                                SwipeableChartsView(metrics: metrics)
+                                TabbedSplitsSection(splits: metrics.displaySplits, intervals: metrics.displayIntervals)
                             }
                         }
                     }
-                    .padding(.horizontal, Spacing.cardPadding)
-                    .padding(.top, Spacing.sm)
-                    .padding(.bottom, Spacing.xxl)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if !metrics.displayHeartRateZones.isEmpty || hasPerformanceMetrics(metrics)
+                        || hasAdvancedMetrics(metrics)
+                    {
+                        detailSection(
+                            title: String(
+                                localized: "workout.detail.effort_technique", defaultValue: "Effort and running form"),
+                            identifier: "workout-section-effort"
+                        ) {
+                            WorkoutHeartRateZonesView(metrics: metrics)
+                            if hasPerformanceMetrics(metrics) {
+                                MetricsCard {
+                                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                                        metricCardTitle(
+                                            String(
+                                                localized: "Performance", comment: "Performance metrics section title"))
+                                        performanceContent(metrics: metrics)
+                                    }
+                                }
+                            }
+                            if hasAdvancedMetrics(metrics) {
+                                MetricsCard {
+                                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                                        metricCardTitle(
+                                            String(
+                                                localized: "workout.detail.running_form", defaultValue: "Running form"))
+                                        advancedMetricsContent(metrics: metrics)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    detailSection(
+                        title: String(localized: "workout.detail.information", defaultValue: "Session information"),
+                        identifier: "workout-section-information"
+                    ) {
+                        if !isSampleWorkout {
+                            officialRaceToggle
+                        }
+                        if remoteConfig.isFeatureEnabled(.strava), let stravaId = stravaActivityId {
+                            ViewOnStravaLink(activityId: stravaId, style: .boldOrange)
+                        }
+                        if !workout.sourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            sourceSection
+                        }
+                    }
+
+                    if !similarWorkouts.isEmpty {
+                        compareWithSimilarSection
+                    }
                 }
-                .background(Color.irBackgroundApp.ignoresSafeArea())
-                .accessibilityIdentifier("workout-detail")
-                .sheet(isPresented: $showFeedback) { WorkoutFeedbackSheet(workout: workout) }
-                .onChange(of: feedbackStore.revision) {
-                    Task { await analysisViewModel.loadAnalysis(allowGeneration: false) }
-                }
-                .sheet(isPresented: $showComparisonSheet) {
-                    WorkoutComparisonView(
-                        referenceWorkout: workout,
-                        similarWorkouts: similarWorkouts
-                    )
-                }
+            }
+            .padding(.horizontal, Spacing.cardPadding)
+            .padding(.top, Spacing.sm)
+            .padding(.bottom, Spacing.xxl)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color.irBackgroundApp.ignoresSafeArea())
+        .accessibilityIdentifier("workout-detail")
+        .sheet(isPresented: $showFeedback) { WorkoutFeedbackSheet(workout: workout) }
+        .onChange(of: feedbackStore.revision) {
+            Task { await analysisViewModel.loadAnalysis(allowGeneration: false) }
+        }
+        .sheet(isPresented: $showComparisonSheet) {
+            WorkoutComparisonView(
+                referenceWorkout: workout,
+                similarWorkouts: similarWorkouts
+            )
+        }
         .sheet(item: $selectedMetric) { MetricInfoSheet(metricInfo: $0) }
         .navigationTitle(String(localized: "Details", comment: "Workout detail screen title"))
         .navigationBarTitleDisplayMode(.inline)
@@ -314,7 +335,8 @@ struct WorkoutDetailView: View {
 
         return VStack(alignment: .leading, spacing: Spacing.base) {
             WorkoutConditionsView(
-                sessionLabel: "\(String(localized: "workout.detail.hero_eyebrow", defaultValue: "Workout", comment: "Workout detail hero eyebrow").uppercased()) · \(eyebrowDate)",
+                sessionLabel:
+                    "\(String(localized: "workout.detail.hero_eyebrow", defaultValue: "Workout", comment: "Workout detail hero eyebrow").uppercased()) · \(eyebrowDate)",
                 metrics: metrics,
                 feedback: feedbackStore.feedback(for: workout)
             )
@@ -325,22 +347,31 @@ struct WorkoutDetailView: View {
                         Circle()
                             .fill(type.color)
                             .frame(width: Spacing.xs, height: Spacing.xs)
-                        Text("\(type.localizedLabel.uppercased()) · \(Formatters.distance(km: (workout.distance ?? 0) / 1000.0))")
-                            .font(IRFont.footnote.weight(.heavy))
-                            .tracking(IRTracking.eyebrow)
-                            .foregroundStyle(type.color)
+                        Text(
+                            [
+                                type.localizedLabel.uppercased(),
+                                MetricDisplayValue.positive(workout.distance).map {
+                                    Formatters.distance(km: $0 / 1000.0)
+                                },
+                            ].compactMap { $0 }.joined(separator: " · ")
+                        )
+                        .font(IRFont.footnote.weight(.heavy))
+                        .tracking(IRTracking.eyebrow)
+                        .foregroundStyle(type.color)
                     }
                     Label(time, systemImage: "clock")
                         .font(IRFont.caption)
                         .monospacedDigit()
                         .foregroundStyle(Color.irTextSecondary)
                         .accessibilityIdentifier("workout-start-time")
-                    Label(shortDuration(workout.duration), systemImage: "timer")
-                        .font(IRFont.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(Color.irTextSecondary)
-                        .accessibilityLabel("\(String(localized: "Duration")), \(shortDuration(workout.duration))")
-                        .accessibilityIdentifier("workout-header-duration")
+                    if MetricDisplayValue.positive(workout.duration) != nil {
+                        Label(shortDuration(workout.duration), systemImage: "timer")
+                            .font(IRFont.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(Color.irTextSecondary)
+                            .accessibilityLabel("\(String(localized: "Duration")), \(shortDuration(workout.duration))")
+                            .accessibilityIdentifier("workout-header-duration")
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -372,9 +403,12 @@ struct WorkoutDetailView: View {
                     Button {
                         showFeedback = true
                     } label: {
-                        Label(String(localized: "insights.feedback", defaultValue: "How did it feel?"), systemImage: "text.bubble")
-                            .font(IRFont.footnote.weight(.semibold))
-                            .frame(minHeight: 44)
+                        Label(
+                            String(localized: "insights.feedback", defaultValue: "How did it feel?"),
+                            systemImage: "text.bubble"
+                        )
+                        .font(IRFont.footnote.weight(.semibold))
+                        .frame(minHeight: 44)
                     }
                     .tint(Color.irPrimaryAccent)
                     .accessibilityIdentifier("workout-feedback")
@@ -478,29 +512,35 @@ struct WorkoutDetailView: View {
 
     // MARK: - Main Metrics Grid (KPI hero card)
 
+    @ViewBuilder
     private func mainMetricsGrid(metrics: WorkoutMetrics) -> some View {
         let type = sessionType(metrics: metrics)
         let peers = sameTypePeers(type: type)
 
-        let distanceCell = KPICell(
-            label: String(localized: "Distance", comment: "Distance metric"),
-            value: shortDistance(workout.distance),
-            unit: Formatters.distanceUnitLabel(),
-            mono: false,
-            sub: distanceVsAvgLabel(peers: peers),
-            subColor: distanceVsAvgColor(peers: peers)
-        )
-        let durationCell = KPICell(
-            label: String(localized: "Duration", comment: "Duration metric"),
-            value: shortDuration(workout.duration),
-            unit: nil,
-            mono: true,
-            sub: netDurationLabel()
-        )
+        let distanceCell = MetricDisplayValue.positive(workout.distance).map { _ in
+            KPICell(
+                label: String(localized: "Distance", comment: "Distance metric"),
+                value: shortDistance(workout.distance),
+                unit: Formatters.distanceUnitLabel(),
+                mono: false,
+                sub: distanceVsAvgLabel(peers: peers),
+                subColor: distanceVsAvgColor(peers: peers)
+            )
+        }
+        let durationCell = MetricDisplayValue.positive(workout.duration).map { _ in
+            KPICell(
+                label: String(localized: "Duration", comment: "Duration metric"),
+                value: shortDuration(workout.duration),
+                unit: nil,
+                mono: true,
+                sub: netDurationLabel()
+            )
+        }
         let paceCell: KPICell? = {
-            guard let pace = metrics.averagePace else { return nil }
+            guard let pace = MetricDisplayValue.positive(metrics.averagePace) else { return nil }
             let secondsPerKm = pace * 60.0
-            let secondsPerUnit = UnitPreference.current.usesImperial
+            let secondsPerUnit =
+                UnitPreference.current.usesImperial
                 ? secondsPerKm / Formatters.kmToMiles
                 : secondsPerKm
             return KPICell(
@@ -513,7 +553,7 @@ struct WorkoutDetailView: View {
             )
         }()
         let hrCell: KPICell? = {
-            guard let avgHR = metrics.averageHeartRate else { return nil }
+            guard let avgHR = MetricDisplayValue.positive(metrics.averageHeartRate) else { return nil }
             return KPICell(
                 label: String(localized: "Avg HR", comment: "Average heart rate metric"),
                 value: Formatters.integer(Int(avgHR.rounded())),
@@ -524,34 +564,37 @@ struct WorkoutDetailView: View {
             )
         }()
 
-        return VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                kpiView(cell: distanceCell, key: "metric.distance", currentValue: workout.distance)
-                Rectangle().fill(Color.irBorder).frame(width: 0.5)
-                kpiView(cell: durationCell, key: "metric.duration", currentValue: workout.duration)
-            }
-            .frame(maxWidth: .infinity)
-            Rectangle().fill(Color.irBorder).frame(height: 0.5)
-            HStack(spacing: 0) {
-                if let paceCell {
-                    kpiView(cell: paceCell, key: "metric.avg_pace", currentValue: metrics.averagePace)
-                } else {
-                    Rectangle().fill(Color.clear).frame(maxWidth: .infinity).frame(height: 64)
+        let cells: [(key: String, value: Double?, cell: KPICell)] = [
+            distanceCell.map { ("metric.distance", workout.distance, $0) },
+            durationCell.map { ("metric.duration", workout.duration, $0) },
+            paceCell.map { ("metric.avg_pace", metrics.averagePace, $0) },
+            hrCell.map { ("metric.avg_hr", metrics.averageHeartRate, $0) },
+        ].compactMap { $0 }
+
+        if !cells.isEmpty {
+            VStack(spacing: 0) {
+                ForEach(Array(stride(from: 0, to: cells.count, by: 2)), id: \.self) { index in
+                    if index > 0 { Rectangle().fill(Color.irBorder).frame(height: 0.5) }
+                    HStack(spacing: 0) {
+                        kpiView(cell: cells[index].cell, key: cells[index].key, currentValue: cells[index].value)
+                        if index + 1 < cells.count {
+                            Rectangle().fill(Color.irBorder).frame(width: 0.5)
+                            kpiView(
+                                cell: cells[index + 1].cell, key: cells[index + 1].key,
+                                currentValue: cells[index + 1].value)
+                        }
+                    }
                 }
-                Rectangle().fill(Color.irBorder).frame(width: 0.5)
-                if let hrCell {
-                    kpiView(cell: hrCell, key: "metric.avg_hr", currentValue: metrics.averageHeartRate)
-                } else {
-                    Rectangle().fill(Color.clear).frame(maxWidth: .infinity).frame(height: 64)
-                }
             }
+            .detailCard()
         }
-        .detailCard()
     }
 
     private func kpiView(cell: KPICell, key: String, currentValue: Double?) -> some View {
         Button {
-            selectedMetric = MetricInfo(key: key, currentValue: currentValue, displayValue: [cell.value, cell.unit].compactMap { $0 }.joined(separator: " "))
+            selectedMetric = MetricInfo(
+                key: key, currentValue: currentValue,
+                displayValue: [cell.value, cell.unit].compactMap { $0 }.joined(separator: " "))
         } label: {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(cell.label.uppercased())
@@ -696,14 +739,11 @@ struct WorkoutDetailView: View {
     // MARK: - Helper Functions
 
     private func hasPerformanceMetrics(_ metrics: WorkoutMetrics) -> Bool {
-        metrics.minPace != nil || metrics.maxSpeed != nil ||
-        metrics.averageCadence != nil || metrics.strideLength != nil ||
-        metrics.runningPower != nil || metrics.vo2Max != nil
+        metrics.hasDisplayPerformanceMetrics
     }
 
     private func hasAdvancedMetrics(_ metrics: WorkoutMetrics) -> Bool {
-        metrics.groundContactTime != nil || metrics.verticalOscillation != nil ||
-        metrics.groundContactTimeBalance != nil || metrics.runningEfficiency != nil
+        metrics.hasDisplayRunningFormMetrics
     }
 
     // MARK: - Loading
@@ -760,7 +800,7 @@ struct WorkoutDetailView: View {
     private func performanceContent(metrics: WorkoutMetrics) -> some View {
         var rows: [MetricRowData] = []
 
-        if let minPace = metrics.minPace {
+        if let minPace = MetricDisplayValue.positive(metrics.minPace) {
             rows.append(MetricRowData(
                 icon: "hare.fill",
                 label: String(localized: "Best Pace", comment: "Best pace performance metric"),
@@ -770,7 +810,7 @@ struct WorkoutDetailView: View {
                 currentValue: minPace
             ))
         }
-        if let maxSpeed = metrics.maxSpeed {
+        if let maxSpeed = MetricDisplayValue.positive(metrics.maxSpeed) {
             rows.append(MetricRowData(
                 icon: "bolt.fill",
                 label: String(localized: "Max Speed", comment: "Maximum speed performance metric"),
@@ -780,7 +820,7 @@ struct WorkoutDetailView: View {
                 currentValue: maxSpeed
             ))
         }
-        if let cadence = metrics.averageCadence {
+        if let cadence = MetricDisplayValue.positive(metrics.averageCadence) {
             rows.append(MetricRowData(
                 icon: "metronome.fill",
                 label: String(localized: "Avg Cadence", comment: "Average cadence performance metric"),
@@ -790,7 +830,7 @@ struct WorkoutDetailView: View {
                 currentValue: cadence
             ))
         }
-        if let strideLength = metrics.strideLength {
+        if let strideLength = MetricDisplayValue.positive(metrics.strideLength) {
             rows.append(MetricRowData(
                 icon: "figure.walk",
                 label: String(localized: "Stride Length", comment: "Stride length performance metric"),
@@ -800,7 +840,7 @@ struct WorkoutDetailView: View {
                 currentValue: strideLength
             ))
         }
-        if let power = metrics.runningPower {
+        if let power = MetricDisplayValue.positive(metrics.runningPower) {
             rows.append(MetricRowData(
                 icon: "bolt.circle.fill",
                 label: String(localized: "Power", comment: "Running power performance metric"),
@@ -810,7 +850,7 @@ struct WorkoutDetailView: View {
                 currentValue: power
             ))
         }
-        if let vo2Max = metrics.vo2Max {
+        if let vo2Max = MetricDisplayValue.positive(metrics.vo2Max) {
             rows.append(MetricRowData(
                 icon: "lungs.fill",
                 label: String(localized: "VO2 Max", comment: "VO2 Maximum performance metric"),
@@ -826,7 +866,7 @@ struct WorkoutDetailView: View {
     private func advancedMetricsContent(metrics: WorkoutMetrics) -> some View {
         var rows: [MetricRowData] = []
 
-        if let gct = metrics.groundContactTime {
+        if let gct = MetricDisplayValue.positive(metrics.groundContactTime) {
             rows.append(MetricRowData(
                 icon: "timer",
                 label: String(localized: "Ground Contact Time", comment: "Ground contact time advanced metric"),
@@ -836,7 +876,7 @@ struct WorkoutDetailView: View {
                 currentValue: gct
             ))
         }
-        if let vo = metrics.verticalOscillation {
+        if let vo = MetricDisplayValue.positive(metrics.verticalOscillation) {
             rows.append(MetricRowData(
                 icon: "arrow.up.and.down",
                 label: String(localized: "Vertical Oscillation", comment: "Vertical oscillation advanced metric"),
@@ -846,7 +886,7 @@ struct WorkoutDetailView: View {
                 currentValue: vo
             ))
         }
-        if let balance = metrics.groundContactTimeBalance {
+        if let balance = MetricDisplayValue.positive(metrics.groundContactTimeBalance) {
             rows.append(MetricRowData(
                 icon: "scale.3d",
                 label: String(localized: "Contact Balance", comment: "Ground contact time balance advanced metric"),
@@ -856,7 +896,7 @@ struct WorkoutDetailView: View {
                 currentValue: balance
             ))
         }
-        if let efficiency = metrics.runningEfficiency {
+        if let efficiency = MetricDisplayValue.positive(metrics.runningEfficiency) {
             rows.append(MetricRowData(
                 icon: "chart.line.uptrend.xyaxis",
                 label: String(localized: "Running Efficiency", comment: "Running efficiency advanced metric"),
@@ -1562,6 +1602,9 @@ struct SplitRow: View {
     let split: Split
     var isBest: Bool = false
     var isSlowest: Bool = false
+    var showDuration = true
+    var showPace = true
+    var showHeartRate = true
 
     private var paceColor: Color {
         if isBest { return .irSuccess }
@@ -1571,30 +1614,54 @@ struct SplitRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
-            Text(split.distance >= 900
-                 ? String(format: String(localized: "split.km_label", defaultValue: "km %lld"), split.kilometer)
-                 : "\(Int(split.distance.rounded())) m")
-                .font(IRFont.microLabel.weight(.semibold))
-                .foregroundStyle(Color.irTextTertiary)
-                .frame(width: 42, alignment: .leading)
+            Group {
+                if let distance = MetricDisplayValue.positive(split.distance) {
+                    Text(
+                        distance >= 900
+                            ? String(
+                                format: String(localized: "split.km_label", defaultValue: "km %lld"), split.kilometer)
+                            : "\(Int(distance.rounded())) m")
+                } else {
+                    Text("\(split.kilometer)")
+                }
+            }
+            .font(IRFont.microLabel.weight(.semibold))
+            .foregroundStyle(Color.irTextTertiary)
+            .frame(width: 42, alignment: .leading)
 
-            Text(split.timeFormatted)
-                .font(IRFont.monoSM.weight(.bold))
-                .foregroundStyle(Color.irTextPrimary)
+            if showDuration {
+                ZStack(alignment: .leading) {
+                    if MetricDisplayValue.positive(split.time) != nil {
+                        Text(split.timeFormatted)
+                            .font(IRFont.monoSM.weight(.bold))
+                            .foregroundStyle(Color.irTextPrimary)
+                            .accessibilityIdentifier("split-duration-\(split.kilometer)")
+                    }
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("split-duration-\(split.kilometer)")
-
-            Text(split.paceFormatted)
-                .font(IRFont.monoSM.weight(.bold))
-                .foregroundStyle(paceColor)
+            }
+            if showPace {
+                ZStack(alignment: .leading) {
+                    if MetricDisplayValue.positive(split.pace) != nil {
+                        Text(split.paceFormatted)
+                            .font(IRFont.monoSM.weight(.bold))
+                            .foregroundStyle(paceColor)
+                            .minimumScaleFactor(0.75)
+                            .lineLimit(1)
+                    }
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .minimumScaleFactor(0.75)
-                .lineLimit(1)
-
-            Text(split.averageHeartRate.map { Formatters.integer(Int($0.rounded())) } ?? "—")
-                .font(IRFont.monoSM.weight(.semibold))
-                .foregroundStyle(Color.irError)
+            }
+            if showHeartRate {
+                ZStack(alignment: .trailing) {
+                    if let hr = MetricDisplayValue.positive(split.averageHeartRate) {
+                        Text(Formatters.integer(Int(hr.rounded())))
+                            .font(IRFont.monoSM.weight(.semibold))
+                            .foregroundStyle(Color.irError)
+                    }
+                }
                 .frame(width: 44, alignment: .trailing)
+            }
         }
         .accessibilityElement(children: .contain)
     }
@@ -1606,56 +1673,42 @@ struct SwipeableChartsView: View {
     let metrics: WorkoutMetrics
     @State private var selectedPage = 0
 
-    private var hasElevationData: Bool {
-        guard let splits = metrics.splits else { return false }
-        return splits.contains { $0.elevationGain != nil || $0.elevationLoss != nil }
-    }
-
-    private var chartCount: Int {
-        var count = 2 // HR + Pace always
-        if metrics.runningPower != nil { count += 1 }
-        if hasElevationData { count += 1 }
-        return count
-    }
+    private var chartTypes: [WorkoutChartMetric] { metrics.displayChartMetrics }
 
     var body: some View {
-        VStack(spacing: Spacing.sm) {
-            TabView(selection: $selectedPage) {
-                // Heart Rate Chart
-                InteractiveHeartRateChart(metrics: metrics)
-                    .tag(0)
-
-                // Pace Chart
-                InteractivePaceChart(metrics: metrics)
-                    .tag(1)
-
-                // Elevation Chart (if available)
-                if hasElevationData {
-                    InteractiveElevationChart(metrics: metrics)
-                        .tag(2)
+        if !chartTypes.isEmpty {
+            VStack(spacing: Spacing.sm) {
+                TabView(selection: $selectedPage) {
+                    ForEach(Array(chartTypes.enumerated()), id: \.element) { index, type in
+                        Group {
+                            switch type {
+                            case .heartRate: InteractiveHeartRateChart(metrics: metrics)
+                            case .pace: InteractivePaceChart(metrics: metrics)
+                            case .elevation: InteractiveElevationChart(metrics: metrics)
+                            case .power: InteractivePowerChart(metrics: metrics)
+                            }
+                        }
+                        .tag(index)
+                    }
                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: 340)
+                .clipped()
 
-                // Power Chart (if available)
-                if metrics.runningPower != nil {
-                    InteractivePowerChart(metrics: metrics)
-                        .tag(hasElevationData ? 3 : 2)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 340)
-            .clipped()
-
-            // Custom page indicator dots
-            HStack(spacing: Spacing.sm) {
-                ForEach(0..<chartCount, id: \.self) { index in
-                    Circle()
-                        .fill(selectedPage == index ? Color.irTextPrimary : Color.irTextSecondary.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                        .animation(.easeInOut, value: selectedPage)
+                if chartTypes.count > 1 {
+                    HStack(spacing: Spacing.sm) {
+                        ForEach(chartTypes.indices, id: \.self) { index in
+                            Circle()
+                                .fill(selectedPage == index ? Color.irTextPrimary : Color.irTextSecondary.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                                .animation(.easeInOut, value: selectedPage)
+                        }
+                    }
                 }
             }
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("workout-charts")
         }
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -1671,15 +1724,15 @@ struct InteractiveHeartRateChart: View {
         // Calculate cumulative distance for each split
         var cumulativeDistance = 0.0
         let splitData = splits.compactMap { split -> (km: Double, value: Double)? in
-            guard let hr = split.averageHeartRate else { return nil }
-            cumulativeDistance += split.distance / 1000.0
+            cumulativeDistance += MetricDisplayValue.positive(split.distance).map { $0 / 1000.0 } ?? 0
+            guard let hr = MetricDisplayValue.positive(split.averageHeartRate) else { return nil }
             return (km: cumulativeDistance, value: hr)
         }
 
         guard !splitData.isEmpty else { return [] }
 
         // First point: use real first HR sample from workout start
-        let firstPointHR = metrics.firstHeartRate ?? splitData.first?.value ?? 0
+        let firstPointHR = MetricDisplayValue.positive(metrics.firstHeartRate) ?? splitData.first?.value ?? 0
         let firstPoint = (km: 0.0, value: firstPointHR)
 
         return [firstPoint] + splitData
@@ -1800,14 +1853,14 @@ struct InteractiveHeartRateChart: View {
                     }
                 }
                 .chartXSelection(value: $selectedKm)
-                .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
+                .chartXScale(domain: 0...max(0.001, heartRateData.last?.km ?? 0))
                 .chartYScale(domain: .automatic)
                 .chartXAxis {
                     AxisMarks { value in
                         AxisGridLine()
                         AxisValueLabel {
                             if let km = value.as(Double.self) {
-                                Text(Formatters.integer(Int(km)))
+                                Text(Formatters.decimal(km, fractionDigits: km == km.rounded() ? 0 : 1))
                                     .font(IRFont.microLabel)
                             }
                         }
@@ -1853,9 +1906,10 @@ struct InteractivePaceChart: View {
 
         // Calculate cumulative distance for each split
         var cumulativeDistance = 0.0
-        let splitData = splits.map { split in
-            cumulativeDistance += split.distance / 1000.0
-            return (km: cumulativeDistance, value: split.pace)
+        let splitData = splits.compactMap { split -> (km: Double, value: Double)? in
+            cumulativeDistance += MetricDisplayValue.positive(split.distance).map { $0 / 1000.0 } ?? 0
+            guard let pace = MetricDisplayValue.positive(split.pace) else { return nil }
+            return (km: cumulativeDistance, value: pace)
         }
 
         guard !splitData.isEmpty else { return [] }
@@ -1865,7 +1919,7 @@ struct InteractivePaceChart: View {
         if let routePoints = metrics.routePoints, routePoints.count > 10 {
             // Use average speed of first 10 GPS points for stability
             let firstPoints = Array(routePoints.prefix(10))
-            let speeds = firstPoints.compactMap { $0.speed }
+            let speeds = firstPoints.compactMap { MetricDisplayValue.positive($0.speed) }
             if !speeds.isEmpty {
                 let avgSpeed = speeds.reduce(0, +) / Double(speeds.count)
                 // Convert m/s to min/km
@@ -1982,14 +2036,14 @@ struct InteractivePaceChart: View {
                 }
             }
             .chartXSelection(value: $selectedKm)
-            .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
+            .chartXScale(domain: 0...max(0.001, paceData.last?.km ?? 0))
             .chartYScale(domain: .automatic)
             .chartXAxis {
                 AxisMarks { value in
                     AxisGridLine()
                     AxisValueLabel {
                         if let km = value.as(Double.self) {
-                            Text(Formatters.integer(Int(km)))
+                            Text(Formatters.decimal(km, fractionDigits: km == km.rounded() ? 0 : 1))
                                 .font(IRFont.microLabel)
                         }
                     }
@@ -2030,31 +2084,19 @@ struct InteractivePowerChart: View {
     @State private var selectedKm: Double?
 
     var powerData: [(km: Double, value: Double)] {
-        guard let splits = metrics.splits, let avgPower = metrics.runningPower else { return [] }
-
-        // Calculate cumulative distance for each split
+        guard let splits = metrics.splits else { return [] }
         var cumulativeDistance = 0.0
-        let splitData = splits.map { split -> (km: Double, value: Double) in
-            cumulativeDistance += split.distance / 1000.0
-            if let power = split.averagePower {
-                return (km: cumulativeDistance, value: power)
-            }
-            // Fallback to average if no split data
-            return (km: cumulativeDistance, value: avgPower)
+        let splitData = splits.compactMap { split -> (km: Double, value: Double)? in
+            cumulativeDistance += MetricDisplayValue.positive(split.distance).map { $0 / 1000.0 } ?? 0
+            guard let power = MetricDisplayValue.positive(split.averagePower) else { return nil }
+            return (km: cumulativeDistance, value: power)
         }
-
-        guard !splitData.isEmpty else { return [] }
-
-        // First point: use real first power sample from workout start
-        let firstPointPower = metrics.firstPower ?? splitData.first?.value ?? avgPower
-        let firstPoint = (km: 0.0, value: firstPointPower)
-
-        return [firstPoint] + splitData
+        guard let first = splitData.first else { return [] }
+        let firstPointPower = MetricDisplayValue.positive(metrics.firstPower) ?? first.value
+        return [(km: 0.0, value: firstPointPower)] + splitData
     }
 
-    var hasRealPowerData: Bool {
-        metrics.splits?.contains { $0.averagePower != nil } ?? false
-    }
+    var hasRealPowerData: Bool { !powerData.isEmpty }
 
     var selectedData: (km: Double, value: Double)? {
         guard let km = selectedKm else { return nil }
@@ -2167,14 +2209,14 @@ struct InteractivePowerChart: View {
                     }
                 }
                 .chartXSelection(value: $selectedKm)
-                .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
+                .chartXScale(domain: 0...max(0.001, powerData.last?.km ?? 0))
                 .chartYScale(domain: .automatic)
                 .chartXAxis {
                     AxisMarks { value in
                         AxisGridLine()
                         AxisValueLabel {
                             if let km = value.as(Double.self) {
-                                Text(Formatters.integer(Int(km)))
+                                Text(Formatters.decimal(km, fractionDigits: km == km.rounded() ? 0 : 1))
                                     .font(IRFont.microLabel)
                             }
                         }
@@ -2224,13 +2266,17 @@ struct InteractiveElevationChart: View {
         var data: [(km: Double, value: Double)] = [(km: 0.0, value: 0.0)]
 
         for split in splits {
-            cumulativeDistance += split.distance / 1000.0
+            cumulativeDistance += MetricDisplayValue.positive(split.distance).map { $0 / 1000.0 } ?? 0
+            guard
+                MetricDisplayValue.positive(split.elevationGain) != nil
+                    || MetricDisplayValue.positive(split.elevationLoss) != nil
+            else { continue }
 
             // Add elevation gain, subtract elevation loss
-            if let gain = split.elevationGain {
+            if let gain = MetricDisplayValue.positive(split.elevationGain) {
                 cumulativeElevation += gain
             }
-            if let loss = split.elevationLoss {
+            if let loss = MetricDisplayValue.positive(split.elevationLoss) {
                 cumulativeElevation -= loss
             }
 
@@ -2246,11 +2292,11 @@ struct InteractiveElevationChart: View {
     }
 
     var totalGain: Double {
-        metrics.splits?.compactMap { $0.elevationGain }.reduce(0, +) ?? 0
+        metrics.splits?.compactMap { MetricDisplayValue.positive($0.elevationGain) }.reduce(0, +) ?? 0
     }
 
     var totalLoss: Double {
-        metrics.splits?.compactMap { $0.elevationLoss }.reduce(0, +) ?? 0
+        metrics.splits?.compactMap { MetricDisplayValue.positive($0.elevationLoss) }.reduce(0, +) ?? 0
     }
 
     var displayData: (value: Double, label: String)? {
@@ -2281,13 +2327,15 @@ struct InteractiveElevationChart: View {
                             .foregroundStyle(Color.irTextSecondary)
                     } else if showTotals {
                         HStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text("+\(Formatters.elevation(meters: totalGain))")
-                                    .font(IRFont.title3.weight(.semibold))
-                                    .foregroundStyle(Color.irSuccess)
-                                Text(String(localized: "gain", comment: "Elevation gain label"))
-                                    .font(IRFont.microLabel)
-                                    .foregroundStyle(Color.irTextSecondary)
+                            if totalGain > 0 {
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text("+\(Formatters.elevation(meters: totalGain))")
+                                        .font(IRFont.title3.weight(.semibold))
+                                        .foregroundStyle(Color.irSuccess)
+                                    Text(String(localized: "gain", comment: "Elevation gain label"))
+                                        .font(IRFont.microLabel)
+                                        .foregroundStyle(Color.irTextSecondary)
+                                }
                             }
                             if totalLoss > 0 {
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -2357,14 +2405,14 @@ struct InteractiveElevationChart: View {
                     }
                 }
                 .chartXSelection(value: $selectedKm)
-                .chartXScale(domain: 0...((metrics.workout.distance ?? 0) / 1000.0))
+                .chartXScale(domain: 0...max(0.001, elevationData.last?.km ?? 0))
                 .chartYScale(domain: .automatic)
                 .chartXAxis {
                     AxisMarks { value in
                         AxisGridLine()
                         AxisValueLabel {
                             if let km = value.as(Double.self) {
-                                Text(Formatters.integer(Int(km)))
+                                Text(Formatters.decimal(km, fractionDigits: km == km.rounded() ? 0 : 1))
                                     .font(IRFont.microLabel)
                             }
                         }
@@ -2604,16 +2652,20 @@ struct TabbedSplitsSection: View {
 
     private var hasIntervals: Bool {
         guard let intervals = intervals else { return false }
-        return intervals.count > 1
+        return intervals.count > 1 || (splits.isEmpty && !intervals.isEmpty)
+    }
+
+    private var activeTab: SplitsTabSelection {
+        splits.isEmpty && hasIntervals ? .byInterval : selectedTab
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            if hasIntervals {
+            if hasIntervals && !splits.isEmpty {
                 pulseTabBar
             }
 
-            switch selectedTab {
+            switch activeTab {
             case .byKm:
                 SplitsByKmContent(splits: splits)
             case .byInterval:
@@ -2659,6 +2711,10 @@ struct TabbedSplitsSection: View {
 struct SplitsByKmContent: View {
     let splits: [Split]
 
+    private var showDuration: Bool { splits.contains { MetricDisplayValue.positive($0.time) != nil } }
+    private var showPace: Bool { splits.contains { MetricDisplayValue.positive($0.pace) != nil } }
+    private var showHeartRate: Bool { splits.contains { MetricDisplayValue.positive($0.averageHeartRate) != nil } }
+
     private var fullSplits: [Split] { splits.filter { $0.distance >= 900 && $0.pace.isFinite && $0.pace > 0 } }
 
     private var best: Split? { fullSplits.min(by: { $0.pace < $1.pace }) }
@@ -2666,7 +2722,8 @@ struct SplitsByKmContent: View {
 
     private var variabilityFormatted: String {
         guard let bestPace = fullSplits.map({ $0.pace }).min(),
-              let worstPace = fullSplits.map({ $0.pace }).max() else {
+            let worstPace = fullSplits.map({ $0.pace }).max()
+        else {
             return "—"
         }
         let halfRange = (worstPace - bestPace) / 2
@@ -2681,22 +2738,30 @@ struct SplitsByKmContent: View {
                         label: String(localized: "Best", comment: "Best split label"),
                         value: best.paceFormatted,
                         color: Color.irSuccess,
-                        sub: String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), best.kilometer)
+                        sub: String(
+                            format: String(
+                                localized: "split.km_label", defaultValue: "km %lld",
+                                comment: "Split kilometer index label"), best.kilometer)
                     )
                     Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 36)
                     summaryCol(
                         label: String(localized: "Slowest", comment: "Slowest split label"),
                         value: worst.paceFormatted,
                         color: Color.irWarning,
-                        sub: String(format: String(localized: "split.km_label", defaultValue: "km %lld", comment: "Split kilometer index label"), worst.kilometer)
+                        sub: String(
+                            format: String(
+                                localized: "split.km_label", defaultValue: "km %lld",
+                                comment: "Split kilometer index label"), worst.kilometer)
                     )
-                    Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 36)
-                    summaryCol(
-                        label: String(localized: "Variability", comment: "Splits variability label"),
-                        value: variabilityFormatted,
-                        color: Color.irTextPrimary,
-                        sub: nil
-                    )
+                    if worst.pace > best.pace {
+                        Rectangle().fill(Color.irBorder).frame(width: 0.5, height: 36)
+                        summaryCol(
+                            label: String(localized: "Variability", comment: "Splits variability label"),
+                            value: variabilityFormatted,
+                            color: Color.irTextPrimary,
+                            sub: nil
+                        )
+                    }
                 }
                 .padding(.horizontal, Spacing.base)
                 .padding(.vertical, Spacing.dash)
@@ -2706,12 +2771,18 @@ struct SplitsByKmContent: View {
 
             HStack(spacing: Spacing.sm) {
                 Color.clear.frame(width: 42, height: 1)
-                Text(String(localized: "Duration"))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(String(localized: "Pace"))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(String(localized: "bpm"))
-                    .frame(width: 44, alignment: .trailing)
+                if showDuration {
+                    Text(String(localized: "Duration"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if showPace {
+                    Text(String(localized: "Pace"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if showHeartRate {
+                    Text(String(localized: "bpm"))
+                        .frame(width: 44, alignment: .trailing)
+                }
             }
             .font(IRFont.microLabel)
             .foregroundStyle(Color.irTextSecondary)
@@ -2723,7 +2794,8 @@ struct SplitsByKmContent: View {
                 SplitRow(
                     split: split,
                     isBest: split.id == best?.id,
-                    isSlowest: split.id == worst?.id
+                    isSlowest: split.id == worst?.id,
+                    showDuration: showDuration, showPace: showPace, showHeartRate: showHeartRate
                 )
                 .padding(.horizontal, Spacing.base)
                 .padding(.vertical, Spacing.md)
@@ -2825,18 +2897,23 @@ struct IntervalRow: View {
 
                 Spacer()
 
-                HStack(spacing: Spacing.xxs) {
-                    Image(systemName: "clock")
-                        .font(IRFont.microLabel.weight(.semibold))
-                        .foregroundStyle(Color.irTextTertiary)
-                    Text(interval.durationCompactFormatted)
-                        .font(IRFont.monoMD)
-                        .foregroundStyle(Color.irTextPrimary)
+                if MetricDisplayValue.positive(interval.duration) != nil {
+                    HStack(spacing: Spacing.xxs) {
+                        Image(systemName: "clock")
+                            .font(IRFont.microLabel.weight(.semibold))
+                            .foregroundStyle(Color.irTextTertiary)
+                        Text(interval.durationCompactFormatted)
+                            .font(IRFont.monoMD)
+                            .foregroundStyle(Color.irTextPrimary)
+                    }
                 }
             }
 
             // Metrics grid 2x2
-            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: Spacing.md) {
+            LazyVGrid(
+                columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)],
+                spacing: Spacing.md
+            ) {
                 paceCell
                 hrCell
                 distanceCell
@@ -2850,7 +2927,10 @@ struct IntervalRow: View {
 
     @ViewBuilder
     private var paceCell: some View {
-        if let targetPace = interval.targetPaceRangeFormatted {
+        if MetricDisplayValue.positive(interval.targetPaceMin) != nil,
+            MetricDisplayValue.positive(interval.targetPaceMax) != nil,
+            let targetPace = interval.targetPaceRangeFormatted
+        {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Pace", comment: "Pace label"))
                 HStack(spacing: Spacing.xxs) {
@@ -2861,27 +2941,25 @@ struct IntervalRow: View {
                         .font(IRFont.monoSM)
                         .foregroundStyle(Color.irTextSecondary)
                 }
-                if let actualPace = interval.paceFormatted {
+                if MetricDisplayValue.positive(interval.pace) != nil, let actualPace = interval.paceFormatted {
                     Text(actualPace)
                         .font(IRFont.monoMD.weight(.bold))
                         .foregroundStyle(paceComparisonColor)
                 }
             }
-        } else if let pace = interval.paceFormatted {
+        } else if MetricDisplayValue.positive(interval.pace) != nil, let pace = interval.paceFormatted {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Pace", comment: "Pace label"))
                 Text(pace)
                     .font(IRFont.monoMD.weight(.bold))
                     .foregroundStyle(Color.irTextPrimary)
             }
-        } else {
-            Color.clear
         }
     }
 
     @ViewBuilder
     private var hrCell: some View {
-        if let hr = interval.averageHeartRate {
+        if let hr = MetricDisplayValue.positive(interval.averageHeartRate) {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Heart Rate", comment: "HR label"))
                 HStack(spacing: Spacing.xxs) {
@@ -2898,14 +2976,12 @@ struct IntervalRow: View {
                     }
                 }
             }
-        } else {
-            Color.clear
         }
     }
 
     @ViewBuilder
     private var distanceCell: some View {
-        if let distance = interval.distanceFormatted {
+        if MetricDisplayValue.positive(interval.distance) != nil, let distance = interval.distanceFormatted {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Distance", comment: "Distance label"))
                 HStack(spacing: Spacing.xxs) {
@@ -2917,14 +2993,12 @@ struct IntervalRow: View {
                         .foregroundStyle(Color.irTextPrimary)
                 }
             }
-        } else {
-            Color.clear
         }
     }
 
     @ViewBuilder
     private var powerCell: some View {
-        if let power = interval.averagePower {
+        if let power = MetricDisplayValue.positive(interval.averagePower) {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 cellLabel(String(localized: "Power", comment: "Power label"))
                 HStack(spacing: Spacing.xxs) {
@@ -2941,8 +3015,6 @@ struct IntervalRow: View {
                     }
                 }
             }
-        } else {
-            Color.clear
         }
     }
 

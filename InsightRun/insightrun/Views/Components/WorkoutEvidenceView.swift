@@ -4,7 +4,7 @@ struct WorkoutHeartRateZonesView: View {
   let metrics: WorkoutMetrics
 
   var body: some View {
-    if let group = metrics.evidence?.zones, !group.zones.isEmpty {
+    if let group = metrics.evidence?.zones, !metrics.displayHeartRateZones.isEmpty {
       MetricsCard {
         VStack(alignment: .leading, spacing: Spacing.sm) {
           Text(String(localized: "insights.zones", defaultValue: "Recorded heart-rate zones"))
@@ -15,7 +15,7 @@ struct WorkoutHeartRateZonesView: View {
               : String(localized: "insights.zones.custom", defaultValue: "Custom workout zones")
           )
           .font(IRFont.caption).foregroundStyle(Color.irTextSecondary)
-          ForEach(group.zones) { zone in
+          ForEach(metrics.displayHeartRateZones) { zone in
             HStack {
               Text("Z\(zone.index + 1)").font(IRFont.body.weight(.semibold))
               Text(bounds(zone)).font(IRFont.caption).foregroundStyle(Color.irTextSecondary)
@@ -36,11 +36,11 @@ struct WorkoutHeartRateZonesView: View {
   }
 
   private func bounds(_ zone: RecordedHeartRateZones.Zone) -> String {
-    if let lower = zone.minimum, let upper = zone.maximum {
+    if let lower = MetricDisplayValue.positive(zone.minimum), let upper = MetricDisplayValue.positive(zone.maximum) {
       return "\(Int(lower))–<\(Int(upper)) bpm"
     }
-    if let upper = zone.maximum { return "<\(Int(upper)) bpm" }
-    if let lower = zone.minimum { return "≥\(Int(lower)) bpm" }
+    if let upper = MetricDisplayValue.positive(zone.maximum) { return "<\(Int(upper)) bpm" }
+    if let lower = MetricDisplayValue.positive(zone.minimum) { return "≥\(Int(lower)) bpm" }
     return ""
   }
 

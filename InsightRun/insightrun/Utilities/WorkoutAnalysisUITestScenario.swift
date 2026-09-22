@@ -32,14 +32,16 @@ final class WorkoutAnalysisUITestScenario {
         precondition(Self.isEnabled)
         ConsentService.shared.resetConsentState()
 
+        let hidesAllMetrics = ProcessInfo.processInfo.arguments.contains("-EMPTY_WORKOUT_UI_TEST")
+        let hasMissingMetrics = ProcessInfo.processInfo.arguments.contains("-MISSING_METRICS_UI_TEST")
         let startDate = Date(timeIntervalSince1970: 1_788_854_400)
         let workout = WorkoutModel(
             id: UUID(),
             workoutType: .running,
             startDate: startDate,
             endDate: startDate.addingTimeInterval(1_800),
-            duration: 1_800,
-            distance: 5_000,
+            duration: hidesAllMetrics ? 0 : 1_800,
+            distance: hidesAllMetrics ? nil : 5_000,
             totalEnergyBurned: 320,
             sourceName: "UI Test",
             sourceVersion: nil,
@@ -64,24 +66,58 @@ final class WorkoutAnalysisUITestScenario {
         metrics.pausedTime = 0
         if ProcessInfo.processInfo.arguments.contains("-TRAINING_INSIGHTS_UI_TEST") {
             metrics.splits = (1...5).map { kilometer in
-                Split(kilometer: kilometer, distance: 1000, time: 360, pace: 6,
-                      averageHeartRate: 145, averagePower: 200, elevationGain: 2, elevationLoss: 1)
+                Split(
+                    kilometer: kilometer, distance: 1000, time: 360, pace: 6,
+                    averageHeartRate: 145, averagePower: 200, elevationGain: 2, elevationLoss: 1)
             }
             metrics.groundContactTime = 260
             metrics.temperature = 19.5
             metrics.humidity = 62
             metrics.evidence = WorkoutEvidence(
                 measuredAt: Date().ISO8601Format(), source: "com.apple.health", device: "Watch", softwareVersion: "27",
-                zones: RecordedHeartRateZones(source: "system", zones: [
-                    .init(index: 0, minimum: nil, maximum: 130, seconds: 60),
-                    .init(index: 1, minimum: 130, maximum: 142, seconds: 300),
-                    .init(index: 2, minimum: 142, maximum: 155, seconds: 1000),
-                    .init(index: 3, minimum: 155, maximum: 168, seconds: 440),
-                    .init(index: 4, minimum: 168, maximum: nil, seconds: 0)
-                ]),
-                signals: [.init(metric: "heartRate", sampleCount: 360, coverage: 0.99, longestGapSeconds: 5, sourceCount: 1)],
+                zones: RecordedHeartRateZones(
+                    source: "system",
+                    zones: [
+                        .init(index: 0, minimum: nil, maximum: 130, seconds: 60),
+                        .init(index: 1, minimum: 130, maximum: 142, seconds: 300),
+                        .init(index: 2, minimum: 142, maximum: 155, seconds: 1000),
+                        .init(index: 3, minimum: 155, maximum: 168, seconds: 440),
+                        .init(index: 4, minimum: 168, maximum: nil, seconds: 0),
+                    ]),
+                signals: [
+                    .init(metric: "heartRate", sampleCount: 360, coverage: 0.99, longestGapSeconds: 5, sourceCount: 1)
+                ],
                 phases: []
             )
+        }
+
+        if hidesAllMetrics || hasMissingMetrics {
+            metrics.averageHeartRate = 0
+            metrics.averageCadence = 0
+            metrics.minPace = 0
+            metrics.maxSpeed = .infinity
+            metrics.runningPower = 0
+            metrics.strideLength = nil
+            metrics.vo2Max = 0
+            metrics.groundContactTime = 0
+            metrics.verticalOscillation = .nan
+            metrics.temperature = 0
+            metrics.humidity = 0
+            metrics.averagePace = hidesAllMetrics ? 0 : 6
+            metrics.splits = [
+                Split(
+                    kilometer: 1, distance: hidesAllMetrics ? 0 : 1000,
+                    time: hidesAllMetrics ? 0 : 360, pace: hidesAllMetrics ? 0 : 6,
+                    averageHeartRate: 0, averagePower: nil,
+                    elevationGain: 0, elevationLoss: 0)
+            ]
+            metrics.evidence = WorkoutEvidence(
+                measuredAt: startDate.ISO8601Format(), source: "test", device: nil, softwareVersion: nil,
+                zones: RecordedHeartRateZones(
+                    source: "system",
+                    zones: [
+                        .init(index: 0, minimum: nil, maximum: 130, seconds: 0)
+                    ]), signals: [], phases: [])
         }
 
         self.workout = workout

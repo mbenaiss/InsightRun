@@ -347,22 +347,16 @@ struct ScoreExplanationSheet: View {
         DetailComponentsCard(
             title: String(localized: "Calories breakdown", comment: "Calories breakdown card header"),
             rows: [
-                DetailComponentRow(
-                    label: String(localized: "Resting", comment: "Basal/resting calories label"),
-                    value: Formatters.integer(Int(activity.totalCalories.rounded() - activity.activeCalories.rounded())),
-                    unit: "kcal"
-                ),
-                DetailComponentRow(
-                    label: String(localized: "Active", comment: "Active calories label"),
-                    value: Formatters.integer(Int(activity.activeCalories.rounded())),
-                    unit: "kcal"
-                ),
-                DetailComponentRow(
-                    label: String(localized: "Total calories", comment: "Total calories metric title"),
-                    value: Formatters.integer(Int(activity.totalCalories.rounded())),
-                    unit: "kcal"
-                )
-            ]
+                activityRow(
+                    String(localized: "Resting", comment: "Basal/resting calories label"),
+                    value: activity.basalCalories, unit: "kcal"),
+                activityRow(
+                    String(localized: "Active", comment: "Active calories label"), value: activity.activeCalories,
+                    unit: "kcal"),
+                activityRow(
+                    String(localized: "Total calories", comment: "Total calories metric title"),
+                    value: activity.totalCalories, unit: "kcal"),
+            ].compactMap { $0 }
         )
     }
 
@@ -372,22 +366,20 @@ struct ScoreExplanationSheet: View {
         DetailComponentsCard(
             title: String(localized: "Today's Activity", comment: "Effort activity card header"),
             rows: [
-                DetailComponentRow(
-                    label: String(localized: "Steps", comment: "Steps metric label"),
-                    value: String(format: "%.0f", activity.steps)
-                ),
-                DetailComponentRow(
-                    label: String(localized: "Active Calories", comment: "Active calories metric label"),
-                    value: Formatters.integer(Int(activity.activeCalories.rounded())),
-                    unit: "kcal"
-                ),
-                DetailComponentRow(
-                    label: String(localized: "Exercise Minutes", comment: "Exercise minutes metric label"),
-                    value: String(format: "%.0f", activity.exerciseMinutes),
-                    unit: "min"
-                )
-            ]
+                activityRow(String(localized: "Steps", comment: "Steps metric label"), value: activity.steps),
+                activityRow(
+                    String(localized: "Active Calories", comment: "Active calories metric label"),
+                    value: activity.activeCalories, unit: "kcal"),
+                activityRow(
+                    String(localized: "Exercise Minutes", comment: "Exercise minutes metric label"),
+                    value: activity.exerciseMinutes, unit: "min"),
+            ].compactMap { $0 }
         )
+    }
+
+    private func activityRow(_ label: String, value: Double, unit: String? = nil) -> DetailComponentRow? {
+        guard let value = MetricDisplayValue.positive(value) else { return nil }
+        return DetailComponentRow(label: label, value: Formatters.integer(Int(value.rounded())), unit: unit)
     }
 
     // MARK: - Sleep Data Card
@@ -408,39 +400,47 @@ struct ScoreExplanationSheet: View {
             DetailComponentRow(
                 label: String(localized: "Sleep duration", comment: "Label for total sleep duration"),
                 value: sleep.formattedTotalSleep
-            )
+            ),
         ]
 
         if let napDuration = sleep.formattedNapDuration {
-            rows.append(DetailComponentRow(
-                label: String(localized: "Naps", comment: "Label for nap duration"),
-                value: napDuration
-            ))
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "Naps", comment: "Label for nap duration"),
+                    value: napDuration
+                ))
         }
 
-        rows.append(DetailComponentRow(
-            label: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
-            value: String(format: "%.0f", sleep.sleepEfficiency),
-            unit: "%"
-        ))
+        if MetricDisplayValue.positive(sleep.sleepEfficiency) != nil {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "Efficiency", comment: "Label for sleep efficiency percentage"),
+                    value: String(format: "%.0f", sleep.sleepEfficiency),
+                    unit: "%"
+                ))
 
-        if let deep = sleep.deepSleepDuration {
-            rows.append(DetailComponentRow(
-                label: String(localized: "Deep", comment: "Deep sleep stage label"),
-                value: formatSleepStageDuration(deep)
-            ))
         }
-        if let core = sleep.coreSleepDuration {
-            rows.append(DetailComponentRow(
-                label: String(localized: "Light", comment: "Light sleep stage label"),
-                value: formatSleepStageDuration(core)
-            ))
+
+        if let deep = MetricDisplayValue.positive(sleep.deepSleepDuration) {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "Deep", comment: "Deep sleep stage label"),
+                    value: formatSleepStageDuration(deep)
+                ))
         }
-        if let rem = sleep.remSleepDuration {
-            rows.append(DetailComponentRow(
-                label: String(localized: "REM", comment: "REM sleep stage label"),
-                value: formatSleepStageDuration(rem)
-            ))
+        if let core = MetricDisplayValue.positive(sleep.coreSleepDuration) {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "Light", comment: "Light sleep stage label"),
+                    value: formatSleepStageDuration(core)
+                ))
+        }
+        if let rem = MetricDisplayValue.positive(sleep.remSleepDuration) {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "REM", comment: "REM sleep stage label"),
+                    value: formatSleepStageDuration(rem)
+                ))
         }
         return rows
     }
@@ -466,44 +466,52 @@ struct ScoreExplanationSheet: View {
 
     private func readinessRows(for metrics: RecoveryMetrics) -> [DetailComponentRow] {
         var rows: [DetailComponentRow] = []
-        if let hrv = metrics.hrvAverage {
-            rows.append(DetailComponentRow(
-                label: String(localized: "HRV", comment: "HRV metric label"),
-                value: String(format: "%.0f", hrv),
-                unit: "ms"
-            ))
+        if let hrv = MetricDisplayValue.positive(metrics.hrvAverage) {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "HRV", comment: "HRV metric label"),
+                    value: String(format: "%.0f", hrv),
+                    unit: "ms"
+                ))
         }
-        if let rhr = metrics.restingHeartRate {
-            rows.append(DetailComponentRow(
-                label: String(localized: "Resting HR", comment: "Resting heart rate label"),
-                value: String(format: "%.0f", rhr),
-                unit: "bpm"
-            ))
+        if let rhr = MetricDisplayValue.positive(metrics.restingHeartRate) {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "Resting HR", comment: "Resting heart rate label"),
+                    value: String(format: "%.0f", rhr),
+                    unit: "bpm"
+                ))
         }
-        if let respRate = metrics.respiratoryRate {
-            rows.append(DetailComponentRow(
-                label: String(localized: "Respiratory Rate", comment: "Respiratory rate label"),
-                value: String(format: "%.1f", respRate),
-                unit: "rpm"
-            ))
+        if let respRate = MetricDisplayValue.positive(metrics.respiratoryRate) {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "Respiratory Rate", comment: "Respiratory rate label"),
+                    value: String(format: "%.1f", respRate),
+                    unit: "rpm"
+                ))
         }
-        if let spo2 = metrics.oxygenSaturation {
-            rows.append(DetailComponentRow(
-                label: String(localized: "SpO2", comment: "Oxygen saturation label"),
-                value: String(format: "%.0f", spo2),
-                unit: "%"
-            ))
+        if let spo2 = MetricDisplayValue.positive(metrics.oxygenSaturation) {
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "SpO2", comment: "Oxygen saturation label"),
+                    value: String(format: "%.0f", spo2),
+                    unit: "%"
+                ))
         }
         if let sleep = metrics.sleepData {
-            rows.append(DetailComponentRow(
-                label: String(localized: "Sleep", comment: "Sleep metric label"),
-                value: sleep.formattedTotalSleep
-            ))
-            rows.append(DetailComponentRow(
-                label: String(localized: "Sleep Efficiency", comment: "Sleep efficiency label"),
-                value: String(format: "%.0f", sleep.sleepEfficiency),
-                unit: "%"
-            ))
+            rows.append(
+                DetailComponentRow(
+                    label: String(localized: "Sleep", comment: "Sleep metric label"),
+                    value: sleep.formattedTotalSleep
+                ))
+            if MetricDisplayValue.positive(sleep.sleepEfficiency) != nil {
+                rows.append(
+                    DetailComponentRow(
+                        label: String(localized: "Sleep Efficiency", comment: "Sleep efficiency label"),
+                        value: String(format: "%.0f", sleep.sleepEfficiency),
+                        unit: "%"
+                    ))
+            }
         }
         return rows
     }
@@ -795,7 +803,7 @@ struct ScoreExplanationSheet: View {
     // MARK: - Metric Chart
 
     private var metricHistoryChart: some View {
-        guard case .metric(let metricType) = mode else { return AnyView(EmptyView()) }
+        guard case .metric(let metricType) = mode, !historyData.isEmpty else { return AnyView(EmptyView()) }
 
         let accent = metricColor(metricType)
         let selected: TrendDataPoint? = {

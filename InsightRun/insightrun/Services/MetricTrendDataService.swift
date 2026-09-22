@@ -156,6 +156,12 @@ final class MetricTrendDataService {
         return points
     }
 
+    func stepsTrend(days: Int = 7, endingOn date: Date = Date()) async -> [TrendDataPoint] {
+        guard days > 0 else { return [] }
+        let activities = await activityHistory(days: days, endingOn: date)
+        return activities.map { TrendDataPoint(date: $0.0, value: $0.1.steps) }
+    }
+
     func caloriesTotalTrend(days: Int = 7, endingOn date: Date = Date()) async -> [TrendDataPoint] {
         guard days > 0 else { return [] }
         let generation = cacheGeneration

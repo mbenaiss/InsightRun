@@ -250,6 +250,7 @@ struct ScoreExplanationSheet: View {
             case .sleepDuration: return String(localized: "Sleep Duration", comment: "Sleep duration title")
             case .sleepEfficiency: return String(localized: "Sleep Efficiency", comment: "Sleep efficiency title")
             case .totalCalories: return String(localized: "Total calories", comment: "Total calories metric title")
+            case .steps: return String(localized: "Steps")
             }
         }
     }
@@ -668,7 +669,7 @@ struct ScoreExplanationSheet: View {
         switch metricType {
         case .respiratoryRate:
             formatted = Formatters.decimal(metricValue, fractionDigits: 1)
-        case .totalCalories, .hrv, .rmssd, .restingHeartRate, .oxygenSaturation, .sleepDuration, .sleepEfficiency, .recoveryScore:
+        case .totalCalories, .steps, .hrv, .rmssd, .restingHeartRate, .oxygenSaturation, .sleepDuration, .sleepEfficiency, .recoveryScore:
             formatted = Formatters.integer(Int(metricValue.rounded()))
         }
 
@@ -814,7 +815,7 @@ struct ScoreExplanationSheet: View {
                 if let selected {
                     VStack(alignment: .trailing, spacing: 2) {
                         HStack(spacing: Spacing.xxs) {
-                            Text(Formatters.decimal(selected.value, fractionDigits: 1))
+                            Text(Formatters.decimal(selected.value, fractionDigits: metricType == .steps ? 0 : 1))
                                 .font(IRFont.title3)
                                 .fontWeight(.bold)
                                 .foregroundStyle(accent)
@@ -1535,6 +1536,9 @@ struct ScoreExplanationSheet: View {
                     Link(String(localized: "insights.rmssd.source.link", defaultValue: "HRV measurement standards · ESC / NASPE"),
                          destination: URL(string: "https://www.escardio.org/static-file/Escardio/Guidelines/Scientific-Statements/guidelines-Heart-Rate-Variability-FT-1996.pdf")!)
                         .font(IRFont.caption)
+                } else if metricType == .steps {
+                    Link("Apple HealthKit", destination: URL(string: "https://developer.apple.com/documentation/healthkit/hkquantitytypeidentifier/stepcount")!)
+                        .font(IRFont.caption)
                 } else if metricType == .totalCalories {
                     Link("Apple HealthKit", destination: URL(string: "https://developer.apple.com/documentation/healthkit/hkquantitytypeidentifier/basalenergyburned")!)
                         .font(IRFont.caption)
@@ -1671,6 +1675,7 @@ struct ScoreExplanationSheet: View {
         case .sleepDuration: return "bed.double.fill"
         case .sleepEfficiency: return "chart.bar.fill"
         case .totalCalories: return "flame.fill"
+        case .steps: return "figure.walk"
         }
     }
 
@@ -1684,6 +1689,7 @@ struct ScoreExplanationSheet: View {
         case .sleepDuration: return Color.irPrimaryAccent
         case .sleepEfficiency: return Color.irSuccess
         case .totalCalories: return Color.irWarning
+        case .steps: return Color.irPrimaryAccent
         }
     }
 
@@ -1705,6 +1711,8 @@ struct ScoreExplanationSheet: View {
             return String(localized: "Adults typically need 7-9 hours of sleep per night for optimal recovery and health. Both too little and too much sleep can negatively impact performance.", comment: "Sleep duration explanation")
         case .sleepEfficiency:
             return String(localized: "Sleep efficiency is the percentage of time in bed actually spent sleeping. Good sleep efficiency is above 85%.", comment: "Sleep efficiency explanation")
+        case .steps:
+            return String(localized: "activity.steps.explanation", defaultValue: "This is the number of steps recorded in Apple Health for the selected day, including walking and running. The 7-day chart helps you follow your daily movement. Step count alone does not describe workout intensity or recovery, and today's total continues to change as new data is recorded.")
         case .totalCalories:
             return String(localized: "Total calories burned per day, combining basal metabolism (energy spent at rest) with active calories from movement and exercise. A useful proxy for daily energy expenditure.", comment: "Total calories explanation")
         }
@@ -1735,6 +1743,8 @@ struct ScoreExplanationSheet: View {
 
     private func metricReferenceSources(_ type: MetricType) -> [String] {
         switch type {
+        case .steps:
+            return ["Apple HealthKit · " + String(localized: "Steps")]
         case .rmssd:
             return [String(localized: "insights.rmssd.source.link", defaultValue: "HRV measurement standards · ESC / NASPE")]
         case .hrv:

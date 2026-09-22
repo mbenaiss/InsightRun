@@ -73,4 +73,5 @@ enum MetricType {
     case sleepDuration
     case sleepEfficiency
     case totalCalories
+    case steps
 }

@@ -1,6 +1,38 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "activity.steps.explanation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is the number of steps recorded in Apple Health for the selected day, including walking and running. The 7-day chart helps you follow your daily movement. Step count alone does not describe workout intensity or recovery, and today's total continues to change as new data is recorded."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il s’agit du nombre de pas enregistrés dans Apple Santé pour la journée sélectionnée, en marchant et en courant. Le graphique sur 7 jours permet de suivre ton activité quotidienne. Le nombre de pas ne décrit pas à lui seul l’intensité d’une séance ni la récupération, et le total du jour évolue à mesure que de nouvelles données sont enregistrées."
+          }
+        }
+      }
+    },
+    "activity.daily_total" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily total"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total de la journée"
+          }
+        }
+      }
+    },
     "insights.rmssd.reference.short" : {
       "localizations" : {
         "en" : {
@@ -17027,7 +17059,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "étapes"
+            "value" : "pas"
           }
         }
       }

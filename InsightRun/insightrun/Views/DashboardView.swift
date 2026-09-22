@@ -39,6 +39,7 @@ struct DashboardView: View {
     @State private var sleepTrend: [TrendDataPoint] = []
     @State private var readinessTrend: [TrendDataPoint] = []
     @State private var caloriesTotalTrend: [TrendDataPoint] = []
+    @State private var stepsTrend: [TrendDataPoint] = []
     @State private var caloriesBreakdownTrend: [CaloriesBreakdownPoint] = []
     @State private var todaySession: (goal: RaceGoal, day: TrainingDay)?
     @State private var latestWorkout: WorkoutModel?
@@ -261,6 +262,7 @@ struct DashboardView: View {
             sleepTrend = []
             readinessTrend = []
             caloriesTotalTrend = []
+            stepsTrend = []
             caloriesBreakdownTrend = []
         }
         loadedDate = date
@@ -293,9 +295,10 @@ struct DashboardView: View {
         async let sleep = service.sleepTrend(endingOn: date)
         async let readiness = service.readinessTrend(endingOn: date)
         async let caloriesTotal = service.caloriesTotalTrend(endingOn: date)
+        async let steps = service.stepsTrend(endingOn: date)
         async let caloriesBreakdown = service.caloriesBreakdownTrend(endingOn: date)
 
-        let values = await (hrv, rhr, resp, spo2, effort, sleep, readiness, caloriesTotal, caloriesBreakdown)
+        let values = await (hrv, rhr, resp, spo2, effort, sleep, readiness, caloriesTotal, caloriesBreakdown, steps)
         guard !Task.isCancelled, recoveryVM.selectedDate == date else { return }
         let metrics = recoveryVM.recoveryMetrics
         hrvTrend = replacingEndpoint(values.0, value: metrics?.hrvAverage, date: date)
@@ -307,6 +310,7 @@ struct DashboardView: View {
         readinessTrend = values.6
         caloriesTotalTrend = values.7
         caloriesBreakdownTrend = values.8
+        stepsTrend = replacingEndpoint(values.9, value: latestActivityData?.steps, date: date)
     }
 
     private func replacingEndpoint(_ points: [TrendDataPoint], value: Double?, date: Date) -> [TrendDataPoint] {
@@ -324,6 +328,7 @@ struct DashboardView: View {
         case .respiratoryRate: return metrics?.respiratoryRate
         case .oxygenSaturation: return metrics?.oxygenSaturation
         case .totalCalories: return latestActivityData?.totalCalories
+        case .steps: return latestActivityData?.steps
         default: return nil
         }
     }
@@ -348,6 +353,7 @@ struct DashboardView: View {
         case .respiratoryRate: return respTrend
         case .oxygenSaturation: return spo2Trend
         case .totalCalories: return caloriesTotalTrend
+        case .steps: return stepsTrend
         default: return []
         }
     }
@@ -827,6 +833,7 @@ struct DashboardView: View {
             cardiacLoadSignalCard
 
             caloriesSignalCard
+            stepsSignalCard
 
         }
     }
@@ -874,6 +881,28 @@ struct DashboardView: View {
                         activityData: activity,
                         caloriesBreakdown: caloriesBreakdownTrend
                     )
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var stepsSignalCard: some View {
+        if let activity = latestActivityData {
+            SignalCard(
+                icon: "figure.walk",
+                color: .irPrimaryAccent,
+                label: String(localized: "Steps"),
+                value: Formatters.integer(Int(activity.steps.rounded())),
+                unit: String(localized: "steps"),
+                status: String(localized: "activity.daily_total", defaultValue: "Daily total"),
+                statusColor: .irTextSecondary,
+                trend: stepsTrend.suffix(7).map(\.value),
+                onTap: {
+                    selectedMetricSheet = MetricSheetItem(
+                        metricType: .steps, value: activity.steps,
+                        unit: String(localized: "steps"), deviationStatus: nil, baseline: nil,
+                        trend: stepsTrend, activityData: activity, caloriesBreakdown: nil)
                 }
             )
         }

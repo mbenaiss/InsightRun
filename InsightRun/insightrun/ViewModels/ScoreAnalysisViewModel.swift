@@ -277,6 +277,9 @@ class ScoreAnalysisViewModel: ObservableObject {
         case .oxygenSaturation:
             return "My oxygen saturation is \(formattedValue)%. Briefly analyze my blood oxygenation level. Give me 1 tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
 
+        case .steps:
+            return "I have recorded \(Int(value.rounded())) steps on the reference date. Explain what this daily movement count can tell me, using only the supplied context. Steps include walking and running; do not infer exercise intensity, recovery or a personal baseline from the count alone, and do not assume a fixed 10,000-step target. If the reference date is today, the count may still increase. Give one practical tip in one paragraph of 2-3 sentences, no headings or markdown. You MUST reply in \(lang)."
+
         case .totalCalories:
             let totalKcal = String(format: "%.0f", value)
             if let activity = activityData {

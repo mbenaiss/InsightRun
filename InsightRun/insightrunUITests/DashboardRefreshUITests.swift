@@ -46,7 +46,7 @@ final class DashboardRefreshUITests: XCTestCase {
 
     func testAllSignalsAndWeeklySummaryOpenWithoutLosingDashboardState() {
         let app = launchDemo()
-        for label in ["VFC au repos", "VFC · RMSSD", "FC repos", "Fréquence respiratoire", "Saturation en oxygène", "Charge cardiaque", "Calories"] {
+        for label in ["VFC au repos", "VFC · RMSSD", "FC repos", "Fréquence respiratoire", "Saturation en oxygène", "Charge cardiaque", "Calories", "Pas"] {
             let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", label)).firstMatch
             for _ in 0..<6 where !card.isHittable { app.swipeUp() }
             XCTAssertTrue(card.isHittable, label)
@@ -107,6 +107,35 @@ final class DashboardRefreshUITests: XCTestCase {
         add(detail)
         app.buttons["sheet-close"].tap()
         XCTAssertTrue(app.buttons["sheet-close"].waitForNonExistence(timeout: 5))
+    }
+
+    func testDailyStepsCardSharesTheMetricTemplateInEnglish() {
+        let app = launchDemo(language: "en", locale: "en_GB")
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Steps,")).firstMatch
+        for _ in 0..<8 where !card.isHittable { app.swipeUp() }
+        XCTAssertTrue(card.isHittable)
+        XCTAssertTrue(card.label.contains("8,420 steps"))
+        let calories = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Calories,")).firstMatch
+        XCTAssertEqual(card.frame.minY, calories.frame.minY, accuracy: 2)
+        XCTAssertGreaterThan(card.frame.minX, calories.frame.minX)
+        let grid = XCTAttachment(screenshot: app.screenshot())
+        grid.name = "Daily-Steps-Signal-Grid-English"
+        grid.lifetime = .keepAlways
+        add(grid)
+        card.tap()
+        let value = app.descendants(matching: .any)["detail-hero-value"].firstMatch
+        XCTAssertTrue(value.waitForExistence(timeout: 10))
+        XCTAssertTrue(value.label.contains("8,420"))
+        XCTAssertTrue(value.label.contains("steps"))
+        XCTAssertTrue(app.staticTexts["7-Day History"].exists)
+        XCTAssertTrue(app.staticTexts["score-reference-date"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["metric-history-chart"].firstMatch.exists)
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "This is the number of steps")).firstMatch.exists)
+        let detail = XCTAttachment(screenshot: app.screenshot())
+        detail.name = "Daily-Steps-Explanation-English"
+        detail.lifetime = .keepAlways
+        add(detail)
     }
 
     private func launchDemo(language: String = "fr", locale: String = "fr_FR") -> XCUIApplication {

@@ -25,26 +25,28 @@ struct DetailComponentsCard: View {
     let rows: [DetailComponentRow]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if !title.isEmpty {
-                Text(title.uppercased())
-                    .font(IRFont.microLabel.weight(.bold))
-                    .tracking(IRTracking.microLabel)
-                    .foregroundStyle(Color.irTextSecondary)
-                    .padding(.horizontal, Spacing.cardPadding)
-                    .padding(.top, Spacing.dash)
-                    .padding(.bottom, Spacing.sm)
-            }
-
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                if index > 0 {
-                    Divider().background(Color.irBorder)
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                if !title.isEmpty {
+                    Text(title.uppercased())
+                        .font(IRFont.microLabel.weight(.bold))
+                        .tracking(IRTracking.microLabel)
+                        .foregroundStyle(Color.irTextSecondary)
+                        .padding(.horizontal, Spacing.cardPadding)
+                        .padding(.top, Spacing.dash)
+                        .padding(.bottom, Spacing.sm)
                 }
-                rowView(row)
+
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 {
+                        Divider().background(Color.irBorder)
+                    }
+                    rowView(row)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .detailCard()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .detailCard()
     }
 
     private func rowView(_ row: DetailComponentRow) -> some View {

@@ -9,9 +9,9 @@ import SwiftUI
 
 struct WeeklyActivityCard: View {
     let weekLabel: String
-    let totalDistanceLabel: String
-    let totalDurationLabel: String
-    let averagePaceLabel: String
+    let totalDistanceLabel: String?
+    let totalDurationLabel: String?
+    let averagePaceLabel: String?
     let dailyEfforts: [Double]
     let highlightedIndex: Int
     var onTap: (() -> Void)?
@@ -28,20 +28,34 @@ struct WeeklyActivityCard: View {
 
                     Spacer()
 
-                    Text(totalDistanceLabel)
-                        .font(IRFont.monoSM)
-                        .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                    if let totalDistanceLabel {
+                        Text(totalDistanceLabel)
+                            .font(IRFont.monoSM)
+                            .foregroundStyle(Color.irTextSecondary.opacity(0.7))
+                    }
                 }
 
                 HStack(spacing: 0) {
-                    statColumn(label: String(localized: "Distance", comment: "Weekly distance label"), value: totalDistanceLabel)
-                    statColumn(label: String(localized: "Time", comment: "Weekly time label"), value: totalDurationLabel)
-                    statColumn(label: String(localized: "Pace", comment: "Weekly pace label"), value: averagePaceLabel)
+                    if let totalDistanceLabel {
+                        statColumn(
+                            label: String(localized: "Distance", comment: "Weekly distance label"),
+                            value: totalDistanceLabel)
+                    }
+                    if let totalDurationLabel {
+                        statColumn(
+                            label: String(localized: "Time", comment: "Weekly time label"), value: totalDurationLabel)
+                    }
+                    if let averagePaceLabel {
+                        statColumn(
+                            label: String(localized: "Pace", comment: "Weekly pace label"), value: averagePaceLabel)
+                    }
                 }
 
-                BarChartRow(values: dailyEfforts, highlighted: highlightedIndex)
-                    .frame(height: 32)
-                    .accessibilityHidden(true)
+                if dailyEfforts.contains(where: { MetricDisplayValue.positive($0) != nil }) {
+                    BarChartRow(values: dailyEfforts, highlighted: highlightedIndex)
+                        .frame(height: 32)
+                        .accessibilityHidden(true)
+                }
             }
             .padding(Spacing.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -50,7 +64,9 @@ struct WeeklyActivityCard: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("weekly-summary-link")
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(weekLabel), \(totalDistanceLabel), \(totalDurationLabel), \(averagePaceLabel)")
+        .accessibilityLabel(
+            [weekLabel, totalDistanceLabel, totalDurationLabel, averagePaceLabel].compactMap { $0 }.joined(
+                separator: ", "))
     }
 
     private func statColumn(label: String, value: String) -> some View {

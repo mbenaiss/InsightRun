@@ -100,7 +100,9 @@ struct PulseCoachingCard: View {
             }
             .frame(width: 22, height: 22)
 
-            Text(String(localized: "COACH · \(timestampLabel)", comment: "Dashboard coach card header"))
+            Text(timestampLabel.isEmpty
+                 ? String(localized: "Coach").uppercased()
+                 : String(localized: "COACH · \(timestampLabel)", comment: "Dashboard coach card header"))
                 .font(IRFont.eyebrow.weight(.semibold))
                 .tracking(IRTracking.eyebrow)
                 .foregroundStyle(Color.irTextPrimary)

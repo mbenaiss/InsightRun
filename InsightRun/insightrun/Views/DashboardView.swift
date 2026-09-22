@@ -360,11 +360,11 @@ struct DashboardView: View {
 
     private func scoreAvailable(for type: ScoreType) -> Bool {
         switch type {
-        case .readiness: return readinessVM.readinessScore != nil
-        case .sleep: return recoveryVM.recoveryMetrics?.sleepData != nil
-        case .freshness: return trainingLoadService.freshnessScore != nil
-        case .cardiacLoad: return trainingLoadService.cardiacLoadScore != nil
-        case .effort: return latestActivityData != nil
+        case .readiness: return (readinessVM.readinessScore ?? 0) > 0
+        case .sleep: return (recoveryVM.recoveryMetrics?.sleepData?.qualityScore ?? 0) > 0
+        case .freshness: return (trainingLoadService.freshnessScore ?? 0) > 0
+        case .cardiacLoad: return (trainingLoadService.cardiacLoadScore ?? 0) > 0
+        case .effort: return latestActivityData != nil && trainingLoadService.dailyEffortScore > 0
         }
     }
 
@@ -379,136 +379,152 @@ struct DashboardView: View {
                 if loadedDate != recoveryVM.selectedDate {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 200)
                 } else {
-                if !hasViewedWorkoutDetail {
-                    section(title: String(localized: "Next action", comment: "Dashboard activation section title")) {
-                        activationActionCard
-                    }
-                }
-
-                // Disponibilité
-                section(title: String(localized: "Availability", comment: "Dashboard section: availability")) {
-                    PulseRingHero(
-                        score: readinessVM.readinessScore,
-                        yesterdayScore: yesterdayReadinessScore,
-                        statusTitle: readinessVM.status.title,
-                        statusColor: readinessVM.status.color,
-                        footerSummary: footerSummary,
-                        onTap: { selectedScoreType = .readiness }
-                    )
-                }
-
-                // Charge & récupération
-                section(
-                    title: String(localized: "Load & recovery", comment: "Dashboard section: load and recovery")
-                ) {
-                    HStack(spacing: Spacing.sm) {
-                        SecondaryScoreCard(
-                            title: String(localized: "Effort", comment: "Dashboard effort label"),
-                            score: trainingLoadService.dailyEffortScore,
-                            baseline: averagePreviousScores(effortTrend),
-                            accent: .irWarning,
-                            trend: effortTrend.suffix(7).map(\.value),
-                            onTap: { selectedScoreType = .effort }
-                        )
-                        .accessibilityIdentifier("score-effort")
-
-                        // Three-way pick to keep the second slot meaningful:
-                        // 1. No-sleep mode + enough training history → freshness (TSB) card.
-                        // 2. No-sleep mode + CTL too low for a reliable TSB → neutral baseline card,
-                        //    avoids falling back to a Sleep 0/100 that actively misinforms users
-                        //    who have explicitly opted out of sleep tracking.
-                        // 3. Otherwise → legacy Sleep card (its 0/100 empty state is fine for users
-                        //    who do track sleep but happen to be missing one night).
-                        if readinessVM.isNoSleepMode, let freshness = trainingLoadService.freshnessScore {
-                            SecondaryScoreCard(
-                                title: String(localized: "Freshness", comment: "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable"),
-                                score: freshness,
-                                baseline: averagePreviousScores(trainingLoadService.freshnessTrendData),
-                                accent: .irSuccess,
-                                trend: trainingLoadService.freshnessTrendData.suffix(7).map(\.value),
-                                onTap: { selectedScoreType = .freshness }
-                            )
-                            .accessibilityIdentifier("score-freshness")
-                        } else if readinessVM.isNoSleepMode {
-                            BuildingBaselineCard(
-                                title: String(localized: "Freshness", comment: "Dashboard freshness label, shown when sleep tracking is unavailable"),
-                                message: String(localized: "Building your baseline. Log a few weeks of training to unlock your freshness score.", comment: "Empty-state message shown on the freshness card while we don't have enough training history"),
-                                onTap: { selectedScoreType = .freshness }
-                            )
-                            .accessibilityIdentifier("score-freshness-building")
-                        } else {
-                            SecondaryScoreCard(
-                                title: String(localized: "Sleep", comment: "Dashboard sleep label"),
-                                score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore,
-                                baseline: averagePreviousScores(sleepTrend),
-                                accent: .irSuccess,
-                                trend: sleepTrend.suffix(7).map(\.value),
-                                onTap: { selectedScoreType = .sleep }
-                            )
-                            .accessibilityIdentifier("score-sleep")
+                    if !hasViewedWorkoutDetail {
+                        section(title: String(localized: "Next action", comment: "Dashboard activation section title"))
+                        {
+                            activationActionCard
                         }
                     }
-                }
 
-                // Coach (only on today and if AI access)
-                if recoveryVM.isToday {
-                    section(
-                        title: String(localized: "Coach", comment: "Dashboard section: AI coach")
-                    ) {
-                        if revenueCatManager.hasAIAccess {
-                            PulseCoachingCard(
-                                timestampLabel: coachTimestampLabel,
-                                tldr: coachingRecommendation,
-                                highlightWord: coachingHighlight,
-                                reasons: coachingReasons,
-                                detail: coachingDetail,
-                                isLoading: readinessVM.isLoading,
-                                statusMessage: coachStatusMessage,
-                                onRetry: readinessVM.errorMessage != nil || readinessVM.isFallback ? {
-                                    Task { await refreshAll(forceRefresh: true, regenerateCoaching: true) }
-                                } : nil,
-                                onCreatePlan: { showWorkoutPlan = true }
+                    // Disponibilité
+                    if scoreAvailable(for: .readiness) {
+                        section(title: String(localized: "Availability", comment: "Dashboard section: availability")) {
+                            PulseRingHero(
+                                score: readinessVM.readinessScore,
+                                yesterdayScore: yesterdayReadinessScore,
+                                statusTitle: readinessVM.status.title,
+                                statusColor: readinessVM.status.color,
+                                footerSummary: footerSummary,
+                                onTap: { selectedScoreType = .readiness }
                             )
-                        } else {
-                            subscriptionCTACard
+                        }
+
+                    }
+
+                    // Charge & récupération
+                    if scoreAvailable(for: .effort)
+                        || scoreAvailable(for: readinessVM.isNoSleepMode ? .freshness : .sleep)
+                    {
+                        section(
+                            title: String(localized: "Load & recovery", comment: "Dashboard section: load and recovery")
+                        ) {
+                            HStack(spacing: Spacing.sm) {
+                                if scoreAvailable(for: .effort) {
+                                    SecondaryScoreCard(
+                                        title: String(localized: "Effort", comment: "Dashboard effort label"),
+                                        score: trainingLoadService.dailyEffortScore,
+                                        baseline: averagePreviousScores(effortTrend),
+                                        accent: .irWarning,
+                                        trend: effortTrend.suffix(7).map(\.value),
+                                        onTap: { selectedScoreType = .effort }
+                                    )
+                                    .accessibilityIdentifier("score-effort")
+                                }
+
+                                if readinessVM.isNoSleepMode, let freshness = trainingLoadService.freshnessScore,
+                                    freshness > 0
+                                {
+                                    SecondaryScoreCard(
+                                        title: String(
+                                            localized: "Freshness",
+                                            comment:
+                                                "Dashboard TSB-based freshness label, shown when sleep tracking is unavailable"
+                                        ),
+                                        score: freshness,
+                                        baseline: averagePreviousScores(trainingLoadService.freshnessTrendData),
+                                        accent: .irSuccess,
+                                        trend: trainingLoadService.freshnessTrendData.suffix(7).map(\.value),
+                                        onTap: { selectedScoreType = .freshness }
+                                    )
+                                    .accessibilityIdentifier("score-freshness")
+                                } else if !readinessVM.isNoSleepMode && scoreAvailable(for: .sleep) {
+                                    SecondaryScoreCard(
+                                        title: String(localized: "Sleep", comment: "Dashboard sleep label"),
+                                        score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore,
+                                        baseline: averagePreviousScores(sleepTrend),
+                                        accent: .irSuccess,
+                                        trend: sleepTrend.suffix(7).map(\.value),
+                                        onTap: { selectedScoreType = .sleep }
+                                    )
+                                    .accessibilityIdentifier("score-sleep")
+                                }
+                            }
+                        }
+
+                    }
+
+                    // Coach (only on today and if AI access)
+                    if recoveryVM.isToday {
+                        section(
+                            title: String(localized: "Coach", comment: "Dashboard section: AI coach")
+                        ) {
+                            if revenueCatManager.hasAIAccess {
+                                PulseCoachingCard(
+                                    timestampLabel: coachTimestampLabel,
+                                    tldr: coachingRecommendation,
+                                    highlightWord: coachingHighlight,
+                                    reasons: coachingReasons,
+                                    detail: coachingDetail,
+                                    isLoading: readinessVM.isLoading,
+                                    statusMessage: coachStatusMessage,
+                                    onRetry: readinessVM.errorMessage != nil || readinessVM.isFallback
+                                        ? {
+                                            Task { await refreshAll(forceRefresh: true, regenerateCoaching: true) }
+                                        } : nil,
+                                    onCreatePlan: { showWorkoutPlan = true }
+                                )
+                            } else {
+                                subscriptionCTACard
+                            }
                         }
                     }
-                }
 
-                // Séance recommandée
-                if recoveryVM.isToday, let session = todaySession, let workout = session.day.workout {
-                    section(
-                        title: String(localized: "Recommended session", comment: "Dashboard section: recommended session")
-                    ) {
-                        TodaySessionCard(
-                            goal: session.goal,
-                            workout: workout,
-                            onTap: { navigateToGoalSession(session.goal) }
-                        )
+                    // Séance recommandée
+                    if recoveryVM.isToday, let session = todaySession, let workout = session.day.workout {
+                        section(
+                            title: String(
+                                localized: "Recommended session", comment: "Dashboard section: recommended session")
+                        ) {
+                            TodaySessionCard(
+                                goal: session.goal,
+                                workout: workout,
+                                onTap: { navigateToGoalSession(session.goal) }
+                            )
+                        }
                     }
-                }
 
-                // Activité hebdo
-                section(
-                    title: String(localized: "Weekly activity", comment: "Dashboard section: weekly activity")
-                ) {
-                    WeeklyActivityCard(
-                        weekLabel: weeklyActivityWeekLabel,
-                        totalDistanceLabel: weeklySummaryVM.formattedTotalDistance,
-                        totalDurationLabel: weeklySummaryVM.formattedTotalDuration,
-                        averagePaceLabel: weeklySummaryVM.formattedAveragePace,
-                        dailyEfforts: weeklySummaryVM.dailyRunDistancesKm,
-                        highlightedIndex: weeklySummaryVM.todayIndexInWeek,
-                        onTap: { notificationRouter.showWeeklySummary = true }
-                    )
-                }
+                    // Activité hebdo
+                    if hasWeeklyActivity {
+                        section(
+                            title: String(localized: "Weekly activity", comment: "Dashboard section: weekly activity")
+                        ) {
+                            WeeklyActivityCard(
+                                weekLabel: weeklyActivityWeekLabel,
+                                totalDistanceLabel: MetricDisplayValue.positive(weeklySummaryVM.totalDistance).map {
+                                    _ in weeklySummaryVM.formattedTotalDistance
+                                },
+                                totalDurationLabel: MetricDisplayValue.positive(weeklySummaryVM.totalDuration).map {
+                                    _ in weeklySummaryVM.formattedTotalDuration
+                                },
+                                averagePaceLabel: MetricDisplayValue.positive(weeklySummaryVM.averagePace).map { _ in
+                                    weeklySummaryVM.formattedAveragePace
+                                },
+                                dailyEfforts: weeklySummaryVM.dailyRunDistancesKm,
+                                highlightedIndex: weeklySummaryVM.todayIndexInWeek,
+                                onTap: { notificationRouter.showWeeklySummary = true }
+                            )
+                        }
 
-                // Signaux
-                section(
-                    title: String(localized: "Signals", comment: "Dashboard section: physiological signals")
-                ) {
-                    signalsGrid
-                }
+                    }
+
+                    // Signaux
+                    if hasSignals {
+                        section(
+                            title: String(localized: "Signals", comment: "Dashboard section: physiological signals")
+                        ) {
+                            signalsGrid
+                        }
+                    }
                 }
             }
             .padding(.top, Spacing.sm)
@@ -744,6 +760,21 @@ struct DashboardView: View {
         .detailCard()
     }
 
+    private var hasWeeklyActivity: Bool {
+        [weeklySummaryVM.totalDistance, weeklySummaryVM.totalDuration, weeklySummaryVM.averagePace]
+            .contains { MetricDisplayValue.positive($0) != nil }
+    }
+
+    private var hasSignals: Bool {
+        let recovery = recoveryVM.recoveryMetrics
+        return [
+            recovery?.hrvAverage, recovery?.rmssd?.currentNight?.median,
+            recovery?.restingHeartRate, recovery?.respiratoryRate, recovery?.oxygenSaturation,
+            latestActivityData?.totalCalories, latestActivityData?.steps,
+        ]
+        .contains { MetricDisplayValue.positive($0) != nil } || scoreAvailable(for: .cardiacLoad)
+    }
+
     // MARK: - Signals grid
 
     @ViewBuilder
@@ -753,7 +784,7 @@ struct DashboardView: View {
             columns: [GridItem(.flexible(), spacing: Spacing.sm), GridItem(.flexible(), spacing: Spacing.sm)],
             spacing: Spacing.sm
         ) {
-            if let hrv = recovery?.hrvAverage {
+            if let hrv = MetricDisplayValue.positive(recovery?.hrvAverage) {
                 let status = hrvDeviationStatus(hrv, baseline: recovery?.baseline)
                 SignalCard(
                     icon: "waveform.path.ecg",
@@ -768,24 +799,25 @@ struct DashboardView: View {
                 )
             }
 
-            if recovery?.rmssd != nil || HealthInsightReader.rmssdType != nil {
+            if let rmssd = MetricDisplayValue.positive(recovery?.rmssd?.currentNight?.median) {
                 SignalCard(
                     icon: "waveform.path.ecg",
                     color: .irPrimaryAccent,
                     label: String(localized: "insights.rmssd.short", defaultValue: "HRV · RMSSD"),
-                    value: recovery?.rmssd?.currentNight.map { Formatters.integer(Int($0.median.rounded())) } ?? "—",
+                    value: Formatters.integer(Int(rmssd.rounded())),
                     unit: "ms",
                     status: RMSSDTrend.statusDescription(recovery?.rmssd),
                     statusColor: .irTextSecondary,
                     trend: metricTrend(for: .rmssd).map(\.value),
                     onTap: {
-                        presentMetricSheet(.rmssd, value: metricValue(for: .rmssd) ?? 0,
+                        presentMetricSheet(
+                            .rmssd, value: rmssd,
                                            unit: "ms", status: nil, trend: metricTrend(for: .rmssd))
                     }
                 )
             }
 
-            if let rhr = recovery?.restingHeartRate {
+            if let rhr = MetricDisplayValue.positive(recovery?.restingHeartRate) {
                 let status = rhrDeviationStatus(rhr, baseline: recovery?.baseline)
                 SignalCard(
                     icon: "heart.fill",
@@ -800,7 +832,7 @@ struct DashboardView: View {
                 )
             }
 
-            if let resp = recovery?.respiratoryRate {
+            if let resp = MetricDisplayValue.positive(recovery?.respiratoryRate) {
                 let status = respDeviationStatus(resp, baseline: recovery?.baseline)
                 SignalCard(
                     icon: "lungs.fill",
@@ -815,7 +847,7 @@ struct DashboardView: View {
                 )
             }
 
-            if let spo2 = recovery?.oxygenSaturation {
+            if let spo2 = MetricDisplayValue.positive(recovery?.oxygenSaturation) {
                 let status = spo2DeviationStatus(spo2)
                 SignalCard(
                     icon: "drop.fill",
@@ -840,7 +872,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var cardiacLoadSignalCard: some View {
-        if let load = trainingLoadService.cardiacLoadScore {
+        if let load = trainingLoadService.cardiacLoadScore, load > 0 {
             let status = trainingLoadService.cardiacLoadStatus
             SignalCard(
                 icon: "shoe.2.fill",
@@ -858,7 +890,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var caloriesSignalCard: some View {
-        if let activity = latestActivityData {
+        if let activity = latestActivityData, MetricDisplayValue.positive(activity.totalCalories) != nil {
             let activeKcal = Formatters.integer(Int(activity.activeCalories.rounded()))
             let activeLabel = String(localized: "active", comment: "Active calories label")
             SignalCard(
@@ -867,7 +899,8 @@ struct DashboardView: View {
                 label: String(localized: "Calories", comment: "Calories metric title"),
                 value: Formatters.integer(Int(activity.totalCalories.rounded())),
                 unit: "kcal",
-                status: "\(activeKcal) " + activeLabel,
+                status: MetricDisplayValue.positive(activity.activeCalories) == nil
+                    ? nil : "\(activeKcal) " + activeLabel,
                 statusColor: .irWarning,
                 trend: caloriesTotalTrend.suffix(7).map(\.value),
                 onTap: {
@@ -888,7 +921,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var stepsSignalCard: some View {
-        if let activity = latestActivityData {
+        if let activity = latestActivityData, MetricDisplayValue.positive(activity.steps) != nil {
             SignalCard(
                 icon: "figure.walk",
                 color: .irPrimaryAccent,
@@ -976,7 +1009,7 @@ struct DashboardView: View {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         formatter.setLocalizedDateFormatFromTemplate("d MMM jmm")
-        return readinessVM.updatedAt.map { formatter.string(from: $0) } ?? "—"
+        return readinessVM.updatedAt.map { formatter.string(from: $0) } ?? ""
     }
 
     private var coachingRecommendation: String {
@@ -1018,17 +1051,17 @@ struct DashboardView: View {
 
     private var coachingReasons: [String] {
         var reasons: [String] = []
-        if let hrv = recoveryVM.recoveryMetrics?.hrvAverage {
+        if let hrv = MetricDisplayValue.positive(recoveryVM.recoveryMetrics?.hrvAverage) {
             reasons.append(String(localized: "dashboard.coach.reason.hrv", defaultValue: "HRV \(Formatters.integer(Int(hrv.rounded()))) ms", comment: "Coach reason chip: resting HRV value in ms"))
         }
-        if let rhr = recoveryVM.recoveryMetrics?.restingHeartRate {
+        if let rhr = MetricDisplayValue.positive(recoveryVM.recoveryMetrics?.restingHeartRate) {
             reasons.append(String(localized: "dashboard.coach.reason.rhr", defaultValue: "Resting HR \(Formatters.heartRate(rhr))", comment: "Coach reason chip: resting heart rate"))
         }
         if let sleep = recoveryVM.recoveryMetrics?.sleepData {
             reasons.append(sleep.formattedTotalSleep)
         }
         let load = trainingLoadService.cardiacLoadScore
-        if let load {
+        if let load, load > 0 {
             reasons.append(String(localized: "dashboard.coach.reason.load", defaultValue: "Load \(Formatters.integer(load))", comment: "Coach reason chip: cardiac load score"))
         }
         return reasons
@@ -1044,12 +1077,19 @@ struct DashboardView: View {
     // MARK: - Pulse Ring helpers
 
     private var yesterdayReadinessScore: Int? {
-        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: recoveryVM.selectedDate) else { return nil }
-        return readinessTrend.first { Calendar.current.isDate($0.date, inSameDayAs: yesterday) }.map { Int($0.value.rounded()) }
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: recoveryVM.selectedDate) else {
+            return nil
+        }
+        return readinessTrend.first { Calendar.current.isDate($0.date, inSameDayAs: yesterday) }.flatMap {
+            MetricDisplayValue.positive($0.value).map { Int($0.rounded()) }
+        }
     }
 
     private func averagePreviousScores(_ trend: [TrendDataPoint]) -> Int? {
-        let previous = trend.filter { $0.date < Calendar.current.startOfDay(for: recoveryVM.selectedDate) }
+        let previous = trend.filter {
+            $0.date < Calendar.current.startOfDay(for: recoveryVM.selectedDate)
+                && MetricDisplayValue.positive($0.value) != nil
+        }
         guard !previous.isEmpty else { return nil }
         return Int((previous.map(\.value).reduce(0, +) / Double(previous.count)).rounded())
     }

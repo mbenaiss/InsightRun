@@ -57,6 +57,48 @@ final class ActivationFlowUITests: XCTestCase {
         attachScreenshot(of: app, named: "Recorded-Zones-French")
     }
 
+    func testEmptyWorkoutMetricsLeaveNoEmptyCardsOrFields() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-DEMO_MODE", "-WORKOUT_ANALYSIS_UI_TEST", "-EMPTY_WORKOUT_UI_TEST",
+            "-AppleLanguages", "(en)", "-AppleLocale", "en_GB",
+        ]
+        app.launch()
+        XCTAssertTrue(app.buttons["workout-analysis-consent"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["workout-title"].exists)
+        for id in [
+            "workout-main-metrics", "workout-metric.distance", "workout-metric.duration",
+            "workout-metric.avg_hr", "workout-metric.avg_pace", "workout-header-duration",
+            "workout-weather-temperature", "workout-weather-humidity", "workout-charts",
+            "workout-section-timeline", "workout-section-effort",
+        ] {
+            XCTAssertFalse(app.descendants(matching: .any)[id].firstMatch.exists, id)
+        }
+        XCTAssertTrue(app.buttons["workout-feedback"].exists)
+        attachScreenshot(of: app, named: "Workout-Empty-Metrics-English")
+    }
+
+    func testPartialWorkoutKeepsOnlyAvailableMetricsAndCharts() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-DEMO_MODE", "-WORKOUT_ANALYSIS_UI_TEST", "-MISSING_METRICS_UI_TEST",
+            "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR",
+        ]
+        app.launch()
+        XCTAssertTrue(app.buttons["workout-analysis-consent"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["workout-metric.distance"].exists)
+        XCTAssertTrue(app.buttons["workout-metric.duration"].exists)
+        XCTAssertTrue(app.buttons["workout-metric.avg_pace"].exists)
+        XCTAssertFalse(app.buttons["workout-metric.avg_hr"].exists)
+        XCTAssertFalse(app.staticTexts["workout-section-effort"].exists)
+        let chart = app.descendants(matching: .any)["workout-charts"].firstMatch
+        for _ in 0..<6 where !chart.isHittable { app.swipeUp() }
+        XCTAssertTrue(chart.exists)
+        XCTAssertFalse(app.staticTexts["bpm"].exists)
+        XCTAssertFalse(app.staticTexts["—"].exists)
+        attachScreenshot(of: app, named: "Workout-Partial-Metrics-French")
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

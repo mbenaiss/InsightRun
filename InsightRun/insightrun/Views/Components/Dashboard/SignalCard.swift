@@ -10,7 +10,7 @@ import SwiftUI
 
 struct SignalCard: View {
     let icon: String
-    let color: Color
+    private let color = Color.irPrimaryAccent
     let label: String
     let value: String
     let unit: String
@@ -90,7 +90,6 @@ struct SignalCard: View {
     LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
         SignalCard(
             icon: "waveform.path.ecg",
-            color: Color.irPrimaryAccent,
             label: "VFC repos",
             value: "109",
             unit: "ms",
@@ -100,7 +99,6 @@ struct SignalCard: View {
         )
         SignalCard(
             icon: "heart.fill",
-            color: .irWarning,
             label: "FC repos",
             value: "56",
             unit: "bpm",

@@ -110,8 +110,8 @@ struct PulseRingHero: View {
             .fill(
                 RadialGradient(
                     colors: [
-                        statusColor.opacity(0.22),
-                        statusColor.opacity(0)
+                        Color.irPrimaryAccent.opacity(0.22),
+                        Color.irPrimaryAccent.opacity(0)
                     ],
                     center: .center,
                     startRadius: 0,
@@ -130,10 +130,8 @@ struct PulseRingHero: View {
         let progress = max(0, min(1, Double(score ?? 0) / 100.0))
         let arcGradient = AngularGradient(
             gradient: Gradient(stops: [
-                .init(color: Color.irError, location: 0.50),
-                .init(color: Color.irWarning, location: 0.70),
-                .init(color: Color.irSuccess, location: 0.90),
-                .init(color: Color.irSuccess, location: 1.0)
+                .init(color: Color.irPrimaryAccent.opacity(0.7), location: 0.50),
+                .init(color: Color.irPrimaryAccent, location: 1.0)
             ]),
             center: .init(x: cx / max(cx, 1), y: cy / max(cy, 1)),
             startAngle: .degrees(0),
@@ -214,7 +212,7 @@ struct PulseRingHero: View {
                 .position(dot)
 
             Circle()
-                .fill(statusColor)
+                .fill(Color.irPrimaryAccent)
                 .frame(width: 6, height: 6)
                 .position(dot)
         }
@@ -247,7 +245,7 @@ struct PulseRingHero: View {
                 HStack(spacing: Spacing.xs) {
                     Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
                         .font(IRFont.microLabel.weight(.bold))
-                        .foregroundStyle(isUp ? Color.irSuccess : Color.irError)
+                        .foregroundStyle(Color.irTextSecondary)
 
                     Text("\(delta >= 0 ? "+" : "")\(delta)")
                         .font(IRFont.numXS.weight(.bold))

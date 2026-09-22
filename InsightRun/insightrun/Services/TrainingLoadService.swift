@@ -496,12 +496,7 @@ enum CardiacLoadStatus: String {
     }
 
     var color: Color {
-        switch self {
-        case .increasing: return .orange
-        case .maintaining: return .purple
-        case .decreasing: return .blue
-        case .detraining: return .red
-        }
+        .irTextSecondary
     }
 
     var icon: String {

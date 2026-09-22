@@ -7,7 +7,13 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "Insight Run"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "Insight Run"
           }
         }
@@ -19,14 +25,33 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "insightrun"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "insightrun"
           }
         }
       }
     },
     "FIT Activity File" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FIT Activity File"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichier d’activité FIT"
+          }
+        }
+      }
     },
     "NSHealthShareUsageDescription" : {
       "comment" : "HealthKit read-access permission prompt (first popup the user sees)",

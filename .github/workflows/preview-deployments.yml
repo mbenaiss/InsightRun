@@ -134,6 +134,9 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Run compatibility and regression tests
+        run: bun run test
+
       - name: Generate preview alias
         id: generate-alias
         run: |

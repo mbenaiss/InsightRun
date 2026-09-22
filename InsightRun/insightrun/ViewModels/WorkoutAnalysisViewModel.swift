@@ -6,6 +6,7 @@
 //
 
 import Combine
+import CryptoKit
 import Foundation
 import SwiftData
 
@@ -122,9 +123,10 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // First, try to load from local cache
         if let cached = fetchCachedAnalysis() {
             print("✅ WorkoutAnalysisViewModel: Found cached analysis")
-            if AIResponseValidator.isComplete(cached.analysisText),
+            if let signature = inputSignature(), AIResponseValidator.isComplete(cached.analysisText),
                cached.contextVersion == WorkoutAnalysis.currentContextVersion,
-               cached.estimatedMaxHR == maximumHeartRate() {
+               cached.estimatedMaxHR == maximumHeartRate(),
+               cached.inputSignature == signature {
                 analysisText = cached.analysisText
                 analysisSource = .cache
                 analyzedAt = cached.analyzedAt
@@ -157,31 +159,31 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         if languageCode == "fr" {
             return """
-                Analyse cette séance et rédige une synthèse professionnelle et concise (100 mots maximum) en markdown.
+                Analyse cette séance en un seul paragraphe continu, en texte simple, de 180 mots maximum. Aucun titre, aucune liste, aucune séparation ni retour à la ligne. Adresse-toi directement au coureur en le tutoyant.
 
-                ## Synthèse
-                2 à 3 phrases qui qualifient la séance en s'appuyant sur les métriques clés disponibles (intensité, allure, fréquence cardiaque, technique).
-
-                ## Prochaine action
-                Une action précise et réaliste pour la prochaine séance ou la récupération du coureur.
+                Commence directement par un bilan personnalisé, sans annoncer « l'enseignement principal ». Appuie-le sur 2 à 3 observations pertinentes et explique leurs liens : évolution de l'allure, effort, fréquence cardiaque, objectif et ressenti disponibles. Résume les variations plutôt que d'énumérer tous les temps au kilomètre. Explique ce que ces observations signifient ensemble, sans affirmer une cause non mesurée. Distingue estimation Apple et ressenti déclaré : l'estimation reste un repère utile, à exprimer sur 10, pas une donnée à écarter. Compare à l'historique personnel uniquement si les séances et les conditions sont comparables. Termine naturellement par un conseil concret découlant de l'analyse, en expliquant pourquoi il est utile.
 
                 Règles strictes :
                 - Ton neutre, précis, factuel. Pas d'emojis, pas d'exclamations, pas de superlatifs creux.
-                - N'utilise que les métriques effectivement présentes dans les données. Ne signale jamais une donnée manquante.
+                - N'utilise que les métriques effectivement présentes. Si une limite change réellement l'interprétation, intègre-la brièvement dans le raisonnement. Ne transforme pas le paragraphe en inventaire des données manquantes ou en avertissement systématique. Si les données sont rares, reste plus court plutôt que de remplir.
+                - La fréquence maximale calculée avec l'âge ne permet ni de qualifier cette séance de facile, tempo ou seuil, ni de juger qu'elle est trop intense, ni de prescrire une cible cardiaque.
+                - N'invente aucune cadence idéale, aucun seuil de variabilité d'allure ni objectif de récupération. L'absence d'objectif ou de ressenti n'est pas une erreur du coureur.
+                - Sur tapis, la météo associée à l'activité ne mesure pas les conditions dans la salle. Ne lui attribue aucun effet sur l'effort.
+                - Appuie le conseil sur l'objectif et le ressenti disponibles. S'ils manquent, propose une action simple, sans cible physiologique inventée.
                 """
         } else {
             return """
-                Analyze this workout and produce a professional, concise synthesis (100 words maximum) in markdown.
+                Analyze this workout in one continuous paragraph of plain text, at most 180 words. No headings, lists, separate sections or line breaks. Address the runner directly.
 
-                ## Summary
-                2 to 3 sentences characterizing the session based on the available key metrics (intensity, pace, heart rate, form).
-
-                ## Next action
-                One specific, realistic action for the runner's next session or recovery.
+                Open directly with a personalized assessment, without announcing "the main takeaway". Support it with 2 to 3 relevant observations and explain how they relate: pacing over time, effort, heart rate, and the supplied goal and feedback. Summarize changes instead of listing every kilometre split. Explain what these observations mean together without claiming an unmeasured cause. Distinguish an Apple estimate from self-reported effort: the estimate remains useful context, expressed out of 10, rather than something to dismiss. Compare with personal history only when sessions and conditions are comparable. Close naturally with one concrete recommendation arising from the analysis and explain why it is useful.
 
                 Strict rules:
                 - Neutral, precise, factual tone. No emojis, no exclamations, no empty superlatives.
-                - Only use metrics actually present in the data. Never flag missing data.
+                - Only use supplied metrics. If a limitation materially changes the interpretation, weave it briefly into the reasoning. Do not turn the paragraph into an inventory of missing data or routine disclaimers. With sparse data, write less rather than filling space.
+                - An age-based maximum heart rate cannot establish easy, tempo or threshold intensity, prove that this session was too hard, or justify a heart-rate target.
+                - Do not invent an ideal cadence, a pacing-variability cutoff or a recovery goal. An unknown goal or perceived effort is not a runner's mistake.
+                - For treadmill runs, attached outdoor weather does not measure conditions inside the room. Do not attribute effort to that weather.
+                - Base the next action on the supplied goal and perceived effort. If absent, suggest a simple action without inventing physiological targets.
                 """
         }
     }
@@ -230,6 +232,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // Get analysis prompt in user's language
         let question = getAnalysisPrompt()
         let estimatedMaxHR = maximumHeartRate()
+        let requestSignature = inputSignature()
 
         // ModelRouter will automatically select appropriate model based on request complexity
         // askQuestion only returns once the stream is fully consumed, so the final
@@ -244,6 +247,10 @@ class WorkoutAnalysisViewModel: ObservableObject {
         // Read the authoritative final text from the service rather than analysisText,
         // which is delivered through an async Combine sink that may lag a runloop tick.
         let finalAnalysis = aiService.streamedResponse
+        guard requestSignature == inputSignature() else {
+            analysisText = nil
+            return
+        }
 
         guard aiService.error == nil else {
             analysisText = nil
@@ -285,6 +292,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         }
         analysis.contextVersion = WorkoutAnalysis.currentContextVersion
         analysis.estimatedMaxHR = estimatedMaxHR
+        analysis.inputSignature = requestSignature
 
         do {
             try modelContext.save()
@@ -298,6 +306,19 @@ class WorkoutAnalysisViewModel: ObservableObject {
     }
 
     // MARK: - Cache Management
+
+    func inputSignature(language: String = AppLanguage.current) -> String? {
+        let payload = WorkoutAIService().convertToWorkoutData(workout: workout, metrics: metrics)
+        guard let data = try? JSONEncoder().encode(payload),
+              var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        object["language"] = language
+        if var evidence = object["evidence"] as? [String: Any] {
+            evidence.removeValue(forKey: "measuredAt")
+            object["evidence"] = evidence
+        }
+        guard let canonical = try? JSONSerialization.data(withJSONObject: object, options: .sortedKeys) else { return nil }
+        return SHA256.hash(data: canonical).map { String(format: "%02x", $0) }.joined()
+    }
 
     /// Fetch cached analysis from SwiftData
     private func fetchCachedAnalysis() -> WorkoutAnalysis? {

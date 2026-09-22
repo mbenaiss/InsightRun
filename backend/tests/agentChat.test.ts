@@ -3,15 +3,15 @@ import app from '../src/routes/agentChat'
 
 afterEach(() => mock.restore())
 
-async function chat(upstream: string) {
+async function chat(upstream: string, data = {}) {
   const put = mock(async () => {})
-  spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(upstream))
+  const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(upstream))
   const response = await app.request(
     '/chat',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-User-ID': 'test-user' },
-      body: JSON.stringify({ userQuestion: 'Hello', language: 'en', data: {} }),
+      body: JSON.stringify({ userQuestion: 'Hello', language: 'en', data }),
     },
     {
       OPENROUTER_API_KEY: 'test-key',
@@ -22,8 +22,57 @@ async function chat(upstream: string) {
     },
     { waitUntil: () => {}, passThroughOnException: () => {} }
   )
-  return { output: await response.text(), put }
+  return { output: await response.text(), put, fetchMock }
 }
+
+describe('workout analysis context', () => {
+  test('passes treadmill effort to the model without fabricated intensity or ideal ranges', async () => {
+    const { output, fetchMock } = await chat(
+      'data: {"choices":[{"delta":{"content":"Completed analysis."}}]}\n\ndata: [DONE]\n\n',
+      {
+        profile: { age: 39 },
+        workout: {
+          date: '2026-09-22',
+          duration: 1360,
+          distance: 3030,
+          pace: 7.5,
+          heartRate: { avg: 140, max: 152 },
+          cadence: 163,
+          effort: 4,
+          effortSource: 'apple_estimated',
+          isIndoor: true,
+          temperatureCelsius: 11.8,
+          splits: ['7:35', '7:23', '7:27'].map((pace, index) => ({
+            kilometer: index + 1,
+            distanceMeters: 1000,
+            pace,
+            time: pace,
+          })),
+        },
+      }
+    )
+    expect(output).toContain('[DONE]')
+    const prompt = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).messages[0].content
+    expect(prompt).toContain('140 bpm')
+    expect(prompt).toContain('**Duration:** 22m 40s')
+    expect(prompt).toContain('Cadence: 163 spm')
+    expect(prompt).toContain('"effort":4')
+    expect(prompt).toContain('"effortSource":"apple_estimated"')
+    expect(prompt).toContain('"isIndoor":true')
+    expect(prompt).toContain('1.1% (descriptive variability')
+    expect(prompt).toContain('Age-based maximum heart rate estimate: 181 bpm')
+    expect(prompt).toContain('Do not override that effort from an age formula')
+    expect(prompt).toContain('attached outdoor weather does not measure the room')
+    expect(prompt).toContain('one continuous paragraph of plain text')
+    expect(prompt).toContain('no headings, lists, separate sections or line breaks')
+    expect(prompt).toContain('one concrete recommendation and why it follows')
+    expect(prompt).not.toContain('organize the answer as observed facts')
+    expect(prompt).not.toContain('Estimated Intensity:')
+    expect(prompt).not.toContain('77%')
+    expect(prompt).not.toContain('160-170')
+    expect(prompt).not.toContain('Excellent (<3%)')
+  })
+})
 
 describe('agent streaming failures', () => {
   test('does not charge quota for an empty completed answer', async () => {

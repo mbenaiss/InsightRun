@@ -107,6 +107,9 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Run compatibility and regression tests
+        run: bun run test
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:

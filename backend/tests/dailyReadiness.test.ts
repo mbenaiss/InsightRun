@@ -43,6 +43,43 @@ describe('readiness numerical contract shared with iOS', () => {
 })
 
 describe('readiness endpoint', () => {
+  test.each([
+    undefined,
+    61,
+  ])('RMSSD changes coaching context without changing the legacy response or score: %p', async (cachedScore) => {
+    const body = { ...fixtures[0], cachedScore, language: 'fr' }
+    const oldResponse = await request(body)
+    const oldResult = await oldResponse.json()
+    fetchMock?.mockRestore()
+    const response = await request({
+      ...body,
+      recovery: {
+        ...body.recovery,
+        date: '2026-09-21T00:00:00+02:00',
+        rmssd: {
+          metric: 'RMSSD',
+          context: 'asleep',
+          source: 'com.apple.health/Watch8,3/27.0',
+          sourceChanged: false,
+          latestSampleAt: '2026-09-21T05:00:00Z',
+          measuredAt: '2026-09-21T12:00:00Z',
+          currentNight: { date: '2026-09-21T00:00:00+02:00', median: 92, sampleCount: 50 },
+          baselineMedian: 95,
+          baselineNights: 7,
+          recentMedian: 92,
+          recentNights: 1,
+          nights: [{ date: '2026-09-21T00:00:00+02:00', median: 92, sampleCount: 50 }],
+        },
+      },
+    })
+    expect(oldResponse.status).toBe(200)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(oldResult)
+    const prompt = JSON.parse(String(fetchMock?.mock.calls[0]?.[1]?.body))
+    expect(prompt.messages[1].content).toContain('Night-time RMSSD')
+    expect(prompt.messages[1].content).toContain('HRV SDNN: 60 ms')
+  })
+
   test('preserves decimal measurements in the calculation and insights', async () => {
     const recovery = {
       hrv: 75.4,

@@ -238,6 +238,9 @@ class ScoreAnalysisViewModel: ObservableObject {
             String(describing: metrics.sleepData?.totalSleepDuration), String(describing: metrics.sleepData?.sleepEfficiency),
             String(describing: metrics.sleepData?.deepSleepDuration), String(describing: metrics.sleepData?.remSleepDuration),
             String(describing: metrics.baseline?.hrvAverage), String(describing: metrics.baseline?.restingHeartRateAverage),
+            String(describing: metrics.rmssd?.currentNight), String(describing: metrics.rmssd?.baselineMedian),
+            String(describing: metrics.rmssd?.baselineNights), String(describing: metrics.rmssd?.source),
+            String(describing: metrics.rmssd?.nights),
             String(describing: activity),
             trend?.map { "\($0.date.timeIntervalSinceReferenceDate):\($0.value)" }.joined(separator: ";") ?? ""
         ]
@@ -261,6 +264,9 @@ class ScoreAnalysisViewModel: ObservableObject {
         switch metricType {
         case .hrv:
             return "My HRV is \(formattedValue) ms. Briefly analyze my heart rate variability and what it means for my recovery. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."
+
+        case .rmssd:
+            return "My night-time RMSSD is \(formattedValue) ms. Analyze this measure using only its own supplied RMSSD nightly history and personal reference, never the SDNN HRV reference. Explain the trend with sleep, resting heart rate and reported feelings where available. Do not infer readiness for intense training from one value or use universal good/bad cutoffs. If the RMSSD reference is still building, say so and keep the interpretation descriptive. Give one practical tip in one paragraph of 2-3 sentences, no headings or markdown. You MUST reply in \(lang)."
 
         case .restingHeartRate:
             return "My resting heart rate is \(formattedValue) bpm. Briefly analyze what this means for my cardiovascular health. Give me 1 actionable tip. Reply in 2-3 sentences max, no markdown. You MUST reply in \(lang)."

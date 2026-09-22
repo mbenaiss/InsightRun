@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { RequestType, selectModelFromRequest } from '../modelRouter'
 import { callOpenRouterWithRetry } from '../openrouter'
+import { buildRMSSDContext, evidenceCoachingRules, rmssdTrendSchema } from '../trainingInsights'
 import type {
   CardiacLoadData,
   DailyActivityData,
@@ -746,7 +747,8 @@ function buildReadinessContext(
   recentWorkouts?: ReadinessWorkoutData[],
   noSleepMode?: boolean
 ): string {
-  let ctx = ''
+  let ctx = buildRMSSDContext(recovery.rmssd)
+  if (recovery.date) ctx += `Recovery date: ${recovery.date}\n`
 
   ctx += `Recovery Score: ${score}/100 (status: ${status})\n`
 
@@ -755,7 +757,7 @@ function buildReadinessContext(
   }
 
   if (recovery.hrv !== undefined) {
-    ctx += `HRV: ${Math.round(recovery.hrv)} ms`
+    ctx += `HRV SDNN: ${Math.round(recovery.hrv)} ms`
     if (baseline?.hrvAverage) {
       ctx += ` (baseline: ${Math.round(baseline.hrvAverage)} ms)`
     }
@@ -877,6 +879,7 @@ The score and status are supplied by the app: never recalculate them or infer a 
 Today's training ceiling is ${workoutType}: do not suggest a harder session. Rest allows only rest or gentle recovery activity.
 Acknowledge today's completed exercise. Do not prescribe another session after 20 minutes of exercise with effort >=60.
 Use at most 2 relevant measured values to explain the advice, prioritizing recent hard/long runs and cardiac load over a good morning score.
+${evidenceCoachingRules}
 Only reference supplied data. Missing measurements are unknown, not zero or normal. A building baseline is not reliable for personal trend claims.
 Do not invent a training plan, injury, diagnosis, heart-rate zone, pace target, or exact recovery deadline. Adapt to the runner's sensations.
 ${noSleepMode ? 'Sleep is unavailable: do not mention sleep or recommend tracking it.' : 'Mention sleep only if sleep measurements are supplied.'}
@@ -924,6 +927,8 @@ const measurement = z.number().positive().optional()
 const nonnegative = z.number().nonnegative().optional()
 const readinessRequestSchema = z.object({
   recovery: z.object({
+    date: z.string().datetime({ offset: true }).optional(),
+    rmssd: rmssdTrendSchema.optional(),
     restingHeartRate: measurement,
     hrv: measurement,
     walkingHeartRate: measurement,

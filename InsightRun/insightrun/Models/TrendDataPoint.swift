@@ -66,6 +66,7 @@ enum DeviationStatus {
 enum MetricType {
     case recoveryScore
     case hrv
+    case rmssd
     case restingHeartRate
     case respiratoryRate
     case oxygenSaturation

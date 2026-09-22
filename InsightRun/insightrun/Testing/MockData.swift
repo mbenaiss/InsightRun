@@ -243,7 +243,8 @@ enum MockData {
         sleepData: sampleSleepData,
         respiratoryRate: 14,
         oxygenSaturation: 98,
-        baseline: samplePersonalBaseline
+        baseline: samplePersonalBaseline,
+        rmssd: sampleRMSSD(for: now)
     )
 
     static func recoveryMetrics(for date: Date) -> RecoveryMetrics {
@@ -252,7 +253,22 @@ enum MockData {
                                hrvAverage: sample.hrvAverage, hrvMin: sample.hrvMin, hrvMax: sample.hrvMax,
                                walkingHeartRate: sample.walkingHeartRate, sleepData: sample.sleepData,
                                respiratoryRate: sample.respiratoryRate, oxygenSaturation: sample.oxygenSaturation,
-                               baseline: sample.baseline)
+                               baseline: sample.baseline, rmssd: sampleRMSSD(for: date))
+    }
+
+    private static func sampleRMSSD(for date: Date) -> RMSSDTrend {
+        let day = calendar.startOfDay(for: date)
+        let values: [Double] = [80, 84, 82, 89, 83, 88, 85, 87, 86]
+        let nights = values.enumerated().map { offset, value in
+            RMSSDTrend.Night(
+                date: calendar.date(byAdding: .day, value: offset - 8, to: day)!.ISO8601Format(),
+                median: value, sampleCount: 65)
+        }
+        return RMSSDTrend(
+            metric: "RMSSD", context: "asleep", source: "demo", sourceChanged: false,
+            latestSampleAt: day.ISO8601Format(), measuredAt: day.ISO8601Format(),
+            currentNight: nights.last, baselineMedian: 84.5, baselineNights: 8,
+            recentMedian: 86, recentNights: 7, nights: nights)
     }
 
     // MARK: - Sample Health Profile
@@ -333,19 +349,11 @@ enum MockData {
     }
 
     private static let sampleWorkoutAnalysisEN = """
-    ## Summary
-    Strong 10K at 4'47"/km showing excellent aerobic fitness. Heart rate averaged 172 bpm (Zone 4) with high intensity sustained well, and a negative split that reflects good pacing discipline.
-
-    ## Next action
-    Make the next session an easy 35-minute recovery run, keeping the effort conversational.
+    You completed this 10 km run at 4:47/km and finished faster than you started, showing that you were able to increase your pace late in the session. Your average heart rate of 172 bpm adds context to that effort, but does not establish its intensity without a personal reference and your perceived effort. On your next comparable run, keep the opening pace controlled and note how the final kilometres feel: this will help you assess whether a faster finish also feels manageable.
     """
 
     private static let sampleWorkoutAnalysisFR = """
-    ## Synthèse
-    Excellent 10K à 4'47"/km, très bonne condition aérobie. Fréquence cardiaque moyenne de 172 bpm (Zone 4), haute intensité bien maintenue, et une fin de course plus rapide qui traduit une bonne gestion de l'allure.
-
-    ## Prochaine action
-    Fais une sortie de récupération facile de 35 minutes en gardant une intensité qui permet de parler.
+    Sur ce 10 km à 4:47/km, tu as terminé plus vite que tu n'as commencé, ce qui montre que tu as pu augmenter l'allure en fin de séance. La fréquence cardiaque moyenne de 172 battements par minute complète ce constat, mais ne permet pas à elle seule de qualifier l'intensité sans référence personnelle ni ressenti. Lors d'une prochaine sortie comparable, garde un départ contrôlé et note tes sensations sur les derniers kilomètres : tu pourras ainsi vérifier si cette fin plus rapide reste confortable pour toi.
     """
 
     // MARK: - Sample Monthly Coach Insight (Demo Mode)
@@ -391,6 +399,10 @@ enum MockData {
             return lang == "fr"
                 ? "VFC de 65ms — dans la plage normale. Indicateur clé de récupération du système nerveux autonome. Valeur stable sur les 7 derniers jours."
                 : "HRV of 65ms — within normal range. Key indicator of autonomic nervous system recovery. Stable value over the last 7 days."
+        case .rmssd:
+            return lang == "fr"
+                ? "Ta VFC nocturne RMSSD est de \(Formatters.integer(Int(value.rounded()))) ms, proche de ta référence personnelle. Suis son évolution sur plusieurs nuits avec ton sommeil, ta fréquence cardiaque au repos et ton ressenti, sans conclure sur une seule mesure."
+                : "Your night-time RMSSD is \(Formatters.integer(Int(value.rounded()))) ms, close to your personal reference. Follow its trend over several nights alongside sleep, resting heart rate and how you feel, without drawing conclusions from one measurement."
         case .restingHeartRate:
             return lang == "fr"
                 ? "FC repos de 52 bpm — excellente pour un coureur régulier. Signe d'une bonne adaptation cardiovasculaire à l'entraînement."

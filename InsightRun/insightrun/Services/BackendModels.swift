@@ -127,6 +127,16 @@ struct WorkoutData: Encodable {
     let verticalOscillation: Double?
     let mobility: MobilityData?
     let splits: [SplitData]?
+    var effort: Double? = nil
+    var effortSource: String? = nil
+    var isIndoor: Bool? = nil
+    var temperatureCelsius: Double? = nil
+    var humidityPercent: Double? = nil
+    var pausedSeconds: Double? = nil
+    var intervals: [WorkoutIntervalData]? = nil
+    var evidence: WorkoutEvidence? = nil
+    var execution: WorkoutExecution? = nil
+    var feedback: WorkoutFeedback? = nil
 }
 
 struct HeartRateData: Encodable {
@@ -149,6 +159,22 @@ struct SplitData: Encodable {
     let pace: String
     let time: String
     var distanceMeters: Double? = nil
+    var heartRate: Double? = nil
+    var power: Double? = nil
+    var elevationGain: Double? = nil
+    var elevationLoss: Double? = nil
+}
+
+struct WorkoutIntervalData: Encodable {
+    let index: Int
+    let type: String
+    let duration: Double
+    let distance: Double?
+    let pace: Double?
+    let heartRate: Double?
+    let power: Double?
+    let targetPaceMin: Double?
+    let targetPaceMax: Double?
 }
 
 // MARK: - Recovery Data
@@ -160,6 +186,8 @@ struct RecoveryData: Codable {
     let respiratoryRate: Double?
     let oxygenSaturation: Double?
     let sleepData: SleepDataPayload?
+    var date: String? = nil
+    var rmssd: RMSSDTrend? = nil
 
     init(metrics: RecoveryMetrics) {
         restingHeartRate = metrics.restingHeartRate
@@ -167,6 +195,8 @@ struct RecoveryData: Codable {
         walkingHeartRate = metrics.walkingHeartRate
         respiratoryRate = metrics.respiratoryRate
         oxygenSaturation = metrics.oxygenSaturation
+        date = metrics.date.ISO8601Format()
+        rmssd = metrics.rmssd
         sleepData = metrics.sleepData.map {
             SleepDataPayload(totalDuration: $0.totalSleepDuration, efficiency: $0.sleepEfficiency,
                              deepDuration: $0.deepSleepDuration, remDuration: $0.remSleepDuration)

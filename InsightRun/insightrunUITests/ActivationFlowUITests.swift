@@ -1,6 +1,62 @@
 import XCTest
 
 final class ActivationFlowUITests: XCTestCase {
+    func testRecordedZonesAndWorkoutFeedback() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-DEMO_MODE", "-WORKOUT_ANALYSIS_UI_TEST", "-TRAINING_INSIGHTS_UI_TEST", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["workout-analysis-consent"].waitForExistence(timeout: 15))
+        let temperature = app.descendants(matching: .any)["workout-weather-temperature"].firstMatch
+        XCTAssertTrue(temperature.isHittable)
+        XCTAssertTrue(temperature.label.contains("19,5 °C"))
+        XCTAssertTrue(app.descendants(matching: .any)["workout-weather-humidity"].firstMatch.label.contains("62"))
+        let recordedEffort = app.descendants(matching: .any)["workout-recorded-effort"].firstMatch
+        XCTAssertTrue(recordedEffort.isHittable)
+        XCTAssertTrue(recordedEffort.label.contains("Estimation Apple"))
+        XCTAssertTrue(recordedEffort.label.contains("7/10"))
+        let title = app.staticTexts["workout-title"]
+        XCTAssertLessThan(temperature.frame.maxY, title.frame.minY)
+        XCTAssertLessThan(recordedEffort.frame.maxY, title.frame.minY)
+        let startTime = app.descendants(matching: .any)["workout-start-time"].firstMatch
+        XCTAssertTrue(startTime.isHittable)
+        XCTAssertTrue(startTime.label.contains("10:00"))
+        XCTAssertFalse(startTime.label.contains("2026"))
+        let duration = app.descendants(matching: .any)["workout-header-duration"].firstMatch
+        XCTAssertTrue(duration.isHittable)
+        XCTAssertTrue(duration.label.contains("30:00"))
+        XCTAssertLessThan(startTime.frame.maxY, title.frame.minY)
+        XCTAssertLessThan(duration.frame.maxY, title.frame.minY)
+        XCTAssertEqual(startTime.frame.minY, duration.frame.minY, accuracy: 2)
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '2026'")).count, 1)
+        let coach = app.staticTexts["workout-section-coach"]
+        let timeline = app.staticTexts["workout-section-timeline"]
+        let effort = app.staticTexts["workout-section-effort"]
+        let information = app.staticTexts["workout-section-information"]
+        XCTAssertLessThan(app.buttons["workout-metric.distance"].frame.maxY, coach.frame.minY)
+        XCTAssertLessThan(coach.frame.minY, timeline.frame.minY)
+        XCTAssertLessThan(timeline.frame.minY, effort.frame.minY)
+        XCTAssertLessThan(effort.frame.minY, information.frame.minY)
+        attachScreenshot(of: app, named: "Workout-Weather-Effort-French")
+        let feedback = app.buttons["workout-feedback"]
+        for _ in 0..<5 where !feedback.isHittable { app.swipeUp() }
+        XCTAssertTrue(feedback.isHittable)
+        feedback.tap()
+        XCTAssertTrue(app.staticTexts["Effort ressenti"].waitForExistence(timeout: 5))
+        app.staticTexts["Effort ressenti"].tap()
+        app.buttons["8/10"].tap()
+        attachScreenshot(of: app, named: "Workout-Feedback-French")
+        app.buttons["Enregistrer"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["workout-perceived-effort"].firstMatch.label.contains("8/10"))
+        XCTAssertTrue(recordedEffort.label.contains("7/10"))
+        feedback.tap()
+        XCTAssertTrue(app.staticTexts["8/10"].waitForExistence(timeout: 5))
+        app.buttons["Enregistrer"].tap()
+        for _ in 0..<10 where !app.staticTexts["Zones automatiques Apple"].isHittable { app.swipeUp() }
+        XCTAssertTrue(app.staticTexts["Zones automatiques Apple"].exists)
+        XCTAssertTrue(app.staticTexts["Z3"].exists)
+        attachScreenshot(of: app, named: "Recorded-Zones-French")
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -24,8 +80,9 @@ final class ActivationFlowUITests: XCTestCase {
 
         let analysis = app.descendants(matching: .any)["workout-ai-analysis"]
         XCTAssertTrue(analysis.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["analysis-confidence"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Prochaine action"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["workout-analysis-result"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Sur ce 10 km à 4:47/km")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Prochaine action"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["post-analysis-notification"].exists)
 
         attachScreenshot(of: app, named: "Activation-Workout-Analysis")
@@ -49,6 +106,10 @@ final class ActivationFlowUITests: XCTestCase {
         XCTAssertTrue(consentButton.isHittable)
         XCTAssertFalse(app.buttons["ai-consent-allow"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["workout-analysis-result"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["workout-weather-temperature"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["workout-weather-humidity"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["workout-recorded-effort"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["workout-perceived-effort"].exists)
         attachScreenshot(of: app, named: "Real-Workout-Consent-Required")
 
         consentButton.tap()
@@ -128,6 +189,7 @@ final class ActivationFlowUITests: XCTestCase {
         let app = launchAnalysisScenario()
         let toggle = app.switches["workout-official-race-toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        for _ in 0..<8 where !toggle.isHittable { app.swipeUp() }
         XCTAssertEqual(toggle.value as? String, "0")
         toggle.tap()
         XCTAssertEqual(toggle.value as? String, "1")
@@ -141,6 +203,7 @@ final class ActivationFlowUITests: XCTestCase {
         let app = launchAnalysisScenario(showsRacePlan: true)
         let toggle = app.switches["workout-official-race-toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        for _ in 0..<8 where !toggle.isHittable { app.swipeUp() }
         toggle.tap()
         XCTAssertEqual(toggle.value as? String, "1")
         app.buttons["test-official-race-plan"].tap()
@@ -158,7 +221,12 @@ final class ActivationFlowUITests: XCTestCase {
     private func assertAnalysisIsDisplayed(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let result = app.descendants(matching: .any)["workout-analysis-result"]
         XCTAssertTrue(result.waitForExistence(timeout: 10), file: file, line: line)
-        XCTAssertTrue(app.staticTexts["Prochaine action"].waitForExistence(timeout: 5), file: file, line: line)
+        let paragraph = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Cette séance de 5 kilomètres en 30 minutes")).firstMatch
+        XCTAssertTrue(paragraph.waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertTrue(paragraph.label.contains("Pour ta prochaine séance"), file: file, line: line)
+        XCTAssertFalse(app.staticTexts["Constats"].exists, file: file, line: line)
+        XCTAssertFalse(app.staticTexts["Interprétation"].exists, file: file, line: line)
+        XCTAssertFalse(app.staticTexts["Prochaine action"].exists, file: file, line: line)
     }
 
     private func attachScreenshot(of app: XCUIApplication, named name: String) {

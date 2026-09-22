@@ -57,6 +57,7 @@ struct ScoreExplanationSheet: View {
     private let deviationStatus: DeviationStatus?
     private let baseline: PersonalBaseline?
     private let caloriesBreakdown: [CaloriesBreakdownPoint]?
+    private let refresh: (() async -> Void)?
 
     // Shared
     var trendData: [TrendDataPoint]?
@@ -103,6 +104,7 @@ struct ScoreExplanationSheet: View {
         self.deviationStatus = nil
         self.baseline = nil
         self.caloriesBreakdown = nil
+        self.refresh = nil
     }
 
     // MARK: - Metric Init
@@ -116,10 +118,13 @@ struct ScoreExplanationSheet: View {
         trendData: [TrendDataPoint]? = nil,
         recoveryMetrics: RecoveryMetrics? = nil,
         activityData: DailyActivityData? = nil,
-        caloriesBreakdown: [CaloriesBreakdownPoint]? = nil
+        caloriesBreakdown: [CaloriesBreakdownPoint]? = nil,
+        isMetricAvailable: Bool = true,
+        refresh: (() async -> Void)? = nil
     ) {
         self.mode = .metric(metricType)
-        self.isScoreAvailable = true
+        self.isScoreAvailable = isMetricAvailable
+        self.refresh = refresh
         self.readinessStatus = nil
         self.metricValue = currentValue
         self.metricUnit = unit
@@ -237,6 +242,7 @@ struct ScoreExplanationSheet: View {
         case .metric(let metricType):
             switch metricType {
             case .hrv: return String(localized: "Heart Rate Variability", comment: "HRV title")
+            case .rmssd: return String(localized: "insights.rmssd", defaultValue: "Night-time HRV · RMSSD")
             case .restingHeartRate: return String(localized: "Resting Heart Rate", comment: "RHR title")
             case .respiratoryRate: return String(localized: "Respiratory Rate", comment: "Respiratory rate title")
             case .oxygenSaturation: return String(localized: "Oxygen Saturation", comment: "SpO2 title")
@@ -318,8 +324,14 @@ struct ScoreExplanationSheet: View {
                 caloriesBreakdownCard(activity)
             }
 
-            if let baseline = baseline {
-                baselineComparisonCard(baseline)
+            if case .metric(.rmssd) = mode {
+                if let trend = recoveryMetrics?.rmssd {
+                    rmssdReferenceCard(trend)
+                } else if let refresh {
+                    RMSSDAccessCard(refresh: refresh)
+                }
+            } else if baseline != nil {
+                baselineComparisonCard
             }
 
             metricExplanationCard
@@ -645,7 +657,9 @@ struct ScoreExplanationSheet: View {
         guard case .metric(let metricType) = mode else { return AnyView(EmptyView()) }
 
         let accent = metricColor(metricType)
-        let statusText = deviationStatus?.localizedDescription(for: metricType) ?? metricUnit
+        let statusText = metricType == .rmssd
+            ? RMSSDTrend.statusDescription(recoveryMetrics?.rmssd)
+            : deviationStatus?.localizedDescription(for: metricType) ?? metricUnit
         // Most physiological metrics don't use a 0–100 scale — render the raw value
         // without a gauge unless we get a meaningful baseline-relative progress.
         let progress: Double? = nil
@@ -654,13 +668,13 @@ struct ScoreExplanationSheet: View {
         switch metricType {
         case .respiratoryRate:
             formatted = Formatters.decimal(metricValue, fractionDigits: 1)
-        case .totalCalories, .hrv, .restingHeartRate, .oxygenSaturation, .sleepDuration, .sleepEfficiency, .recoveryScore:
+        case .totalCalories, .hrv, .rmssd, .restingHeartRate, .oxygenSaturation, .sleepDuration, .sleepEfficiency, .recoveryScore:
             formatted = Formatters.integer(Int(metricValue.rounded()))
         }
 
         return AnyView(
             DetailHeroCard(
-                valueLabel: formatted,
+                valueLabel: isScoreAvailable ? formatted : "—",
                 unitLabel: metricUnit.isEmpty ? nil : metricUnit,
                 statusLabel: statusText,
                 accent: accent,
@@ -800,7 +814,7 @@ struct ScoreExplanationSheet: View {
                 if let selected {
                     VStack(alignment: .trailing, spacing: 2) {
                         HStack(spacing: Spacing.xxs) {
-                            Text(String(format: "%.1f", selected.value))
+                            Text(Formatters.decimal(selected.value, fractionDigits: 1))
                                 .font(IRFont.title3)
                                 .fontWeight(.bold)
                                 .foregroundStyle(accent)
@@ -843,7 +857,9 @@ struct ScoreExplanationSheet: View {
                         .foregroundStyle(Color.irTextTertiary.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
                         .annotation(position: .top, alignment: .trailing) {
-                            Text(String(localized: "Avg", comment: "Average baseline label"))
+                            Text(metricType == .rmssd
+                                 ? String(localized: "insights.rmssd.reference.short", defaultValue: "Reference")
+                                 : String(localized: "Avg", comment: "Average baseline label"))
                                 .font(IRFont.microLabel)
                                 .foregroundStyle(Color.irTextSecondary)
                         }
@@ -864,6 +880,7 @@ struct ScoreExplanationSheet: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(trendChartAccessibilityLabel(historyData))
+            .accessibilityIdentifier("metric-history-chart")
 
             HStack(spacing: Spacing.base) {
                 chartLegend(color: accent, label: String(localized: "Daily value", comment: "Chart legend - daily value"))
@@ -871,7 +888,9 @@ struct ScoreExplanationSheet: View {
                 if getBaselineAverage(metricType) != nil {
                     HStack(spacing: Spacing.xxs) {
                         Rectangle().fill(Color.irTextTertiary.opacity(0.5)).frame(width: 16, height: 2)
-                        Text(String(localized: "Personal average", comment: "Chart legend - personal average"))
+                        Text(metricType == .rmssd
+                             ? String(localized: "insights.rmssd.reference.title", defaultValue: "Your personal reference")
+                             : String(localized: "Personal average", comment: "Chart legend - personal average"))
                             .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
                     }
@@ -1097,6 +1116,16 @@ struct ScoreExplanationSheet: View {
                     .foregroundStyle(Color.irTextPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                if metricType == .rmssd {
+                    Divider().background(Color.irBorder)
+                    Text(String(localized: "insights.rmssd.calculation", defaultValue: "InsightRun shows the median of the RMSSD measurements recorded during sleep. A night needs at least 3 measurements. Your reference is built from at least 7 usable previous nights within the last 28 days, excluding the selected night. Only measurements from the same device and software source are combined."))
+                        .font(IRFont.footnote)
+                        .foregroundStyle(Color.irTextSecondary)
+                    Text(String(localized: "insights.rmssd.interpretation", defaultValue: "Compare your trend across several nights with your own reference, alongside sleep, resting heart rate and how you feel. One value alone does not establish your recovery level. RMSSD does not change your recovery score. While your reference is building, the app shows your measurements without assigning a good or bad rating."))
+                        .font(IRFont.footnote)
+                        .foregroundStyle(Color.irTextSecondary)
+                }
+
                 if let status = deviationStatus {
                     Divider().background(Color.irBorder)
 
@@ -1122,12 +1151,12 @@ struct ScoreExplanationSheet: View {
     // MARK: - Baseline Comparison Card
 
     @ViewBuilder
-    private func baselineComparisonCard(_ baseline: PersonalBaseline) -> some View {
+    private var baselineComparisonCard: some View {
         if case .metric(let metricType) = mode, let avg = getBaselineAverage(metricType) {
             VStack(alignment: .leading, spacing: 0) {
                 baselineRow(
                     label: String(localized: "Your average", comment: "Average label"),
-                    value: String(format: "%.1f", avg),
+                    value: Formatters.decimal(avg, fractionDigits: 1),
                     unit: metricUnit,
                     color: Color.irTextPrimary
                 )
@@ -1139,6 +1168,39 @@ struct ScoreExplanationSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .detailCard()
         }
+    }
+
+    private func rmssdReferenceCard(_ trend: RMSSDTrend) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let reference = trend.baselineMedian {
+                baselineRow(
+                    label: String(localized: "insights.rmssd.reference.title", defaultValue: "Your personal reference"),
+                    value: Formatters.decimal(reference, fractionDigits: 1), unit: metricUnit,
+                    color: .irTextPrimary)
+                if isScoreAvailable {
+                    Divider().background(Color.irBorder)
+                    deviationRow(metricType: .rmssd, average: reference)
+                }
+            }
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                if let current = trend.currentNight {
+                    Text(String(localized: "insights.rmssd.samples", defaultValue: "\(current.sampleCount) measurements during sleep"))
+                } else {
+                    Text(String(localized: "insights.rmssd.no.night", defaultValue: "No usable measurements for this night."))
+                }
+                if trend.baselineMedian == nil {
+                    Text(String(localized: "insights.rmssd.building", defaultValue: "Building your reference: \(trend.baselineNights)/7 previous nights"))
+                }
+                if trend.sourceChanged {
+                    Text(String(localized: "insights.rmssd.source", defaultValue: "Device or software changed. The reference uses the latest source only."))
+                }
+            }
+            .font(IRFont.caption)
+            .foregroundStyle(Color.irTextSecondary)
+            .padding(Spacing.cardPadding)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .detailCard()
     }
 
     private func baselineRow(label: String, value: String, unit: String, color: Color) -> some View {
@@ -1178,7 +1240,7 @@ struct ScoreExplanationSheet: View {
             }
         }()
 
-        let accent: Color = isGood ? .irSuccess : .irWarning
+        let accent: Color = metricType == .rmssd ? .irTextSecondary : (isGood ? .irSuccess : .irWarning)
         let arrow = isPositive ? "arrow.up" : "arrow.down"
 
         return HStack {
@@ -1193,7 +1255,7 @@ struct ScoreExplanationSheet: View {
                     .font(IRFont.eyebrow.weight(.bold))
                     .foregroundStyle(accent)
 
-                Text(String(format: "%.1f", abs(deviationPercent)))
+                Text(Formatters.decimal(abs(deviationPercent), fractionDigits: 1))
                     .font(IRFont.numSM)
                     .foregroundStyle(accent)
 
@@ -1469,7 +1531,11 @@ struct ScoreExplanationSheet: View {
         if case .metric(let metricType) = mode {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 DetailReferencesCard(sources: metricReferenceSources(metricType))
-                if metricType == .totalCalories {
+                if metricType == .rmssd {
+                    Link(String(localized: "insights.rmssd.source.link", defaultValue: "HRV measurement standards · ESC / NASPE"),
+                         destination: URL(string: "https://www.escardio.org/static-file/Escardio/Guidelines/Scientific-Statements/guidelines-Heart-Rate-Variability-FT-1996.pdf")!)
+                        .font(IRFont.caption)
+                } else if metricType == .totalCalories {
                     Link("Apple HealthKit", destination: URL(string: "https://developer.apple.com/documentation/healthkit/hkquantitytypeidentifier/basalenergyburned")!)
                         .font(IRFont.caption)
                 } else {
@@ -1598,7 +1664,7 @@ struct ScoreExplanationSheet: View {
     private func metricIcon(_ type: MetricType) -> String {
         switch type {
         case .recoveryScore: return "bolt.heart.fill"
-        case .hrv: return "waveform.path.ecg"
+        case .hrv, .rmssd: return "waveform.path.ecg"
         case .restingHeartRate: return "heart.fill"
         case .respiratoryRate: return "lungs.fill"
         case .oxygenSaturation: return "drop.fill"
@@ -1611,7 +1677,7 @@ struct ScoreExplanationSheet: View {
     private func metricColor(_ type: MetricType) -> Color {
         switch type {
         case .recoveryScore: return Color.irPrimaryAccent
-        case .hrv: return Color.irPrimaryAccent
+        case .hrv, .rmssd: return Color.irPrimaryAccent
         case .restingHeartRate: return Color.irError
         case .respiratoryRate: return Color.irPrimaryAccent
         case .oxygenSaturation: return Color.irPrimaryAccent
@@ -1627,6 +1693,8 @@ struct ScoreExplanationSheet: View {
             return String(localized: "Your recovery score reflects how well your body has recovered from recent stress and training. A higher score indicates better readiness for intense physical activity.", comment: "Recovery explanation")
         case .hrv:
             return String(localized: "Heart Rate Variability (HRV) measures the variation in time between heartbeats. Higher HRV generally indicates better cardiovascular fitness and recovery. It's influenced by stress, sleep quality, and overall health.", comment: "HRV explanation")
+        case .rmssd:
+            return String(localized: "insights.rmssd.explanation", defaultValue: "RMSSD describes how much the time between successive heartbeats varies, in milliseconds. It is a different measure from SDNN, the HRV shown in the resting HRV card. The two values are tracked separately.")
         case .restingHeartRate:
             return String(localized: "Resting heart rate is the number of heartbeats per minute when you're completely at rest. A lower resting heart rate typically indicates better cardiovascular fitness. An elevated rate can signal stress or insufficient recovery.", comment: "RHR explanation")
         case .respiratoryRate:
@@ -1667,6 +1735,8 @@ struct ScoreExplanationSheet: View {
 
     private func metricReferenceSources(_ type: MetricType) -> [String] {
         switch type {
+        case .rmssd:
+            return [String(localized: "insights.rmssd.source.link", defaultValue: "HRV measurement standards · ESC / NASPE")]
         case .hrv:
             return [
                 String(localized: "Frontiers in Physiology \u{00B7} 2019", comment: "HRV source 1"),
@@ -1702,6 +1772,7 @@ struct ScoreExplanationSheet: View {
     }
 
     private func getBaselineAverage(_ type: MetricType) -> Double? {
+        if type == .rmssd { return recoveryMetrics?.rmssd?.baselineMedian }
         guard let baseline else { return nil }
         switch type {
         case .hrv: return baseline.hrvAverage

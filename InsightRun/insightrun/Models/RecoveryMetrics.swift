@@ -58,6 +58,7 @@ struct RecoveryMetrics: Identifiable {
 
     // Personal baseline for comparison
     let baseline: PersonalBaseline?
+    let rmssd: RMSSDTrend?
 
     // Cached recovery score (0-100), computed once at init
     let recoveryScore: Int
@@ -72,7 +73,8 @@ struct RecoveryMetrics: Identifiable {
         sleepData: SleepData? = nil,
         respiratoryRate: Double? = nil,
         oxygenSaturation: Double? = nil,
-        baseline: PersonalBaseline? = nil
+        baseline: PersonalBaseline? = nil,
+        rmssd: RMSSDTrend? = nil
     ) {
         self.date = date
         self.restingHeartRate = restingHeartRate
@@ -85,6 +87,7 @@ struct RecoveryMetrics: Identifiable {
         self.respiratoryRate = respiratoryRate
         self.oxygenSaturation = oxygenSaturation
         self.baseline = baseline
+        self.rmssd = rmssd
         self.recoveryScore = Self.calculateRecoveryScore(
             baseline: baseline,
             sleepData: availableSleep,
@@ -106,7 +109,8 @@ struct RecoveryMetrics: Identifiable {
             sleepData: sleepData,
             respiratoryRate: respiratoryRate,
             oxygenSaturation: oxygenSaturation,
-            baseline: baseline
+            baseline: baseline,
+            rmssd: rmssd
         )
     }
 

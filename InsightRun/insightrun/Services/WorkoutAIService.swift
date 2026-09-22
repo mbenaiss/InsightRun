@@ -288,9 +288,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         )
     }
 
+    @MainActor
     private func buildChatPayload(question: String, requestType: RequestType, mode: AIAssistantMode) async -> ChatRequestV2 {
         // Load historical summary if available
-        let historicalSummary = await HistoricalSummaryStorage.shared.load()
+        let historicalSummary = HistoricalSummaryStorage.shared.load()
 
         if let summary = historicalSummary {
             print("✅ WorkoutAIService: Using historical summary (\(summary.workoutCount) workouts)")
@@ -462,6 +463,7 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     // ISO 8601 keeps WorkoutData.date machine-parseable on the backend (no localized format).
     private static let isoDateFormatter = ISO8601DateFormatter()
 
+    @MainActor
     func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
         return WorkoutData(
             date: Self.isoDateFormatter.string(from: workout.startDate),
@@ -503,9 +505,25 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     kilometer: split.kilometer,
                     pace: Formatters.paceClock(split.pace * 60),
                     time: split.timeFormatted,
-                    distanceMeters: split.distance
+                    distanceMeters: split.distance,
+                    heartRate: split.averageHeartRate,
+                    power: split.averagePower,
+                    elevationGain: split.elevationGain,
+                    elevationLoss: split.elevationLoss
                 )
-            }
+            },
+            effort: workout.effortScore,
+            effortSource: workout.effortScore == nil ? nil : (workout.effortIsEstimated ? "apple_estimated" : "user_rated"),
+            isIndoor: workout.isIndoor,
+            temperatureCelsius: metrics?.temperature,
+            humidityPercent: metrics?.humidity.flatMap { (0...100).contains($0) ? $0 : nil },
+            pausedSeconds: metrics?.pausedTime,
+            intervals: metrics?.intervals?.prefix(200).map {
+                WorkoutIntervalData(index: $0.index, type: $0.type.rawValue, duration: $0.duration, distance: $0.distance, pace: $0.pace, heartRate: $0.averageHeartRate, power: $0.averagePower, targetPaceMin: $0.targetPaceMin, targetPaceMax: $0.targetPaceMax)
+            },
+            evidence: metrics?.evidence,
+            execution: metrics.map { WorkoutExecution.calculate(metrics: $0) },
+            feedback: WorkoutFeedbackStore.shared.feedback(for: workout)
         )
     }
 

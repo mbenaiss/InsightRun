@@ -146,7 +146,9 @@ struct DashboardView: View {
                     trendData: metricTrend(for: item.metricType),
                     recoveryMetrics: recoveryVM.recoveryMetrics,
                     activityData: item.activityData == nil ? nil : latestActivityData,
-                    caloriesBreakdown: item.caloriesBreakdown == nil ? nil : caloriesBreakdownTrend
+                    caloriesBreakdown: item.caloriesBreakdown == nil ? nil : caloriesBreakdownTrend,
+                    isMetricAvailable: item.metricType != .rmssd || metricValue(for: .rmssd) != nil,
+                    refresh: { await recoveryVM.refresh() }
                 )
                 .environmentObject(revenueCatManager)
                 .presentationDetents([.large])
@@ -317,6 +319,7 @@ struct DashboardView: View {
         let metrics = recoveryVM.recoveryMetrics
         switch type {
         case .hrv: return metrics?.hrvAverage
+        case .rmssd: return metrics?.rmssd?.currentNight?.median
         case .restingHeartRate: return metrics?.restingHeartRate
         case .respiratoryRate: return metrics?.respiratoryRate
         case .oxygenSaturation: return metrics?.oxygenSaturation
@@ -340,6 +343,7 @@ struct DashboardView: View {
     private func metricTrend(for type: MetricType) -> [TrendDataPoint] {
         switch type {
         case .hrv: return hrvTrend
+        case .rmssd: return recoveryVM.recoveryMetrics?.rmssd?.history(endingOn: recoveryVM.selectedDate) ?? []
         case .restingHeartRate: return rhrTrend
         case .respiratoryRate: return respTrend
         case .oxygenSaturation: return spo2Trend
@@ -758,6 +762,23 @@ struct DashboardView: View {
                 )
             }
 
+            if recovery?.rmssd != nil || HealthInsightReader.rmssdType != nil {
+                SignalCard(
+                    icon: "waveform.path.ecg",
+                    color: .irPrimaryAccent,
+                    label: String(localized: "insights.rmssd.short", defaultValue: "HRV · RMSSD"),
+                    value: recovery?.rmssd?.currentNight.map { Formatters.integer(Int($0.median.rounded())) } ?? "—",
+                    unit: "ms",
+                    status: RMSSDTrend.statusDescription(recovery?.rmssd),
+                    statusColor: .irTextSecondary,
+                    trend: metricTrend(for: .rmssd).map(\.value),
+                    onTap: {
+                        presentMetricSheet(.rmssd, value: metricValue(for: .rmssd) ?? 0,
+                                           unit: "ms", status: nil, trend: metricTrend(for: .rmssd))
+                    }
+                )
+            }
+
             if let rhr = recovery?.restingHeartRate {
                 let status = rhrDeviationStatus(rhr, baseline: recovery?.baseline)
                 SignalCard(
@@ -806,6 +827,7 @@ struct DashboardView: View {
             cardiacLoadSignalCard
 
             caloriesSignalCard
+
         }
     }
 
@@ -861,7 +883,7 @@ struct DashboardView: View {
         _ metricType: MetricType,
         value: Double,
         unit: String,
-        status: DeviationStatus,
+        status: DeviationStatus?,
         trend: [TrendDataPoint]
     ) {
         selectedMetricSheet = MetricSheetItem(

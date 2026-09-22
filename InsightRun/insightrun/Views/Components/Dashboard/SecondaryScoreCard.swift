@@ -12,7 +12,7 @@ struct SecondaryScoreCard: View {
     let title: String
     let score: Int?
     let baseline: Int?
-    let accent: Color
+    private let accent = Color.irPrimaryAccent
     let trend: [Double]
     var onTap: (() -> Void)?
 
@@ -79,9 +79,9 @@ struct SecondaryScoreCard: View {
             Spacer()
 
             if let delta {
-            Text("\(delta >= 0 ? "+" : "")\(delta)")
-                .font(IRFont.monoSM.weight(.bold))
-                .foregroundStyle(accent)
+                Text("\(delta >= 0 ? "+" : "")\(delta)")
+                    .font(IRFont.monoSM.weight(.bold))
+                    .foregroundStyle(Color.irTextSecondary)
             }
         }
     }
@@ -249,14 +249,12 @@ struct MicroSparkline: View {
             title: "Effort",
             score: 39,
             baseline: 55,
-            accent: .irWarning,
             trend: [62, 70, 88, 100, 75, 38, 39]
         )
         SecondaryScoreCard(
             title: "Sommeil",
             score: 90,
             baseline: 75,
-            accent: .irSuccess,
             trend: [85, 78, 88, 92, 80, 85, 90]
         )
     }

@@ -16,8 +16,8 @@ struct DetailHeroCard: View {
     let unitLabel: String?
     /// Status caption rendered uppercased under the value (e.g. "MITIGÉE").
     let statusLabel: String
-    /// Color driving the arc gradient + status text.
-    let accent: Color
+    private let accent = Color.irPrimaryAccent
+    let statusColor: Color
     /// Progress 0…1 used to position the arc end + needle. Pass `nil` to hide
     /// the gauge entirely (for metrics that don't fit a 0–100 scale).
     let progress: Double?
@@ -150,7 +150,7 @@ struct DetailHeroCard: View {
             Text(statusLabel.uppercased())
                 .font(IRFont.eyebrow.weight(.bold))
                 .tracking(IRTracking.eyebrow)
-                .foregroundStyle(accent)
+                .foregroundStyle(statusColor)
         }
         .position(x: cx, y: cy - 14)
     }
@@ -177,7 +177,7 @@ struct DetailHeroCard: View {
             Text(statusLabel.uppercased())
                 .font(IRFont.microLabel.weight(.bold))
                 .tracking(IRTracking.microLabel)
-                .foregroundStyle(accent)
+                .foregroundStyle(statusColor)
         }
         .padding(.vertical, Spacing.sm)
     }
@@ -205,7 +205,7 @@ private struct DetailHalfArc: Shape {
             valueLabel: "47",
             unitLabel: "/100",
             statusLabel: "Mitigée",
-            accent: .irWarning,
+            statusColor: .irWarning,
             progress: 0.47
         )
 
@@ -213,7 +213,7 @@ private struct DetailHalfArc: Shape {
             valueLabel: "108",
             unitLabel: "ms",
             statusLabel: "Above normal",
-            accent: .irSuccess,
+            statusColor: .irWarning,
             progress: nil
         )
     }

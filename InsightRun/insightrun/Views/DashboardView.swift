@@ -414,7 +414,6 @@ struct DashboardView: View {
                                         title: String(localized: "Effort", comment: "Dashboard effort label"),
                                         score: trainingLoadService.dailyEffortScore,
                                         baseline: averagePreviousScores(effortTrend),
-                                        accent: .irWarning,
                                         trend: effortTrend.suffix(7).map(\.value),
                                         onTap: { selectedScoreType = .effort }
                                     )
@@ -432,7 +431,6 @@ struct DashboardView: View {
                                         ),
                                         score: freshness,
                                         baseline: averagePreviousScores(trainingLoadService.freshnessTrendData),
-                                        accent: .irSuccess,
                                         trend: trainingLoadService.freshnessTrendData.suffix(7).map(\.value),
                                         onTap: { selectedScoreType = .freshness }
                                     )
@@ -442,7 +440,6 @@ struct DashboardView: View {
                                         title: String(localized: "Sleep", comment: "Dashboard sleep label"),
                                         score: recoveryVM.recoveryMetrics?.sleepData?.qualityScore,
                                         baseline: averagePreviousScores(sleepTrend),
-                                        accent: .irSuccess,
                                         trend: sleepTrend.suffix(7).map(\.value),
                                         onTap: { selectedScoreType = .sleep }
                                     )
@@ -788,7 +785,6 @@ struct DashboardView: View {
                 let status = hrvDeviationStatus(hrv, baseline: recovery?.baseline)
                 SignalCard(
                     icon: "waveform.path.ecg",
-                    color: Color.irPrimaryAccent,
                     label: String(localized: "HRV at rest", comment: "HRV metric title"),
                     value: Formatters.integer(Int(hrv.rounded())),
                     unit: "ms",
@@ -802,7 +798,6 @@ struct DashboardView: View {
             if let rmssd = MetricDisplayValue.positive(recovery?.rmssd?.currentNight?.median) {
                 SignalCard(
                     icon: "waveform.path.ecg",
-                    color: .irPrimaryAccent,
                     label: String(localized: "insights.rmssd.short", defaultValue: "HRV · RMSSD"),
                     value: Formatters.integer(Int(rmssd.rounded())),
                     unit: "ms",
@@ -821,7 +816,6 @@ struct DashboardView: View {
                 let status = rhrDeviationStatus(rhr, baseline: recovery?.baseline)
                 SignalCard(
                     icon: "heart.fill",
-                    color: .irWarning,
                     label: String(localized: "Resting HR", comment: "Resting heart rate metric title"),
                     value: Formatters.integer(Int(rhr.rounded())),
                     unit: "bpm",
@@ -836,7 +830,6 @@ struct DashboardView: View {
                 let status = respDeviationStatus(resp, baseline: recovery?.baseline)
                 SignalCard(
                     icon: "lungs.fill",
-                    color: .irSuccess,
                     label: String(localized: "Respiratory rate", comment: "Respiratory rate metric title"),
                     value: Formatters.decimal(resp, fractionDigits: 1),
                     unit: "rpm",
@@ -851,7 +844,6 @@ struct DashboardView: View {
                 let status = spo2DeviationStatus(spo2)
                 SignalCard(
                     icon: "drop.fill",
-                    color: .irPrimaryAccent,
                     label: String(localized: "Oxygen saturation", comment: "SpO2 metric title"),
                     value: Formatters.integer(Int(spo2.rounded())),
                     unit: "%",
@@ -876,7 +868,6 @@ struct DashboardView: View {
             let status = trainingLoadService.cardiacLoadStatus
             SignalCard(
                 icon: "shoe.2.fill",
-                color: status.color,
                 label: String(localized: "Cardiac Load", comment: "Cardiac load metric title"),
                 value: "\(load)",
                 unit: "/20",
@@ -895,13 +886,12 @@ struct DashboardView: View {
             let activeLabel = String(localized: "active", comment: "Active calories label")
             SignalCard(
                 icon: "flame.fill",
-                color: .irWarning,
                 label: String(localized: "Calories", comment: "Calories metric title"),
                 value: Formatters.integer(Int(activity.totalCalories.rounded())),
                 unit: "kcal",
                 status: MetricDisplayValue.positive(activity.activeCalories) == nil
                     ? nil : "\(activeKcal) " + activeLabel,
-                statusColor: .irWarning,
+                statusColor: .irTextSecondary,
                 trend: caloriesTotalTrend.suffix(7).map(\.value),
                 onTap: {
                     selectedMetricSheet = MetricSheetItem(
@@ -924,7 +914,6 @@ struct DashboardView: View {
         if let activity = latestActivityData, MetricDisplayValue.positive(activity.steps) != nil {
             SignalCard(
                 icon: "figure.walk",
-                color: .irPrimaryAccent,
                 label: String(localized: "Steps"),
                 value: Formatters.integer(Int(activity.steps.rounded())),
                 unit: String(localized: "steps"),

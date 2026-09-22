@@ -484,11 +484,10 @@ enum ReadinessStatus {
 
     var color: Color {
         switch self {
-        case .excellent: return .green
-        case .good: return .yellow
-        case .fair: return .orange
-        case .poor: return .red
-        case .unknown: return .gray
+        case .excellent, .good: return .irSuccess
+        case .fair: return .irWarning
+        case .poor: return .irError
+        case .unknown: return .irTextSecondary
         }
     }
 }

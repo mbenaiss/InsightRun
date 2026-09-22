@@ -645,7 +645,7 @@ struct ScoreExplanationSheet: View {
             valueLabel: isScoreAvailable ? "\(score)" : "—",
             unitLabel: "/100",
             statusLabel: isScoreAvailable ? scoreLabel : String(localized: "No data available"),
-            accent: scoreAccentColor,
+            statusColor: scoreStatusColor,
             progress: isScoreAvailable ? Double(score) / 100.0 : nil
         )
     }
@@ -655,7 +655,7 @@ struct ScoreExplanationSheet: View {
             valueLabel: isScoreAvailable ? "\(score)" : "—",
             unitLabel: "/20",
             statusLabel: cardiacLoadStatus?.title ?? "—",
-            accent: cardiacLoadStatus?.color ?? Color.irPrimaryAccent,
+            statusColor: cardiacLoadStatus?.color ?? .irTextSecondary,
             progress: Double(score) / 20.0
         )
     }
@@ -665,7 +665,6 @@ struct ScoreExplanationSheet: View {
     private var metricValueCard: some View {
         guard case .metric(let metricType) = mode else { return AnyView(EmptyView()) }
 
-        let accent = metricColor(metricType)
         let statusText = metricType == .rmssd
             ? RMSSDTrend.statusDescription(recoveryMetrics?.rmssd)
             : deviationStatus?.localizedDescription(for: metricType) ?? metricUnit
@@ -686,7 +685,7 @@ struct ScoreExplanationSheet: View {
                 valueLabel: isScoreAvailable ? formatted : "—",
                 unitLabel: metricUnit.isEmpty ? nil : metricUnit,
                 statusLabel: statusText,
-                accent: accent,
+                statusColor: deviationStatus?.color ?? .irTextSecondary,
                 progress: progress
             )
         )
@@ -695,7 +694,7 @@ struct ScoreExplanationSheet: View {
     // MARK: - Score Charts
 
     private func scoreTrendChart(_ data: [TrendDataPoint], scoreType: ScoreType) -> some View {
-        let accent = scoreAccentColor
+        let accent = Color.irPrimaryAccent
         let selected = selectedPoint(in: data)
 
         return VStack(alignment: .leading, spacing: Spacing.base) {
@@ -730,7 +729,7 @@ struct ScoreExplanationSheet: View {
     }
 
     private func cardiacLoadChartCard(_ data: [TrendDataPoint]) -> some View {
-        let accent = cardiacLoadStatus?.color ?? Color.irPrimaryAccent
+        let accent = Color.irPrimaryAccent
         let selected = selectedPoint(in: data)
 
         return VStack(alignment: .leading, spacing: Spacing.base) {
@@ -805,7 +804,7 @@ struct ScoreExplanationSheet: View {
     private var metricHistoryChart: some View {
         guard case .metric(let metricType) = mode, !historyData.isEmpty else { return AnyView(EmptyView()) }
 
-        let accent = metricColor(metricType)
+        let accent = Color.irPrimaryAccent
         let selected: TrendDataPoint? = {
             guard !historyData.isEmpty else { return nil }
             guard let selectedDate else { return historyData.last }
@@ -915,8 +914,8 @@ struct ScoreExplanationSheet: View {
     // MARK: - Calories Stacked Bar Chart
 
     private func caloriesStackedHistoryChart(_ data: [CaloriesBreakdownPoint]) -> some View {
-        let activeColor = Color.irSuccess
-        let restingColor = Color.irWarning
+        let activeColor = Color.irPrimaryAccent
+        let restingColor = Color.irTextSecondary
         let activeLabel = String(localized: "Active", comment: "Active calories label")
         let restingLabel = String(localized: "Resting", comment: "Basal/resting calories label")
 
@@ -1172,7 +1171,7 @@ struct ScoreExplanationSheet: View {
 
                 Divider().background(Color.irBorder)
 
-                deviationRow(metricType: metricType, average: avg)
+                deviationRow(average: avg)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .detailCard()
@@ -1188,7 +1187,7 @@ struct ScoreExplanationSheet: View {
                     color: .irTextPrimary)
                 if isScoreAvailable {
                     Divider().background(Color.irBorder)
-                    deviationRow(metricType: .rmssd, average: reference)
+                    deviationRow(average: reference)
                 }
             }
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -1236,20 +1235,12 @@ struct ScoreExplanationSheet: View {
         .padding(.vertical, Spacing.dash)
     }
 
-    private func deviationRow(metricType: MetricType, average: Double) -> some View {
+    private func deviationRow(average: Double) -> some View {
         let deviation = metricValue - average
         let deviationPercent = average == 0 ? 0 : (deviation / average) * 100
         let isPositive = deviation >= 0
 
-        let isGood: Bool = {
-            switch metricType {
-            case .hrv, .oxygenSaturation: return isPositive
-            case .restingHeartRate, .respiratoryRate: return !isPositive
-            default: return true
-            }
-        }()
-
-        let accent: Color = metricType == .rmssd ? .irTextSecondary : (isGood ? .irSuccess : .irWarning)
+        let accent = deviationStatus?.color ?? Color.irTextSecondary
         let arrow = isPositive ? "arrow.up" : "arrow.down"
 
         return HStack {
@@ -1329,19 +1320,35 @@ struct ScoreExplanationSheet: View {
         switch scoreType {
         case .effort:
             return [
-                DetailFormulaSlice(label: String(localized: "Steps", comment: "Effort steps label"), weight: 30, color: Color.irSuccess),
-                DetailFormulaSlice(label: String(localized: "Active Calories", comment: "Effort calories label"), weight: 35, color: Color.irWarning),
-                DetailFormulaSlice(label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), weight: 35, color: Color.irError)
+                DetailFormulaSlice(
+                    label: String(localized: "Steps", comment: "Effort steps label"), weight: 30,
+                    color: Color.irPrimaryAccent),
+                DetailFormulaSlice(
+                    label: String(localized: "Active Calories", comment: "Effort calories label"), weight: 35,
+                    color: Color.irTextSecondary),
+                DetailFormulaSlice(
+                    label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), weight: 35,
+                    color: Color.irPrimaryAccent.opacity(0.45)),
             ]
         case .sleep:
             return []
         case .readiness:
             return [
-                DetailFormulaSlice(label: String(localized: "Sleep", comment: "Sleep weight label"), weight: 40, color: Color.irPrimaryAccent),
-                DetailFormulaSlice(label: String(localized: "HRV", comment: "HRV weight label"), weight: 25, color: Color.irPrimaryAccent),
-                DetailFormulaSlice(label: String(localized: "Resting HR", comment: "RHR weight label"), weight: 15, color: Color.irError),
-                DetailFormulaSlice(label: String(localized: "SpO2", comment: "SpO2 weight label"), weight: 10, color: Color.irPrimaryAccent),
-                DetailFormulaSlice(label: String(localized: "Respiratory Rate", comment: "Resp weight label"), weight: 10, color: Color.irPrimaryAccent)
+                DetailFormulaSlice(
+                    label: String(localized: "Sleep", comment: "Sleep weight label"), weight: 40,
+                    color: Color.irPrimaryAccent),
+                DetailFormulaSlice(
+                    label: String(localized: "HRV", comment: "HRV weight label"), weight: 25,
+                    color: Color.irPrimaryAccent),
+                DetailFormulaSlice(
+                    label: String(localized: "Resting HR", comment: "RHR weight label"), weight: 15,
+                    color: Color.irPrimaryAccent.opacity(0.45)),
+                DetailFormulaSlice(
+                    label: String(localized: "SpO2", comment: "SpO2 weight label"), weight: 10,
+                    color: Color.irPrimaryAccent),
+                DetailFormulaSlice(
+                    label: String(localized: "Respiratory Rate", comment: "Resp weight label"), weight: 10,
+                    color: Color.irPrimaryAccent),
             ]
         case .cardiacLoad, .freshness:
             return []
@@ -1385,8 +1392,8 @@ struct ScoreExplanationSheet: View {
                 Text(String(localized: "Components & Targets", comment: "Effort components label"))
                     .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
                 calculationRow(color: Color.irSuccess, label: String(localized: "Steps", comment: "Effort steps label"), value: String(localized: "10,000 steps/day", comment: "Effort steps target"))
-                calculationRow(color: Color.irWarning, label: String(localized: "Active Calories", comment: "Effort calories label"), value: String(localized: "Apple Ring goal", comment: "Effort calories target"))
-                calculationRow(color: Color.irError, label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), value: String(localized: "Apple Ring goal", comment: "Effort exercise target"))
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Active Calories", comment: "Effort calories label"), value: String(localized: "Apple Ring goal", comment: "Effort calories target"))
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Exercise Minutes", comment: "Effort exercise label"), value: String(localized: "Apple Ring goal", comment: "Effort exercise target"))
                 calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Cap", comment: "Effort score cap label"), value: String(localized: "Maximum 100%", comment: "Effort score cap value"))
             }
 
@@ -1440,7 +1447,7 @@ struct ScoreExplanationSheet: View {
                     .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
                 calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Sleep Quality", comment: "Readiness sleep weight"), value: "40%")
                 calculationRow(color: Color.irPrimaryAccent, label: String(localized: "HRV", comment: "Readiness HRV weight"), value: "25%")
-                calculationRow(color: Color.irError, label: String(localized: "Resting Heart Rate", comment: "Readiness RHR weight"), value: "15%")
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Resting Heart Rate", comment: "Readiness RHR weight"), value: "15%")
                 calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Oxygen Saturation (SpO2)", comment: "Readiness SpO2 weight"), value: "10%")
                 calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Respiratory Rate", comment: "Readiness resp rate weight"), value: "10%")
             }
@@ -1451,7 +1458,7 @@ struct ScoreExplanationSheet: View {
                 Text(String(localized: "How each metric is scored", comment: "Readiness metric scoring header"))
                     .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
                 metricScoringRow(icon: "waveform.path.ecg", color: Color.irPrimaryAccent, label: String(localized: "HRV", comment: "HRV scoring"), detail: String(localized: "Higher HRV = better parasympathetic recovery", comment: "HRV detail"))
-                metricScoringRow(icon: "heart.fill", color: Color.irError, label: String(localized: "Resting HR", comment: "RHR scoring"), detail: String(localized: "Lower RHR = less cardiovascular stress", comment: "RHR detail"))
+                metricScoringRow(icon: "heart.fill", color: Color.irPrimaryAccent, label: String(localized: "Resting HR", comment: "RHR scoring"), detail: String(localized: "Lower RHR = less cardiovascular stress", comment: "RHR detail"))
                 metricScoringRow(icon: "drop.fill", color: Color.irPrimaryAccent, label: String(localized: "SpO2", comment: "SpO2 scoring"), detail: String(localized: "Higher = better oxygenation", comment: "SpO2 detail"))
                 metricScoringRow(icon: "lungs.fill", color: Color.irPrimaryAccent, label: String(localized: "Respiratory Rate", comment: "Resp scoring"), detail: String(localized: "Lower = less stress", comment: "Resp detail"))
                 metricScoringRow(icon: "moon.fill", color: Color.irPrimaryAccent, label: String(localized: "Sleep", comment: "Sleep scoring"), detail: String(localized: "Duration + efficiency + stages", comment: "Sleep detail"))
@@ -1487,9 +1494,9 @@ struct ScoreExplanationSheet: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "HR-based TRIMP (primary)", comment: "Cardiac load HR TRIMP label"))
                     .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: Color.irError, label: "\u{0394}HR", value: "(HR_avg - HR_rest) / (HR_max - HR_rest)")
+                calculationRow(color: Color.irTextSecondary, label: "\u{0394}HR", value: "(HR_avg - HR_rest) / (HR_max - HR_rest)")
                 calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Male", comment: "TRIMP male label"), value: "0.64 × e^(1.92 × \u{0394}HR)")
-                calculationRow(color: Color.irError, label: String(localized: "Female", comment: "TRIMP female label"), value: "0.86 × e^(1.67 × \u{0394}HR)")
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Female", comment: "TRIMP female label"), value: "0.86 × e^(1.67 × \u{0394}HR)")
             }
 
             Divider()
@@ -1497,9 +1504,9 @@ struct ScoreExplanationSheet: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Pace-based (fallback)", comment: "Cardiac load pace fallback label"))
                     .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: Color.irError, label: String(localized: "< 4:00 /km"), value: "1.8×")
-                calculationRow(color: Color.irWarning, label: String(localized: "4:00–5:00 /km"), value: "1.4–1.6×")
-                calculationRow(color: Color.irWarning, label: String(localized: "5:00–6:00 /km"), value: "1.0–1.2×")
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "< 4:00 /km"), value: "1.8×")
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "4:00–5:00 /km"), value: "1.4–1.6×")
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "5:00–6:00 /km"), value: "1.0–1.2×")
                 calculationRow(color: Color.irSuccess, label: String(localized: "6:00–7:00 /km"), value: "0.8×")
                 calculationRow(color: Color.irPrimaryAccent, label: String(localized: "> 7:00 /km"), value: "0.6×")
             }
@@ -1518,10 +1525,10 @@ struct ScoreExplanationSheet: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(String(localized: "Status Thresholds (ACWR)", comment: "Cardiac load ACWR status thresholds label"))
                     .font(IRFont.body).fontWeight(.semibold).foregroundStyle(Color.irTextPrimary)
-                calculationRow(color: Color.irWarning, label: String(localized: "Increasing", comment: "Cardiac load status"), value: "ACWR > 1.3")
-                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Maintaining", comment: "Cardiac load status"), value: String(localized: "ACWR 0.8–1.3", comment: "ACWR maintaining range"))
-                calculationRow(color: Color.irPrimaryAccent, label: String(localized: "Decreasing", comment: "Cardiac load status"), value: String(localized: "ACWR 0.5–0.8", comment: "ACWR decreasing range"))
-                calculationRow(color: Color.irError, label: String(localized: "Detraining", comment: "Cardiac load status"), value: "ACWR < 0.5")
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Increasing", comment: "Cardiac load status"), value: "ACWR > 1.3")
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Maintaining", comment: "Cardiac load status"), value: String(localized: "ACWR 0.8–1.3", comment: "ACWR maintaining range"))
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Decreasing", comment: "Cardiac load status"), value: String(localized: "ACWR 0.5–0.8", comment: "ACWR decreasing range"))
+                calculationRow(color: Color.irTextSecondary, label: String(localized: "Detraining", comment: "Cardiac load status"), value: "ACWR < 0.5")
             }
         }
     }
@@ -1582,11 +1589,12 @@ struct ScoreExplanationSheet: View {
 
     // MARK: - Score Helpers
 
-    private var scoreAccentColor: Color {
+    private var scoreStatusColor: Color {
+        guard isScoreAvailable else { return .irTextSecondary }
+        if case .score(.effort) = mode { return .irTextSecondary }
         if case .score(.readiness) = mode, let readinessStatus { return readinessStatus.color }
         switch score {
-        case 80...100: return Color.irSuccess
-        case 60..<80: return Color.irWarning
+        case 60...100: return Color.irSuccess
         case 40..<60: return Color.irWarning
         default: return Color.irError
         }
@@ -1684,20 +1692,6 @@ struct ScoreExplanationSheet: View {
         case .sleepEfficiency: return "chart.bar.fill"
         case .totalCalories: return "flame.fill"
         case .steps: return "figure.walk"
-        }
-    }
-
-    private func metricColor(_ type: MetricType) -> Color {
-        switch type {
-        case .recoveryScore: return Color.irPrimaryAccent
-        case .hrv, .rmssd: return Color.irPrimaryAccent
-        case .restingHeartRate: return Color.irError
-        case .respiratoryRate: return Color.irPrimaryAccent
-        case .oxygenSaturation: return Color.irPrimaryAccent
-        case .sleepDuration: return Color.irPrimaryAccent
-        case .sleepEfficiency: return Color.irSuccess
-        case .totalCalories: return Color.irWarning
-        case .steps: return Color.irPrimaryAccent
         }
     }
 

@@ -161,7 +161,7 @@ struct MetricProgressionCard: View {
                         .foregroundStyle(Color.irTextSecondary.opacity(0.2))
                     AxisValueLabel {
                         if let val = value.as(Double.self) {
-                            Text(formatValue(val))
+                            Text(formatDisplayedValue(val))
                                 .font(IRFont.microLabel)
                         }
                     }
@@ -183,8 +183,13 @@ struct MetricProgressionCard: View {
     }
 
     private func formatValue(_ value: Double) -> String {
+        formatDisplayedValue(displayValue(value))
+    }
+
+    // Chart axis values are already in the display unit and must not be converted again.
+    private func formatDisplayedValue(_ value: Double) -> String {
         if series.id == "minPace" || series.id == "averagePace" {
-            return Formatters.paceClock(displayValue(value) * 60)
+            return Formatters.paceClock(value * 60)
         }
         if value >= 100 {
             return Formatters.decimal(value, fractionDigits: 0)

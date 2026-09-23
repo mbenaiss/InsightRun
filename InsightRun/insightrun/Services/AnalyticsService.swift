@@ -54,6 +54,8 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         }
 
         let config = PostHogConfig(projectToken: apiKey, host: host)
+        // SwiftUI screens surface as hosting-controller class names, which carry no signal.
+        config.captureScreenViews = false
         PostHogSDK.shared.setup(config)
 
         let userID = UserIdentityService.shared.userID
@@ -144,6 +146,9 @@ final class AnalyticsService: WorkoutAnalysisTracking {
     }
 
     func trackOnboardingStarted() {
+        let trackedKey = "com.insightrun.analytics.onboardingStartedTracked"
+        guard !UserDefaults.standard.bool(forKey: trackedKey) else { return }
+        UserDefaults.standard.set(true, forKey: trackedKey)
         track(.onboardingStarted)
     }
 

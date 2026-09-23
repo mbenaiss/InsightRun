@@ -64,6 +64,12 @@ export default function PrivacyPolicy() {
                 Product interactions and technical diagnostics processed by PostHog, including app
                 version, device model, operating system version, and locale
               </li>
+              <li>
+                An approximate location (country and city) derived by our analytics provider,
+                PostHog (EU cloud), from your device's IP address. PostHog receives the IP address
+                with each analytics event, uses it only to derive this approximate location, and
+                does not store the IP address.
+              </li>
             </ul>
           </section>
 
@@ -170,11 +176,14 @@ export default function PrivacyPolicy() {
             <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">Data protection</h3>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
               <li>
-                Insight Run does not add your name, email address, account identifier, or route
-                coordinates to AI requests. Text you enter in the AI chat is transmitted as part of
-                the request.
+                AI requests do not contain your name, email address, device identifier, or route
+                coordinates. Text you enter in the AI chat is transmitted as part of the request.
               </li>
-              <li>Workout metrics are sent without direct account identifiers</li>
+              <li>
+                The app sends a random, pseudonymous installation identifier to our own backend,
+                which uses it only to enforce usage quotas and prevent abuse. This identifier is not
+                forwarded to OpenRouter or the AI model providers.
+              </li>
               <li>
                 Data is not permanently stored by OpenRouter or the AI model providers — it is used
                 only to generate a response
@@ -284,8 +293,10 @@ export default function PrivacyPolicy() {
                 with your permission.
               </li>
               <li>
-                <strong>PostHog</strong> - Processes a pseudonymous account identifier, product
-                interactions, and technical diagnostics for analytics and app functionality. This
+                <strong>PostHog</strong> (EU cloud) - Processes a pseudonymous account identifier,
+                product interactions, and technical diagnostics for analytics and app functionality.
+                PostHog receives your device's IP address with each event, uses it only to derive an
+                approximate location (country and city), and does not store the IP address. This
                 data is not used for advertising or cross-app tracking.
               </li>
               <li>

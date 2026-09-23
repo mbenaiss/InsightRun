@@ -7,6 +7,15 @@ const text = z.string().max(200)
 const timestamp = z.string().datetime({ offset: true })
 const evidenceData = (value: unknown) =>
   wrapUserData(JSON.stringify(value).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e'))
+
+// Source ids (com.apple.health.<UUID>), models and versions identify a device; keep only its kind.
+function recorderCategory(source: string, device?: string): string {
+  if (!/^com\.apple\./i.test(source)) return 'third-party app'
+  const product = device ?? source.split('/')[1] ?? ''
+  if (/^watch/i.test(product)) return 'Apple Watch'
+  return /^iphone/i.test(product) ? 'iPhone' : 'Apple device'
+}
+
 const phase = z.object({
   index: z.number().int().min(0).max(2),
   startOffsetSeconds: z.number().nonnegative(),
@@ -134,6 +143,11 @@ export function buildWorkoutInsights(value: unknown): string {
     return '\nDetailed measurements failed validation; do not infer missing details.\n'
   const data = parsed.data
   if (Object.keys(data).length === 0) return ''
+  if (data.evidence) {
+    data.evidence.source = recorderCategory(data.evidence.source, data.evidence.device)
+    delete data.evidence.device
+    delete data.evidence.softwareVersion
+  }
   let context = '\n## Recorded session evidence\n'
   context +=
     'Units: intervals use seconds, meters, minutes/km, bpm and watts. Phases are thirds of active time; speed is m/s, stride meters, contact milliseconds, oscillation centimeters.\n'
@@ -153,6 +167,7 @@ export function buildRMSSDContext(value: unknown): string {
   if (!parsed.success) return '\nRMSSD detail unavailable after validation.\n'
   const data = parsed.data
   if (data.baselineNights < 7) delete data.baselineMedian
+  data.source = recorderCategory(data.source)
   return `\n## Night-time RMSSD (milliseconds)\n${evidenceData(data)}\nNight medians use at least 3 samples recorded during sleep. The reference is the median of prior nightly medians from the same source, excluding the current night. It requires at least 7 prior nights; this is a data sufficiency rule, not clinical validation. A missing currentNight is unknown, not the latest night's value. RMSSD and SDNN are different measures: never merge them, apply SDNN cutoffs to RMSSD, or count them as independent recovery factors. RMSSD is descriptive context, not an additional score component. A source change resets comparable history. Interpret with dated sleep, resting heart rate, training and feedback; neither a high nor a low value alone proves recovery or illness.\n`
 }
 

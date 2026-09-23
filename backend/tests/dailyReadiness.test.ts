@@ -78,6 +78,8 @@ describe('readiness endpoint', () => {
     const prompt = JSON.parse(String(fetchMock?.mock.calls[0]?.[1]?.body))
     expect(prompt.messages[1].content).toContain('Night-time RMSSD')
     expect(prompt.messages[1].content).toContain('HRV SDNN: 60 ms')
+    expect(prompt.messages[1].content).toContain('"source":"Apple Watch"')
+    expect(prompt.messages[1].content).not.toContain('Watch8,3')
   })
 
   test('preserves decimal measurements in the calculation and insights', async () => {

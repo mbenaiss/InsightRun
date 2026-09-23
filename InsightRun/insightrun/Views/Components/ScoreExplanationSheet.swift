@@ -528,7 +528,7 @@ struct ScoreExplanationSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .detailCard()
         .sheet(isPresented: $showSubscriptionPaywall) {
-            SubscriptionPaywallView(isInitialFlow: false)
+            SubscriptionPaywallView()
                 .environmentObject(revenueCatManager)
         }
     }

@@ -255,7 +255,7 @@ struct WorkoutDetailView: View {
             contextProvider.currentPage = .workouts
         }
         .sheet(isPresented: $showSubscriptionPaywall) {
-            SubscriptionPaywallView(isInitialFlow: false)
+            SubscriptionPaywallView()
                 .environmentObject(revenueCatManager)
         }
         .sheet(isPresented: $showConsentSheet, onDismiss: resumeAfterConsent) {

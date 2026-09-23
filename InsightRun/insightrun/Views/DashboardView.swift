@@ -158,7 +158,7 @@ struct DashboardView: View {
                 WeeklySummaryView(viewModel: weeklySummaryVM)
             }
             .fullScreenCover(isPresented: $showSubscriptionPaywall) {
-                SubscriptionPaywallView(isInitialFlow: false)
+                SubscriptionPaywallView()
                     .environmentObject(revenueCatManager)
             }
             .sheet(isPresented: $readinessVM.needsConsent) {

@@ -323,7 +323,7 @@ class UnifiedWorkoutViewModel: ObservableObject {
                 in: runningActivities,
                 excluding: matchedStravaIDs
             ) {
-                result.append(UnifiedWorkout(from: hkWorkout))
+                result.append(Self.healthWorkout(hkWorkout, matchedWith: matchingStrava))
                 matchedStravaIDs.insert(matchingStrava.id)
             } else if let matchingSuunto = findMatchingSuuntoWorkout(for: hkWorkout, in: suuntoWorkouts) {
                 // Found Suunto match - create merged workout with Suunto data
@@ -381,6 +381,28 @@ class UnifiedWorkoutViewModel: ObservableObject {
         print("✅ Merge result: \(result.count) unified workouts (\(matchedStravaIDs.count) merged)")
 
         return result
+    }
+
+    // Apple Health keeps every measurement; the Strava match only contributes its id, name and link.
+    private static func healthWorkout(_ workout: WorkoutModel, matchedWith strava: StravaActivity) -> UnifiedWorkout {
+        var metadata = workout.metadata ?? [:]
+        metadata["strava_id"] = String(strava.id)
+        if !strava.name.isEmpty {
+            metadata["strava_name"] = strava.name
+            metadata["display_name"] = strava.name
+        }
+        let tagged = WorkoutModel(
+            id: workout.id, workoutType: workout.workoutType, startDate: workout.startDate,
+            endDate: workout.endDate, duration: workout.duration, distance: workout.distance,
+            totalEnergyBurned: workout.totalEnergyBurned, sourceName: workout.sourceName,
+            sourceVersion: workout.sourceVersion, metadata: metadata,
+            averageHeartRate: workout.averageHeartRate, maxHeartRate: workout.maxHeartRate,
+            elevationGain: workout.elevationGain, hasRoute: workout.hasRoute, isIndoor: workout.isIndoor,
+            effortScore: workout.effortScore, effortIsEstimated: workout.effortIsEstimated
+        )
+        var unified = UnifiedWorkout(from: tagged)
+        unified.stravaActivity = strava
+        return unified
     }
 
     /// Find a Suunto workout that matches the HealthKit workout

@@ -37,8 +37,12 @@ struct AddGoalSheet: View {
 
     let onAdd: (RaceGoal) -> Void
 
+    private var step1Schedule: TrainingPlanSchedule? {
+        try? TrainingPlanSchedule(start: Date(), target: targetDate)
+    }
+
     private var isStep1Valid: Bool {
-        targetDate > Date()
+        step1Schedule != nil
     }
 
     private let totalSteps = 3
@@ -178,6 +182,7 @@ struct AddGoalSheet: View {
                 step1DetailsSection
                 step1RaceTypeSection
                 step1TargetDateCard
+                step1ScheduleNote
             }
             .padding(.horizontal, Spacing.base)
             .padding(.vertical, Spacing.base)
@@ -288,6 +293,23 @@ struct AddGoalSheet: View {
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(Color.irBorder, lineWidth: 0.5)
         )
+    }
+
+    @ViewBuilder
+    private var step1ScheduleNote: some View {
+        if let schedule = step1Schedule {
+            if let warning = raceType.shortPlanWarning(weeks: schedule.weeksCount) {
+                GoalScheduleNote(text: warning, icon: "exclamationmark.triangle.fill", color: Color.irWarning)
+            }
+        } else {
+            GoalScheduleNote(
+                text: String(
+                    localized: "goals.wizard.raceTooSoon",
+                    defaultValue: "Choose a race at least 4 weeks away: a training plan needs 4 weeks minimum.",
+                    comment: "Wizard - race date too close to build a training plan"),
+                icon: "calendar.badge.exclamationmark",
+                color: Color.irError)
+        }
     }
 
     // V4 TypeTile
@@ -884,7 +906,7 @@ struct AddGoalSheet: View {
                     withAnimation { currentStep += 1 }
                 }
                 .disabled((currentStep == 0 && !isStep1Valid) || (currentStep == 1 && preferredDays.isEmpty))
-                .opacity(currentStep == 1 && preferredDays.isEmpty ? 0.4 : 1)
+                .opacity((currentStep == 0 && !isStep1Valid) || (currentStep == 1 && preferredDays.isEmpty) ? 0.4 : 1)
             } else {
                 nextButton(
                     title: String(localized: "goals.wizard.create", defaultValue: "Create Goal ✓", comment: "Wizard - create button")
@@ -939,40 +961,23 @@ struct AddGoalSheet: View {
 
     private func analyzeRunningHistory() async {
         guard !historyAnalyzed else { return }
+        defer { historyAnalyzed = true }
+        guard let history = await RunningHistorySummary.recent() else { return }
+        historyRunCount = history.runCount
+        guard history.runCount > 0, !hasSelectedFitnessLevel else { return }
 
-        do {
-            let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
-            let workouts = try await HealthKitManager.shared.fetchRunningWorkouts(from: threeMonthsAgo, to: Date())
+        historyAvgPace = history.averagePaceMinPerKm
+        historyWeeklyKm = history.weeklyVolumeKm
 
-            let runs = workouts.filter { $0.distance != nil && $0.distance! > 0 }
-            historyRunCount = runs.count
+        let weeklyKm = historyWeeklyKm ?? 0
+        let avgPace = historyAvgPace ?? 7.0
 
-            if !runs.isEmpty, !hasSelectedFitnessLevel {
-                let paces = runs.compactMap { w -> Double? in
-                    guard let dist = w.distance, dist > 0 else { return nil }
-                    return (w.duration / 60.0) / (dist / 1000.0)
-                }
-                historyAvgPace = paces.isEmpty ? nil : paces.reduce(0, +) / Double(paces.count)
-
-                let totalKm = runs.compactMap { $0.distance }.reduce(0, +) / 1000.0
-                let weeks = max(1, Calendar.current.dateComponents([.weekOfYear], from: threeMonthsAgo, to: Date()).weekOfYear ?? 1)
-                historyWeeklyKm = totalKm / Double(weeks)
-
-                let weeklyKm = historyWeeklyKm ?? 0
-                let avgPace = historyAvgPace ?? 7.0
-
-                if weeklyKm >= 40 || avgPace < 5.0 || historyRunCount >= 36 {
-                    fitnessLevel = .advanced
-                } else if weeklyKm >= 15 || avgPace < 6.0 || historyRunCount >= 12 {
-                    fitnessLevel = .intermediate
-                } else {
-                    fitnessLevel = .beginner
-                }
-            }
-
-            historyAnalyzed = true
-        } catch {
-            historyAnalyzed = true
+        if weeklyKm >= 40 || avgPace < 5.0 || historyRunCount >= 36 {
+            fitnessLevel = .advanced
+        } else if weeklyKm >= 15 || avgPace < 6.0 || historyRunCount >= 12 {
+            fitnessLevel = .intermediate
+        } else {
+            fitnessLevel = .beginner
         }
     }
 
@@ -1017,6 +1022,36 @@ struct AddGoalSheet: View {
 fileprivate func dayPillLabel(_ day: DayOfWeek) -> String {
     let base = day.shortName.replacingOccurrences(of: ".", with: "")
     return base.lowercased() + "."
+}
+
+// MARK: - Schedule Note
+
+struct GoalScheduleNote: View {
+    let text: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .font(IRFont.caption)
+                .foregroundStyle(color)
+            Text(text)
+                .font(IRFont.caption)
+                .lineSpacing(2)
+                .foregroundStyle(Color.irTextPrimary)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(Spacing.dash)
+        .background(color.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.md)
+                .strokeBorder(color.opacity(0.25), lineWidth: 0.5)
+        )
+    }
 }
 
 // MARK: - Day Toggle Button (V4)

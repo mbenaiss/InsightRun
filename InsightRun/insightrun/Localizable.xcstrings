@@ -8108,6 +8108,30 @@
         }
       }
     },
+    "goals.card.planUnavailable" : {
+      "comment" : "Goal card - race too close to generate a plan",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Race too close for a training plan"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carrera demasiado cercana para un plan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Course trop proche pour un plan"
+          }
+        }
+      }
+    },
     "goals.card.workouts" : {
       "comment" : "Goal card - workouts count",
       "extractionState" : "extracted_with_value",
@@ -8942,6 +8966,54 @@
         }
       }
     },
+    "goals.plan.shortWarning" : {
+      "comment" : "Goal - warning when a plan is shorter than recommended for the race distance",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ plans usually last at least %lld weeks. Yours will have %lld, so the progression will be compressed."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los planes de %1$@ suelen durar al menos %2$lld semanas. El tuyo tendrá %3$lld, así que la progresión será más comprimida."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les plans %1$@ durent en général au moins %2$lld semaines. Le tien en aura %3$lld : la progression sera resserrée."
+          }
+        }
+      }
+    },
+    "goals.plan.tooShortExplanation" : {
+      "comment" : "Goal detail - explanation replacing the generate button when the race is too close",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Race day is too close to build a training plan: a plan needs at least 4 weeks before the race."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carrera está demasiado cerca para crear un plan de entrenamiento: un plan necesita al menos 4 semanas antes de la carrera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La course est trop proche pour construire un plan d'entraînement : il faut au moins 4 semaines avant le jour J."
+          }
+        }
+      }
+    },
     "goals.raceType.halfMarathon" : {
       "comment" : "Race type - half marathon",
       "extractionState" : "extracted_with_value",
@@ -9286,6 +9358,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Début du plan"
+          }
+        }
+      }
+    },
+    "goals.wizard.raceTooSoon" : {
+      "comment" : "Wizard - race date too close to build a training plan",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Choose a race at least 4 weeks away: a training plan needs 4 weeks minimum."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige una carrera dentro de al menos 4 semanas: un plan de entrenamiento dura 4 semanas como mínimo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisis une course dans au moins 4 semaines : un plan d'entraînement dure 4 semaines minimum."
           }
         }
       }

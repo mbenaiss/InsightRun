@@ -86,6 +86,19 @@ struct RaceGoal: Identifiable, Codable {
         return schedule.start == calendar.startOfDay(for: date)
     }
 
+    // A plan never starts in the past: elapsed weeks would reach adaptation as missed sessions.
+    func generationSchedule(
+        startingOn requestedStart: Date? = nil, now: Date = Date(), calendar: Calendar = .current
+    ) throws -> TrainingPlanSchedule {
+        let today = calendar.startOfDay(for: now)
+        let start = max(today, calendar.startOfDay(for: requestedStart ?? planStartDate ?? today))
+        return try TrainingPlanSchedule(start: start, target: targetDate, calendar: calendar)
+    }
+
+    var canGeneratePlan: Bool {
+        (try? generationSchedule()) != nil
+    }
+
     var hasTrainingPlan: Bool {
         trainingPlan != nil
     }
@@ -208,5 +221,45 @@ enum RaceType: String, Codable, CaseIterable, Identifiable {
         case .marathon: return 16
         case .ultra: return 20
         }
+    }
+
+    func shortPlanWarning(weeks: Int) -> String? {
+        guard weeks < minimumWeeks else { return nil }
+        return String(
+            localized: "goals.plan.shortWarning",
+            defaultValue:
+                "\(displayName) plans usually last at least \(minimumWeeks) weeks. Yours will have \(weeks), so the progression will be compressed.",
+            comment: "Goal - warning when a plan is shorter than recommended for the race distance")
+    }
+}
+
+// MARK: - Running History
+
+struct RunningHistorySummary: Equatable {
+    let runCount: Int
+    let weeklyVolumeKm: Double?
+    let averagePaceMinPerKm: Double?
+
+    init(runs: [(distance: Double?, duration: TimeInterval)], weeks: Int) {
+        let valid = runs.compactMap { run -> (km: Double, minutes: Double)? in
+            guard let distance = run.distance, distance > 0 else { return nil }
+            return (distance / 1000, run.duration / 60)
+        }
+        runCount = valid.count
+        guard !valid.isEmpty else {
+            weeklyVolumeKm = nil
+            averagePaceMinPerKm = nil
+            return
+        }
+        averagePaceMinPerKm = valid.map { $0.minutes / $0.km }.reduce(0, +) / Double(valid.count)
+        weeklyVolumeKm = valid.map(\.km).reduce(0, +) / Double(max(1, weeks))
+    }
+
+    static func recent(now: Date = Date(), calendar: Calendar = .current) async -> RunningHistorySummary? {
+        let start = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+        guard let workouts = try? await HealthKitManager.shared.fetchRunningWorkouts(from: start, to: now)
+        else { return nil }
+        let weeks = calendar.dateComponents([.weekOfYear], from: start, to: now).weekOfYear ?? 1
+        return RunningHistorySummary(runs: workouts.map { ($0.distance, $0.duration) }, weeks: weeks)
     }
 }

@@ -1,7 +1,8 @@
-import { Hono } from 'hono'
+import { type Context, Hono } from 'hono'
 import { z } from 'zod'
 import { RequestType, selectModelFromRequest } from '../modelRouter'
-import { callOpenRouterWithRetry } from '../openrouter'
+import { callOpenRouterWithRetry, type OpenRouterUsage } from '../openrouter'
+import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { buildRMSSDContext, evidenceCoachingRules, rmssdTrendSchema } from '../trainingInsights'
 import type {
   CardiacLoadData,
@@ -9,12 +10,14 @@ import type {
   PersonalBaselineData,
   RecoveryData,
 } from '../types'
-import { formatPace, getLanguageName, READINESS_BANDS } from '../utils'
+import { estimateTokenCount, formatPace, getLanguageName, READINESS_BANDS } from '../utils'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
   APP_SECRET: string
   RATE_LIMITER: KVNamespace
+  POSTHOG_API_KEY: string
+  POSTHOG_HOST: string
 }
 
 interface ReadinessWorkoutData {
@@ -843,8 +846,50 @@ function deriveCoachingText(full: string): CoachingText {
   return { summary: trimmed, detail: trimmed }
 }
 
+interface ReadinessGeneration {
+  systemPrompt: string
+  userPrompt: string
+  content: string
+  usage?: OpenRouterUsage
+  model?: string
+}
+
+function captureReadinessGeneration(
+  c: Context<{ Bindings: Bindings }>,
+  userId: string,
+  generation: ReadinessGeneration,
+  details: { model: string; latency: number; error?: string }
+) {
+  if (!c.env.POSTHOG_API_KEY || !c.env.POSTHOG_HOST) return
+  const posthog = createPostHogClient({
+    apiKey: c.env.POSTHOG_API_KEY,
+    host: c.env.POSTHOG_HOST,
+  })
+  const { systemPrompt, userPrompt, content, usage } = generation
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        await captureLLMEvent(posthog, userId, crypto.randomUUID(), {
+          ...details,
+          input: userPrompt,
+          systemPrompt,
+          output: content,
+          inputTokens: usage?.prompt_tokens ?? estimateTokenCount(systemPrompt + userPrompt),
+          outputTokens: usage?.completion_tokens ?? estimateTokenCount(content),
+          cost: usage?.cost,
+          ip: c.req.header('CF-Connecting-IP') || 'unknown',
+          route: '/api/daily-readiness',
+        })
+        await posthog.shutdown()
+      } catch (error) {
+        console.error('PostHog capture error:', error)
+      }
+    })()
+  )
+}
+
 // Generate an AI-powered coaching recommendation using OpenRouter.
-// Returns a structured {summary, detail} pair so clients can show a TL;DR
+// The {summary, detail} JSON it asks for lets clients show a TL;DR
 // upfront and reveal the full explanation on demand.
 async function generateAIRecommendation(
   apiKey: string,
@@ -858,7 +903,7 @@ async function generateAIRecommendation(
   cardiacLoad?: CardiacLoadData,
   recentWorkouts?: ReadinessWorkoutData[],
   noSleepMode?: boolean
-): Promise<CoachingText> {
+): Promise<ReadinessGeneration> {
   const langName = getLanguageName(language)
   const readinessContext = buildReadinessContext(
     score,
@@ -887,7 +932,11 @@ Use digits for numbers and explicit units. Keep the advice concise and consisten
 
   const userPrompt = `Here is the runner's readiness data for today:\n\n${readinessContext}\n\nReturn the JSON object now.`
 
-  const { content } = await callOpenRouterWithRetry({
+  const {
+    content,
+    usage,
+    model: answeredModel,
+  } = await callOpenRouterWithRetry({
     apiKey,
     model,
     fallbackModel: READINESS_FALLBACK_MODEL,
@@ -907,7 +956,7 @@ Use digits for numbers and explicit units. Keep the advice concise and consisten
       response_format: { type: 'json_object' },
     },
   })
-  return parseCoachingJSON(content)
+  return { systemPrompt, userPrompt, content, usage, model: answeredModel }
 }
 
 const coachingSchema = z.object({
@@ -1148,7 +1197,8 @@ app.post('/', async (c) => {
         RequestType.SIMPLE
       )
 
-      coachingText = await generateAIRecommendation(
+      const aiStart = Date.now()
+      const generation = await generateAIRecommendation(
         c.env.OPENROUTER_API_KEY,
         modelId,
         score,
@@ -1161,6 +1211,19 @@ app.post('/', async (c) => {
         body.recentWorkouts,
         body.noSleepMode === true
       )
+      const capture = (error?: string) =>
+        captureReadinessGeneration(c, userId, generation, {
+          model: generation.model ?? modelId,
+          latency: (Date.now() - aiStart) / 1000,
+          error,
+        })
+      try {
+        coachingText = parseCoachingJSON(generation.content)
+      } catch (parseError) {
+        capture('Invalid coaching output')
+        throw parseError
+      }
+      capture()
     } catch (aiError) {
       coachingSource = 'fallback'
       console.warn('AI recommendation failed, falling back to static:', aiError)

@@ -1,6 +1,7 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
+import { addUsage, type OpenRouterUsage } from '../openrouter'
 import { captureLLMEvent, captureZodRejection, createPostHogClient } from '../posthog'
 import type { QuotaCheck } from '../quota'
 import type {
@@ -213,7 +214,8 @@ class OpenRouterSummaryError extends Error {
     readonly maxTokens: number,
     readonly outputLength: number,
     readonly completionTokens?: number,
-    readonly reasoningTokens?: number
+    readonly reasoningTokens?: number,
+    readonly usage?: OpenRouterUsage
   ) {
     super('History analysis returned an empty or incomplete summary. Please retry.')
     this.name = 'OpenRouterSummaryError'
@@ -301,6 +303,12 @@ function indexationErrorResponse(
   return c.json({ error: 'Internal Server Error', message }, 500)
 }
 
+interface SummaryGeneration {
+  summary: string
+  usage?: OpenRouterUsage
+  model?: string
+}
+
 async function callOpenRouterNonStreaming(
   apiKey: string,
   model: string,
@@ -308,7 +316,7 @@ async function callOpenRouterNonStreaming(
   prompt: string,
   maxTokens: number,
   timeout: number
-): Promise<string> {
+): Promise<SummaryGeneration> {
   // The generation cap includes reasoning; keep room for the visible summary from the first call.
   const generationBudget = Math.max(4096, maxTokens * 2)
   const summarySystemPrompt = `${systemPrompt}\n\nReturn a complete, concise summary within ${maxTokens} visible tokens. Prioritize the key quantitative facts and finish every sentence.`
@@ -331,7 +339,7 @@ async function callOpenRouterNonStreaming(
       { ...summaryError?.diagnostics, retry_max_tokens: retryMaxTokens }
     )
     await new Promise((resolve) => setTimeout(resolve, OPENROUTER_RETRY_DELAY_MS))
-    return await callOpenRouterOnce(
+    const retried = await callOpenRouterOnce(
       apiKey,
       model,
       summarySystemPrompt,
@@ -339,6 +347,7 @@ async function callOpenRouterNonStreaming(
       retryMaxTokens,
       timeout
     )
+    return { ...retried, usage: addUsage(summaryError?.usage, retried.usage) }
   }
 }
 
@@ -349,7 +358,7 @@ async function callOpenRouterOnce(
   prompt: string,
   maxTokens: number,
   timeout: number
-): Promise<string> {
+): Promise<SummaryGeneration> {
   const requestBody = {
     model,
     messages: [
@@ -384,12 +393,12 @@ async function callOpenRouterOnce(
     }
 
     const data = (await response.json()) as {
+      model?: string
       choices?: Array<{
         message?: { content?: string | null; refusal?: string | null }
         finish_reason?: string
       }>
-      usage?: {
-        completion_tokens?: number
+      usage?: OpenRouterUsage & {
         completion_tokens_details?: { reasoning_tokens?: number }
       }
     }
@@ -407,10 +416,11 @@ async function callOpenRouterOnce(
         maxTokens,
         summary.length,
         data.usage?.completion_tokens,
-        data.usage?.completion_tokens_details?.reasoning_tokens
+        data.usage?.completion_tokens_details?.reasoning_tokens,
+        data.usage
       )
     }
-    return summary
+    return { summary, usage: data.usage, model: data.model }
   } catch (error) {
     if ((error as Error).name === 'AbortError') {
       throw new OpenRouterTimeoutError(timeout)
@@ -601,7 +611,7 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
     )
 
     // Call OpenRouter with batch timeout
-    let summary = await callOpenRouterNonStreaming(
+    const generation = await callOpenRouterNonStreaming(
       c.env.OPENROUTER_API_KEY,
       finalModel,
       systemPrompt,
@@ -609,6 +619,7 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
       MAX_BATCH_TOKENS,
       BATCH_TIMEOUT
     )
+    let summary = generation.summary
 
     // Increment quota if model requires it
     if (modelConfig) {
@@ -657,14 +668,14 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
           try {
             const inputTokenCount = estimateTokenCount(prompt)
             await captureLLMEvent(posthog, userId, traceId, {
-              model: finalModel,
+              model: generation.model ?? finalModel,
               input: `Batch analysis: ${workouts.length} workouts (${inputTokenCount} tokens)`,
               systemPrompt,
               output: summary,
-              inputTokens: inputTokenCount,
-              outputTokens: finalTokenCount,
+              inputTokens: generation.usage?.prompt_tokens ?? inputTokenCount,
+              outputTokens: generation.usage?.completion_tokens ?? finalTokenCount,
               latency,
-              cost: undefined,
+              cost: generation.usage?.cost,
               ip,
               route: '/api/analyze-history/batch',
             })
@@ -783,7 +794,7 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
     )
 
     // Call OpenRouter with consolidation timeout
-    let summary = await callOpenRouterNonStreaming(
+    const generation = await callOpenRouterNonStreaming(
       c.env.OPENROUTER_API_KEY,
       finalModel,
       systemPrompt,
@@ -791,6 +802,7 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
       MAX_CONSOLIDATE_TOKENS,
       CONSOLIDATE_TIMEOUT
     )
+    let summary = generation.summary
 
     // Increment quota if model requires it
     if (modelConfig) {
@@ -837,14 +849,14 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
           try {
             const inputTokenCount = estimateTokenCount(prompt)
             await captureLLMEvent(posthog, userId, traceId, {
-              model: finalModel,
+              model: generation.model ?? finalModel,
               input: `Consolidation: ${batchSummaries.length} batches (${inputTokenCount} tokens)`,
               systemPrompt,
               output: summary,
-              inputTokens: inputTokenCount,
-              outputTokens: finalTokenCount,
+              inputTokens: generation.usage?.prompt_tokens ?? inputTokenCount,
+              outputTokens: generation.usage?.completion_tokens ?? finalTokenCount,
               latency,
-              cost: undefined,
+              cost: generation.usage?.cost,
               ip,
               route: '/api/analyze-history/consolidate',
             })

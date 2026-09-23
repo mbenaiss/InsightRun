@@ -96,7 +96,8 @@ describe('suggestion response budget', () => {
     spyOn(globalThis, 'fetch').mockResolvedValue(
       Response.json({ choices: [{ message: { content }, finish_reason: 'stop' }] })
     )
-    expect(await callModelForSuggestion('test-key', 'system', 'user', 'test-model')).toBe(content)
+    const { suggestion } = await callModelForSuggestion('test-key', 'system', 'user', 'test-model')
+    expect(suggestion).toBe(content)
   })
 })
 

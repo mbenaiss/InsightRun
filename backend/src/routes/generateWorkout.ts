@@ -1,6 +1,11 @@
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
-import { callOpenRouterWithRetry, TruncatedResponseError } from '../openrouter'
+import {
+  addUsage,
+  callOpenRouterWithRetry,
+  type OpenRouterUsage,
+  TruncatedResponseError,
+} from '../openrouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { estimateTokenCount, getLanguageName } from '../utils'
 
@@ -302,13 +307,13 @@ function normalizeWorkoutPaces(workout: AIGeneratedWorkout): void {
   }
 }
 
-async function callOpenRouterForWorkout(
+function callOpenRouterForWorkout(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
   model: string
-): Promise<string> {
-  const { content } = await callOpenRouterWithRetry({
+) {
+  return callOpenRouterWithRetry({
     apiKey,
     model,
     fallbackModel: WORKOUT_FALLBACK_MODEL,
@@ -326,7 +331,6 @@ async function callOpenRouterForWorkout(
     title: 'insightRun.ai',
     throwOnTruncation: true,
   })
-  return content
 }
 
 function cleanJSONResponse(text: string): string {
@@ -402,6 +406,8 @@ app.post('/', async (c) => {
     // Carries the previous failure into the next attempt so the model corrects it
     // instead of re-emitting the exact same broken output.
     let retryFeedback = ''
+    let usage: OpenRouterUsage | undefined
+    let answeredModel: string | undefined
 
     while (attempts < maxAttempts && !workoutJSON) {
       attempts++
@@ -411,12 +417,15 @@ app.post('/', async (c) => {
           ? `${userPrompt}\n\nYour previous output was invalid: ${retryFeedback}\nReturn corrected, complete JSON only.`
           : userPrompt
 
-        const rawResponse = await callOpenRouterForWorkout(
+        const generation = await callOpenRouterForWorkout(
           c.env.OPENROUTER_API_KEY,
           systemPrompt,
           attemptUserPrompt,
           finalModel
         )
+        usage = addUsage(usage, generation.usage)
+        answeredModel = generation.model ?? answeredModel
+        const rawResponse = generation.content
 
         console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
 
@@ -484,17 +493,16 @@ app.post('/', async (c) => {
       c.executionCtx.waitUntil(
         (async () => {
           try {
-            const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
-            const outputTokenCount = estimateTokenCount(JSON.stringify(workoutJSON))
+            const output = JSON.stringify(workoutJSON)
             await captureLLMEvent(posthog, userId, traceId, {
-              model: finalModel,
+              model: answeredModel ?? finalModel,
               input: userPrompt,
               systemPrompt,
-              output: JSON.stringify(workoutJSON),
-              inputTokens: inputTokenCount,
-              outputTokens: outputTokenCount,
+              output,
+              inputTokens: usage?.prompt_tokens ?? estimateTokenCount(systemPrompt + userPrompt),
+              outputTokens: usage?.completion_tokens ?? estimateTokenCount(output),
               latency,
-              cost: undefined,
+              cost: usage?.cost,
               ip,
               route: '/api/generate-workout',
             })

@@ -1,7 +1,7 @@
 // Shared OpenRouter client: a single network call with one retry on transient
-// upstream failures (429/5xx) and a per-call timeout. The application-level
-// re-prompt loop (re-injecting parse/validation feedback) stays in each route —
-// this only encapsulates the network fetch + retry + timeout.
+// upstream failures (408/429/5xx, network, timeout) and a per-call timeout. The
+// application-level re-prompt loop (re-injecting parse/validation feedback) stays in
+// each route — this only encapsulates the network fetch + retry + timeout.
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
@@ -27,6 +27,18 @@ export class OpenRouterEmptyResponseError extends Error {
     this.name = 'OpenRouterEmptyResponseError'
   }
 }
+
+export class OpenRouterHttpError extends Error {
+  constructor(
+    readonly status: number,
+    body: string
+  ) {
+    super(`OpenRouter API error: ${status} - ${body}`)
+    this.name = 'OpenRouterHttpError'
+  }
+}
+
+const isRetryableStatus = (status: number) => status === 408 || status === 429 || status >= 500
 
 interface CallOpenRouterOptions {
   apiKey: string
@@ -75,12 +87,10 @@ export async function callOpenRouterWithRetry(
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        if (response.status === 429 || response.status >= 500) {
-          lastError = new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
-          continue
-        }
-        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
+        const error = new OpenRouterHttpError(response.status, await response.text())
+        if (!isRetryableStatus(response.status)) throw error
+        lastError = error
+        continue
       }
 
       const data = (await response.json().catch(() => null)) as {
@@ -103,7 +113,8 @@ export async function callOpenRouterWithRetry(
 
       return { content: choice.message?.content || '', finishReason }
     } catch (error) {
-      if (error instanceof TruncatedResponseError) throw error
+      if (error instanceof TruncatedResponseError || error instanceof OpenRouterHttpError)
+        throw error
       lastError = controller.signal.aborted ? new OpenRouterTimeoutError() : error
     } finally {
       clearTimeout(timer)

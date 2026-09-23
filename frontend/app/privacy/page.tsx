@@ -181,8 +181,9 @@ export default function PrivacyPolicy() {
               </li>
               <li>
                 The app sends a random, pseudonymous installation identifier to our own backend,
-                which uses it only to enforce usage quotas and prevent abuse. This identifier is not
-                forwarded to OpenRouter or the AI model providers.
+                which uses it to enforce usage quotas and prevent abuse, to link your Strava
+                connection to your installation, and to measure AI feature usage in our analytics
+                (PostHog). This identifier is not forwarded to OpenRouter or the AI model providers.
               </li>
               <li>
                 Data is not permanently stored by OpenRouter or the AI model providers — it is used

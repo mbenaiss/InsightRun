@@ -1,4 +1,4 @@
-import type { Context } from 'hono'
+import type { Context, Next } from 'hono'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
@@ -104,6 +104,13 @@ function validateAppAuth(c: AppContext): boolean {
   }
   const appKey = c.req.header('X-App-Key')
   return appKey === c.env.APP_SECRET
+}
+
+async function requireAppKey(c: AppContext, next: Next) {
+  if (!validateAppAuth(c)) {
+    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
+  }
+  await next()
 }
 
 function validateAdminAuth(c: AppContext): boolean {
@@ -236,6 +243,32 @@ app.use(
   })
 )
 
+// Registered before the quota middleware so a request without a valid key never touches a quota.
+for (const prefix of [
+  '/api/analyze-history',
+  '/api/generate-training-plan',
+  '/api/adapt-training-plan',
+  '/api/generate-workout',
+  '/api/workout/smart-suggestion',
+  '/api/daily-readiness',
+  '/api/agent',
+]) {
+  app.use(`${prefix}/*`, requireAppKey)
+}
+
+app.use('/api/strava/*', async (c, next) => {
+  // Skip auth for webhook endpoints (Strava calls them)
+  if (new URL(c.req.url).pathname.includes('/webhooks/')) {
+    await next()
+    return
+  }
+  return requireAppKey(c, next)
+})
+
+app.post('/api/chat', requireAppKey)
+app.post('/api/chat/v2', requireAppKey)
+app.get('/api/config', requireAppKey)
+
 app.use('/api/*', async (c, next) => {
   // Skip rate limiting and blocking for admin routes (they have their own auth)
   const path = new URL(c.req.url).pathname
@@ -289,6 +322,12 @@ app.use('/api/*', async (c, next) => {
       },
       403
     )
+  }
+
+  // Keyed routes rejected keyless calls above; a keyless call to a public route is not metered.
+  if (!validateAppAuth(c)) {
+    await next()
+    return
   }
 
   // Get quota config from KV (or use defaults)
@@ -354,78 +393,6 @@ app.use('/api/*', async (c, next) => {
   }
 })
 
-// Auth middleware for /api/analyze-history routes
-app.use('/api/analyze-history/*', async (c, next) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
-// Auth middleware for /api/generate-training-plan route
-app.use('/api/generate-training-plan/*', async (c, next) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
-// Auth middleware for /api/adapt-training-plan route
-app.use('/api/adapt-training-plan/*', async (c, next) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
-// Auth middleware for /api/generate-workout route
-app.use('/api/generate-workout/*', async (c, next) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
-// Auth middleware for /api/workout/smart-suggestion route
-app.use('/api/workout/smart-suggestion/*', async (c, next) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
-// Auth middleware for /api/daily-readiness route
-app.use('/api/daily-readiness/*', async (c, next) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
-// Auth middleware for /api/agent/* routes
-app.use('/api/agent/*', async (c, next) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
-// Auth middleware for /api/strava/* routes (except webhooks)
-app.use('/api/strava/*', async (c, next) => {
-  // Skip auth for webhook endpoints (Strava calls them)
-  const path = new URL(c.req.url).pathname
-  if (path.includes('/webhooks/')) {
-    await next()
-    return
-  }
-
-  // Require X-App-Key for all other Strava endpoints
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-  await next()
-})
-
 // Mount analyze-history routes
 app.route('/api/analyze-history', analyzeHistoryRoutes)
 
@@ -470,10 +437,6 @@ app.post('/api/chat', async (c) => {
   const startTime = Date.now()
 
   try {
-    if (!validateAppAuth(c)) {
-      return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-    }
-
     const body = await c.req.json()
 
     if (!validateChatRequest(body)) {
@@ -798,10 +761,6 @@ app.get('/api/stats', async (c) => {
 // ============================================================
 
 app.get('/api/config', async (c) => {
-  if (!validateAppAuth(c)) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-  }
-
   const features = await getFeatureFlags(c.env.RATE_LIMITER)
 
   // Return all features dynamically - no hardcoded structure
@@ -1120,10 +1079,6 @@ app.post('/api/chat/v2', async (c) => {
   const startTime = Date.now()
 
   try {
-    if (!validateAppAuth(c)) {
-      return c.json({ error: 'Unauthorized', message: 'Invalid app key' }, 401)
-    }
-
     const body = await c.req.json()
 
     if (!validateChatRequestV2(body)) {
@@ -1180,9 +1135,16 @@ app.post('/api/chat/v2', async (c) => {
 
       console.log(`✅ Selected model: ${selection.model.displayName} (${finalModel})`)
     } else if (manualModel) {
-      // Fallback to manual model (backward compatibility)
-      console.log(`⚠️ Using legacy manual model: ${manualModel}`)
-      finalModel = manualModel
+      // Legacy manual model (backward compatibility), honoured only when it is in the catalog
+      const selection = await selectModelFromRequest(
+        undefined,
+        manualModel,
+        c.env.RATE_LIMITER,
+        userId,
+        RequestType.MODERATE
+      )
+      finalModel = selection.modelId
+      selectedModelConfig = selection.modelConfig ?? undefined
     } else {
       return c.json(
         {

@@ -18,7 +18,7 @@ async function requestAnalysis(
       headers: { 'Content-Type': 'application/json', 'X-User-ID': 'test-user' },
       body: JSON.stringify({
         language: 'en',
-        model: 'test-model',
+        model: 'google/gemini-2.5-flash',
         ...(route === 'batch'
           ? {
               batchIndex: 0,
@@ -308,7 +308,7 @@ describe('history analysis retries', () => {
         error_type: 'OpenRouterSummaryError',
         error_message: 'History analysis returned an empty or incomplete summary. Please retry.',
         openrouter_status: undefined,
-        model: 'test-model',
+        model: 'google/gemini-2.5-flash',
         finish_reason: 'length',
         max_tokens: 8192,
         output_length: 0,

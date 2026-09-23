@@ -195,7 +195,7 @@ struct RecoveryData: Codable {
         walkingHeartRate = metrics.walkingHeartRate
         respiratoryRate = metrics.respiratoryRate
         oxygenSaturation = metrics.oxygenSaturation
-        date = metrics.date.ISO8601Format()
+        date = PayloadDate.day(metrics.date)
         rmssd = metrics.rmssd
         sleepData = metrics.sleepData.map {
             SleepDataPayload(totalDuration: $0.totalSleepDuration, efficiency: $0.sleepEfficiency,
@@ -209,6 +209,19 @@ struct SleepDataPayload: Codable {
     let efficiency: Double
     let deepDuration: Double?
     let remDuration: Double?
+}
+
+// MARK: - Payload Dates
+
+// A UTC instant turns the local night of the 23rd into "2026-09-22T22:00:00Z" for the coach.
+enum PayloadDate {
+    nonisolated static func day(_ date: Date, timeZone: TimeZone = .current) -> String {
+        Date.ISO8601FormatStyle(timeZone: timeZone).year().month().day().format(date)
+    }
+
+    nonisolated static func timestamp(_ date: Date, timeZone: TimeZone = .current) -> String {
+        Date.ISO8601FormatStyle(timeZoneSeparator: .colon, timeZone: timeZone).format(date)
+    }
 }
 
 // MARK: - Daily Activity & Cardiac Load

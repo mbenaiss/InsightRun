@@ -493,13 +493,11 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
         )
     }
 
-    // ISO 8601 keeps WorkoutData.date machine-parseable on the backend (no localized format).
-    private static let isoDateFormatter = ISO8601DateFormatter()
-
+    // ISO 8601 with the local offset stays machine-parseable on the backend and keeps the local day.
     @MainActor
     func convertToWorkoutData(workout: WorkoutModel, metrics: WorkoutMetrics?) -> WorkoutData {
         return WorkoutData(
-            date: Self.isoDateFormatter.string(from: workout.startDate),
+            date: PayloadDate.timestamp(workout.startDate),
             duration: workout.duration,
             distance: workout.distance ?? 0,
             calories: workout.totalEnergyBurned,

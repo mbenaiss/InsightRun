@@ -21,6 +21,13 @@ export class OpenRouterTimeoutError extends Error {
   }
 }
 
+export class OpenRouterEmptyResponseError extends Error {
+  constructor() {
+    super('OpenRouter returned a response without choices')
+    this.name = 'OpenRouterEmptyResponseError'
+  }
+}
+
 interface CallOpenRouterOptions {
   apiKey: string
   model: string
@@ -76,16 +83,25 @@ export async function callOpenRouterWithRetry(
         throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
       }
 
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string }; finish_reason?: string }>
+      const data = (await response.json().catch(() => null)) as {
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>
+      } | null
+
+      // A 200 can still carry an upstream error body instead of a completion.
+      const choice = data?.choices?.[0]
+      if (!choice) {
+        lastError = controller.signal.aborted
+          ? new OpenRouterTimeoutError()
+          : new OpenRouterEmptyResponseError()
+        continue
       }
 
-      const finishReason = data.choices[0]?.finish_reason || ''
+      const finishReason = choice.finish_reason || ''
       if (opts.throwOnTruncation && finishReason === 'length') {
         throw new TruncatedResponseError()
       }
 
-      return { content: data.choices[0]?.message?.content || '', finishReason }
+      return { content: choice.message?.content || '', finishReason }
     } catch (error) {
       if (error instanceof TruncatedResponseError) throw error
       lastError = controller.signal.aborted ? new OpenRouterTimeoutError() : error

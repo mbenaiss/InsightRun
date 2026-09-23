@@ -7,7 +7,7 @@ const env = {
   APP_SECRET: 'test-secret',
   POSTHOG_API_KEY: '',
   POSTHOG_HOST: '',
-  RATE_LIMITER: {} as KVNamespace,
+  RATE_LIMITER: { get: async () => null } as unknown as KVNamespace,
 }
 
 afterEach(() => {
@@ -16,7 +16,21 @@ afterEach(() => {
 
 let fetchMock: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined
 
-async function generate(outputs: unknown[]) {
+function request(
+  userQuestion = 'Échauffement ouvert ~1,5–2 km FC <150, boucle ×6 effort 0:30 à 4:39–4:48/km, récup 1:00 sans objectif, retour au calme ouvert jusqu’à 5 km.'
+) {
+  return app.request(
+    '/',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userQuestion, language: 'fr', model: 'test-model' }),
+    },
+    env
+  )
+}
+
+async function generate(outputs: unknown[], userQuestion?: string) {
   fetchMock = spyOn(globalThis, 'fetch')
   for (const output of outputs) {
     fetchMock.mockResolvedValueOnce(
@@ -25,20 +39,7 @@ async function generate(outputs: unknown[]) {
       })
     )
   }
-  return app.request(
-    '/',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userQuestion:
-          'Échauffement ouvert ~1,5–2 km FC <150, boucle ×6 effort 0:30 à 4:39–4:48/km, récup 1:00 sans objectif, retour au calme ouvert jusqu’à 5 km.',
-        language: 'fr',
-        model: 'test-model',
-      }),
-    },
-    env
-  )
+  return request(userQuestion)
 }
 
 describe('workout generation response', () => {
@@ -107,6 +108,16 @@ describe('workout generation response', () => {
     const result = await response.json()
     expect(result.metadata.attempts).toBe(2)
     expect(result.workout.steps[2].targetHeartRateMax).toBeUndefined()
+  })
+
+  test('reports an upstream success without choices without leaking a runtime error', async () => {
+    fetchMock = spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({}))
+    const response = await request()
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({
+      error: 'Workout Generation Failed',
+      message: 'OpenRouter returned a response without choices',
+    })
   })
 
   test('rejects repeated failure to respect a recovery without a target', async () => {

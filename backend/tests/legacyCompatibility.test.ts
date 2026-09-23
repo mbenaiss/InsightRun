@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { z } from 'zod'
 import app from '../src/index'
+import { RequestType, selectModel } from '../src/modelRouter'
 import legacy from './fixtures/legacy-clients.json'
 import recoveryScores from './fixtures/recovery-scores.json'
 
@@ -177,6 +178,28 @@ describe('installed client HTTP contracts', () => {
       }
     })
   }
+
+  test('v2 chat forwards a legacy model only when it belongs to the catalog', async () => {
+    const upstreamModel = async (model: string) => {
+      const { response, fetchMock } = await request('/api/chat/v2', {
+        promptType: 'workout_coach',
+        userQuestion: 'Analyse ma course',
+        language: 'fr',
+        data: data116,
+        model,
+      })
+      expect(response.status).toBe(200)
+      const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+      mock.restore()
+      return body.model
+    }
+    const routeDefault = await selectModel(RequestType.MODERATE, {
+      get: async () => null,
+    } as unknown as KVNamespace)
+
+    expect(await upstreamModel('anthropic/claude-haiku-4.5')).toBe('anthropic/claude-haiku-4.5')
+    expect(await upstreamModel('openai/o1-pro')).toBe(routeDefault.model.modelId)
+  })
 
   test.each([
     data116,

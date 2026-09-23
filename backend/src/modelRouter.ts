@@ -497,6 +497,20 @@ export async function afterModelUsage(
   }
 }
 
+// Client-chosen models must not bypass cost control: catalog entries only, premium within quota.
+async function findCatalogModel(
+  modelId: string,
+  kv: KVNamespace,
+  userId: string,
+  quotaCategory: PremiumQuotaCategory
+): Promise<ModelConfig | null> {
+  const { allModels } = await getModelConfigCached(kv)
+  const model = Object.values(allModels).find((entry) => entry?.modelId === modelId)
+  if (!model?.requiresQuota) return model ?? null
+  const quota = await checkPremiumModelQuota(kv, userId, quotaCategory)
+  return quota.hasQuota ? model : null
+}
+
 /**
  * Helper to select model from request parameters
  * Handles requestType, manual model override, and defaults
@@ -537,11 +551,14 @@ export async function selectModelFromRequest(
   // Manual model override is only honoured when no requestType was supplied,
   // to keep an explicit escape hatch without letting clients bypass the whitelist.
   if (!requestType && manualModel) {
-    console.log(`⚠️ Using manual model override: ${manualModel}`)
-    return {
-      modelId: manualModel,
-      modelConfig: null, // No quota tracking for manual models
+    const model = await findCatalogModel(manualModel, kv, userId, quotaCategory)
+    if (model) {
+      console.log(`⚠️ Using manual model override: ${model.modelId}`)
+      return { modelId: model.modelId, modelConfig: model }
     }
+    console.warn(
+      `⚠️ ModelRouter: model "${String(manualModel).slice(0, 100)}" is not in the catalog or lacks premium quota, using ${defaultRequestType}`
+    )
   }
 
   const selection = await selectModel(defaultRequestType, kv, userId, quotaCategory)

@@ -114,7 +114,7 @@ final class TrainingInsightsTests: XCTestCase {
       return (1...3).map {
         RMSSDTrend.Observation(
           date: night.addingTimeInterval(Double($0) * 300), night: night, value: value,
-          source: source)
+          source: source, category: "Apple Watch")
       }
     }
   }

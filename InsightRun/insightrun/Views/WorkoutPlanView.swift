@@ -505,7 +505,7 @@ class WorkoutPlanViewModel: ObservableObject {
         }
 
         return WorkoutData(
-            date: workout.startDate.ISO8601Format(),
+            date: PayloadDate.timestamp(workout.startDate),
             duration: workout.duration,
             distance: workout.distance ?? 0,
             calories: workout.totalEnergyBurned,

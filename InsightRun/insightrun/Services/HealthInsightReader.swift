@@ -57,8 +57,8 @@ struct HealthInsightReader {
       )
     }
     return WorkoutEvidence(
-      measuredAt: Date().ISO8601Format(), source: workout.sourceRevision.source.bundleIdentifier,
-      device: workout.sourceRevision.productType, softwareVersion: workout.sourceRevision.version,
+      measuredAt: PayloadDate.timestamp(Date()), source: Self.category(of: workout),
+      device: nil, softwareVersion: nil,
       zones: zones,
       signals: quantities.map {
         WorkoutEvidenceCalculator.summarize(
@@ -109,7 +109,7 @@ struct HealthInsightReader {
             RMSSDTrend.Observation(
               date: sample.startDate, night: date,
               value: sample.quantity.doubleValue(for: .secondUnit(with: .milli)),
-              source: Self.source(of: sample)))
+              source: Self.source(of: sample), category: Self.category(of: sample)))
         }
       }
       return RMSSDTrend.calculate(observations: observations, day: day)
@@ -132,5 +132,19 @@ struct HealthInsightReader {
       sample.sourceRevision.source.bundleIdentifier, sample.sourceRevision.productType ?? "unknown",
       sample.sourceRevision.version ?? "unknown",
     ].joined(separator: "/")
+  }
+
+  // Apple Watch bundle identifiers embed a device UUID, so only a coarse category leaves the device.
+  static func sourceCategory(bundleIdentifier: String, productType: String?) -> String {
+    guard bundleIdentifier.hasPrefix("com.apple.") else { return "Third-party app" }
+    if productType?.hasPrefix("Watch") == true { return "Apple Watch" }
+    if productType?.hasPrefix("iPhone") == true { return "iPhone" }
+    return "Other Apple device"
+  }
+
+  private static func category(of sample: HKSample) -> String {
+    sourceCategory(
+      bundleIdentifier: sample.sourceRevision.source.bundleIdentifier,
+      productType: sample.sourceRevision.productType)
   }
 }

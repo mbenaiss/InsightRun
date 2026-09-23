@@ -61,7 +61,9 @@ struct RMSSDTrend: Codable, Equatable {
     let date: Date
     let night: Date
     let value: Double
+    // Device-specific identity, kept on device to detect source changes.
     let source: String
+    let category: String
   }
 
   static func calculate(
@@ -79,15 +81,18 @@ struct RMSSDTrend: Codable, Equatable {
     let grouped = Dictionary(grouping: sameSource) { calendar.startOfDay(for: $0.night) }
     let datedNights = grouped.compactMap { date, values -> (Date, Night)? in
       guard values.count >= 3, let median = median(values.map(\.value)) else { return nil }
-      return (date, Night(date: date.ISO8601Format(), median: median, sampleCount: values.count))
+      // The backend validates night dates as timestamps, so the local day is sent as local midnight.
+      let night = PayloadDate.timestamp(date, timeZone: calendar.timeZone)
+      return (date, Night(date: night, median: median, sampleCount: values.count))
     }.sorted { $0.0 < $1.0 }
     let baseline = datedNights.filter { $0.0 < day }
     let recentStart = calendar.date(byAdding: .day, value: -6, to: day) ?? day
     let recent = datedNights.filter { $0.0 >= recentStart }
     return RMSSDTrend(
-      metric: "RMSSD", context: "asleep", source: latest.source,
+      metric: "RMSSD", context: "asleep", source: latest.category,
       sourceChanged: Set(observations.map(\.source)).count > 1,
-      latestSampleAt: latest.date.ISO8601Format(), measuredAt: now.ISO8601Format(),
+      latestSampleAt: PayloadDate.timestamp(latest.date, timeZone: calendar.timeZone),
+      measuredAt: PayloadDate.timestamp(now, timeZone: calendar.timeZone),
       currentNight: datedNights.first(where: { $0.0 == day })?.1,
       baselineMedian: baseline.count >= 7 ? median(baseline.map { $0.1.median }) : nil,
       baselineNights: baseline.count, recentMedian: median(recent.map { $0.1.median }),

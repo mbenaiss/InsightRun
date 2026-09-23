@@ -26,35 +26,34 @@ class WidgetDataProvider {
         return formatter
     }()
 
-    private init() {
-        defaults = UserDefaults(suiteName: WidgetDataKeys.suiteName)
+    private init(defaults: UserDefaults? = nil) {
+        self.defaults = defaults ?? UserDefaults(suiteName: WidgetDataKeys.suiteName)
     }
+
+    #if DEBUG
+    static func createForTesting(defaults: UserDefaults) -> WidgetDataProvider {
+        WidgetDataProvider(defaults: defaults)
+    }
+    #endif
 
     // MARK: - Readiness
 
-    func updateReadiness(from recovery: RecoveryMetrics) {
-        let localStatusKey: String
-        switch recovery.recoveryStatus {
-        case .excellent: localStatusKey = "excellent"
-        case .good: localStatusKey = "good"
-        case .fair: localStatusKey = "fair"
-        case .poor: localStatusKey = "poor"
+    // Only the final score shown by the dashboard, so the widget never disagrees with the app.
+    func updateReadiness(score: Int, status: ReadinessStatus, recovery: RecoveryMetrics?, updatedAt: Date = Date()) {
+        let band: ReadinessScoreBand
+        switch status {
+        case .excellent: band = .excellent
+        case .good: band = .good
+        case .fair: band = .fair
+        case .poor: band = .poor
+        case .unknown: band = ReadinessScoreBand(score: score)
         }
-
-        // The dashboard shows the backend readiness score frozen each morning, not
-        // the local RecoveryMetrics score. Prefer that frozen value so the widget and
-        // the app agree; fall back to the local score only when today's backend score
-        // isn't cached yet (and only when the recovery sample is actually today's).
-        let frozen = Calendar.current.isDateInToday(recovery.date)
-            ? DailyMetricsCache.shared.getCachedScoreForToday()
-            : nil
-
         let data = WidgetReadinessData(
-            score: frozen?.score ?? recovery.recoveryScore,
-            status: frozen?.status ?? localStatusKey,
-            date: recovery.date,
-            hrvValue: recovery.hrvAverage,
-            rhrValue: recovery.restingHeartRate
+            score: score,
+            status: band.rawValue,
+            date: updatedAt,
+            hrvValue: recovery?.hrvAverage,
+            rhrValue: recovery?.restingHeartRate
         )
         save(data, forKey: WidgetDataKeys.readiness)
         reloadWidgets()

@@ -95,9 +95,8 @@ class RecoveryViewModel: ObservableObject {
                 }
             }
 
-            // Update widget data when loading today's metrics
+            // The readiness widget waits for the dashboard's final score.
             if Calendar.current.isDateInToday(targetDate) {
-                WidgetDataProvider.shared.updateReadiness(from: metrics)
                 WidgetDataProvider.shared.updateHealthVitals(
                     hrv: metrics.hrvAverage,
                     rhr: metrics.restingHeartRate,

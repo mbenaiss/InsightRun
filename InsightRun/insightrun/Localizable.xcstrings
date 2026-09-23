@@ -19968,6 +19968,134 @@
         }
       }
     },
+    "workout.pace.replaceHeartRate.confirm" : {
+      "comment" : "Confirm replacing a step heart rate target with a pace",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reemplazar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer"
+          }
+        }
+      }
+    },
+    "workout.pace.replaceHeartRate.message" : {
+      "comment" : "Explains why a pace replaces the step heart rate target",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch allows one alert per step. Setting a pace removes this step's heart rate target."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El Apple Watch solo admite una alerta por paso. Fijar un ritmo elimina el objetivo de frecuencia cardíaca de este paso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’Apple Watch n’accepte qu’une alerte par étape. Définir une allure supprime l’objectif de fréquence cardiaque de cette étape."
+          }
+        }
+      }
+    },
+    "workout.pace.replaceHeartRate.title" : {
+      "comment" : "Alert title before a pace replaces a step heart rate target",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace the heart rate target?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Reemplazar el objetivo de frecuencia cardíaca?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer l’objectif de fréquence cardiaque ?"
+          }
+        }
+      }
+    },
+    "workout.steps.count" : {
+      "comment" : "Number of steps in a generated workout",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld step"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld steps"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld paso"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pasos"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld étape"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld étapes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "WorkoutKit is not available on this device" : {
       "comment" : "Error when WorkoutKit is not supported",
       "localizations" : {

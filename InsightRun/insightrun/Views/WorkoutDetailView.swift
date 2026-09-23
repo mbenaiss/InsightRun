@@ -232,7 +232,10 @@ struct WorkoutDetailView: View {
         .onAppear {
             // Track workout detail viewed
             AnalyticsService.shared.trackWorkoutDetailViewed()
-            UserDefaults.standard.set(true, forKey: "hasViewedWorkoutDetail")
+            // The onboarding sample always opens; only a real run completes the dashboard's next action.
+            if !isSampleWorkout {
+                UserDefaults.standard.set(true, forKey: "hasViewedWorkoutDetail")
+            }
 
             // Update context provider with selected workout for unified AI assistant
             contextProvider.currentPage = .workoutDetail

@@ -179,6 +179,43 @@ describe('installed client HTTP contracts', () => {
     })
   }
 
+  test.each([
+    ['/api/chat', { prompt: 'Analyse ma course', systemPrompt: 'Coach', requestType: 'MODERATE' }],
+    [
+      '/api/chat',
+      {
+        prompt: 'Classe',
+        systemPrompt: 'Classifier',
+        requestType: 'CLASSIFICATION',
+        stream: false,
+      },
+    ],
+    [
+      '/api/chat/v2',
+      {
+        promptType: 'workout_coach',
+        requestType: 'MODERATE',
+        userQuestion: 'Analyse ma course',
+        language: 'fr',
+        data: data116,
+      },
+    ],
+  ])('%s keeps its upstream error contract without exposing provider text', async (path, body) => {
+    const errors = spyOn(console, 'error').mockImplementation(() => {})
+    const { response, text } = await request(
+      path,
+      body,
+      Response.json({ error: { message: 'Provider internal detail' } }, { status: 503 })
+    )
+    expect(response.status).toBe(500)
+    expect(JSON.parse(text)).toEqual({
+      error: 'AI Service Error',
+      message: 'Failed to get response from AI service',
+      details: 'Check server logs for details',
+    })
+    expect(errors.mock.calls.flat().join(' ')).toContain('Provider internal detail')
+  })
+
   test('v2 chat forwards a legacy model only when it belongs to the catalog', async () => {
     const upstreamModel = async (model: string) => {
       const { response, fetchMock } = await request('/api/chat/v2', {

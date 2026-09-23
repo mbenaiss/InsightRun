@@ -577,13 +577,13 @@ app.post('/api/chat', async (c) => {
 
     if (!openRouterResponse.ok) {
       const errorText = await openRouterResponse.text()
-      console.error('OpenRouter error:', errorText)
+      console.error(`OpenRouter error ${openRouterResponse.status}: ${errorText.slice(0, 1000)}`)
 
       return c.json(
         {
           error: 'AI Service Error',
           message: 'Failed to get response from AI service',
-          details: errorText,
+          details: 'Check server logs for details',
         },
         500
       )
@@ -1182,13 +1182,13 @@ app.post('/api/chat/v2', async (c) => {
 
     if (!openRouterResponse.ok) {
       const errorText = await openRouterResponse.text()
-      console.error('OpenRouter error:', errorText)
+      console.error(`OpenRouter error ${openRouterResponse.status}: ${errorText.slice(0, 1000)}`)
 
       return c.json(
         {
           error: 'AI Service Error',
           message: 'Failed to get response from AI service',
-          details: errorText,
+          details: 'Check server logs for details',
         },
         500
       )

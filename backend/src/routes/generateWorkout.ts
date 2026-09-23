@@ -496,6 +496,7 @@ app.post('/', async (c) => {
               latency,
               cost: undefined,
               ip,
+              route: '/api/generate-workout',
             })
             await posthog.shutdown()
           } catch (error) {

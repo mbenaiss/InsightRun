@@ -181,8 +181,8 @@ enum MockData {
             sourceName: "Insight Run Sample",
             sourceVersion: nil,
             metadata: ["is_sample": true],
-            averageHeartRate: 154,
-            maxHeartRate: 176,
+            averageHeartRate: 172,
+            maxHeartRate: 188,
             elevationGain: 42,
             hasRoute: false,
             isIndoor: false
@@ -366,11 +366,11 @@ enum MockData {
     }
 
     private static let sampleWorkoutAnalysisEN = """
-    You completed this 10 km run at 4:47/km and finished faster than you started, showing that you were able to increase your pace late in the session. Your average heart rate of 172 bpm adds context to that effort, but does not establish its intensity without a personal reference and your perceived effort. On your next comparable run, keep the opening pace controlled and note how the final kilometres feel: this will help you assess whether a faster finish also feels manageable.
+    You completed this 10 km run at 4:48/km and finished faster than you started, showing that you were able to increase your pace late in the session. Your average heart rate of 172 bpm adds context to that effort, but does not establish its intensity without a personal reference and your perceived effort. On your next comparable run, keep the opening pace controlled and note how the final kilometres feel: this will help you assess whether a faster finish also feels manageable.
     """
 
     private static let sampleWorkoutAnalysisFR = """
-    Sur ce 10 km à 4:47/km, tu as terminé plus vite que tu n'as commencé, ce qui montre que tu as pu augmenter l'allure en fin de séance. La fréquence cardiaque moyenne de 172 battements par minute complète ce constat, mais ne permet pas à elle seule de qualifier l'intensité sans référence personnelle ni ressenti. Lors d'une prochaine sortie comparable, garde un départ contrôlé et note tes sensations sur les derniers kilomètres : tu pourras ainsi vérifier si cette fin plus rapide reste confortable pour toi.
+    Sur ce 10 km à 4:48/km, tu as terminé plus vite que tu n'as commencé, ce qui montre que tu as pu augmenter l'allure en fin de séance. La fréquence cardiaque moyenne de 172 battements par minute complète ce constat, mais ne permet pas à elle seule de qualifier l'intensité sans référence personnelle ni ressenti. Lors d'une prochaine sortie comparable, garde un départ contrôlé et note tes sensations sur les derniers kilomètres : tu pourras ainsi vérifier si cette fin plus rapide reste confortable pour toi.
     """
 
     // MARK: - Sample Monthly Coach Insight (Demo Mode)

@@ -277,6 +277,11 @@ struct DashboardView: View {
             freshnessAvailable: trainingLoadService.freshnessScore != nil,
             forceRefresh: regenerateCoaching
         )
+        if Calendar.current.isDateInToday(date), !Task.isCancelled, recoveryVM.selectedDate == date,
+           let score = readinessVM.readinessScore {
+            WidgetDataProvider.shared.updateReadiness(
+                score: score, status: readinessVM.status, recovery: recoveryVM.recoveryMetrics)
+        }
         await trends
         await weekly
         await latest

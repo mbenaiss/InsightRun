@@ -26,6 +26,20 @@ struct WidgetReadinessData: Codable {
     let rhrValue: Double?
 }
 
+// Same bands as RecoveryMetrics.recoveryStatus in the app and getStatusFromScore in the backend.
+enum ReadinessScoreBand: String {
+    case excellent, good, fair, poor
+
+    init(score: Int) {
+        switch score {
+        case 67...: self = .excellent
+        case 50..<67: self = .good
+        case 33..<50: self = .fair
+        default: self = .poor
+        }
+    }
+}
+
 struct WidgetWeeklyStatsData: Codable {
     let totalDistance: Double // meters
     let totalRuns: Int

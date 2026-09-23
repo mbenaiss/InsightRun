@@ -70,13 +70,13 @@ struct WGHeader: View {
 // MARK: - Mini Ring (recovery score gauge)
 
 struct WGMiniRing: View {
-    let value: Int
+    let value: Int?
     var size: CGFloat = 70
     var label: String?
     var color: Color = .wgAccent
 
     var body: some View {
-        let progress = max(0, min(1, Double(value) / 100.0))
+        let progress = max(0, min(1, Double(value ?? 0) / 100.0))
         let lineWidth: CGFloat = max(4, size * 0.075)
 
         ZStack {
@@ -89,7 +89,7 @@ struct WGMiniRing: View {
                 .rotationEffect(.degrees(-90))
 
             VStack(spacing: 1) {
-                Text("\(value)")
+                Text(verbatim: value.map(String.init) ?? "—")
                     .font(WGFont.num(size * 0.32))
                     .kerning(WGTracking.numHero(size * 0.32))
                     .foregroundStyle(Color.wgTextPrimary)
@@ -277,25 +277,28 @@ struct WGBioMini: View {
 // MARK: - Status colour helpers
 
 enum WGStatusColor {
-    static func recovery(score: Int) -> Color {
-        switch score {
-        case 75...:    return .wgSuccess
-        case 55..<75:  return .wgAccent
-        case 35..<55:  return .wgWarning
-        default:       return .wgError
+    static func recovery(_ band: ReadinessScoreBand?) -> Color {
+        switch band {
+        case .excellent: return .wgSuccess
+        case .good:      return .wgAccent
+        case .fair:      return .wgWarning
+        case .poor:      return .wgError
+        case nil:        return .wgTextTertiary
         }
     }
 
-    static func recoveryLabel(score: Int) -> String {
-        switch score {
-        case 85...:
+    static func recoveryLabel(_ band: ReadinessScoreBand?) -> String? {
+        switch band {
+        case .excellent:
             return String(localized: "EXCELLENT", comment: "Widget recovery label: excellent").uppercased()
-        case 70..<85:
+        case .good:
             return String(localized: "GOOD", comment: "Widget recovery label: good").uppercased()
-        case 50..<70:
+        case .fair:
             return String(localized: "FAIR", comment: "Widget recovery label: fair").uppercased()
-        default:
+        case .poor:
             return String(localized: "LOW", comment: "Widget recovery label: low").uppercased()
+        case nil:
+            return nil
         }
     }
 }

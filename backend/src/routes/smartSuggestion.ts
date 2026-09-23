@@ -142,8 +142,12 @@ export async function callModelForSuggestion(
   systemPrompt: string,
   userPrompt: string,
   model: string
-): Promise<string> {
-  const { content } = await callOpenRouterWithRetry({
+) {
+  const {
+    content,
+    usage,
+    model: answeredModel,
+  } = await callOpenRouterWithRetry({
     apiKey,
     model,
     fallbackModel: SUGGESTION_FALLBACK_MODEL,
@@ -165,7 +169,7 @@ export async function callModelForSuggestion(
   if (suggestion.length < 40 || !/^[*-]\s+.+/m.test(suggestion)) {
     throw new Error('Incomplete workout suggestion')
   }
-  return suggestion
+  return { suggestion, usage, model: answeredModel }
 }
 
 // POST /api/workout/smart-suggestion
@@ -222,12 +226,11 @@ app.post('/', async (c) => {
     const { system: systemPrompt, user: userPrompt } = buildSmartSuggestionPrompt(body)
 
     // Call selected model
-    const suggestion = await callModelForSuggestion(
-      c.env.OPENROUTER_API_KEY,
-      systemPrompt,
-      userPrompt,
-      finalModel
-    )
+    const {
+      suggestion,
+      usage,
+      model: answeredModel,
+    } = await callModelForSuggestion(c.env.OPENROUTER_API_KEY, systemPrompt, userPrompt, finalModel)
 
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
@@ -249,17 +252,15 @@ app.post('/', async (c) => {
       c.executionCtx.waitUntil(
         (async () => {
           try {
-            const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
-            const outputTokenCount = estimateTokenCount(suggestion)
             await captureLLMEvent(posthog, userId, traceId, {
-              model: finalModel,
+              model: answeredModel ?? finalModel,
               input: userPrompt,
               systemPrompt,
               output: suggestion,
-              inputTokens: inputTokenCount,
-              outputTokens: outputTokenCount,
+              inputTokens: usage?.prompt_tokens ?? estimateTokenCount(systemPrompt + userPrompt),
+              outputTokens: usage?.completion_tokens ?? estimateTokenCount(suggestion),
               latency,
-              cost: undefined,
+              cost: usage?.cost,
               ip,
               route: '/api/workout/smart-suggestion',
             })

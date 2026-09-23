@@ -318,4 +318,43 @@ describe('history analysis retries', () => {
       },
     })
   })
+
+  test('reports the OpenRouter usage of both calls when an incomplete summary is retried', async () => {
+    fastForwardTimers()
+    const capture = mock(
+      async (_event: { event: string; properties: Record<string, unknown> }) => {}
+    )
+    spyOn(analytics, 'createPostHogClient').mockReturnValue({
+      captureImmediate: capture,
+      shutdown: mock(async () => {}),
+    } as unknown as ReturnType<typeof analytics.createPostHogClient>)
+    spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json({
+          choices: [{ message: { content: 'Partial' }, finish_reason: 'length' }],
+          usage: { prompt_tokens: 100, completion_tokens: 4096, cost: 0.01 },
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          model: 'vendor/answering-model',
+          choices: [{ message: { content: 'One 5 km run.' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 120, completion_tokens: 50, cost: 0.002 },
+        })
+      )
+
+    const { response } = await requestAnalysis('batch', null, true)
+
+    expect(response.status).toBe(200)
+    const generation = capture.mock.calls
+      .map(([event]) => event)
+      .find((event) => event.event === '$ai_generation')
+    expect(generation?.properties).toMatchObject({
+      $ai_model: 'vendor/answering-model',
+      $ai_input_tokens: 220,
+      $ai_output_tokens: 4146,
+      route: '/api/analyze-history/batch',
+    })
+    expect(generation?.properties.$ai_total_cost_usd).toBeCloseTo(0.012)
+  })
 })

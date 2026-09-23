@@ -40,6 +40,26 @@ export class OpenRouterHttpError extends Error {
 
 const isRetryableStatus = (status: number) => status === 408 || status === 429 || status >= 500
 
+export interface OpenRouterUsage {
+  prompt_tokens?: number
+  completion_tokens?: number
+  cost?: number
+}
+
+export function addUsage(
+  total: OpenRouterUsage | undefined,
+  usage: OpenRouterUsage | undefined
+): OpenRouterUsage | undefined {
+  if (!total || !usage) return total ?? usage
+  const sum = (a?: number, b?: number) =>
+    a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0)
+  return {
+    prompt_tokens: sum(total.prompt_tokens, usage.prompt_tokens),
+    completion_tokens: sum(total.completion_tokens, usage.completion_tokens),
+    cost: sum(total.cost, usage.cost),
+  }
+}
+
 interface CallOpenRouterOptions {
   apiKey: string
   model: string
@@ -59,9 +79,12 @@ interface CallOpenRouterOptions {
   throwOnTruncation?: boolean
 }
 
-export async function callOpenRouterWithRetry(
-  opts: CallOpenRouterOptions
-): Promise<{ content: string; finishReason: string }> {
+export async function callOpenRouterWithRetry(opts: CallOpenRouterOptions): Promise<{
+  content: string
+  finishReason: string
+  usage?: OpenRouterUsage
+  model?: string
+}> {
   const requestBody = {
     ...opts.body,
     model: opts.model,
@@ -94,7 +117,9 @@ export async function callOpenRouterWithRetry(
       }
 
       const data = (await response.json().catch(() => null)) as {
+        model?: string
         choices?: Array<{ message?: { content?: string }; finish_reason?: string }>
+        usage?: OpenRouterUsage
       } | null
 
       // A 200 can still carry an upstream error body instead of a completion.
@@ -111,7 +136,12 @@ export async function callOpenRouterWithRetry(
         throw new TruncatedResponseError()
       }
 
-      return { content: choice.message?.content || '', finishReason }
+      return {
+        content: choice.message?.content || '',
+        finishReason,
+        usage: data?.usage,
+        model: data?.model,
+      }
     } catch (error) {
       if (error instanceof TruncatedResponseError || error instanceof OpenRouterHttpError)
         throw error

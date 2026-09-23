@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { PLAN_FALLBACK_MODEL_ID } from '../src/modelRouter'
+import * as analytics from '../src/posthog'
 import adaptPlan from '../src/routes/adaptTrainingPlan'
 import generatePlan, { buildPlanSkeleton, taperWeekCount } from '../src/routes/generateTrainingPlan'
 
@@ -651,4 +652,55 @@ describe('adaptation taper', () => {
     expect(prompts.get(18)).toContain('week 18 of this block is a taper week')
     for (const prompt of prompts.values()) expect(prompt).not.toContain('taper prematurely')
   })
+})
+
+test('reports the summed OpenRouter usage, cost and route of every generated block', async () => {
+  const capture = mock(async (_event: { event: string; properties: Record<string, unknown> }) => {})
+  spyOn(analytics, 'createPostHogClient').mockReturnValue({
+    captureImmediate: capture,
+    shutdown: mock(async () => {}),
+  } as unknown as ReturnType<typeof analytics.createPostHogClient>)
+  spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+    const { from, through } = promptWeeks(init)
+    return Response.json({
+      model: 'vendor/plan-model',
+      choices: [
+        {
+          message: { content: JSON.stringify(blockOutput(from, through, 18)) },
+          finish_reason: 'stop',
+        },
+      ],
+      usage: { prompt_tokens: 100, completion_tokens: 40, cost: 0.001 },
+    })
+  })
+  const body = requestBody()
+  body.targetDate = new Date(new Date(body.startDate).getTime() + 126 * 86400000).toISOString()
+  body.weeksCount = 18
+  const pending: Promise<unknown>[] = []
+  const response = await generatePlan.request(
+    '/',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    { ...env, POSTHOG_API_KEY: 'test-key', POSTHOG_HOST: 'https://example.invalid' },
+    {
+      waitUntil: (promise: Promise<unknown>) => {
+        pending.push(promise)
+      },
+      passThroughOnException: () => {},
+    } as unknown as ExecutionContext
+  )
+  expect(response.status).toBe(200)
+  await Promise.all(pending)
+  const generation = capture.mock.calls
+    .map(([event]) => event)
+    .find((event) => event.event === '$ai_generation')
+  expect(generation?.properties).toMatchObject({
+    $ai_input_tokens: 500,
+    $ai_output_tokens: 200,
+    route: '/api/generate-training-plan',
+  })
+  expect(generation?.properties.$ai_total_cost_usd).toBeCloseTo(0.005)
 })

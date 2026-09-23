@@ -6,8 +6,10 @@ import {
   selectModelFromRequest,
 } from '../modelRouter'
 import {
+  addUsage,
   callOpenRouterWithRetry,
   OpenRouterTimeoutError,
+  type OpenRouterUsage,
   TruncatedResponseError,
 } from '../openrouter'
 import { captureLLMEvent, captureTrainingPlanError, createPostHogClient } from '../posthog'
@@ -568,8 +570,8 @@ async function callOpenRouterForPlan(
   userPrompt: string,
   model: string,
   timeoutMs: number
-): Promise<string> {
-  const { content } = await callOpenRouterWithRetry({
+): Promise<{ content: string; usage?: OpenRouterUsage }> {
+  const { content, usage } = await callOpenRouterWithRetry({
     apiKey,
     model,
     fallbackModel: PLAN_FALLBACK_MODEL_ID,
@@ -589,7 +591,7 @@ async function callOpenRouterForPlan(
     title: 'insightRun.ai',
     throwOnTruncation: true,
   })
-  return content
+  return { content, usage }
 }
 
 interface PlanBlock {
@@ -601,6 +603,7 @@ interface GeneratedPlanBlock {
   plan: GeneratedTrainingPlan
   attempts: number
   modelUsed: string
+  usage?: OpenRouterUsage
 }
 
 // Phases are labels the client displays: the skeleton stays authoritative across blocks.
@@ -700,6 +703,7 @@ async function generatePlanBlock(options: {
   // Carries the previous failure into the next attempt so the model corrects it
   // instead of re-emitting the exact same broken output.
   let retryFeedback = ''
+  let usage: OpenRouterUsage | undefined
 
   while (attempts < maxAttempts && !planJSON) {
     attempts++
@@ -712,13 +716,14 @@ async function generatePlanBlock(options: {
         ? `${userPrompt}\n\nYour previous output was invalid: ${retryFeedback}\nReturn corrected, complete JSON only.`
         : userPrompt
 
-      const rawResponse = await callOpenRouterForPlan(
+      const { content: rawResponse, usage: attemptUsage } = await callOpenRouterForPlan(
         apiKey,
         systemPrompt,
         attemptUserPrompt,
         modelUsed,
         Math.min(OPENROUTER_TIMEOUT_MS, remainingMs)
       )
+      usage = addUsage(usage, attemptUsage)
 
       console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
 
@@ -756,7 +761,7 @@ async function generatePlanBlock(options: {
   }
 
   if (!planJSON) throw new Error('Failed to generate a complete training plan block')
-  return { plan: planJSON, attempts, modelUsed }
+  return { plan: planJSON, attempts, modelUsed, usage }
 }
 
 // POST /api/generate-training-plan
@@ -960,6 +965,10 @@ app.post('/', async (c) => {
     }
     const attempts = Math.max(...results.map((result) => result.attempts))
     const modelUsed = [...new Set(results.map((result) => result.modelUsed))].join(',')
+    const usage = results.reduce<OpenRouterUsage | undefined>(
+      (total, result) => addUsage(total, result.usage),
+      undefined
+    )
 
     const generationTime = Date.now() - startTime
     const latency = generationTime / 1000
@@ -979,18 +988,18 @@ app.post('/', async (c) => {
       c.executionCtx.waitUntil(
         (async () => {
           try {
-            const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
-            const outputTokenCount = estimateTokenCount(JSON.stringify(planJSON))
             await captureLLMEvent(posthog, userId, traceId, {
               model: modelUsed,
               input: userPrompt,
               systemPrompt,
               output: JSON.stringify(planJSON),
-              inputTokens: inputTokenCount,
-              outputTokens: outputTokenCount,
+              inputTokens: usage?.prompt_tokens ?? estimateTokenCount(systemPrompt + userPrompt),
+              outputTokens:
+                usage?.completion_tokens ?? estimateTokenCount(JSON.stringify(planJSON)),
               latency,
-              cost: undefined,
+              cost: usage?.cost,
               ip,
+              route: '/api/generate-training-plan',
             })
             await posthog.shutdown()
           } catch (error) {

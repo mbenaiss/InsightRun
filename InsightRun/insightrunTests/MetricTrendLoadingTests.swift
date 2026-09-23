@@ -138,17 +138,17 @@ extension MetricTrendLoadingTests {
         XCTAssertFalse(viewModel.isLoading)
     }
 
-    func testChangedRecoveryInvalidatesFrozenScoreButActivityDoesNot() {
+    func testLateNightDataInvalidatesFrozenScoreButActivityDoesNot() {
         let name = UUID().uuidString
         let defaults = UserDefaults(suiteName: name)!
         defer { defaults.removePersistentDomain(forName: name) }
         let cache = DailyMetricsCache.createForTesting(defaults: defaults)
         cache.cacheReadiness(score: 82, status: "good", recommendation: "Ready", workoutType: "moderate",
-                             effortScore: 20, inputSignature: "activity-1", recoverySignature: "morning")
+                             effortScore: 20, inputSignature: "activity-1", nightSignature: "morning")
         XCTAssertNotNil(cache.getCachedReadiness(effortScore: 20, cardiacLoadScore: nil, inputSignature: "activity-1"))
         XCTAssertNil(cache.getCachedReadiness(effortScore: 20, cardiacLoadScore: nil, inputSignature: "activity-2"))
-        XCTAssertEqual(cache.getCachedScoreForToday(recoverySignature: "morning")?.score, 82)
-        XCTAssertNil(cache.getCachedScoreForToday(recoverySignature: "updated-sleep"))
+        XCTAssertEqual(cache.getCachedScoreForToday(nightSignature: "morning")?.score, 82)
+        XCTAssertNil(cache.getCachedScoreForToday(nightSignature: "updated-sleep"))
     }
 
     func testRefreshCoordinatorCoalescesAndThrottlesAutomaticLoads() async {

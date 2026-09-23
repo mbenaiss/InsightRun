@@ -20,18 +20,37 @@ final class DailyReadinessViewModelTests: XCTestCase {
         defaults = nil
     }
 
-    private func response(_ text: String = "A complete analysis.", source: String = "ai") -> DailyReadinessResponse {
-        DailyReadinessResponse(score: 80, status: "good", recommendation: text, summary: text,
+    private func response(_ text: String = "A complete analysis.", source: String = "ai", score: Int = 80) -> DailyReadinessResponse {
+        DailyReadinessResponse(score: score, status: "good", recommendation: text, summary: text,
                                detail: text, suggestedWorkoutType: "moderate", insights: [], coachingSource: source)
     }
 
     private func viewModel(
+        cache customCache: DailyMetricsCache? = nil,
         loadWorkouts: @escaping @MainActor (Date, Date) async throws -> [WorkoutModel] = { _, _ in [] },
         fetch: @escaping @MainActor (DailyReadinessRequest) async throws -> DailyReadinessResponse
     ) -> DailyReadinessViewModel {
-        DailyReadinessViewModel(dailyCache: cache, hasConsent: { true }, requiresIndexation: { false },
+        DailyReadinessViewModel(dailyCache: customCache ?? cache, hasConsent: { true }, requiresIndexation: { false },
                                 loadNoSleepMode: { true }, loadWorkouts: loadWorkouts, fetchReadiness: fetch,
                                 isDemo: { false })
+    }
+
+    private func baseline(restingHeartRate: Double) -> PersonalBaseline {
+        PersonalBaseline(id: UUID(), computedAt: Date(), dataPointCount: 14,
+                         restingHeartRateAverage: restingHeartRate, restingHeartRateStdDev: 3,
+                         hrvAverage: 70, hrvStdDev: 10, walkingHeartRateAverage: 100, walkingHeartRateStdDev: 5,
+                         respiratoryRateAverage: 14, respiratoryRateStdDev: 1,
+                         oxygenSaturationAverage: 97, oxygenSaturationStdDev: 1,
+                         sleepDurationAverage: 7 * 3600, sleepEfficiencyAverage: 90,
+                         deepSleepPercentageAverage: 18, remSleepPercentageAverage: 22)
+    }
+
+    private func sleep(hours: Double) -> SleepData {
+        let end = Calendar.current.startOfDay(for: Date()).addingTimeInterval(7 * 3600)
+        return SleepData(date: end, sleepStart: end.addingTimeInterval(-hours * 3600), sleepEnd: end,
+                         totalSleepDuration: hours * 3600, timeInBed: hours * 3600 / 0.9,
+                         deepSleepDuration: nil, coreSleepDuration: nil, remSleepDuration: nil,
+                         awakeDuration: nil, napDuration: nil)
     }
 
     private func activity(steps: Double, calories: Double = 100, minutes: Double = 10, basal: Double = 500) -> DailyActivityData {
@@ -50,10 +69,70 @@ final class DailyReadinessViewModelTests: XCTestCase {
         XCTAssertEqual(requests.count, 2)
         XCTAssertEqual(requests.last?.cachedScore, 80)
         XCTAssertEqual(model.readinessScore, 80)
-        let newRecovery = RecoveryMetrics(date: Date(), restingHeartRate: 60, hrvAverage: 40)
-        await model.fetchDailyReadiness(recoveryMetrics: newRecovery)
-        XCTAssertEqual(requests.count, 3)
+    }
+
+    func testIntradayVitalsAndBaselineRefreshKeepTheFrozenScore() async {
+        var requests: [DailyReadinessRequest] = []
+        let model = viewModel { request in
+            requests.append(request)
+            return self.response(score: request.cachedScore == nil ? 80 : 70)
+        }
+        let morning = RecoveryMetrics(date: Date(), restingHeartRate: 50, hrvAverage: 75, walkingHeartRate: 95,
+                                      sleepData: sleep(hours: 7), respiratoryRate: 14, oxygenSaturation: 98,
+                                      baseline: baseline(restingHeartRate: 50))
+        await model.fetchDailyReadiness(recoveryMetrics: morning)
+        let afternoon = RecoveryMetrics(date: Date(), restingHeartRate: 58, hrvAverage: 75, walkingHeartRate: 112,
+                                        sleepData: sleep(hours: 7), respiratoryRate: 17, oxygenSaturation: 94,
+                                        baseline: baseline(restingHeartRate: 53))
+        await model.fetchDailyReadiness(recoveryMetrics: afternoon)
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests.last?.cachedScore, 80)
+        XCTAssertEqual(model.readinessScore, 80)
+        XCTAssertEqual(cache.getCachedScoreForToday()?.score, 80)
+    }
+
+    func testLateNightDataRecomputesTheScore() async {
+        var requests: [DailyReadinessRequest] = []
+        let model = viewModel { request in
+            requests.append(request)
+            return self.response(score: request.recovery.sleepData == nil ? 80 : 62)
+        }
+        await model.fetchDailyReadiness(recoveryMetrics: RecoveryMetrics(date: Date(), restingHeartRate: 50))
+        let syncedNight = RecoveryMetrics(date: Date(), restingHeartRate: 50, hrvAverage: 48, sleepData: sleep(hours: 5.5))
+        await model.fetchDailyReadiness(recoveryMetrics: syncedNight)
+        XCTAssertEqual(requests.count, 2)
         XCTAssertNil(requests.last?.cachedScore)
+        XCTAssertEqual(model.readinessScore, 62)
+        await model.fetchDailyReadiness(recoveryMetrics: syncedNight, effortScore: 60)
+        XCTAssertEqual(requests.last?.cachedScore, 62)
+    }
+
+    func testLanguageChangeKeepsTheFrozenScore() async {
+        var requests: [DailyReadinessRequest] = []
+        let recovery = RecoveryMetrics(date: Date(), restingHeartRate: 50, hrvAverage: 75)
+        let french = DailyMetricsCache.createForTesting(defaults: defaults, language: "fr")
+        await viewModel(cache: french) { requests.append($0); return self.response() }
+            .fetchDailyReadiness(recoveryMetrics: recovery)
+        let english = DailyMetricsCache.createForTesting(defaults: defaults, language: "en")
+        XCTAssertNil(english.getReadiness(for: Date()))
+        let model = viewModel(cache: english) { requests.append($0); return self.response(score: 70) }
+        await model.fetchDailyReadiness(recoveryMetrics: recovery)
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests.last?.cachedScore, 80)
+        XCTAssertEqual(model.readinessScore, 80)
+    }
+
+    func testScoreCachedBeforeTheLanguageIndependentKeyStaysFrozen() async {
+        cache.cacheReadiness(score: 77, status: "excellent", recommendation: "Morning advice", workoutType: "moderate",
+                             inputSignature: "legacy")
+        defaults.removeObject(forKey: "com.insightrun.dailyReadinessScore")
+        var requests: [DailyReadinessRequest] = []
+        let model = viewModel { requests.append($0); return self.response(score: 67) }
+        await model.fetchDailyReadiness(recoveryMetrics: RecoveryMetrics(date: Date(), restingHeartRate: 50, hrvAverage: 75))
+        XCTAssertEqual(requests.last?.cachedScore, 77)
+        XCTAssertEqual(model.readinessScore, 77)
+        XCTAssertNil(cache.getCachedScoreForToday(nightSignature: "unrelated"))
+        XCTAssertEqual(cache.getCachedScoreForToday()?.score, 77)
     }
 
     func testNewWorkoutInvalidatesAnalysisAndUsesOnlyCompletedRuns() async {

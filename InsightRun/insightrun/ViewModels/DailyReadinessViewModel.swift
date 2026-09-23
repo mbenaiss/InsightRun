@@ -192,8 +192,6 @@ class DailyReadinessViewModel: ObservableObject {
                 CardiacLoadPayload(score: $0, status: cardiacLoadStatus.rawValue)
             }
 
-            // Pull the morning score for today (if any) so the backend keeps it stable
-            // when only effort/cardiac context has shifted.
             var scoringRecovery = buildRecoveryPayload(from: recoveryMetrics)
             scoringRecovery.rmssd = nil
             let recoverySignature = Self.signature([
@@ -221,7 +219,8 @@ class DailyReadinessViewModel: ObservableObject {
                 isFallback = cached.coachingSource == "fallback"
                 return
             }
-            let frozenScore = dailyCache.getCachedScoreForToday(recoverySignature: recoverySignature)
+            let nightSignature = Self.nightSignature(of: recoveryMetrics)
+            let frozenScore = dailyCache.getCachedScoreForToday(nightSignature: nightSignature)
 
             let request = DailyReadinessRequest(
                 recovery: buildRecoveryPayload(from: recoveryMetrics),
@@ -269,9 +268,7 @@ class DailyReadinessViewModel: ObservableObject {
                 throw URLError(.cannotParseResponse)
             }
 
-            // Defensive freeze: if the user already has a morning score for today,
-            // keep it regardless of what the backend returned. Covers older backends
-            // that don't honor `cachedScore`, and rollback scenarios.
+            // A backend that ignores `cachedScore` must not move the frozen score either.
             let displayScore = frozenScore?.score ?? response.score
             let displayStatus = frozenScore?.status ?? response.status
 
@@ -295,7 +292,7 @@ class DailyReadinessViewModel: ObservableObject {
                 effortScore: effortScore,
                 cardiacLoadScore: cardiacLoadScore,
                 inputSignature: inputSignature,
-                recoverySignature: recoverySignature,
+                nightSignature: nightSignature,
                 coachingSource: response.coachingSource,
                 date: date
             )
@@ -345,6 +342,18 @@ class DailyReadinessViewModel: ObservableObject {
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
+    // Daytime vitals and the daily baseline refresh keep moving; only the night can arrive late.
+    private static func nightSignature(of metrics: RecoveryMetrics) -> String {
+        let sleep = metrics.sleepData
+        return signature([
+            "night-v1",
+            sleep.map { String(format: "%.0f:%.1f", $0.totalSleepDuration, $0.sleepEfficiency) } ?? "no-sleep",
+            sleep?.deepSleepDuration.map { String(format: "%.0f", $0) } ?? "no-deep",
+            sleep?.remSleepDuration.map { String(format: "%.0f", $0) } ?? "no-rem",
+            metrics.hrvAverage.map { String(format: "%.1f", $0) } ?? "no-hrv"
+        ])
+    }
+
     // MARK: - Payload Builders
 
     private func buildRecoveryPayload(from metrics: RecoveryMetrics) -> RecoveryData {
@@ -389,8 +398,7 @@ struct DailyReadinessRequest: Encodable {
     let cardiacLoad: CardiacLoadPayload?
     let recentWorkouts: [ReadinessWorkoutData]?
     let language: String
-    /// Morning score already computed today. When set, the backend honors it as the
-    /// response score instead of recomputing — keeps the displayed score stable for the day.
+    // Nil only before today's first score or after late night data, so the backend never re-penalises it.
     let cachedScore: Int?
     /// Status paired with `cachedScore`. Used by the backend to keep the AI prompt and
     /// suggested workout type coherent with the frozen score.

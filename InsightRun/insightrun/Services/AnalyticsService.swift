@@ -165,16 +165,16 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         track(.onboardingCompleted)
     }
 
-    func trackHealthKitPermissionRequested() {
-        track(.healthKitPermissionRequested)
+    func trackHealthKitPermissionRequested(properties: [String: Any] = [:]) {
+        track(.healthKitPermissionRequested, properties: properties)
     }
 
-    func trackHealthKitPermissionGranted() {
-        track(.healthKitPermissionGranted)
+    func trackHealthKitPermissionGranted(properties: [String: Any] = [:]) {
+        track(.healthKitPermissionGranted, properties: properties)
     }
 
-    func trackHealthKitPermissionDenied() {
-        track(.healthKitPermissionDenied)
+    func trackHealthKitPermissionDenied(properties: [String: Any] = [:]) {
+        track(.healthKitPermissionDenied, properties: properties)
     }
 
     // MARK: - Notification Permission Events

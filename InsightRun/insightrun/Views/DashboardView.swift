@@ -800,21 +800,28 @@ struct DashboardView: View {
                 )
             }
 
-            if let rmssd = MetricDisplayValue.positive(recovery?.rmssd?.currentNight?.median) {
+            // Without data the card stays as the entry point to the RMSSD access request.
+            let rmssd = MetricDisplayValue.positive(recovery?.rmssd?.currentNight?.median)
+            if rmssd != nil || HealthInsightReader.rmssdType != nil {
                 SignalCard(
                     icon: "waveform.path.ecg",
                     label: String(localized: "insights.rmssd.short", defaultValue: "HRV · RMSSD"),
-                    value: Formatters.integer(Int(rmssd.rounded())),
+                    value: rmssd.map { Formatters.integer(Int($0.rounded())) } ?? "—",
                     unit: "ms",
                     status: RMSSDTrend.statusDescription(recovery?.rmssd),
                     statusColor: .irTextSecondary,
                     trend: metricTrend(for: .rmssd).map(\.value),
                     onTap: {
                         presentMetricSheet(
-                            .rmssd, value: rmssd,
+                            .rmssd, value: rmssd ?? 0,
                                            unit: "ms", status: nil, trend: metricTrend(for: .rmssd))
                     }
                 )
+                .task {
+                    if await HealthKitManager.shared.requestAddedReadTypesAuthorizationIfNeeded() {
+                        await recoveryVM.refresh()
+                    }
+                }
             }
 
             if let rhr = MetricDisplayValue.positive(recovery?.restingHeartRate) {

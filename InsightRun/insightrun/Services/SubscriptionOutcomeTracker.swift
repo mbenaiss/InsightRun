@@ -107,7 +107,10 @@ struct SubscriptionOutcomeTracker {
   ) {
     var properties = outcomeContext(attempt, productId: productId, source: source)
     if let attempt {
-      properties["revenue"] = Self.revenue(attempt.price)
+      let listPrice = Self.revenue(attempt.price)
+      // A free-trial start earns nothing yet; revenue arrives with the first renewal.
+      properties["revenue"] = isTrial ? 0.0 : listPrice
+      properties["list_price"] = listPrice
       properties["price_display"] = attempt.priceDisplay
       if let currency = attempt.currency {
         properties["currency"] = currency

@@ -194,21 +194,33 @@ describe('Strava activity detail failures', () => {
       },
     })
   })
+})
 
-  test('keeps the error field for an internal failure', async () => {
-    const { env } = setup()
-    spyOn(analytics, 'createPostHogClient').mockReturnValue({
-      captureImmediate: mock(async () => {}),
-      shutdown: mock(async () => {}),
-    } as unknown as ReturnType<typeof analytics.createPostHogClient>)
-    spyOn(console, 'error').mockImplementation(() => {})
-    spyOn(StravaCache.prototype, 'getActivity').mockRejectedValue(new Error('D1 unavailable'))
+describe('Strava internal failures', () => {
+  test.each([
+    ['GET', '/activities', 'needsSync', 'Failed to fetch activities'],
+    ['GET', '/activities/7', 'getActivity', 'Failed to fetch activity'],
+    ['POST', '/sync', 'getLastActivityDate', 'Sync failed'],
+  ] as const)('%s %s logs the cause but returns a generic error', async (method, path, failing, fallback) => {
+    const { env, execution } = setup()
+    const errors = spyOn(console, 'error').mockImplementation(() => {})
+    spyOn(StravaCache.prototype, 'needsSync').mockResolvedValue(false)
+    spyOn(StravaCache.prototype, 'setSyncStatus').mockResolvedValue()
+    spyOn(StravaCache.prototype, failing).mockRejectedValue(new Error('D1 unavailable'))
 
-    const { response, pending } = requestDetail(env)
-    const result = await response
-    await Promise.all(pending)
+    const response = await app.request(
+      path,
+      {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-User-ID': 'test-user' },
+        ...(method === 'POST' ? { body: JSON.stringify({}) } : {}),
+      },
+      env,
+      execution
+    )
 
-    expect(result.status).toBe(500)
-    expect((await result.json()).error).toBe('Failed to fetch activity')
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: fallback, message: 'Unexpected server error' })
+    expect(errors.mock.calls.flat().join(' ')).toContain('D1 unavailable')
   })
 })

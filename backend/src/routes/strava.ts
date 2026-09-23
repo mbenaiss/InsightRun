@@ -104,10 +104,7 @@ function stravaErrorResponse(c: StravaContext, error: unknown, fallback: string)
   if (error instanceof Error && error.message.includes('not authenticated')) {
     return c.json({ error: error.message }, 401)
   }
-  return c.json(
-    { error: fallback, message: error instanceof Error ? error.message : 'Unknown error' },
-    500
-  )
+  return c.json({ error: fallback, message: 'Unexpected server error' }, 500)
 }
 
 interface StravaWebhookEvent {

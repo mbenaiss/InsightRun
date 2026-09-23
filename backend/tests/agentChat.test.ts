@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
+import { RequestType, selectModel } from '../src/modelRouter'
 import app from '../src/routes/agentChat'
 
 afterEach(() => mock.restore())
 
-async function chat(upstream: string, data = {}) {
+async function chat(upstream: string | ((models: string[]) => string), data = {}) {
   const put = mock(async () => {})
-  const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(upstream))
+  const fetchMock = spyOn(globalThis, 'fetch').mockImplementationOnce(
+    async (_input, init) =>
+      new Response(
+        typeof upstream === 'string' ? upstream : upstream(JSON.parse(String(init?.body)).models)
+      )
+  )
   const response = await app.request(
     '/chat',
     {
@@ -104,5 +110,33 @@ describe('agent streaming failures', () => {
     expect(output).toContain('"content":"Hello."')
     expect(output).toContain('[DONE]')
     expect(output).not.toContain('"type":"error"')
+  })
+})
+
+describe('agent premium quota', () => {
+  test.each([
+    ['the premium model', ([premium]: string[]) => premium, 1],
+    ['a dated premium slug', ([premium]: string[]) => `${premium}-20251117`, 1],
+    ['the fallback model', ([, fallback]: string[]) => fallback, 0],
+    ['an unidentified model', () => undefined, 1],
+  ])('is charged only when %s answered', async (_case, answeredBy, charges) => {
+    const premium = await selectModel(
+      RequestType.COMPLEX,
+      { get: async () => null } as unknown as KVNamespace,
+      'test-user',
+      'chat'
+    )
+    expect(premium.model.requiresQuota).toBe(true)
+
+    const { output, put, fetchMock } = await chat((models) => {
+      const chunk = { model: answeredBy(models), choices: [{ delta: { content: 'Hello.' } }] }
+      return `data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`
+    })
+
+    const { models } = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+    expect(models[0]).toBe(premium.model.modelId)
+    expect(models[1]).not.toBe(models[0])
+    expect(output).toContain('[DONE]')
+    expect(put).toHaveBeenCalledTimes(charges)
   })
 })

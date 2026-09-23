@@ -114,6 +114,13 @@ const AGENT_FALLBACK_MODEL = 'google/gemini-2.5-flash'
 // START (headers); once streaming begins the client consumes tokens directly.
 const AGENT_CONNECT_TIMEOUT_MS = 100_000
 
+// OpenRouter can report a dated slug such as "google/gemini-3-pro-preview-20251117".
+function isReportedModel(reported: string, modelId: string): boolean {
+  return (
+    reported === modelId || reported.startsWith(`${modelId}-`) || reported.startsWith(`${modelId}:`)
+  )
+}
+
 // Build the agentic system prompt
 function buildAgentSystemPrompt(data: ChatDataPayload, language: string): string {
   const basePrompt = buildPrompt('workout_coach', data, language)
@@ -515,7 +522,13 @@ app.post('/chat', async (c) => {
 
                 captureGeneration(measuredGeneration())
 
-                await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId, 'chat')
+                const fallbackAnswered =
+                  answeredModel !== undefined &&
+                  !isReportedModel(answeredModel, model) &&
+                  isReportedModel(answeredModel, AGENT_FALLBACK_MODEL)
+                if (!fallbackAnswered) {
+                  await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId, 'chat')
+                }
                 return
               }
 

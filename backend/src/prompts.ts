@@ -371,7 +371,6 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
   context += detailHeader
   for (let i = 0; i < detailed.length; i++) {
     const w = detailed[i]
-    context += buildWorkoutInsights(w)
     context += `\n${detailStart + i + 1}. **${w.date}**\n`
 
     // Basic metrics
@@ -444,6 +443,8 @@ function buildRecentWorkoutsContext(recent: RecentWorkoutsData): string {
       if (w.splits.length > splits.length) context += ` | …(+${w.splits.length - splits.length})`
       context += `\n`
     }
+
+    context += buildWorkoutInsights(w)
   }
 
   return context

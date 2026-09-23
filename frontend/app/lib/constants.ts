@@ -4,7 +4,7 @@
 
 // Last updated dates for legal pages
 export const LAST_UPDATED_DATE = 'February 23, 2026'
-export const PRIVACY_LAST_UPDATED_DATE = 'August 25, 2026'
+export const PRIVACY_LAST_UPDATED_DATE = 'September 23, 2026'
 
 // iOS version requirements
 export const MIN_IOS_VERSION = '18.0'

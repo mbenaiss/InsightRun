@@ -87,12 +87,31 @@ class WeeklySummaryViewModel: ObservableObject {
     @Published var weekStart: Date = .now
     @Published var weekEnd: Date = .now
 
-    private let healthKitManager = HealthKitManager.shared
+    private let loadWorkouts: @MainActor (Date, Date) async throws -> [WorkoutModel]
+    private let loadRecovery: @MainActor (Date) async throws -> RecoveryMetrics
+    private let loadInsight: @MainActor (WeeklyCoachingService.Snapshot) async throws -> WeeklyCoachingInsight?
     private let calendar = Calendar.current
-    private var lastLoadedAt: Date?
+    // The dashboard card only needs running totals; details and coaching belong to the recap screen.
+    private var runningLoadedAt: Date?
+    private var detailsLoadedAt: Date?
     private var loadTask: Task<Void, Never>?
-    private var detailsLoaded = false
     private(set) var selectedDate = Calendar.current.startOfDay(for: Date())
+
+    init(
+        loadWorkouts: @escaping @MainActor (Date, Date) async throws -> [WorkoutModel] = {
+            try await HealthKitManager.shared.fetchRunningWorkouts(from: $0, to: $1)
+        },
+        loadRecovery: @escaping @MainActor (Date) async throws -> RecoveryMetrics = {
+            try await MetricTrendDataService.shared.recoveryMetrics(for: $0)
+        },
+        loadInsight: @escaping @MainActor (WeeklyCoachingService.Snapshot) async throws -> WeeklyCoachingInsight? = {
+            try await WeeklyCoachingService.shared.insight(for: $0)
+        }
+    ) {
+        self.loadWorkouts = loadWorkouts
+        self.loadRecovery = loadRecovery
+        self.loadInsight = loadInsight
+    }
 
     var formattedWeekRange: String {
         let formatter = DateFormatter()
@@ -153,24 +172,22 @@ class WeeklySummaryViewModel: ObservableObject {
     }
 
     private func performLoad(for date: Date, forceCoachingRefresh: Bool, minimumRefreshInterval: TimeInterval, includeCoaching: Bool, includeDetails: Bool) async {
-        if selectedDate == date, (!includeDetails || detailsLoaded), !forceCoachingRefresh, let lastLoadedAt,
-           Date().timeIntervalSince(lastLoadedAt) < minimumRefreshInterval,
-           calendar.isDateInToday(lastLoadedAt) {
-            return
-        }
-        let canReuseRunning = selectedDate == date && lastLoadedAt.map { Date().timeIntervalSince($0) < minimumRefreshInterval } == true
-        if selectedDate != date || !canReuseRunning {
-            detailsLoaded = false
-            coachingTimestamp = nil
-            coachingTLDR = ""
-            coachingDetail = ""
-            coachingHighlight = nil
+        if selectedDate != date {
+            runningLoadedAt = nil
+            detailsLoadedAt = nil
+            resetDetails()
+            resetCoaching()
         }
         selectedDate = date
+        let reuseRunning = isRecent(runningLoadedAt, within: minimumRefreshInterval)
+        let reuseDetails = reuseRunning && !forceCoachingRefresh && isRecent(detailsLoadedAt, within: minimumRefreshInterval)
+        if reuseRunning, !includeDetails || reuseDetails {
+            return
+        }
         #if DEBUG
         DashboardDiagnostics.record(includeDetails ? "weekly.details" : "weekly.card", date: date)
         #endif
-        isLoading = includeDetails ? !detailsLoaded : lastLoadedAt == nil
+        isLoading = includeDetails || runningLoadedAt == nil
         defer { isLoading = false }
         errorMessage = nil
 
@@ -183,26 +200,27 @@ class WeeklySummaryViewModel: ObservableObject {
 
         do {
             // Fetch current week running workouts
-            if !canReuseRunning {
-                let workouts = try await healthKitManager.fetchRunningWorkouts(from: startOfWeek, to: now)
+            if !reuseRunning {
+                let workouts = try await loadWorkouts(startOfWeek, now)
                 try Task.checkCancellation()
                 aggregateRunning(workouts)
-                lastLoadedAt = Date()
+                runningLoadedAt = Date()
+                // Comparisons derive from the running totals, so the recap reloads them on its next load.
+                detailsLoadedAt = nil
             }
             guard includeDetails else { return }
             resetDetails()
 
             // Fetch previous week for comparison
             let comparisonEnd = calendar.date(byAdding: .weekOfYear, value: -1, to: now)!
-            let prevWorkouts = try await healthKitManager.fetchRunningWorkouts(from: prevWeekStart, to: comparisonEnd)
+            let prevWorkouts = try await loadWorkouts(prevWeekStart, comparisonEnd)
             try Task.checkCancellation()
             computeRunningComparison(previous: prevWorkouts)
 
             // Fetch recovery metrics for each day
             await loadRecoveryData(from: startOfWeek, to: now, prevStart: prevWeekStart, prevEnd: comparisonEnd)
             try Task.checkCancellation()
-            detailsLoaded = true
-            lastLoadedAt = Date()
+            detailsLoadedAt = Date()
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
@@ -242,10 +260,22 @@ class WeeklySummaryViewModel: ObservableObject {
         dailyRespRate = []
     }
 
+    private func resetCoaching() {
+        coachingTimestamp = nil
+        coachingTLDR = ""
+        coachingDetail = ""
+        coachingHighlight = nil
+    }
+
+    private func isRecent(_ loadedAt: Date?, within interval: TimeInterval) -> Bool {
+        guard let loadedAt else { return false }
+        return Date().timeIntervalSince(loadedAt) < interval && calendar.isDateInToday(loadedAt)
+    }
+
     // MARK: - Coaching
 
     func loadCoachingIfNeeded() async {
-        guard detailsLoaded, !isCoachingLoading, coachingTimestamp == nil else { return }
+        guard detailsLoadedAt != nil, !isCoachingLoading, coachingTimestamp == nil else { return }
         await loadCoaching(forceRefresh: false)
     }
 
@@ -281,7 +311,7 @@ class WeeklySummaryViewModel: ObservableObject {
         )
 
         do {
-            if let insight = try await WeeklyCoachingService.shared.insight(for: snapshot) {
+            if let insight = try await loadInsight(snapshot) {
                 coachingTLDR = insight.tldr
                 coachingHighlight = insight.highlight
                 coachingDetail = insight.detail
@@ -454,7 +484,7 @@ class WeeklySummaryViewModel: ObservableObject {
         var currentDate = start
         while currentDate < end {
             guard !Task.isCancelled else { return }
-            if let metrics = try? await MetricTrendDataService.shared.recoveryMetrics(for: currentDate) {
+            if let metrics = try? await loadRecovery(currentDate) {
                 if metrics.hasRecoveryMeasurements() {
                     scores.append(metrics.recoveryScore)
                 }
@@ -487,7 +517,7 @@ class WeeklySummaryViewModel: ObservableObject {
         var prevDate = prevStart
         while prevDate < prevEnd {
             guard !Task.isCancelled else { return }
-            if let metrics = try? await MetricTrendDataService.shared.recoveryMetrics(for: prevDate) {
+            if let metrics = try? await loadRecovery(prevDate) {
                 previousMetrics.append(metrics)
                 if metrics.hasRecoveryMeasurements() {
                     prevScores.append(metrics.recoveryScore)

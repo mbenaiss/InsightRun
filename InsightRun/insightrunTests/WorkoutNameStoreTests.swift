@@ -36,7 +36,7 @@ final class WorkoutNameStoreTests: XCTestCase {
     }
   }
 
-  func testSuuntoCacheKeepsNameWhenItsFallbackWorkoutUUIDChanges() async throws {
+  func testSuuntoCacheKeepsAStableWorkoutUUIDAndName() async throws {
     try withStore { store, defaults in
       let cached = CachedUnifiedWorkout(from: UnifiedWorkout(from: workout()))
       cached.source = WorkoutSource.suunto.rawValue
@@ -46,9 +46,35 @@ final class WorkoutNameStoreTests: XCTestCase {
       let first = cached.toUnifiedWorkout().toWorkoutModel()
       store.rename(first, to: "Sortie Suunto")
       let reloaded = cached.toUnifiedWorkout().toWorkoutModel()
-      XCTAssertNotEqual(first.id, reloaded.id)
+      XCTAssertEqual(first.id, reloaded.id)
       XCTAssertEqual(WorkoutNameStore(defaults: defaults).name(for: reloaded), "Sortie Suunto")
     }
+  }
+
+  func testImportedWorkoutKeepsTheSameUUIDFreshAndFromCache() throws {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let parsed = ParsedSuuntoWorkout(
+      startDate: start, endDate: start.addingTimeInterval(3_000), duration: 3_000,
+      distance: 10_000, calories: 600, elevationGain: 40, elevationLoss: 40,
+      averageHeartRate: 150, maxHeartRate: 172, averageSpeed: 3.3, maxSpeed: 4.2,
+      averageGroundContactTime: nil, averageVerticalOscillation: nil, averageStrideLength: nil,
+      averageCadence: nil, averagePower: nil, vo2Max: nil, epoc: nil, trainingEffect: nil,
+      routeCoordinates: [], hasRoute: false, heartRateSamples: [], cadenceSamples: [],
+      powerSamples: [], altitudeSamples: [], splits: [], deviceName: "Suunto Race",
+      activityType: "Running", feeling: nil, notes: nil)
+    let imported = UnifiedWorkout(from: SuuntoActivity(from: parsed))
+    let first = imported.toWorkoutModel()
+    let reimported = UnifiedWorkout(from: SuuntoActivity(from: parsed)).toWorkoutModel()
+    let restored = CachedUnifiedWorkout(from: imported).toUnifiedWorkout().toWorkoutModel()
+    XCTAssertEqual(first.id, reimported.id)
+    XCTAssertEqual(first.id, restored.id)
+    let otherSource = UnifiedWorkout.stableWorkoutID(
+      source: WorkoutSource.strava.rawValue, sourceID: imported.id)
+    XCTAssertNotEqual(first.id, otherSource)
+    let healthKitID = UUID()
+    let parsedID = UnifiedWorkout.stableWorkoutID(
+      source: WorkoutSource.healthKit.rawValue, sourceID: healthKitID.uuidString)
+    XCTAssertEqual(parsedID, healthKitID)
   }
 
   func testMergedAliasesKeepNameThroughSourceChangesAndCanBeResetFromEitherSource() async throws {

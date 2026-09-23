@@ -90,7 +90,7 @@ class CachedUnifiedWorkout {
         case .healthKit, .merged, .suunto:
             // Create minimal WorkoutModel for HealthKit, merged or Suunto workouts.
             // Use originalSourceName to preserve the device name (e.g., "Apple Watch")
-            let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
+            let workoutId = UnifiedWorkout.stableWorkoutID(source: source, sourceID: healthKitWorkoutId ?? id)
             let displaySourceName = (originalSourceName ?? "Apple Watch").replacingOccurrences(of: "Strava + ", with: "")
             var metadata: [String: Any]? = nil
 
@@ -132,7 +132,7 @@ class CachedUnifiedWorkout {
 
         case nil:
             // Unknown source, use originalSourceName if available
-            let workoutId = UUID(uuidString: healthKitWorkoutId ?? id) ?? UUID()
+            let workoutId = UnifiedWorkout.stableWorkoutID(source: source, sourceID: healthKitWorkoutId ?? id)
             let displaySourceName = (originalSourceName ?? "Apple Watch").replacingOccurrences(of: "Strava + ", with: "")
             let fallbackWorkout = WorkoutModel(
                 id: workoutId,

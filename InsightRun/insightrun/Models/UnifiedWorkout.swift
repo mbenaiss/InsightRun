@@ -6,6 +6,7 @@
 //  Strategy: Combine both sources, detect duplicates, merge data for best quality
 //
 
+import CryptoKit
 import Foundation
 import HealthKit
 
@@ -539,7 +540,7 @@ extension UnifiedWorkout {
         } else {
             // Fallback: generic workout
             return WorkoutModel(
-                id: UUID(uuidString: id) ?? UUID(),
+                id: Self.stableWorkoutID(source: source.rawValue, sourceID: id),
                 workoutType: .running,
                 startDate: startDate,
                 endDate: endDate,
@@ -575,6 +576,16 @@ extension UnifiedWorkout {
             }
             return healthKitWorkout?.sourceName ?? "Merged"
         }
+    }
+
+    // Analyses and names are keyed by the workout UUID, so non-UUID source ids must map to the same one on every load.
+    static func stableWorkoutID(source: String, sourceID: String) -> UUID {
+        if let uuid = UUID(uuidString: sourceID) { return uuid }
+        var bytes = Array(SHA256.hash(data: Data("\(source):\(sourceID)".utf8)).prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x80
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                           bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
     /// Generate a stable UUID from Strava activity ID

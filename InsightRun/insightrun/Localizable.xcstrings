@@ -13428,23 +13428,6 @@
         }
       }
     },
-    "onboarding.paywall.eyebrow" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Premium"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Premium"
-          }
-        }
-      }
-    },
     "onboarding.strava.eyebrow" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13673,60 +13656,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Basé sur l'allure (secours)"
-          }
-        }
-      }
-    },
-    "paywall.alreadySubscribed.continue" : {
-      "comment" : "Continue button when already subscribed",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuer"
-          }
-        }
-      }
-    },
-    "paywall.alreadySubscribed.message" : {
-      "comment" : "Message shown when user is already premium",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You already have premium access. Enjoy all features!"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu as déjà un accès premium. Profite de toutes les fonctionnalités !"
-          }
-        }
-      }
-    },
-    "paywall.alreadySubscribed.title" : {
-      "comment" : "Title shown when user is already premium",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You're Already Premium!"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu es déjà Premium !"
           }
         }
       }

@@ -98,7 +98,7 @@ function stravaErrorResponse(c: StravaContext, error: unknown, fallback: string)
   if (error instanceof StravaApiError) {
     return c.json(
       { error: 'Strava API error', strava_status: error.status, message: error.message },
-      error.status === 429 ? 429 : 502
+      ([401, 404, 429] as const).find((status) => status === error.status) ?? 502
     )
   }
   if (error instanceof Error && error.message.includes('not authenticated')) {
@@ -624,8 +624,8 @@ app.get('/activities/:id', async (c: StravaContext) => {
       syncedAt: Date.now(),
     })
   } catch (error) {
-    console.error('Activity detail error:', error)
-    return c.json({ error: 'Failed to fetch activity' }, 500)
+    reportStravaError(c, 'strava_activity_detail_failed_backend', c.req.header('X-User-ID'), error)
+    return stravaErrorResponse(c, error, 'Failed to fetch activity')
   }
 })
 

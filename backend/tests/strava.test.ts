@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
+import * as analytics from '../src/posthog'
 import app from '../src/routes/strava'
 import { StravaCache } from '../src/services/stravaCache'
 
@@ -128,5 +129,86 @@ describe('Strava token refresh', () => {
     )
     expect(response.status).toBe(expectedStatus)
     expect(put).not.toHaveBeenCalled()
+  })
+})
+
+describe('Strava activity detail failures', () => {
+  function requestDetail(env: ReturnType<typeof setup>['env']) {
+    const pending: Promise<unknown>[] = []
+    const response = app.request(
+      '/activities/7',
+      { headers: { 'X-User-ID': 'test-user' } },
+      { ...env, POSTHOG_API_KEY: 'test-key', POSTHOG_HOST: 'https://example.invalid' },
+      {
+        waitUntil: (promise: Promise<unknown>) => {
+          pending.push(promise)
+        },
+        passThroughOnException: () => {},
+      }
+    )
+    return { response, pending }
+  }
+
+  test.each([
+    [401, 401],
+    [404, 404],
+    [429, 429],
+    [503, 502],
+  ])('maps Strava HTTP %i to HTTP %i and reports its status', async (upstreamStatus, expectedStatus) => {
+    const { env, fetchMock, refreshed } = setup()
+    const capture = mock(async () => {})
+    spyOn(analytics, 'createPostHogClient').mockReturnValue({
+      captureImmediate: capture,
+      shutdown: mock(async () => {}),
+    } as unknown as ReturnType<typeof analytics.createPostHogClient>)
+    const errors = spyOn(console, 'error').mockImplementation(() => {})
+    spyOn(StravaCache.prototype, 'getActivity').mockResolvedValue(null)
+    if (upstreamStatus === 401) {
+      fetchMock.mockResolvedValueOnce(Response.json({}, { status: 401 }))
+      fetchMock.mockResolvedValueOnce(Response.json(refreshed))
+    }
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ message: 'Failure' }, { status: upstreamStatus })
+    )
+
+    const { response, pending } = requestDetail(env)
+    const result = await response
+    await Promise.all(pending)
+
+    const message = `Strava API error: ${upstreamStatus} - Failed to fetch activity from Strava`
+    expect(result.status).toBe(expectedStatus)
+    expect(await result.json()).toEqual({
+      error: 'Strava API error',
+      strava_status: upstreamStatus,
+      message,
+    })
+    expect(errors).toHaveBeenCalledWith(`strava_activity_detail_failed_backend: ${message}`)
+    expect(capture).toHaveBeenCalledWith({
+      distinctId: 'test-user',
+      event: 'strava_activity_detail_failed_backend',
+      properties: {
+        error_type: 'StravaApiError',
+        error_message: message,
+        strava_status: upstreamStatus,
+        timestamp: expect.any(Number),
+      },
+    })
+  })
+
+  test('keeps the error field for an internal failure', async () => {
+    const { env } = setup()
+    spyOn(analytics, 'createPostHogClient').mockReturnValue({
+      captureImmediate: mock(async () => {}),
+      shutdown: mock(async () => {}),
+    } as unknown as ReturnType<typeof analytics.createPostHogClient>)
+    spyOn(console, 'error').mockImplementation(() => {})
+    spyOn(StravaCache.prototype, 'getActivity').mockRejectedValue(new Error('D1 unavailable'))
+
+    const { response, pending } = requestDetail(env)
+    const result = await response
+    await Promise.all(pending)
+
+    expect(result.status).toBe(500)
+    expect((await result.json()).error).toBe('Failed to fetch activity')
   })
 })

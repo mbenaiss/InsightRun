@@ -186,7 +186,7 @@ struct WorkoutListView: View {
             HistoricalIndexationSheet()
         }
         .fullScreenCover(isPresented: $showSubscriptionPaywall) {
-            SubscriptionPaywallView(isInitialFlow: false)
+            SubscriptionPaywallView()
                 .environmentObject(revenueCatManager)
         }
     }

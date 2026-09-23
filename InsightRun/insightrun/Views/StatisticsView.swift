@@ -99,7 +99,7 @@ struct StatisticsView: View {
             }
         }
         .sheet(isPresented: $showSubscriptionPaywall) {
-            SubscriptionPaywallView(isInitialFlow: false)
+            SubscriptionPaywallView()
                 .environmentObject(revenueCatManager)
         }
         .sheet(isPresented: $showConsentSheet) {

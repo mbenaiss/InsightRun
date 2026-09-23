@@ -573,7 +573,7 @@ struct WorkoutPlanView: View {
                 viewModel.loadDemoDataIfNeeded()
             }
             .sheet(isPresented: $showSubscriptionPaywall) {
-                SubscriptionPaywallView(isInitialFlow: false)
+                SubscriptionPaywallView()
                     .environmentObject(revenueCatManager)
             }
             .sheet(isPresented: $viewModel.needsConsent) {

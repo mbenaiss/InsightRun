@@ -130,7 +130,7 @@ struct GoalDetailView: View {
             }
         }
         .sheet(isPresented: $viewModel.needsSubscription) {
-            SubscriptionPaywallView(isInitialFlow: false)
+            SubscriptionPaywallView()
                 .environmentObject(revenueCatManager)
         }
         .sheet(isPresented: $viewModel.needsConsent) {

@@ -13,8 +13,6 @@ struct SubscriptionPaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
-    var isInitialFlow: Bool = false
-
     var onDismiss: (() -> Void)? = nil
 
     @State private var paywallAppearedAt: ContinuousClock.Instant?

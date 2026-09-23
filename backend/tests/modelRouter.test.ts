@@ -135,10 +135,10 @@ describe('premium model quota', () => {
     }
   })
 
-  test('reads the quota with a cache TTL accepted by Workers KV', async () => {
+  test('reads the quota with a cache TTL accepted by Workers KV (minimum 30 seconds)', async () => {
     const kv = {
       async get(_key: string, options: { cacheTtl: number }) {
-        if (options.cacheTtl < 60) throw new Error('Workers KV requires cacheTtl >= 60')
+        if (options.cacheTtl < 30) throw new Error('Workers KV requires cacheTtl >= 30')
         return '3'
       },
     } as unknown as KVNamespace

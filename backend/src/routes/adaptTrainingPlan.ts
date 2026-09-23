@@ -20,6 +20,7 @@ import {
   raceWorkoutType,
   wrapUserData,
 } from '../utils'
+import { taperWeekCount } from './generateTrainingPlan'
 
 type Bindings = {
   OPENROUTER_API_KEY: string
@@ -185,6 +186,17 @@ function formatOriginalRemainingWeeks(weeks: OriginalRemainingWeekData[]): strin
     .join('\n\n')
 }
 
+// The original plan's taper wins; older plans without one get the generation skeleton's taper.
+function adaptationTaperWeeks(request: AdaptTrainingPlanRequest): number[] {
+  const original = (request.originalRemainingWeeks ?? [])
+    .filter((week) => week.phase === 'taper')
+    .map((week) => week.weekNumber)
+  if (original.length > 0) return original
+  const finalWeek = request.currentWeekNumber + request.remainingWeeksCount
+  const count = taperWeekCount(request.raceType, finalWeek)
+  return Array.from({ length: count }, (_, index) => finalWeek - count + 1 + index)
+}
+
 function buildAdaptationPrompt(
   request: AdaptTrainingPlanRequest,
   firstWeek = request.currentWeekNumber + 1,
@@ -201,6 +213,14 @@ function buildAdaptationPrompt(
     request.originalRemainingWeeks && request.originalRemainingWeeks.length > 0
       ? formatOriginalRemainingWeeks(request.originalRemainingWeeks)
       : ''
+  const taperWeeks = adaptationTaperWeeks(request)
+  const blockTaperWeeks = taperWeeks.filter((week) => week >= firstWeek && week <= lastWeek)
+  const weekList = (weeks: number[]) =>
+    `${weeks.length === 1 ? 'week' : 'weeks'} ${weeks.join(', ')}`
+  const taperRule =
+    blockTaperWeeks.length > 0
+      ? `- TAPER: ${weekList(blockTaperWeeks)} of this block ${blockTaperWeeks.length === 1 ? 'is a taper week' : 'are taper weeks'}: keep phase "taper", cut volume and keep short race-pace efforts.`
+      : `- TAPER: none of these weeks is a taper week (the taper covers ${weekList(taperWeeks)}). Do not taper in this block.`
 
   const dayNames: Record<number, string> = {
     1: 'Sunday',
@@ -256,8 +276,9 @@ ${
   lastWeek === request.currentWeekNumber + request.remainingWeeksCount
     ? `- The LAST of those weeks is the race week and MUST include the race itself as a workout. Its "type" MUST be exactly "${raceType}" (do NOT invent a "race" type).
 - In the LAST week, the race workout MUST be the FIRST entry of the "workouts" array (index 0). The client uses array order to schedule the race on race day.`
-    : `- The race is in week ${request.currentWeekNumber + request.remainingWeeksCount}, outside this block. Do NOT include it or taper prematurely.`
+    : `- The race is in week ${request.currentWeekNumber + request.remainingWeeksCount}, outside this block. Do NOT include it in these weeks.`
 }
+${taperRule}
 - DO NOT assign days of the week. The client app handles day scheduling.
 - Distances in meters, durations in seconds.
 - Weekly volume (weeklyVolume) MUST be in kilometers (not meters).

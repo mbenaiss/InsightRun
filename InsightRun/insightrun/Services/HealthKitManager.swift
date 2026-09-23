@@ -39,7 +39,12 @@ class HealthKitManager: ObservableObject {
     private let workoutRequests = ConcurrentRequestCoalescer<Bool, [WorkoutModel]>()
     private let recoveryRequests = ConcurrentRequestCoalescer<Date, RecoveryMetrics>()
 
-    private init() {}
+    private init() {
+        // Cached analyses compare the age-based max HR, so the cache must be warm before a detail opens.
+        if !DemoMode.isEnabled, hasCompletedHealthKitSetup {
+            Task { _ = await loadCharacteristics() }
+        }
+    }
 
     // MARK: - Availability
 
@@ -57,9 +62,9 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Authorization
 
-    /// Request HealthKit authorization and return whether the user actually
-    /// granted data access. HealthKit does not expose allow/deny for privacy
-    /// reasons, so the return value is determined by probing `checkDataAccess()`.
+    /// Request HealthKit authorization and return whether workouts can be queried.
+    /// HealthKit does not expose allow/deny for privacy reasons, so the return
+    /// value only reflects whether a workout read succeeds, even when it is empty.
     @discardableResult
     func requestAuthorization() async throws -> Bool {
         if DemoMode.isEnabled { return true }
@@ -68,8 +73,8 @@ class HealthKitManager: ObservableObject {
             throw HealthKitError.notAvailable
         }
 
-        // Track permission request
-        AnalyticsService.shared.trackHealthKitPermissionRequested()
+        let isFirstRequest = !hasCompletedHealthKitSetup && !UserDefaults.standard.bool(forKey: Self.permissionRequestedKey)
+        UserDefaults.standard.set(true, forKey: Self.permissionRequestedKey)
 
         let typesToShare: Set<HKSampleType> = [
             HKObjectType.workoutType(),
@@ -157,31 +162,89 @@ class HealthKitManager: ObservableObject {
         ]
 
         typesToRead.formUnion(characteristicTypes)
-        if let rmssd = HealthInsightReader.rmssdType { typesToRead.insert(rmssd) }
+        typesToRead.formUnion(Self.addedReadTypes)
 
         // Activity Summary (ring goals)
         typesToRead.insert(HKObjectType.activitySummaryType())
 
+        let requestStart = Date()
         do {
             try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
+            let duration = Date().timeIntervalSince(requestStart)
 
             // Mark that user has completed the authorization flow
             hasCompletedHealthKitSetup = true
+            UserDefaults.standard.set(Self.addedReadTypes.map(\.identifier), forKey: Self.addedReadTypesKey)
+            resetCharacteristics()
 
             // Start background sync now that HealthKit is authorized
             WorkoutSyncService.shared.startObserving()
             SleepObserverService.shared.startObserving()
 
-            let hasAccess = await checkDataAccess()
-            if hasAccess {
-                AnalyticsService.shared.trackHealthKitPermissionGranted()
-            } else {
-                AnalyticsService.shared.trackHealthKitPermissionDenied()
+            var workoutsFound: Int?
+            var readError: Error?
+            do {
+                workoutsFound = try await fetchRunningWorkouts(includeEffortScores: false).count
+            } catch {
+                readError = error
             }
-            return hasAccess
+            _ = await loadCharacteristics()
+            let outcome = Self.permissionOutcome(workoutsFound: workoutsFound, error: readError)
+            trackPermissionOutcome(outcome, properties: Self.permissionAnalyticsProperties(
+                outcome: outcome, duration: duration, workoutsFound: workoutsFound, error: readError,
+                isFirstRequest: isFirstRequest))
+            return readError == nil
         } catch {
-            AnalyticsService.shared.trackHealthKitPermissionDenied()
+            let properties = Self.permissionAnalyticsProperties(
+                outcome: .error, duration: Date().timeIntervalSince(requestStart), workoutsFound: nil,
+                error: error, isFirstRequest: isFirstRequest)
+            trackPermissionOutcome(.error, properties: properties)
             throw error
+        }
+    }
+
+    // MARK: - Permission Analytics
+
+    enum PermissionOutcome: String {
+        case dataFound = "data_found"
+        case noData = "no_data"
+        case error
+    }
+
+    private static let permissionRequestedKey = "hasRequestedHealthKitPermission"
+
+    // HealthKit hides read denials: an empty read is "no_data", never "granted".
+    static func permissionOutcome(workoutsFound: Int?, error: Error?) -> PermissionOutcome {
+        if error != nil { return .error }
+        return (workoutsFound ?? 0) > 0 ? .dataFound : .noData
+    }
+
+    static func permissionAnalyticsProperties(
+        outcome: PermissionOutcome, duration: TimeInterval, workoutsFound: Int?, error: Error?, isFirstRequest: Bool
+    ) -> [String: Any] {
+        var properties: [String: Any] = ["outcome": outcome.rawValue]
+        guard isFirstRequest else { return properties }
+        properties["duration_ms"] = Int((duration * 1000).rounded())
+        properties["sheet_likely_shown"] = duration > 0.5
+        if let workoutsFound { properties["workouts_found"] = workoutsFound }
+        if let error { properties["error_code"] = permissionErrorCode(error) }
+        return properties
+    }
+
+    private static func permissionErrorCode(_ error: Error) -> Int {
+        if case HealthKitError.queryFailed(let underlying) = error {
+            return (underlying as NSError).code
+        }
+        return (error as NSError).code
+    }
+
+    private func trackPermissionOutcome(_ outcome: PermissionOutcome, properties: [String: Any]) {
+        let analytics = AnalyticsService.shared
+        analytics.trackHealthKitPermissionRequested(properties: properties)
+        switch outcome {
+        case .dataFound: analytics.trackHealthKitPermissionGranted(properties: properties)
+        case .error: analytics.trackHealthKitPermissionDenied(properties: properties)
+        case .noData: break
         }
     }
 
@@ -293,6 +356,36 @@ class HealthKitManager: ObservableObject {
             UserDefaults.standard.set(true, forKey: key)
         } catch {
             // Silent — re-tried on next launch
+        }
+    }
+
+    // MARK: - Read Types Added After Setup
+
+    private static let addedReadTypesKey = "requestedAddedHealthReadTypes"
+
+    // Existing users only granted the types of their original setup; each later type is asked once.
+    private static var addedReadTypes: [HKObjectType] {
+        [HealthInsightReader.rmssdType].compactMap { $0 }
+    }
+
+    private var isRequestingAddedReadTypes = false
+
+    @discardableResult
+    func requestAddedReadTypesAuthorizationIfNeeded() async -> Bool {
+        guard !DemoMode.isEnabled, !isRequestingAddedReadTypes, hasCompletedHealthKitSetup,
+              HKHealthStore.isHealthDataAvailable() else { return false }
+        let requested = Set(UserDefaults.standard.stringArray(forKey: Self.addedReadTypesKey) ?? [])
+        let pending = Self.addedReadTypes.filter { !requested.contains($0.identifier) }
+        guard !pending.isEmpty else { return false }
+
+        isRequestingAddedReadTypes = true
+        defer { isRequestingAddedReadTypes = false }
+        do {
+            try await healthStore.requestAuthorization(toShare: [], read: Set(pending))
+            UserDefaults.standard.set(Array(requested.union(pending.map(\.identifier))), forKey: Self.addedReadTypesKey)
+            return true
+        } catch {
+            return false
         }
     }
 
@@ -2726,12 +2819,45 @@ class HealthKitManager: ObservableObject {
 
     // MARK: - Health Profile
 
+    private typealias Characteristics = (dateOfBirth: DateComponents?, biologicalSex: HKBiologicalSex?)
+
+    private var characteristics: Characteristics?
+    private var characteristicsTask: Task<Characteristics, Never>?
+
     var currentAge: Int? {
         if DemoMode.isEnabled { return MockData.sampleHealthProfile.age }
-        let calendar = Calendar.current
-        guard let dob = try? healthStore.dateOfBirthComponents(),
-              let birthDate = calendar.date(from: dob),
-              let age = calendar.dateComponents([.year], from: birthDate, to: Date()).year,
+        guard let characteristics else {
+            Task { _ = await loadCharacteristics() }
+            return nil
+        }
+        return Self.age(from: characteristics.dateOfBirth)
+    }
+
+    // Characteristic reads block on healthd; a slow daemon must not freeze the main thread at launch.
+    private func loadCharacteristics() async -> Characteristics {
+        if let characteristics { return characteristics }
+        if let characteristicsTask { return await characteristicsTask.value }
+        let store = healthStore
+        let task = Task.detached(priority: .userInitiated) { () -> Characteristics in
+            (try? store.dateOfBirthComponents(), try? store.biologicalSex().biologicalSex)
+        }
+        characteristicsTask = task
+        let loaded = await task.value
+        if characteristicsTask == task {
+            characteristics = loaded
+            characteristicsTask = nil
+        }
+        return loaded
+    }
+
+    private func resetCharacteristics() {
+        characteristics = nil
+        characteristicsTask = nil
+    }
+
+    nonisolated static func age(from dateOfBirth: DateComponents?, now: Date = Date(), calendar: Calendar = .current) -> Int? {
+        guard let dateOfBirth, let birthDate = calendar.date(from: dateOfBirth),
+              let age = calendar.dateComponents([.year], from: birthDate, to: now).year,
               (1...120).contains(age) else { return nil }
         return age
     }
@@ -2740,8 +2866,9 @@ class HealthKitManager: ObservableObject {
         if DemoMode.isEnabled { return MockData.sampleHealthProfile }
 
         let calendar = Calendar.current
-        let age = currentAge
-        let biologicalSex = try? healthStore.biologicalSex().biologicalSex
+        let characteristics = await loadCharacteristics()
+        let age = Self.age(from: characteristics.dateOfBirth)
+        let biologicalSex = characteristics.biologicalSex
 
         // Fetch all metrics but don't fail if some are unavailable
         async let bodyMass = fetchLatestQuantitySafe(for: .bodyMass, before: date, unit: .gramUnit(with: .kilo))

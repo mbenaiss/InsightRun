@@ -17,7 +17,6 @@ struct GoalDetailView: View {
     @State private var showRegenerateConfirmation = false
     @State private var renameText = ""
     @State private var selectedPlanTab = 0 // 0 = current week, 1 = full plan
-    @State private var showSubscriptionPaywall = false
     @State private var expandedWeeks: Set<UUID> = []
     @Environment(\.dismiss) private var dismiss
 
@@ -130,7 +129,7 @@ struct GoalDetailView: View {
                 Text(error)
             }
         }
-        .sheet(isPresented: $showSubscriptionPaywall) {
+        .sheet(isPresented: $viewModel.needsSubscription) {
             SubscriptionPaywallView(isInitialFlow: false)
                 .environmentObject(revenueCatManager)
         }
@@ -192,7 +191,8 @@ struct GoalDetailView: View {
                             systemImage: "arrow.clockwise"
                         )
                     }
-                    .disabled(viewModel.isGeneratingPlan || viewModel.isAdaptingPlan)
+                    .disabled(
+                        viewModel.isGeneratingPlan || viewModel.isAdaptingPlan || !currentGoal.canGeneratePlan)
                 }
 
                 Button(role: .destructive) {
@@ -234,10 +234,6 @@ struct GoalDetailView: View {
     }
 
     private func handleGenerateTap(for goal: RaceGoal) {
-        if !revenueCatManager.hasAIAccess {
-            showSubscriptionPaywall = true
-            return
-        }
         Task {
             await viewModel.generateTrainingPlan(for: goal)
         }
@@ -542,16 +538,17 @@ struct GoalDetailView: View {
     }
 
     private var generatePlanCallToAction: some View {
-        VStack(spacing: Spacing.base) {
+        let schedule = try? currentGoal.generationSchedule()
+        return VStack(spacing: Spacing.base) {
             ZStack {
                 Circle()
                     .fill(Color.irPrimaryAccent.opacity(0.10))
                     .frame(width: 100, height: 100)
 
-                Image(systemName: "sparkles")
+                Image(systemName: schedule == nil ? "calendar.badge.exclamationmark" : "sparkles")
                     .font(IRFont.numXL)
                     .foregroundStyle(Color.irPrimaryAccent.gradient)
-                    .symbolEffect(.bounce, options: .repeating)
+                    .symbolEffect(.bounce, options: .repeating, isActive: schedule != nil)
             }
 
             VStack(spacing: Spacing.md) {
@@ -560,29 +557,37 @@ struct GoalDetailView: View {
                     .fontWeight(.bold)
                     .foregroundStyle(Color.irTextPrimary)
 
-                Text(String(localized: "goals.detail.generateDescription", defaultValue: "Unlock a personalized multi-week plan powered by AI to reach your goal safely and efficiently.", comment: "Goal detail - generate description"))
+                Text(schedule == nil
+                    ? String(localized: "goals.plan.tooShortExplanation", defaultValue: "Race day is too close to build a training plan: a plan needs at least 4 weeks before the race.", comment: "Goal detail - explanation replacing the generate button when the race is too close")
+                    : String(localized: "goals.detail.generateDescription", defaultValue: "Unlock a personalized multi-week plan powered by AI to reach your goal safely and efficiently.", comment: "Goal detail - generate description"))
                     .font(IRFont.body)
                     .foregroundStyle(Color.irTextSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.md)
             }
 
-            Button {
-                handleGenerateTap(for: currentGoal)
-            } label: {
-                HStack {
-                    Image(systemName: revenueCatManager.hasAIAccess ? "sparkles" : "lock.fill")
-                    Text(generateButtonTitle)
+            if let schedule {
+                if let warning = currentGoal.raceType.shortPlanWarning(weeks: schedule.weeksCount) {
+                    GoalScheduleNote(text: warning, icon: "exclamationmark.triangle.fill", color: Color.irWarning)
                 }
-                .font(IRFont.headline)
-                .foregroundStyle(Color.irTextOnAccent)
-                .padding(.horizontal, Spacing.xl)
-                .padding(.vertical, Spacing.md)
-                .background(Color.irPrimaryAccent.gradient)
-                .clipShape(Capsule())
-                .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 8, x: 0, y: 4)
+
+                Button {
+                    handleGenerateTap(for: currentGoal)
+                } label: {
+                    HStack {
+                        Image(systemName: revenueCatManager.hasAIAccess ? "sparkles" : "lock.fill")
+                        Text(generateButtonTitle)
+                    }
+                    .font(IRFont.headline)
+                    .foregroundStyle(Color.irTextOnAccent)
+                    .padding(.horizontal, Spacing.xl)
+                    .padding(.vertical, Spacing.md)
+                    .background(Color.irPrimaryAccent.gradient)
+                    .clipShape(Capsule())
+                    .shadow(color: Color.irPrimaryAccent.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .disabled(viewModel.isGeneratingPlan || viewModel.isAdaptingPlan)
             }
-            .disabled(viewModel.isGeneratingPlan || viewModel.isAdaptingPlan)
         }
     }
 

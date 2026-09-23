@@ -359,9 +359,11 @@ struct GoalCard: View {
                     .frame(height: 0.5)
 
                 HStack(spacing: Spacing.xs) {
-                    Image(systemName: "sparkles")
+                    Image(systemName: goal.canGeneratePlan ? "sparkles" : "calendar.badge.exclamationmark")
                         .font(IRFont.caption)
-                    Text(String(localized: "goals.card.generateHint", defaultValue: "Tap to generate training plan", comment: "Goal card - no plan hint"))
+                    Text(goal.canGeneratePlan
+                        ? String(localized: "goals.card.generateHint", defaultValue: "Tap to generate training plan", comment: "Goal card - no plan hint")
+                        : String(localized: "goals.card.planUnavailable", defaultValue: "Race too close for a training plan", comment: "Goal card - race too close to generate a plan"))
                         .font(IRFont.caption)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -369,7 +371,7 @@ struct GoalCard: View {
                         .foregroundStyle(Color.irTextSecondary)
                 }
                 .fontWeight(.semibold)
-                .foregroundStyle(Color.irPrimaryAccent)
+                .foregroundStyle(goal.canGeneratePlan ? Color.irPrimaryAccent : Color.irTextSecondary)
                 .padding(.horizontal, Spacing.cardPadding)
                 .padding(.vertical, Spacing.md)
             }

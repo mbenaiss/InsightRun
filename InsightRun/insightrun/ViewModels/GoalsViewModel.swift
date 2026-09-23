@@ -19,8 +19,10 @@ class GoalsViewModel: ObservableObject {
     @Published private(set) var adaptationErrorGoalID: UUID?
     @Published var showAddGoal = false
     @Published var needsConsent = false
+    @Published var needsSubscription = false
 
     private var pendingGenerationGoal: RaceGoal?
+    private var pendingGenerationStart: Date?
 
     private let storage = GoalStorage.shared
     private let generatePlan: (TrainingPlanGenerationRequest) async throws -> TrainingPlanGenerationResponse
@@ -28,6 +30,7 @@ class GoalsViewModel: ObservableObject {
     private let hasConsent: @MainActor () -> Bool
     private let hasAIAccess: @MainActor () -> Bool
     private let recordGeneration: @MainActor () -> Void
+    private let loadRunningHistory: @MainActor () async -> RunningHistorySummary?
     @Published private(set) var generatingGoalID: UUID?
     @Published private(set) var adaptingGoalID: UUID?
     private var planRevisions: [UUID: UUID] = [:]
@@ -44,6 +47,9 @@ class GoalsViewModel: ObservableObject {
         hasAIAccess: @escaping @MainActor () -> Bool = { RevenueCatManager.shared.hasAIAccess },
         recordGeneration: @escaping @MainActor () -> Void = {
             if !DemoMode.isEnabled { RevenueCatManager.shared.incrementFreeRequestCount() }
+        },
+        loadRunningHistory: @escaping @MainActor () async -> RunningHistorySummary? = {
+            await RunningHistorySummary.recent()
         }
     ) {
         self.generatePlan = generatePlan
@@ -51,6 +57,7 @@ class GoalsViewModel: ObservableObject {
         self.hasConsent = hasConsent
         self.hasAIAccess = hasAIAccess
         self.recordGeneration = recordGeneration
+        self.loadRunningHistory = loadRunningHistory
         if DemoMode.isEnabled {
             goals = [MockData.sampleRaceGoal]
             return
@@ -107,17 +114,22 @@ class GoalsViewModel: ObservableObject {
 
     // MARK: - Training Plan Generation
 
-    func generateTrainingPlan(for goal: RaceGoal) async {
-        guard !isGeneratingPlan, !isAdaptingPlan, hasAIAccess(),
+    func generateTrainingPlan(for goal: RaceGoal, startingOn requestedStart: Date? = nil) async {
+        guard !isGeneratingPlan, !isAdaptingPlan,
             let goal = goals.first(where: { $0.id == goal.id })
         else { return }
+        guard hasAIAccess() else {
+            needsSubscription = true
+            return
+        }
         guard hasConsent() else {
             pendingGenerationGoal = goal
+            pendingGenerationStart = requestedStart
             needsConsent = true
             return
         }
 
-        pendingGenerationGoal = nil
+        clearPendingGeneration()
         isGeneratingPlan = true
         generationError = nil
         generationErrorGoalID = goal.id
@@ -131,15 +143,15 @@ class GoalsViewModel: ObservableObject {
         planRevisions[goal.id] = revision
         do {
             guard !goal.preferredDays.isEmpty else { throw BackendError.invalidResponse }
-            let schedule = try TrainingPlanSchedule(
-                start: goal.planStartDate ?? Date(), target: goal.targetDate)
+            let schedule = try goal.generationSchedule(startingOn: requestedStart)
+            let history = await loadRunningHistory()
             let request = TrainingPlanGenerationRequest(
                 raceType: goal.raceType.rawValue,
                 targetDate: schedule.dateString(schedule.target),
                 startDate: schedule.dateString(schedule.start),
                 fitnessLevel: goal.fitnessLevel.rawValue,
-                currentWeeklyVolumeKm: nil,
-                avgPace: nil,
+                currentWeeklyVolumeKm: history?.weeklyVolumeKm,
+                avgPace: history?.averagePaceMinPerKm,
                 language: AppLanguage.current,
                 trainingDaysPerWeek: goal.trainingDaysPerWeek,
                 preferredDays: goal.preferredDays.map { $0.rawValue },
@@ -173,12 +185,14 @@ class GoalsViewModel: ObservableObject {
 
     func resumePendingGeneration() async {
         guard let goal = pendingGenerationGoal else { return }
-        pendingGenerationGoal = nil
-        await generateTrainingPlan(for: goal)
+        let start = pendingGenerationStart
+        clearPendingGeneration()
+        await generateTrainingPlan(for: goal, startingOn: start)
     }
 
     func clearPendingGeneration() {
         pendingGenerationGoal = nil
+        pendingGenerationStart = nil
     }
 
     // MARK: - Day Completion
@@ -233,18 +247,10 @@ class GoalsViewModel: ObservableObject {
     }
 
     func setPlanStartDate(goalId: UUID, newStart: Date) async {
-        guard let goalIdx = goals.firstIndex(where: { $0.id == goalId }),
-            goals[goalIdx].trainingPlan != nil
+        guard let goal = goals.first(where: { $0.id == goalId }), goal.trainingPlan != nil,
+            goal.canStartPlan(on: newStart)
         else { return }
-
-        guard !isGeneratingPlan, !isAdaptingPlan, goals[goalIdx].canStartPlan(on: newStart) else { return }
-        var updated = goals[goalIdx]
-        updated.planStartDate = Calendar.current.startOfDay(for: newStart)
-        goals[goalIdx] = updated
-        await generateTrainingPlan(for: updated)
-        if generationError != nil, let index = goals.firstIndex(where: { $0.id == goalId }) {
-            goals[index].planStartDate = updated.trainingPlan?.startDate
-        }
+        await generateTrainingPlan(for: goal, startingOn: newStart)
     }
 
     // MARK: - Training Plan Adaptation

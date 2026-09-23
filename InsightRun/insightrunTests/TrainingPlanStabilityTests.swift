@@ -249,6 +249,7 @@ extension TrainingPlanStabilityTests {
         access = false
         await viewModel.generateTrainingPlan(for: item)
         XCTAssertEqual(requests, 0)
+        XCTAssertTrue(viewModel.needsSubscription, "Missing access must open the paywall, not fail silently")
         access = true
         consent = false
         await viewModel.generateTrainingPlan(for: item)
@@ -510,5 +511,121 @@ extension TrainingPlanStabilityTests {
         XCTAssertTrue(distant.canStartPlan(on: date(198)))
         let nearby = RaceGoal(raceType: .fiveK, targetDate: date(10))
         XCTAssertFalse(nearby.canStartPlan(on: date(0)))
+    }
+}
+
+extension TrainingPlanStabilityTests {
+    private func todayString(target: Int = 40) throws -> String {
+        let schedule = try TrainingPlanSchedule(start: date(0), target: date(target))
+        return schedule.dateString(schedule.start)
+    }
+
+    func testGenerationAndRegenerationNeverStartInThePast() async throws {
+        var starts: [String?] = []
+        let viewModel = GoalsViewModel(
+            generatePlan: { request in
+                starts.append(request.startDate)
+                return try self.response(weeks: request.weeksCount!)
+            },
+            hasConsent: { true }, hasAIAccess: { true }, loadRunningHistory: { nil })
+        let item = RaceGoal(raceType: .tenK, targetDate: date(40), planStartDate: date(-10))
+        viewModel.addGoal(item)
+        await viewModel.generateTrainingPlan(for: item)
+        XCTAssertEqual(viewModel.goals.last?.trainingPlan?.startDate, date(0))
+        XCTAssertEqual(viewModel.goals.last?.planStartDate, date(0))
+        viewModel.goals[viewModel.goals.count - 1].planStartDate = date(-5)
+        await viewModel.generateTrainingPlan(for: try XCTUnwrap(viewModel.goals.last))
+        let today = try todayString()
+        XCTAssertEqual(starts, [today, today])
+        XCTAssertEqual(viewModel.goals.last?.trainingPlan?.startDate, date(0))
+    }
+
+    func testStartTodayGoesThroughThePaywallAndMovesTheStartOnlyAfterSuccess() async throws {
+        var access = false
+        var failing = true
+        var starts: [String?] = []
+        let viewModel = GoalsViewModel(
+            generatePlan: { request in
+                starts.append(request.startDate)
+                if failing { throw URLError(.timedOut) }
+                return try self.response(weeks: request.weeksCount!)
+            },
+            hasConsent: { true }, hasAIAccess: { access }, loadRunningHistory: { nil })
+        var item = RaceGoal(raceType: .tenK, targetDate: date(40), planStartDate: date(3))
+        item.trainingPlan = plan(days: [TrainingDay(dayOfWeek: .monday, workout: run())], start: date(3))
+        viewModel.addGoal(item)
+
+        await viewModel.setPlanStartDate(goalId: item.id, newStart: date(0))
+        XCTAssertTrue(viewModel.needsSubscription)
+        XCTAssertTrue(starts.isEmpty)
+        XCTAssertEqual(viewModel.goals.last?.planStartDate, date(3))
+
+        viewModel.needsSubscription = false
+        access = true
+        await viewModel.setPlanStartDate(goalId: item.id, newStart: date(0))
+        let today = try todayString()
+        XCTAssertEqual(starts, [today])
+        XCTAssertNotNil(viewModel.generationError)
+        XCTAssertEqual(viewModel.goals.last?.planStartDate, date(3))
+        XCTAssertEqual(viewModel.goals.last?.trainingPlan?.id, item.trainingPlan?.id)
+
+        failing = false
+        await viewModel.setPlanStartDate(goalId: item.id, newStart: date(0))
+        XCTAssertFalse(viewModel.needsSubscription)
+        XCTAssertEqual(viewModel.goals.last?.planStartDate, date(0))
+        XCTAssertEqual(viewModel.goals.last?.trainingPlan?.startDate, date(0))
+    }
+
+    func testPlanRequestCarriesRecentRunningHistory() async throws {
+        let history = RunningHistorySummary(
+            runs: [(10_000, 3_000), (5_000, 1_800), (nil, 600), (0, 900)], weeks: 2)
+        XCTAssertEqual(history.runCount, 2)
+        XCTAssertEqual(history.weeklyVolumeKm, 7.5)
+        XCTAssertEqual(try XCTUnwrap(history.averagePaceMinPerKm), 5.5, accuracy: 0.001)
+        let empty = RunningHistorySummary(runs: [], weeks: 13)
+        XCTAssertNil(empty.weeklyVolumeKm)
+        XCTAssertNil(empty.averagePaceMinPerKm)
+
+        var captured: TrainingPlanGenerationRequest?
+        let viewModel = GoalsViewModel(
+            generatePlan: { request in
+                captured = request
+                return try self.response(weeks: request.weeksCount!)
+            },
+            hasConsent: { true }, hasAIAccess: { true }, loadRunningHistory: { history })
+        let item = RaceGoal(raceType: .tenK, targetDate: date(40), planStartDate: date(0))
+        viewModel.addGoal(item)
+        await viewModel.generateTrainingPlan(for: item)
+        let body = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(XCTUnwrap(captured))) as? [String: Any])
+        XCTAssertEqual(body["currentWeeklyVolumeKm"] as? Double, 7.5)
+        XCTAssertEqual(try XCTUnwrap(body["avgPace"] as? Double), 5.5, accuracy: 0.001)
+    }
+
+    func testRacesUnderFourWeeksCannotGenerateAndShortPlansAreOnlyWarned() async {
+        XCTAssertFalse(RaceGoal(raceType: .fiveK, targetDate: date(20)).canGeneratePlan)
+        XCTAssertFalse(RaceGoal(raceType: .fiveK, targetDate: date(-3)).canGeneratePlan)
+        XCTAssertTrue(RaceGoal(raceType: .fiveK, targetDate: date(27)).canGeneratePlan)
+        XCTAssertTrue(
+            RaceGoal(raceType: .marathon, targetDate: date(60), planStartDate: date(-30)).canGeneratePlan)
+        XCTAssertFalse(
+            RaceGoal(raceType: .marathon, targetDate: date(40), planStartDate: date(20)).canGeneratePlan)
+        XCTAssertNotNil(RaceType.marathon.shortPlanWarning(weeks: 9))
+        XCTAssertNil(RaceType.marathon.shortPlanWarning(weeks: 16))
+        XCTAssertNotNil(RaceType.fiveK.shortPlanWarning(weeks: 5))
+        XCTAssertNil(RaceType.fiveK.shortPlanWarning(weeks: 6))
+
+        var requests = 0
+        let viewModel = GoalsViewModel(
+            generatePlan: { _ in
+                requests += 1
+                throw URLError(.badURL)
+            },
+            hasConsent: { true }, hasAIAccess: { true }, loadRunningHistory: { nil })
+        let item = RaceGoal(raceType: .fiveK, targetDate: date(20))
+        viewModel.addGoal(item)
+        await viewModel.generateTrainingPlan(for: item)
+        XCTAssertEqual(requests, 0)
+        XCTAssertNotNil(viewModel.generationError)
     }
 }

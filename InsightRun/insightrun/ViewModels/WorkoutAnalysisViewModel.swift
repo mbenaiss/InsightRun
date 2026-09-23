@@ -43,6 +43,9 @@ class WorkoutAnalysisViewModel: ObservableObject {
     @Published var analyzedAt: Date?
     @Published var needsConsent = false
     @Published var needsIndexation = false
+    @Published private(set) var isOutdated = false
+
+    private static let signatureVersion = "v2:"
 
     private let workout: WorkoutModel
     private var metrics: WorkoutMetrics?
@@ -120,35 +123,60 @@ class WorkoutAnalysisViewModel: ObservableObject {
             return
         }
 
-        // First, try to load from local cache
+        // An outdated analysis stays visible: regenerating it costs a request, so only the user decides.
         if let cached = fetchCachedAnalysis() {
-            print("✅ WorkoutAnalysisViewModel: Found cached analysis")
-            if let signature = inputSignature(), AIResponseValidator.isComplete(cached.analysisText),
-               cached.contextVersion == WorkoutAnalysis.currentContextVersion,
-               cached.estimatedMaxHR == maximumHeartRate(),
-               cached.inputSignature == signature {
-                analysisText = cached.analysisText
-                analysisSource = .cache
-                analyzedAt = cached.analyzedAt
+            if AIResponseValidator.isComplete(cached.analysisText) {
+                showCachedAnalysis(cached)
                 error = nil
                 needsConsent = false
                 needsIndexation = false
-                print("✅ WorkoutAnalysisViewModel: Loaded valid cached analysis")
                 return
-            } else if !AIResponseValidator.isComplete(cached.analysisText) {
-                print("⚠️ WorkoutAnalysisViewModel: Cached analysis is invalid, deleting and regenerating")
-                // Delete invalid cache
-                modelContext.delete(cached)
-                try? modelContext.save()
             }
-            analysisText = nil
-            analysisSource = nil
-            analyzedAt = nil
+            print("⚠️ WorkoutAnalysisViewModel: Cached analysis is invalid, deleting and regenerating")
+            modelContext.delete(cached)
+            try? modelContext.save()
+            clearAnalysis()
         }
 
         guard allowGeneration else { return }
         print("⚠️ WorkoutAnalysisViewModel: No valid cache, generating new analysis")
         await generateAnalysis()
+    }
+
+    private func showCachedAnalysis(_ cached: WorkoutAnalysis) {
+        let signature = inputSignature()
+        // Signatures written before the stable field subset cannot be compared; adopt them once.
+        if let signature, cached.inputSignature?.hasPrefix(Self.signatureVersion) != true {
+            cached.inputSignature = signature
+            try? modelContext.save()
+        }
+        analysisText = cached.analysisText
+        analysisSource = .cache
+        analyzedAt = cached.analyzedAt
+        isOutdated = cached.contextVersion != WorkoutAnalysis.currentContextVersion
+            || !Self.isSameHeartRateReference(cached.estimatedMaxHR, maximumHeartRate())
+            || cached.inputSignature != signature
+    }
+
+    private func clearAnalysis() {
+        analysisText = nil
+        analysisSource = nil
+        analyzedAt = nil
+        isOutdated = false
+    }
+
+    private func restoreCachedAnalysis() {
+        if let cached = fetchCachedAnalysis(), AIResponseValidator.isComplete(cached.analysisText) {
+            showCachedAnalysis(cached)
+        } else {
+            clearAnalysis()
+        }
+    }
+
+    // 220 − age moves by one beat on a birthday, which does not change the interpretation.
+    private static func isSameHeartRateReference(_ saved: Int?, _ current: Int?) -> Bool {
+        guard let saved, let current else { return saved == current }
+        return abs(saved - current) <= 1
     }
 
     // MARK: - Generate Analysis
@@ -217,9 +245,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         print("🔵 WorkoutAnalysisViewModel: generateAnalysis() started")
         isLoading = true
         error = nil
-        analysisText = nil
-        analysisSource = nil
-        analyzedAt = nil
+        clearAnalysis()
         lastViewedAnalysis = nil
         lastViewedSource = nil
         analytics.trackWorkoutAnalysisStarted()
@@ -244,30 +270,36 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
         isLoading = false
 
+        // A cancelled request may still return partial text; it is neither saved nor reported.
+        guard !Task.isCancelled else {
+            restoreCachedAnalysis()
+            return
+        }
+
         // Read the authoritative final text from the service rather than analysisText,
         // which is delivered through an async Combine sink that may lag a runloop tick.
         let finalAnalysis = aiService.streamedResponse
         guard requestSignature == inputSignature() else {
-            analysisText = nil
+            restoreCachedAnalysis()
             return
         }
 
         guard aiService.error == nil else {
-            analysisText = nil
+            restoreCachedAnalysis()
             error = aiService.error
             analytics.trackWorkoutAnalysisFailed(reason: .serviceError)
             return
         }
 
         guard !finalAnalysis.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            analysisText = nil
+            restoreCachedAnalysis()
             error = String(localized: "Error during analysis")
             analytics.trackWorkoutAnalysisFailed(reason: .emptyResponse)
             return
         }
 
         guard AIResponseValidator.isComplete(finalAnalysis) else {
-            analysisText = nil
+            restoreCachedAnalysis()
             error = String(localized: "analysis.incomplete_response", defaultValue: "The analysis was interrupted. Try again.")
             analytics.trackWorkoutAnalysisFailed(reason: .incompleteResponse)
             return
@@ -275,6 +307,7 @@ class WorkoutAnalysisViewModel: ObservableObject {
         analysisText = finalAnalysis
         analysisSource = .generated
         analyzedAt = Date()
+        isOutdated = false
         analytics.trackWorkoutAnalysisCompleted(isSample: false)
 
         print("✅ WorkoutAnalysisViewModel: Streaming complete, saving to SwiftData (\(finalAnalysis.count) chars)")
@@ -307,17 +340,46 @@ class WorkoutAnalysisViewModel: ObservableObject {
 
     // MARK: - Cache Management
 
+    // Only inputs that change the interpretation, so new payload fields never mark every analysis outdated.
+    private struct SignatureInput: Encodable {
+        let language: String
+        let start: Int?
+        let durationSeconds: Int?
+        let distanceMeters: Int?
+        let averageHeartRate: Int?
+        let maximumHeartRate: Int?
+        let elevationGainMeters: Int?
+        let heartRateCoverageTenths: Int?
+        let effort: Int?
+        let effortIsEstimated: Bool?
+        let isIndoor: Bool
+        let feedback: WorkoutFeedback?
+    }
+
     func inputSignature(language: String = AppLanguage.current) -> String? {
-        let payload = WorkoutAIService().convertToWorkoutData(workout: workout, metrics: metrics)
-        guard let data = try? JSONEncoder().encode(payload),
-              var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        object["language"] = language
-        if var evidence = object["evidence"] as? [String: Any] {
-            evidence.removeValue(forKey: "measuredAt")
-            object["evidence"] = evidence
+        func whole(_ value: Double?, scale: Double = 1) -> Int? {
+            guard let value, value.isFinite else { return nil }
+            return Int(exactly: (value * scale).rounded())
         }
-        guard let canonical = try? JSONSerialization.data(withJSONObject: object, options: .sortedKeys) else { return nil }
-        return SHA256.hash(data: canonical).map { String(format: "%02x", $0) }.joined()
+        let coverage = metrics?.evidence?.signals.first { $0.metric == "heartRate" }?.coverage
+        let input = SignatureInput(
+            language: language,
+            start: whole(workout.startDate.timeIntervalSince1970),
+            durationSeconds: whole(workout.duration),
+            distanceMeters: whole(workout.distance),
+            averageHeartRate: whole(metrics?.averageHeartRate),
+            maximumHeartRate: whole(metrics?.maxHeartRate),
+            elevationGainMeters: whole(metrics?.totalElevationAscent),
+            heartRateCoverageTenths: whole(coverage, scale: 10),
+            effort: whole(workout.effortScore),
+            effortIsEstimated: workout.effortScore == nil ? nil : workout.effortIsEstimated,
+            isIndoor: workout.isIndoor,
+            feedback: WorkoutFeedbackStore.shared.feedback(for: workout)
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(input) else { return nil }
+        return Self.signatureVersion + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Fetch cached analysis from SwiftData

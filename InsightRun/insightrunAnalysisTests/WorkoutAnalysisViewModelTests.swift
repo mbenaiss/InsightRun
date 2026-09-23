@@ -8,7 +8,7 @@ import XCTest
 
 @MainActor
 final class WorkoutAnalysisViewModelTests: XCTestCase {
-    func testCachedAnalysisInAnotherLanguageIsInvalidatedWithoutAutomaticTransmission() async throws {
+    func testCachedAnalysisInAnotherLanguageStaysVisibleAsOutdatedWithoutAutomaticTransmission() async throws {
         let harness = try AnalysisHarness()
         let otherLanguage = AppLanguage.current == "fr" ? "en" : "fr"
         let analysis = WorkoutAnalysis(workoutId: harness.workout.id, analysisText: AnalysisHarness.completeResponse)
@@ -16,34 +16,38 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         harness.modelContext.insert(analysis)
         try harness.modelContext.save()
 
-        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        await harness.viewModel.loadAnalysis()
 
-        XCTAssertNil(harness.viewModel.analysisText)
-        XCTAssertNil(harness.viewModel.analysisSource)
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertTrue(harness.viewModel.isOutdated)
         XCTAssertEqual(harness.client.requestCount, 0)
 
-        await harness.viewModel.generateAnalysis()
+        await harness.viewModel.regenerateAnalysis()
 
         XCTAssertEqual(harness.client.requestCount, 1)
+        XCTAssertFalse(harness.viewModel.isOutdated)
         XCTAssertEqual(try harness.savedAnalyses().first?.inputSignature, harness.viewModel.inputSignature())
     }
 
-    func testFeedbackChangeInvalidatesCachedAnalysisWithoutAutomaticTransmission() async throws {
+    func testFeedbackChangeMarksCachedAnalysisOutdatedWithoutAutomaticTransmission() async throws {
         let harness = try AnalysisHarness()
         try harness.cacheAnalysis(AnalysisHarness.completeResponse)
         await harness.viewModel.loadAnalysis(allowGeneration: false)
         XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertFalse(harness.viewModel.isOutdated)
         WorkoutFeedbackStore.shared.save(WorkoutFeedback(effort: 8, intent: "easy"), for: harness.workout)
         defer { WorkoutFeedbackStore.shared.save(WorkoutFeedback(), for: harness.workout) }
-        await harness.viewModel.loadAnalysis(allowGeneration: false)
-        XCTAssertNil(harness.viewModel.analysisText)
+        await harness.viewModel.loadAnalysis()
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertTrue(harness.viewModel.isOutdated)
         XCTAssertEqual(harness.client.requestCount, 0)
         await harness.viewModel.generateAnalysis()
         XCTAssertEqual(harness.client.requestCount, 1)
         XCTAssertEqual(try harness.savedAnalyses().first?.inputSignature, harness.viewModel.inputSignature())
     }
 
-    func testRefreshingIdenticalMeasurementsKeepsCachedAnalysisButNewCoverageInvalidatesIt() async throws {
+    func testRefreshingIdenticalMeasurementsKeepsCachedAnalysisButNewCoverageMarksItOutdated() async throws {
         let harness = try AnalysisHarness()
         func metrics(date: String, coverage: Double) -> WorkoutMetrics {
             WorkoutMetrics(workout: harness.workout, evidence: WorkoutEvidence(
@@ -55,9 +59,45 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         harness.viewModel.updateMetrics(metrics(date: "2026-09-21T13:00:00Z", coverage: 0.8))
         await harness.viewModel.loadAnalysis(allowGeneration: false)
         XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertFalse(harness.viewModel.isOutdated)
         harness.viewModel.updateMetrics(metrics(date: "2026-09-21T13:00:00Z", coverage: 0.9))
         await harness.viewModel.loadAnalysis(allowGeneration: false)
-        XCTAssertNil(harness.viewModel.analysisText)
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertTrue(harness.viewModel.isOutdated)
+    }
+
+    func testSignatureIgnoresFieldsOutsideItsStableSubset() async throws {
+        let harness = try AnalysisHarness()
+        harness.viewModel.updateMetrics(WorkoutMetrics(workout: harness.workout, averageHeartRate: 145, maxHeartRate: 165))
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        var enriched = WorkoutMetrics(workout: harness.workout, averageHeartRate: 145.2, maxHeartRate: 165)
+        enriched.averageCadence = 172
+        enriched.vo2Max = 51
+        enriched.walkingSteadiness = 98
+        enriched.temperature = 18
+        harness.viewModel.updateMetrics(enriched)
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertFalse(harness.viewModel.isOutdated)
+        enriched.averageHeartRate = 151
+        harness.viewModel.updateMetrics(enriched)
+        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        XCTAssertTrue(harness.viewModel.isOutdated)
+        XCTAssertEqual(harness.client.requestCount, 0)
+    }
+
+    func testSignatureFromBeforeTheStableSubsetIsAdoptedOnce() async throws {
+        let harness = try AnalysisHarness()
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        let cached = try XCTUnwrap(harness.modelContext.fetch(FetchDescriptor<WorkoutAnalysis>()).first)
+        cached.inputSignature = String(repeating: "a", count: 64)
+        try harness.modelContext.save()
+
+        await harness.viewModel.loadAnalysis()
+
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertFalse(harness.viewModel.isOutdated)
+        XCTAssertEqual(harness.client.requestCount, 0)
+        XCTAssertEqual(try harness.savedAnalyses().first?.inputSignature, harness.viewModel.inputSignature())
     }
 
     func testMissingConsentDoesNotStartGeneration() async throws {
@@ -361,12 +401,39 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         XCTAssertEqual(harness.client.requestCount, 1)
         XCTAssertEqual(harness.analytics.failureReasons, [.serviceError])
         XCTAssertTrue(harness.analytics.completedSamples.isEmpty)
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertEqual(harness.viewModel.error, "The service is unavailable.")
         let saved = try harness.savedAnalyses()
         XCTAssertEqual(saved.count, 1)
         XCTAssertEqual(saved.first?.analysisText, AnalysisHarness.completeResponse)
     }
 
-    func testLegacyAnalysisIsReplacedAfterContextVersionChanges() async throws {
+    func testCancelledGenerationIsNeitherSavedNorReported() async throws {
+        let harness = try AnalysisHarness()
+        try harness.cacheAnalysis(AnalysisHarness.completeResponse)
+        await harness.viewModel.loadAnalysis()
+        let started = expectation(description: "The analysis request started")
+        let suspension = AnalysisSuspension(onSuspend: { started.fulfill() })
+        harness.client.suspension = suspension
+        harness.client.stubbedResponse = "Your pace remained stable. For your next run, keep it easy."
+        let generation = Task { await harness.viewModel.regenerateAnalysis() }
+        await fulfillment(of: [started], timeout: 2)
+
+        generation.cancel()
+        suspension.resume()
+        await generation.value
+
+        XCTAssertFalse(harness.viewModel.isLoading)
+        XCTAssertNil(harness.viewModel.error)
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertTrue(harness.analytics.completedSamples.isEmpty)
+        XCTAssertTrue(harness.analytics.failureReasons.isEmpty)
+        XCTAssertEqual(try harness.savedAnalyses().first?.analysisText, AnalysisHarness.completeResponse)
+    }
+
+    func testLegacyAnalysisStaysVisibleAfterContextVersionChangesUntilRegenerated() async throws {
         let harness = try AnalysisHarness()
         try harness.cacheAnalysis(AnalysisHarness.completeResponse)
         let cached = try harness.modelContext.fetch(FetchDescriptor<WorkoutAnalysis>()).first!
@@ -374,6 +441,12 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         try harness.modelContext.save()
 
         await harness.viewModel.loadAnalysis()
+
+        XCTAssertEqual(harness.client.requestCount, 0)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertTrue(harness.viewModel.isOutdated)
+
+        await harness.viewModel.regenerateAnalysis()
 
         XCTAssertEqual(harness.client.requestCount, 1)
         XCTAssertEqual(harness.viewModel.analysisSource, .generated)
@@ -387,11 +460,12 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         cached.contextVersion = 7
         try harness.modelContext.save()
 
-        await harness.viewModel.loadAnalysis(allowGeneration: false)
-        XCTAssertNil(harness.viewModel.analysisText)
+        await harness.viewModel.loadAnalysis()
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertTrue(harness.viewModel.isOutdated)
         XCTAssertEqual(harness.client.requestCount, 0)
 
-        await harness.viewModel.loadAnalysis()
+        await harness.viewModel.regenerateAnalysis()
 
         XCTAssertEqual(harness.client.requestCount, 1)
         let question = try XCTUnwrap(harness.client.requestedQuestion)
@@ -406,7 +480,7 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         XCTAssertEqual(try harness.savedAnalyses().first?.contextVersion, WorkoutAnalysis.currentContextVersion)
     }
 
-    func testChangedHeartRateReferenceInvalidatesAnalysisWithoutLosingOfflineCache() async throws {
+    func testChangedHeartRateReferenceMarksAnalysisOutdatedWithoutLosingOfflineCache() async throws {
         let harness = try AnalysisHarness()
         harness.estimatedMaxHR = 190
         try harness.cacheAnalysis(AnalysisHarness.completeResponse)
@@ -414,30 +488,37 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
         XCTAssertEqual(harness.viewModel.analysisSource, .cache)
 
         harness.estimatedMaxHR = 189
-        await harness.viewModel.loadAnalysis(allowGeneration: false)
+        await harness.viewModel.loadAnalysis()
+        XCTAssertFalse(harness.viewModel.isOutdated)
 
-        XCTAssertNil(harness.viewModel.analysisText)
-        XCTAssertNil(harness.viewModel.analysisSource)
+        harness.estimatedMaxHR = 187
+        await harness.viewModel.loadAnalysis()
+
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertTrue(harness.viewModel.isOutdated)
         XCTAssertEqual(harness.client.requestCount, 0)
         XCTAssertEqual(try harness.savedAnalyses().first?.estimatedMaxHR, 190)
 
         harness.client.stubbedResponse = ""
         harness.client.stubbedError = URLError(.notConnectedToInternet).localizedDescription
-        await harness.viewModel.loadAnalysis()
+        await harness.viewModel.regenerateAnalysis()
         XCTAssertFalse(harness.viewModel.isLoading)
         XCTAssertNotNil(harness.viewModel.error)
-        XCTAssertNil(harness.viewModel.analysisText)
+        XCTAssertEqual(harness.viewModel.analysisText, AnalysisHarness.completeResponse)
+        XCTAssertTrue(harness.viewModel.isOutdated)
         XCTAssertEqual(try harness.savedAnalyses().first?.estimatedMaxHR, 190)
         XCTAssertEqual(try harness.savedAnalyses().first?.analysisText, AnalysisHarness.completeResponse)
 
         harness.client.stubbedError = nil
         harness.client.stubbedResponse = AnalysisHarness.completeResponse
-        await harness.viewModel.loadAnalysis()
+        await harness.viewModel.regenerateAnalysis()
         XCTAssertEqual(harness.client.requestCount, 2)
-        XCTAssertEqual(try harness.savedAnalyses().first?.estimatedMaxHR, 189)
+        XCTAssertFalse(harness.viewModel.isOutdated)
+        XCTAssertEqual(try harness.savedAnalyses().first?.estimatedMaxHR, 187)
     }
 
-    func testAgePermissionChangesInvalidateThePreviousReference() async throws {
+    func testAgePermissionChangesMarkThePreviousReferenceOutdated() async throws {
         let harness = try AnalysisHarness()
         harness.estimatedMaxHR = 190
         try harness.cacheAnalysis(AnalysisHarness.completeResponse)
@@ -445,11 +526,15 @@ final class WorkoutAnalysisViewModelTests: XCTestCase {
 
         await harness.viewModel.loadAnalysis()
 
-        XCTAssertEqual(harness.viewModel.analysisSource, .generated)
+        XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertTrue(harness.viewModel.isOutdated)
+        XCTAssertEqual(harness.client.requestCount, 0)
+        await harness.viewModel.regenerateAnalysis()
         XCTAssertNil(try harness.savedAnalyses().first?.estimatedMaxHR)
         await harness.viewModel.loadAnalysis()
         XCTAssertEqual(harness.client.requestCount, 1)
         XCTAssertEqual(harness.viewModel.analysisSource, .cache)
+        XCTAssertFalse(harness.viewModel.isOutdated)
     }
 
     func testHeartRateReferenceUsesTheSameAgeFormulaAndZoneBoundariesAsTheBackend() async {

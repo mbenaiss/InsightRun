@@ -31,8 +31,10 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     // Store the last question for retry
     private var lastQuestion: String?
     private var lastMode: AIAssistantMode?
+    private let countFreeRequest: @MainActor () -> Void
 
-    override init() {
+    init(countFreeRequest: @escaping @MainActor () -> Void = { RevenueCatManager.shared.incrementFreeRequestCount() }) {
+        self.countFreeRequest = countFreeRequest
         super.init()
     }
 
@@ -172,25 +174,39 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
     // MARK: - Remote Model Inference
 
     private func handleRemoteModelInference(question: String, requestType: RequestType, mode: AIAssistantMode, language: String? = nil, requiresCompleteResponse: Bool = false) async {
-        do {
-            let payloadStart = Date()
-            let payload = await buildAgentPayload(question: question, mode: mode, languageOverride: language)
-            let payloadBytes = (try? JSONEncoder().encode(payload))?.count ?? -1
-            await MainActor.run {
-                AnalyticsService.shared.trackAIChatStep("payload_built", properties: [
-                    "duration_ms": Self.elapsedMs(since: payloadStart),
-                    "payload_bytes": payloadBytes,
-                    "workouts_count": payload.data.recentWorkouts?.workouts.count ?? 0,
-                    "has_historical_summary": payload.data.historicalSummary != nil,
-                    "has_training_plan": payload.data.trainingPlan != nil
-                ])
-            }
+        let payloadStart = Date()
+        let payload = await buildAgentPayload(question: question, mode: mode, languageOverride: language)
+        let payloadBytes = (try? JSONEncoder().encode(payload))?.count ?? -1
+        await MainActor.run {
+            AnalyticsService.shared.trackAIChatStep("payload_built", properties: [
+                "duration_ms": Self.elapsedMs(since: payloadStart),
+                "payload_bytes": payloadBytes,
+                "workouts_count": payload.data.recentWorkouts?.workouts.count ?? 0,
+                "has_historical_summary": payload.data.historicalSummary != nil,
+                "has_training_plan": payload.data.trainingPlan != nil
+            ])
+        }
 
+        await receiveAgentStream(requiresCompleteResponse: requiresCompleteResponse) {
+            try await self.backendClient.agentChatStream(payload: payload)
+        }
+    }
+
+    func receiveAgentStream(
+        requiresCompleteResponse: Bool,
+        from makeStream: () async throws -> AsyncThrowingStream<BackendAPIClient.AgentStreamEvent, Error>
+    ) async {
+        do {
             let streamStart = Date()
-            let stream = try await backendClient.agentChatStream(payload: payload)
+            let stream = try await makeStream()
             var chunkCount = 0
+            var receivedEndMarker = false
 
             for try await event in stream {
+                if case .completed = event {
+                    receivedEndMarker = true
+                    continue
+                }
                 chunkCount += 1
                 let isFirstChunk = chunkCount == 1
                 await MainActor.run {
@@ -205,9 +221,15 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
 
                     case .functionResult(let result):
                         self.lastFunctionResult = result
+
+                    case .completed:
+                        break
                     }
                 }
             }
+            // Cancelling the caller ends the stream without an error; only the server's end marker is a success.
+            try Task.checkCancellation()
+            guard receivedEndMarker else { throw BackendError.invalidResponse }
 
             let receivedChunkCount = chunkCount
             await MainActor.run {
@@ -221,11 +243,15 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                     self.lastResponse = self.streamedResponse
                     self.generateContextualSuggestions()
                     if !requiresCompleteResponse || AIResponseValidator.isComplete(self.streamedResponse) {
-                        RevenueCatManager.shared.incrementFreeRequestCount()
+                        self.countFreeRequest()
                     }
                 }
             }
 
+        } catch is CancellationError {
+            abandonInterruptedResponse()
+        } catch let error as URLError where error.code == .cancelled {
+            abandonInterruptedResponse()
         } catch let error as BackendError {
             print("❌ WorkoutAIService: Backend error: \(error)")
 
@@ -260,6 +286,13 @@ class WorkoutAIService: NSObject, ObservableObject, URLSessionDataDelegate {
                 self.streamedResponse = ""
             }
         }
+    }
+
+    private func abandonInterruptedResponse() {
+        print("⚠️ WorkoutAIService: Stream ended before the server's end marker")
+        error = String(localized: "ai.response_interrupted", defaultValue: "The response was interrupted. Try again.")
+        isStreaming = false
+        streamedResponse = ""
     }
 
     private static func elapsedMs(since start: Date) -> Int {

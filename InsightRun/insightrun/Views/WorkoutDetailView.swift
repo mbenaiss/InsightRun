@@ -1024,36 +1024,11 @@ struct WorkoutDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, Spacing.lg)
 
-            } else if analysisViewModel.needsConsent {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text(String(localized: "analysis.consent_benefit", defaultValue: "Understand this run and find your next step."))
-                        .font(IRFont.headline)
-                        .foregroundStyle(Color.irTextPrimary)
+            } else if analysisViewModel.needsConsent && analysisViewModel.analysisText == nil {
+                analysisConsentPrompt
+                    .padding(.vertical, Spacing.sm)
 
-                    Text(String(localized: "analysis.consent_explanation", defaultValue: "Review which data is shared with the AI before starting. Your workout metrics remain available without consent."))
-                        .font(IRFont.body)
-                        .foregroundStyle(Color.irTextSecondary)
-
-                    Button {
-                        consentResult = nil
-                        showConsentSheet = true
-                    } label: {
-                        Label(String(localized: "analysis.consent_cta", defaultValue: "Review sharing and analyze"), systemImage: "hand.raised")
-                            .font(IRFont.body.weight(.bold))
-                            .foregroundStyle(Color.irTextOnAccent)
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, Spacing.base)
-                            .padding(.vertical, Spacing.md)
-                            .background(Color.irPrimaryAccent)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("workout-analysis-consent")
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.sm)
-
-            } else if analysisViewModel.needsIndexation {
+            } else if analysisViewModel.needsIndexation && analysisViewModel.analysisText == nil {
                 HStack(spacing: Spacing.sm) {
                     ProgressView()
                     Text(String(localized: "analysis.preparing_history", defaultValue: "Preparing your training history…"))
@@ -1061,7 +1036,7 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(Color.irTextSecondary)
                 }
 
-            } else if let error = analysisViewModel.error {
+            } else if let error = analysisViewModel.error, analysisViewModel.analysisText == nil {
                 // Error state
                 VStack(spacing: Spacing.md) {
                     Image(systemName: "exclamationmark.triangle")
@@ -1088,11 +1063,16 @@ struct WorkoutDetailView: View {
                 .padding(.vertical, Spacing.sm)
 
             } else if let analysis = analysisViewModel.analysisText {
+                // An existing analysis stays visible; gates and failures of a regeneration appear below it.
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     if analysisViewModel.analysisSource == .sample {
                         Text(String(localized: "analysis.sample_label", defaultValue: "Example analysis · not based on your health data"))
                             .font(IRFont.caption)
                             .foregroundStyle(Color.irTextSecondary)
+                    }
+
+                    if analysisViewModel.isOutdated {
+                        outdatedAnalysisNotice
                     }
 
                     MarkdownView(analysis)
@@ -1107,17 +1087,21 @@ struct WorkoutDetailView: View {
                             }
                         }
 
-                    if analysisViewModel.analysisSource != .sample {
+                    if let error = analysisViewModel.error {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .font(IRFont.caption)
+                            .foregroundStyle(Color.irWarning)
+                    }
+
+                    if analysisViewModel.needsConsent {
+                        analysisConsentPrompt
+                    }
+
+                    if analysisViewModel.analysisSource != .sample && !analysisViewModel.isOutdated {
                       HStack {
                         Spacer()
                         Button {
-                            guard revenueCatManager.hasAIAccess else {
-                                showSubscriptionPaywall = true
-                                return
-                            }
-                            Task {
-                                await analysisViewModel.regenerateAnalysis()
-                            }
+                            regenerateAnalysis()
                         } label: {
                             Image(systemName: "arrow.clockwise")
                                 .font(IRFont.eyebrow.weight(.semibold))
@@ -1169,6 +1153,64 @@ struct WorkoutDetailView: View {
         .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .detailCard()
+    }
+
+    private var outdatedAnalysisNotice: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Label(String(localized: "analysis.outdated", defaultValue: "This analysis may be out of date."), systemImage: "clock.arrow.circlepath")
+                .font(IRFont.caption)
+                .foregroundStyle(Color.irTextSecondary)
+
+            Button {
+                regenerateAnalysis()
+            } label: {
+                Label(String(localized: "Regenerate analysis", comment: "Accessibility label for AI analysis regenerate button"), systemImage: "arrow.clockwise")
+                    .font(IRFont.caption.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("workout-analysis-regenerate")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.md)
+        .background(Color.irWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.sm))
+    }
+
+    private var analysisConsentPrompt: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(String(localized: "analysis.consent_benefit", defaultValue: "Understand this run and find your next step."))
+                .font(IRFont.headline)
+                .foregroundStyle(Color.irTextPrimary)
+
+            Text(String(localized: "analysis.consent_explanation", defaultValue: "Review which data is shared with the AI before starting. Your workout metrics remain available without consent."))
+                .font(IRFont.body)
+                .foregroundStyle(Color.irTextSecondary)
+
+            Button {
+                consentResult = nil
+                showConsentSheet = true
+            } label: {
+                Label(String(localized: "analysis.consent_cta", defaultValue: "Review sharing and analyze"), systemImage: "hand.raised")
+                    .font(IRFont.body.weight(.bold))
+                    .foregroundStyle(Color.irTextOnAccent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, Spacing.base)
+                    .padding(.vertical, Spacing.md)
+                    .background(Color.irPrimaryAccent)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("workout-analysis-consent")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // A regeneration is a paid request, so it only starts from an explicit tap.
+    private func regenerateAnalysis() {
+        guard revenueCatManager.hasAIAccess else {
+            showSubscriptionPaywall = true
+            return
+        }
+        Task { await analysisViewModel.regenerateAnalysis() }
     }
 
     private func resumeAfterConsent() {

@@ -6,6 +6,7 @@
 //  Strategy: Keep all workouts cached, clear only when user disconnects Strava
 //
 
+import CryptoKit
 import Foundation
 import SwiftData
 import HealthKit
@@ -153,8 +154,14 @@ class CachedUnifiedWorkout {
             return UnifiedWorkout(from: fallbackWorkout)
         }
     }
+
+    // String.hashValue is reseeded on every launch, so it cannot identify the same cached workout twice.
+    private static func stableFallbackStravaId(for id: String) -> Int64 {
+        SHA256.hash(data: Data(id.utf8)).prefix(8).reduce(Int64(0)) { ($0 << 8) | Int64($1) }
+    }
+
     private func cachedStravaActivity() -> StravaActivity {
-        let stravaId = stravaActivityId ?? Int64(id.hashValue)
+        let stravaId = stravaActivityId ?? Self.stableFallbackStravaId(for: id)
         return StravaActivity(
             id: stravaId,
             name: name,

@@ -26,11 +26,10 @@ final class StabilityIntegrationTests: XCTestCase {
         XCTAssertEqual(Set(products.map(\.id)), Set(identifiers))
         let product = try XCTUnwrap(products.first { $0.id == identifiers[0] })
 
-        guard case .success(.verified(let transaction)) = try await product.purchase() else {
-            return XCTFail("The local StoreKit purchase did not produce a verified transaction")
-        }
+        // product.purchase() and AppStore.sync() can open an Apple Account sign-in prompt on the simulator, which blocks unattended runs.
+        let transaction = try await session.buyProduct(identifier: product.id)
         await transaction.finish()
-        try await AppStore.sync()
+        XCTAssertTrue(session.allTransactions().contains { $0.productIdentifier == product.id && $0.state == .purchased })
         var restored = Set<String>()
         for await result in StoreKit.Transaction.currentEntitlements {
             if case .verified(let item) = result { restored.insert(item.productID) }

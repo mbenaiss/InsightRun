@@ -126,6 +126,7 @@ export async function captureLLMEvent(
     cost?: number
     error?: string
     ip?: string
+    route?: string
   }
 ): Promise<void> {
   const [inputHash, systemPromptHash] = await Promise.all([
@@ -143,8 +144,11 @@ export async function captureLLMEvent(
       $ai_latency: properties.latency,
       $ai_total_cost_usd: properties.cost,
       $ai_trace_id: traceId,
+      ...(properties.error !== undefined && { $ai_is_error: true, $ai_error: properties.error }),
+      route: properties.route,
       app: 'healthapp',
       environment: 'production',
+      is_internal: distinctId.startsWith('qa-'),
       input_length: properties.input.length,
       input_hash: inputHash,
       system_prompt_length: properties.systemPrompt.length,

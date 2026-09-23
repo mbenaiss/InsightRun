@@ -73,7 +73,8 @@ interface FunctionCall {
 }
 
 interface OpenRouterResponse {
-  error?: { message?: string }
+  model?: string
+  error?: { message?: string; code?: number | string }
   choices: Array<{
     finish_reason?: string
     message?: {
@@ -93,9 +94,10 @@ interface OpenRouterResponse {
     }
   }>
   usage?: {
-    prompt_tokens: number
-    completion_tokens: number
-    total_tokens: number
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+    cost?: number
   }
 }
 
@@ -373,6 +375,38 @@ app.post('/chat', async (c) => {
 
     messages.push({ role: 'user', content: body.userQuestion })
 
+    const captureGeneration = (details: {
+      model: string
+      output?: string
+      inputTokens?: number
+      outputTokens?: number
+      cost?: number
+      error?: string
+    }) => {
+      if (!c.env.POSTHOG_API_KEY || !c.env.POSTHOG_HOST) return
+      const posthog = createPostHogClient({
+        apiKey: c.env.POSTHOG_API_KEY,
+        host: c.env.POSTHOG_HOST,
+      })
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            await captureLLMEvent(posthog, userId, traceId, {
+              ...details,
+              input: body.userQuestion,
+              systemPrompt,
+              latency: (Date.now() - startTime) / 1000,
+              ip,
+              route: '/api/agent/chat',
+            })
+            await posthog.shutdown()
+          } catch (error) {
+            console.error('PostHog capture error:', error)
+          }
+        })()
+      )
+    }
+
     // Call OpenRouter with function calling. Bound the connection so a hung upstream
     // doesn't hold the request past the iOS budget; the `models` array gives a native
     // fallback if the primary model is rate-limited or 5xx.
@@ -400,6 +434,14 @@ app.post('/chat', async (c) => {
         }),
         signal: connectController.signal,
       })
+    } catch (error) {
+      captureGeneration({
+        model,
+        error: connectController.signal.aborted
+          ? 'OpenRouter connection timed out'
+          : 'OpenRouter request failed',
+      })
+      throw error
     } finally {
       clearTimeout(connectTimer)
     }
@@ -407,6 +449,7 @@ app.post('/chat', async (c) => {
     if (!openRouterResponse.ok) {
       const errorText = await openRouterResponse.text()
       console.error('OpenRouter error:', errorText)
+      captureGeneration({ model, error: `OpenRouter HTTP ${openRouterResponse.status}` })
       return c.json(
         {
           error: 'AI Service Error',
@@ -419,6 +462,15 @@ app.post('/chat', async (c) => {
     // Stream the response
     let fullOutput = ''
     let functionCall: { name: string; arguments: string } | null = null
+    let answeredModel: string | undefined
+    let usage: OpenRouterResponse['usage']
+    const measuredGeneration = () => ({
+      model: answeredModel ?? model,
+      output: fullOutput,
+      inputTokens: usage?.prompt_tokens,
+      outputTokens: usage?.completion_tokens,
+      cost: usage?.cost,
+    })
 
     return streamSSE(c, async (stream) => {
       const reader = openRouterResponse.body?.getReader()
@@ -461,31 +513,7 @@ app.post('/chat', async (c) => {
 
                 await stream.writeSSE({ data: '[DONE]' })
 
-                // Capture analytics
-                const latency = (Date.now() - startTime) / 1000
-                if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
-                  const posthog = createPostHogClient({
-                    apiKey: c.env.POSTHOG_API_KEY,
-                    host: c.env.POSTHOG_HOST,
-                  })
-                  c.executionCtx.waitUntil(
-                    (async () => {
-                      try {
-                        await captureLLMEvent(posthog, userId, traceId, {
-                          model,
-                          input: body.userQuestion,
-                          systemPrompt,
-                          output: fullOutput,
-                          latency,
-                          ip,
-                        })
-                        await posthog.shutdown()
-                      } catch (error) {
-                        console.error('PostHog capture error:', error)
-                      }
-                    })()
-                  )
-                }
+                captureGeneration(measuredGeneration())
 
                 await afterModelUsage(selection.model, c.env.RATE_LIMITER, userId, 'chat')
                 return
@@ -493,9 +521,15 @@ app.post('/chat', async (c) => {
 
               if (dataStr) {
                 const json: OpenRouterResponse = JSON.parse(dataStr)
+                // With the `models` fallback the answering model can differ from the requested one.
+                answeredModel = json.model ?? answeredModel
+                usage = json.usage ?? usage
                 const choice = json.choices?.[0]
-                if (json.error || choice?.finish_reason === 'length') {
-                  throw new Error('The AI response was interrupted. Please retry.')
+                if (json.error) {
+                  throw new Error(`OpenRouter stream error ${json.error.code ?? 'unknown'}`)
+                }
+                if (choice?.finish_reason === 'length') {
+                  throw new Error('The AI response was truncated')
                 }
 
                 const toolCall = choice?.delta?.tool_calls?.[0]
@@ -522,6 +556,12 @@ app.post('/chat', async (c) => {
         throw new Error('The AI stream ended without a completion marker')
       } catch (error) {
         console.error('Streaming error:', error)
+        const message = error instanceof Error ? error.message : String(error)
+        captureGeneration({
+          ...measuredGeneration(),
+          // A parse error message quotes the chunk, which may contain generated health advice.
+          error: error instanceof SyntaxError ? 'Malformed stream chunk' : message,
+        })
         await stream.writeSSE({
           data: JSON.stringify({
             type: 'error',

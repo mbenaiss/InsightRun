@@ -666,6 +666,7 @@ app.post('/batch', async (c: Context<{ Bindings: Bindings; Variables: Variables 
               latency,
               cost: undefined,
               ip,
+              route: '/api/analyze-history/batch',
             })
             await posthog.shutdown()
           } catch (error) {
@@ -845,6 +846,7 @@ app.post('/consolidate', async (c: Context<{ Bindings: Bindings; Variables: Vari
               latency,
               cost: undefined,
               ip,
+              route: '/api/analyze-history/consolidate',
             })
             await posthog.shutdown()
           } catch (error) {

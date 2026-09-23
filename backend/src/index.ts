@@ -88,6 +88,7 @@ interface StreamChunk {
     prompt_tokens?: number
     completion_tokens?: number
     total_tokens?: number
+    cost?: number
   }
 }
 
@@ -520,6 +521,7 @@ app.post('/api/chat', async (c) => {
           prompt_tokens?: number
           completion_tokens?: number
           total_tokens?: number
+          cost?: number
         }
       }
 
@@ -550,8 +552,9 @@ app.post('/api/chat', async (c) => {
                 inputTokens: data.usage?.prompt_tokens,
                 outputTokens: data.usage?.completion_tokens,
                 latency,
-                cost: data.usage?.total_tokens ? data.usage.total_tokens * 0.000001 : undefined,
+                cost: data.usage?.cost,
                 ip,
+                route: '/api/chat',
               })
               await posthog.shutdown()
             } catch (error) {
@@ -590,7 +593,7 @@ app.post('/api/chat', async (c) => {
     let fullOutput = ''
     let inputTokens: number | undefined
     let outputTokens: number | undefined
-    let totalTokens: number | undefined
+    let cost: number | undefined
 
     return streamSSE(c, async (stream) => {
       const reader = openRouterResponse.body?.getReader()
@@ -646,8 +649,9 @@ app.post('/api/chat', async (c) => {
                           inputTokens,
                           outputTokens,
                           latency,
-                          cost: totalTokens ? totalTokens * 0.000001 : undefined, // Rough estimation
+                          cost,
                           ip,
+                          route: '/api/chat',
                         })
                         await posthog.shutdown()
                       } catch (error) {
@@ -681,7 +685,7 @@ app.post('/api/chat', async (c) => {
                   if (json.usage) {
                     inputTokens = json.usage.prompt_tokens
                     outputTokens = json.usage.completion_tokens
-                    totalTokens = json.usage.total_tokens
+                    cost = json.usage.cost
                   }
                 } catch (parseError) {
                   console.warn('JSON parse error:', parseError, 'Data:', data)
@@ -1194,7 +1198,7 @@ app.post('/api/chat/v2', async (c) => {
     let fullOutput = ''
     let inputTokens: number | undefined
     let outputTokens: number | undefined
-    let totalTokens: number | undefined
+    let cost: number | undefined
 
     return streamSSE(c, async (stream) => {
       const reader = openRouterResponse.body?.getReader()
@@ -1258,8 +1262,9 @@ app.post('/api/chat/v2', async (c) => {
                           inputTokens,
                           outputTokens,
                           latency,
-                          cost: totalTokens ? totalTokens * 0.000001 : undefined,
+                          cost,
                           ip,
+                          route: '/api/chat/v2',
                         })
                         await posthog.shutdown()
                       } catch (error) {
@@ -1288,7 +1293,7 @@ app.post('/api/chat/v2', async (c) => {
                   if (json.usage) {
                     inputTokens = json.usage.prompt_tokens
                     outputTokens = json.usage.completion_tokens
-                    totalTokens = json.usage.total_tokens
+                    cost = json.usage.cost
                   }
                 } catch (parseError) {
                   console.warn('JSON parse error:', parseError, 'Data:', dataStr)

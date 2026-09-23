@@ -261,6 +261,7 @@ app.post('/', async (c) => {
               latency,
               cost: undefined,
               ip,
+              route: '/api/workout/smart-suggestion',
             })
             await posthog.shutdown()
           } catch (error) {

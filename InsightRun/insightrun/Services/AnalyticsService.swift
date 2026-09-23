@@ -378,15 +378,6 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         ])
     }
 
-    func trackSubscriptionPurchaseStarted(productId: String, price: String, billingPeriod: String, source: String) {
-        track(.subscriptionPurchaseStarted, properties: [
-            "product_id": productId,
-            "price": price,
-            "billing_period": billingPeriod,
-            "source": source
-        ])
-    }
-
     func trackSubscriptionCancelled(productId: String?) {
         var properties: [String: Any] = [:]
         if let productId {

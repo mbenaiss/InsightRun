@@ -61,14 +61,14 @@ export default function PrivacyPolicy() {
               </li>
               <li>Subscription status and purchase history processed by RevenueCat</li>
               <li>
-                Product interactions and technical diagnostics processed by PostHog, including app
-                version, device model, operating system version, and locale
+                Product interactions and technical diagnostics processed by our analytics provider,
+                including app version, device model, operating system version, and locale
               </li>
               <li>
-                An approximate location (country and city) derived by our analytics provider,
-                PostHog (EU cloud), from your device's IP address. PostHog receives the IP address
-                with each analytics event, uses it only to derive this approximate location, and
-                does not store the IP address.
+                An approximate location (country and city) derived by our analytics provider, hosted
+                in the European Union, from your device's IP address. The provider receives the IP
+                address with each analytics event, uses it only to derive this approximate location,
+                and does not store the IP address.
               </li>
             </ul>
           </section>
@@ -182,8 +182,8 @@ export default function PrivacyPolicy() {
               <li>
                 The app sends a random, pseudonymous installation identifier to our own backend,
                 which uses it to enforce usage quotas and prevent abuse, to link your Strava
-                connection to your installation, and to measure AI feature usage in our analytics
-                (PostHog). This identifier is not forwarded to OpenRouter or the AI model providers.
+                connection to your installation, and to measure AI feature usage in our analytics.
+                This identifier is not forwarded to OpenRouter or the AI model providers.
               </li>
               <li>
                 Data is not permanently stored by OpenRouter or the AI model providers — it is used
@@ -294,11 +294,12 @@ export default function PrivacyPolicy() {
                 with your permission.
               </li>
               <li>
-                <strong>PostHog</strong> (EU cloud) - Processes a pseudonymous account identifier,
-                product interactions, and technical diagnostics for analytics and app functionality.
-                PostHog receives your device's IP address with each event, uses it only to derive an
-                approximate location (country and city), and does not store the IP address. This
-                data is not used for advertising or cross-app tracking.
+                <strong>Analytics provider</strong> (hosted in the European Union) - Processes a
+                pseudonymous account identifier, product interactions, and technical diagnostics for
+                analytics and app functionality. It receives your device's IP address with each
+                event, uses it only to derive an approximate location (country and city), and does
+                not store the IP address. This data is not used for advertising or cross-app
+                tracking.
               </li>
               <li>
                 <strong>RevenueCat</strong> - Processes a pseudonymous account identifier,
@@ -332,8 +333,8 @@ export default function PrivacyPolicy() {
                 Health and workout metrics sent for an AI request are not retained by our backend
               </li>
               <li>
-                PostHog and RevenueCat retain pseudonymous analytics and subscription records under
-                their respective retention policies
+                Our analytics provider and RevenueCat retain pseudonymous analytics and subscription
+                records under their respective retention policies
               </li>
               <li>
                 AI conversation history is stored locally on your device and never synced to the

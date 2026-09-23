@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import os
 import RevenueCat
 import StoreKit
 
@@ -38,6 +39,7 @@ class RevenueCatManager: NSObject, ObservableObject {
 
     // Cache TestFlight environment status
     private var cachedTestFlightStatus: Bool?
+    private(set) var storeEnvironment: String?
     private var entitlementSnapshot: EntitlementSnapshot?
     private let entitlementSnapshotKey = "com.insightrun.revenuecat.entitlementSnapshot"
 
@@ -97,9 +99,11 @@ class RevenueCatManager: NSObject, ObservableObject {
             // TestFlight builds run in sandbox environment
             // Production App Store builds run in production environment
             let isTestFlight = transaction.environment == .sandbox || transaction.environment == .xcode
+            let environment = transaction.environment.rawValue.lowercased()
 
             await MainActor.run {
                 self.cachedTestFlightStatus = isTestFlight
+                self.storeEnvironment = environment
                 self.markTestFlightResolved()
             }
         } catch {
@@ -196,7 +200,12 @@ class RevenueCatManager: NSObject, ObservableObject {
 
         // TODO: Replace with your actual RevenueCat API key from dashboard
         // Get it from: https://app.revenuecat.com/settings/api-keys
-        Purchases.logLevel = .debug // Remove in production
+        #if DEBUG
+        Purchases.logLevel = .debug
+        #else
+        Purchases.logLevel = .info
+        #endif
+        Purchases.logHandler = RevenueCatLogTail.shared.record
         Purchases.configure(withAPIKey: "appl_LfJkFupqchBoMuDUTNsdmmGsEzQ")
 
         // Set up delegate to listen for customer info updates
@@ -319,6 +328,43 @@ extension RevenueCatManager: PurchasesDelegate {
     nonisolated func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
         Task { @MainActor in
             self.applyCustomerInfo(customerInfo, trackLifecycleChanges: true)
+        }
+    }
+}
+
+// MARK: - Log Tail
+
+// nonisolated: RevenueCat calls its log handler from its own queues.
+nonisolated final class RevenueCatLogTail: Sendable {
+    static let shared = RevenueCatLogTail()
+
+    private let capacity = 5
+    private let maxLineLength = 500
+    private let lines = OSAllocatedUnfairLock<[String]>(initialState: [])
+    private let logger = os.Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.revenuecat.Purchases", category: "Purchases")
+
+    func record(_ level: LogLevel, _ message: String) {
+        // A custom handler replaces the SDK's own os_log output.
+        logger.log(level: Self.osLogType(for: level), "\(level.description, privacy: .public): \(message, privacy: .public)")
+        let line = "\(level.description): \(message.prefix(maxLineLength))"
+        lines.withLock { lines in
+            lines.append(line)
+            if lines.count > capacity {
+                lines.removeFirst(lines.count - capacity)
+            }
+        }
+    }
+
+    func recentLines() -> [String] {
+        lines.withLock { $0 }
+    }
+
+    private static func osLogType(for level: LogLevel) -> OSLogType {
+        switch level {
+        case .verbose, .debug: .debug
+        case .info: .info
+        case .warn, .error: .error
+        @unknown default: .default
         }
     }
 }

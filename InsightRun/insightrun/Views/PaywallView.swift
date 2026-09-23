@@ -17,64 +17,65 @@ struct SubscriptionPaywallView: View {
 
     var onDismiss: (() -> Void)? = nil
 
-    @State private var paywallAppearTime: Date?
+    @State private var paywallAppearedAt: ContinuousClock.Instant?
     @State private var showConsentSheet = false
-    @State private var hasConsented = false
-    @State private var pendingPurchasePrice = "unknown"
-    @State private var pendingPurchaseProductId: String?
+    @State private var hasConsented = !ConsentService.shared.isConsentRequired()
+    @State private var consentShownInPaywall = false
+    @State private var purchaseAttempt: PurchaseAttempt?
     private let outcomeTracker = SubscriptionOutcomeTracker()
 
-    private var purchaseSource: String { isInitialFlow ? "onboarding" : "locked_content" }
+    private let purchaseSource = "locked_content"
 
     var body: some View {
-        Group {
-            if !hasConsented && ConsentService.shared.isConsentRequired() {
-                Color.clear
-                    .sheet(isPresented: .constant(true)) {
-                        AIConsentSheet(
-                            onConsent: {
-                                hasConsented = true
-                            },
-                            onDecline: {
-                                if let onDismiss = onDismiss {
-                                    onDismiss()
-                                } else {
-                                    dismiss()
-                                }
-                            }
-                        )
+        if hasConsented {
+            actualPaywallView
+        } else {
+            Color.clear
+                .onAppear {
+                    consentShownInPaywall = true
+                    showConsentSheet = true
+                }
+                .sheet(isPresented: $showConsentSheet, onDismiss: {
+                    // Show the paywall only once the sheet has finished dismissing, so no purchase starts mid-transition.
+                    if !ConsentService.shared.isConsentRequired() {
+                        hasConsented = true
                     }
-            } else {
-                actualPaywallView
-            }
-        }
-        .onAppear {
-            hasConsented = !ConsentService.shared.isConsentRequired()
+                }) {
+                    AIConsentSheet(
+                        onConsent: {
+                            showConsentSheet = false
+                        },
+                        onDecline: closePaywall
+                    )
+                }
         }
     }
 
     private var actualPaywallView: some View {
         PaywallView()
             .onPurchaseStarted { package in
-                pendingPurchasePrice = package.storeProduct.localizedPriceString
-                pendingPurchaseProductId = package.storeProduct.productIdentifier
-                AnalyticsService.shared.trackSubscriptionPurchaseStarted(
-                    productId: package.storeProduct.productIdentifier,
-                    price: package.storeProduct.localizedPriceString,
+                let product = package.storeProduct
+                purchaseAttempt = outcomeTracker.purchaseStarted(
+                    productId: product.productIdentifier,
+                    price: product.price,
+                    currency: product.currencyCode,
+                    priceDisplay: product.localizedPriceString,
                     billingPeriod: String(describing: package.packageType),
-                    source: purchaseSource
+                    source: purchaseSource,
+                    paywallAppearedAt: paywallAppearedAt,
+                    consentShownInPaywall: consentShownInPaywall
                 )
             }
             .onPurchaseCompleted { transaction, customerInfo in
                 let entitlement = customerInfo.entitlements.active.values.first
                 outcomeTracker.purchaseCompleted(
-                    productId: transaction?.productIdentifier ?? entitlement?.productIdentifier ?? pendingPurchaseProductId,
-                    revenue: pendingPurchasePrice,
+                    purchaseAttempt,
+                    productId: transaction?.productIdentifier ?? entitlement?.productIdentifier,
                     isTrial: entitlement?.periodType == .trial,
                     hasActiveSubscription: entitlement != nil,
                     source: purchaseSource
                 )
-                pendingPurchaseProductId = nil
+                purchaseAttempt = nil
 
                 revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                 Task {
@@ -82,19 +83,15 @@ struct SubscriptionPaywallView: View {
                 }
                 revenueCatManager.markPaywallAsSeen()
 
-                if let onDismiss = onDismiss {
-                    onDismiss()
-                } else {
-                    dismiss()
-                }
+                closePaywall()
             }
             .onPurchaseFailure { error in
-                outcomeTracker.purchaseFailed(error: error, productId: pendingPurchaseProductId, source: purchaseSource)
-                pendingPurchaseProductId = nil
+                outcomeTracker.purchaseFailed(purchaseAttempt, error: error, source: purchaseSource)
+                purchaseAttempt = nil
             }
             .onPurchaseCancelled {
-                outcomeTracker.purchaseCancelled(productId: pendingPurchaseProductId, source: purchaseSource)
-                pendingPurchaseProductId = nil
+                outcomeTracker.purchaseCancelled(purchaseAttempt, source: purchaseSource)
+                purchaseAttempt = nil
             }
             .onRestoreFailure { error in
                 outcomeTracker.restoreFailed(error: error, source: purchaseSource)
@@ -111,35 +108,34 @@ struct SubscriptionPaywallView: View {
                 }
                 revenueCatManager.markPaywallAsSeen()
 
-                if let onDismiss = onDismiss {
-                    onDismiss()
-                } else {
-                    dismiss()
-                }
+                closePaywall()
             }
             .onRequestedDismissal {
                 // User tapped "Skip now" or close button from RevenueCat paywall
-                if let startTime = paywallAppearTime {
-                    let timeSpent = Date().timeIntervalSince(startTime)
+                if let paywallAppearedAt {
+                    let timeSpent = paywallAppearedAt.duration(to: .now) / .seconds(1)
                     AnalyticsService.shared.trackPaywallDismissed(timeSpentSeconds: timeSpent)
                 }
 
                 revenueCatManager.markPaywallAsSeen()
 
-                if let onDismiss = onDismiss {
-                    onDismiss()
-                } else {
-                    dismiss()
-                }
+                closePaywall()
             }
             .onAppear {
-                paywallAppearTime = Date()
-                let triggerSource = isInitialFlow ? "onboarding" : "locked_content"
+                paywallAppearedAt = .now
                 AnalyticsService.shared.trackPaywallViewed(
-                    triggerSource: triggerSource,
+                    triggerSource: purchaseSource,
                     availableProducts: ["premium_subscription"]
                 )
             }
+    }
+
+    private func closePaywall() {
+        if let onDismiss {
+            onDismiss()
+        } else {
+            dismiss()
+        }
     }
 }
 

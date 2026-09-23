@@ -120,6 +120,48 @@ describe('workout generation response', () => {
     })
   })
 
+  const pacedRecovery = {
+    name: '6 × 800 m',
+    description: '6 × 800 m à 3:30/km, récupération 400 m à 5:30/km.',
+    sport: 'running',
+    steps: [
+      {
+        type: 'interval',
+        goal: { type: 'distance', value: 800 },
+        repetitions: 6,
+        targetPace: '3:30',
+      },
+      { type: 'recovery', goal: { type: 'distance', value: 400 }, targetPace: '5:30' },
+      { type: 'cooldown', goal: { type: 'duration', value: 600 } },
+    ],
+  }
+
+  test.each([
+    'Étape 2 : 6×800m à 3:30/km, récupération 400m à 5:30/km. Étape 3 : retour au calme 10 min, objectif aucun.',
+    'Step 2: 6×800m at 3:30/km, recovery 400m at 5:30/km. Step 3: cooldown 10 min, no target.',
+    '6×800m at 3:30/km, recovery 400m at 5:30/km. Cooldown 10 min, no target.',
+  ])('keeps a requested recovery pace when only a later step has no target: %s', async (question) => {
+    const response = await generate([pacedRecovery], question)
+    expect(response.status).toBe(200)
+    const result = await response.json()
+    expect(result.metadata.attempts).toBe(1)
+    expect(result.workout.steps[1].targetPace).toBe('5:30')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  test.each([
+    '6×800m at 3:30/km, recovery 400m jog, no target. Step 3: cooldown 10 min.',
+    'Bloc 2 — Boucle ×6 : effort 0:30 à 4:39–4:48/km ; récupération 1:00, objectif Aucun (ou FC <150), trot, pas marche. Bloc 3 — Retour au calme : Ouvert.',
+  ])('still removes targets from a recovery that requests none: %s', async (question) => {
+    const withoutTarget = structuredClone(pacedRecovery)
+    delete (withoutTarget.steps[1] as { targetPace?: string }).targetPace
+    const response = await generate([pacedRecovery, withoutTarget], question)
+    expect(response.status).toBe(200)
+    const result = await response.json()
+    expect(result.metadata.attempts).toBe(2)
+    expect(result.workout.steps[1].targetPace).toBeUndefined()
+  })
+
   test('rejects repeated failure to respect a recovery without a target', async () => {
     const workout = structuredClone(fixture)
     workout.steps[2].targetPaceMin = '6:00'

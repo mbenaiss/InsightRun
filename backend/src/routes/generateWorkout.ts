@@ -237,15 +237,29 @@ function fillWorkoutDefaults(workout: AIGeneratedWorkout): void {
   }
 }
 
+// JS \b is ASCII-only (it never matches before "É"), so word edges use Unicode lookarounds.
+const RECOVERY_KEYWORD =
+  /(?<![\p{L}\p{N}])(?:r[eé]cup(?:[eé]rations?|\.)?|recover(?:y|ies))(?![\p{L}\p{N}])/giu
+const NEXT_SEGMENT =
+  /[.!?](?=\s|$)|(?<![\p{L}\p{N}])(?:bloc|block|[eé]tape|step|[eé]chauffement|warm[\s-]?up|retour\s+au\s+calme|cool[\s-]?down)(?![\p{L}\p{N}])/iu
+const NO_TARGET =
+  /(?<![\p{L}\p{N}])(?:objectif\s*:?\s*aucun|sans\s+objectif|no\s+(?:target|goal))/iu
+
+function recoveryRequestsNoTarget(request: string): boolean {
+  return Array.from(request.matchAll(RECOVERY_KEYWORD)).some((match) => {
+    const segment = request.slice(match.index + match[0].length)
+    const end = segment.search(NEXT_SEGMENT)
+    return NO_TARGET.test(end === -1 ? segment : segment.slice(0, end))
+  })
+}
+
 function workoutRequestMismatch(workout: AIGeneratedWorkout, userQuestion: string): string | null {
   const recoveries = workout.steps.filter((step) => step.type === 'recovery')
   if (recoveries.length !== 1) return null
   const request = userQuestion.replace(/\*/g, '').replace(/\s+/g, ' ')
-  const recoveryWithoutTarget =
-    /(?:r[eé]cup(?:[eé]ration)?|recovery)(?:(?!\b(?:bloc|block|[eé]tape|step)\b).){0,240}?(?:objectif\s*:?\s*aucun|sans\s+objectif|no\s+(?:target|goal))/iu
   const recovery = recoveries[0]
   if (
-    recoveryWithoutTarget.test(request) &&
+    recoveryRequestsNoTarget(request) &&
     [
       recovery.targetPace,
       recovery.targetPaceMin,

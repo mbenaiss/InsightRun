@@ -2119,6 +2119,29 @@
         }
       }
     },
+    "ai.response_interrupted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The response was interrupted. Try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La respuesta se interrumpió. Inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La réponse a été interrompue. Réessayez."
+          }
+        }
+      }
+    },
     "analysis.consent_benefit" : {
       "extractionState": "manual",
       "localizations": {
@@ -2183,6 +2206,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "L’analyse a été interrompue. Réessayez."
+          }
+        }
+      }
+    },
+    "analysis.outdated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This analysis may be out of date."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es posible que este análisis no esté actualizado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette analyse n’est peut-être plus à jour."
           }
         }
       }

@@ -172,6 +172,7 @@ class BackendAPIClient {
     enum AgentStreamEvent {
         case content(String)
         case functionResult(AgentFunctionResult)
+        case completed
     }
 
     struct AgentFunctionResult {
@@ -246,12 +247,11 @@ class BackendAPIClient {
                         if let event = try parser.consume(line) {
                             continuation.yield(event)
                         }
-                        if parser.isComplete {
-                            continuation.finish()
-                            return
-                        }
+                        if parser.isComplete { break }
                     }
                     try parser.finish()
+                    // A cancelled consumer sees the stream end without an error, so success must be explicit.
+                    continuation.yield(.completed)
                     continuation.finish()
 
                 } catch {

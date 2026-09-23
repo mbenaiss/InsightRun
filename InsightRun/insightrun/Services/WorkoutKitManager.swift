@@ -201,16 +201,18 @@ class WorkoutKitManager: ObservableObject {
 
         guard components.count == 2,
               let minutes = Double(components[0]),
-              let seconds = Double(components[1]) else {
+              let seconds = Double(components[1]),
+              minutes >= 0, seconds >= 0 else {
             return nil
         }
 
         // Convert pace to speed
         let totalSecondsPerKm = (minutes * 60) + seconds
+        guard totalSecondsPerKm > 0 else { return nil }
         let speedKmPerHour = 3600 / totalSecondsPerKm // km/h
         let speedMetersPerSecond = speedKmPerHour * 1000 / 3600 // m/s
 
-        return speedMetersPerSecond
+        return speedMetersPerSecond.isFinite && speedMetersPerSecond > 0 ? speedMetersPerSecond : nil
     }
 
     /// Convert pace range (e.g., "6:52" to "7:22") to speed range in m/s

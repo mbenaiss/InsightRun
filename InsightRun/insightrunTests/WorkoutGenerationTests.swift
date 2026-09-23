@@ -106,6 +106,39 @@ final class WorkoutGenerationTests: XCTestCase {
         XCTAssertEqual(alert.target.converted(to: .metersPerSecond).value, 1000.0 / 300, accuracy: 0.000001)
     }
 
+    func testZeroOrInvalidPaceNeverExportsASpeedAlert() throws {
+        for pace in ["0:00", "-5:00", "5:-10", "abc"] {
+            var workout = try makeWorkout()
+            workout.steps[1].setTargetPace(pace)
+            XCTAssertEqual(workout.steps[1].calculatedDistance, 0, pace)
+            let exported = try WorkoutKitManager.shared.createCustomWorkout(from: workout)
+            XCTAssertNil(exported.blocks[0].steps[0].step.alert, pace)
+        }
+    }
+
+    func testPaceEditorShowsTheUserUnitAndStoresKilometerPace() {
+        XCTAssertEqual(WorkoutStep.displayPaceSeconds(fromStored: "5:30", unit: .metric), 330)
+        XCTAssertEqual(WorkoutStep.displayPaceSeconds(fromStored: "5:30", unit: .imperial), 531)
+        XCTAssertEqual(WorkoutStep.storedPace(fromDisplaySeconds: 531, unit: .imperial), "5:30")
+        XCTAssertEqual(WorkoutStep.storedPace(fromDisplaySeconds: 330, unit: .metric), "5:30")
+        XCTAssertNil(WorkoutStep.displayPaceSeconds(fromStored: "0:00", unit: .metric))
+        XCTAssertNil(WorkoutStep.displayPaceSeconds(fromStored: nil, unit: .imperial))
+
+        XCTAssertEqual(WorkoutStep.editablePaceRange(unit: .metric), 120...900)
+        XCTAssertEqual(WorkoutStep.editablePaceRange(unit: .imperial), 193...1448)
+        XCTAssertEqual(WorkoutStep.storedPace(fromDisplaySeconds: 0, unit: .metric), "2:00")
+        XCTAssertEqual(WorkoutStep.storedPace(fromDisplaySeconds: 3600, unit: .imperial), "15:00")
+        for unit in [UnitPreference.metric, .imperial] {
+            XCTAssertTrue(WorkoutStep.editablePaceRange(unit: unit).contains(WorkoutStep.defaultDisplayPaceSeconds(unit: unit)))
+        }
+
+        for secondsPerKm in 120...900 {
+            let stored = "\(secondsPerKm / 60):\(String(format: "%02d", secondsPerKm % 60))"
+            let shown = WorkoutStep.displayPaceSeconds(fromStored: stored, unit: .imperial)
+            XCTAssertEqual(shown.map { WorkoutStep.storedPace(fromDisplaySeconds: $0, unit: .imperial) }, stored)
+        }
+    }
+
     func testInvalidHeartRateCeilingIsRejectedBeforeExport() throws {
         for limit in [-1, 0, 1, 301] {
             var workout = try makeWorkout()

@@ -1161,7 +1161,7 @@ struct WorkoutPlanView: View {
                     if let duration = workout.estimatedDurationFormatted {
                         StatBadge(icon: "clock", value: duration)
                     }
-                    StatBadge(icon: "list.bullet", value: "\(workout.steps.count) \(String(localized: "steps", comment: "Steps count unit"))")
+                    StatBadge(icon: "list.bullet", value: String(localized: "workout.steps.count", defaultValue: "\(workout.steps.count) steps", comment: "Number of steps in a generated workout"))
                 }
                 .padding(.top, Spacing.xxs)
             }
@@ -1180,7 +1180,7 @@ struct WorkoutPlanView: View {
 
                     ForEach(Array(workout.steps.enumerated()), id: \.element.id) { index, step in
                         EditableWorkoutStepRow(
-                            step: step,
+                            step: isEditing && editedSteps.indices.contains(index) ? editedSteps[index] : step,
                             index: index + 1,
                             isEditing: isEditing,
                             onPaceChanged: { newPace in
@@ -1475,12 +1475,8 @@ struct EditableWorkoutStepRow: View {
     let onPaceChanged: (String?) -> Void
     let onDurationChanged: (Double) -> Void
 
-    @State private var editedPace: String
     @State private var editedDuration: String
 
-    // Picker values for pace (minutes:seconds)
-    @State private var paceMinutes: Int = 0
-    @State private var paceSeconds: Int = 0
     @State private var showPacePicker: Bool = false
 
     // Picker values for duration (minutes:seconds)
@@ -1496,19 +1492,7 @@ struct EditableWorkoutStepRow: View {
         self.onDurationChanged = onDurationChanged
 
         // Initialize editable values
-        _editedPace = State(initialValue: step.targetPace ?? "")
         _editedDuration = State(initialValue: Self.formatGoalValue(step.goal))
-
-        // Initialize pace picker values
-        if let pace = step.targetPace ?? step.targetPaceMin {
-            let components = pace.split(separator: ":")
-            if components.count == 2,
-               let min = Int(components[0]),
-               let sec = Int(components[1]) {
-                _paceMinutes = State(initialValue: min)
-                _paceSeconds = State(initialValue: sec)
-            }
-        }
 
         // Initialize duration picker values
         let minutes = Int(step.goal.value / 60)
@@ -1580,10 +1564,10 @@ struct EditableWorkoutStepRow: View {
                             showPacePicker = true
                         }) {
                             HStack(spacing: Spacing.xxs) {
-                                Text(Formatters.paceClock(Double(paceMinutes * 60 + paceSeconds)))
+                                Text(displayedPaceSeconds.map { Formatters.paceClock(Double($0)) } ?? "-")
                                     .font(IRFont.body)
                                     .foregroundStyle(Color.irTextPrimary)
-                                Text(Formatters.paceUnitSuffix())
+                                Text(Formatters.paceUnitSuffix(paceUnit))
                                     .font(IRFont.body)
                                     .foregroundStyle(Color.irTextSecondary)
                                 Image(systemName: "chevron.right")
@@ -1655,13 +1639,15 @@ struct EditableWorkoutStepRow: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
         .sheet(isPresented: $showPacePicker) {
             PacePickerView(
-                minutes: $paceMinutes,
-                seconds: $paceSeconds,
-                onSave: {
-                    let pace = "\(paceMinutes):\(String(format: "%02d", paceSeconds))"
-                    onPaceChanged(pace)
+                initialSeconds: displayedPaceSeconds ?? WorkoutStep.defaultDisplayPaceSeconds(unit: paceUnit),
+                range: WorkoutStep.editablePaceRange(unit: paceUnit),
+                unitSuffix: Formatters.paceUnitSuffix(paceUnit),
+                replacesHeartRateTarget: step.targetHeartRateMax != nil || step.targetHeartRateZone != nil,
+                onSave: { seconds in
+                    onPaceChanged(WorkoutStep.storedPace(fromDisplaySeconds: seconds, unit: paceUnit))
                     showPacePicker = false
-                }
+                },
+                onCancel: { showPacePicker = false }
             )
             .presentationDetents([.height(300)])
         }
@@ -1677,6 +1663,12 @@ struct EditableWorkoutStepRow: View {
             )
             .presentationDetents([.height(300)])
         }
+    }
+
+    private var paceUnit: UnitPreference { .current }
+
+    private var displayedPaceSeconds: Int? {
+        WorkoutStep.displayPaceSeconds(fromStored: step.targetPace ?? step.targetPaceMin, unit: paceUnit)
     }
 
     private func colorForStepType(_ type: WorkoutStep.StepType) -> Color {
@@ -1743,9 +1735,33 @@ struct EditableWorkoutStepRow: View {
 // MARK: - Pace Picker View
 
 struct PacePickerView: View {
-    @Binding var minutes: Int
-    @Binding var seconds: Int
-    let onSave: () -> Void
+    let range: ClosedRange<Int>
+    let unitSuffix: String
+    let replacesHeartRateTarget: Bool
+    let onSave: (Int) -> Void
+    let onCancel: () -> Void
+
+    @State private var minutes: Int
+    @State private var seconds: Int
+    @State private var confirmsHeartRateReplacement = false
+
+    init(
+        initialSeconds: Int, range: ClosedRange<Int>, unitSuffix: String, replacesHeartRateTarget: Bool,
+        onSave: @escaping (Int) -> Void, onCancel: @escaping () -> Void
+    ) {
+        self.range = range
+        self.unitSuffix = unitSuffix
+        self.replacesHeartRateTarget = replacesHeartRateTarget
+        self.onSave = onSave
+        self.onCancel = onCancel
+        let clamped = min(max(initialSeconds, range.lowerBound), range.upperBound)
+        _minutes = State(initialValue: clamped / 60)
+        _seconds = State(initialValue: clamped % 60)
+    }
+
+    private var selectedSeconds: Int {
+        min(max(minutes * 60 + seconds, range.lowerBound), range.upperBound)
+    }
 
     var body: some View {
         NavigationStack {
@@ -1753,7 +1769,7 @@ struct PacePickerView: View {
                 HStack(spacing: 0) {
                     // Minutes picker
                     Picker("", selection: $minutes) {
-                        ForEach(0..<60, id: \.self) { minute in
+                        ForEach((range.lowerBound / 60)...(range.upperBound / 60), id: \.self) { minute in
                             Text("\(minute)")
                                 .tag(minute)
                         }
@@ -1775,7 +1791,7 @@ struct PacePickerView: View {
                     .pickerStyle(.wheel)
                     .frame(maxWidth: .infinity)
 
-                    Text(Formatters.paceUnitSuffix())
+                    Text(unitSuffix)
                         .font(IRFont.headline)
                         .foregroundStyle(Color.irTextSecondary)
                         .padding(.leading, Spacing.sm)
@@ -1787,9 +1803,26 @@ struct PacePickerView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "Done", comment: "Done button")) {
-                        onSave()
+                        if replacesHeartRateTarget {
+                            confirmsHeartRateReplacement = true
+                        } else {
+                            onSave(selectedSeconds)
+                        }
                     }
                 }
+            }
+            .alert(
+                String(localized: "workout.pace.replaceHeartRate.title", defaultValue: "Replace the heart rate target?", comment: "Alert title before a pace replaces a step heart rate target"),
+                isPresented: $confirmsHeartRateReplacement
+            ) {
+                Button(String(localized: "workout.pace.replaceHeartRate.confirm", defaultValue: "Replace", comment: "Confirm replacing a step heart rate target with a pace"), role: .destructive) {
+                    onSave(selectedSeconds)
+                }
+                Button(String(localized: "Cancel", comment: "Cancel button"), role: .cancel) {
+                    onCancel()
+                }
+            } message: {
+                Text(String(localized: "workout.pace.replaceHeartRate.message", defaultValue: "Apple Watch allows one alert per step. Setting a pace removes this step's heart rate target.", comment: "Explains why a pace replaces the step heart rate target"))
             }
         }
     }

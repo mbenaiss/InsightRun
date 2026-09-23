@@ -203,8 +203,41 @@ struct WorkoutStep: Codable, Identifiable, Equatable {
         let parts = raw.split(separator: ":")
         guard parts.count == 2,
               let minutes = Double(parts[0]),
-              let seconds = Double(parts[1]) else { return nil }
-        return minutes + (seconds / 60.0)
+              let seconds = Double(parts[1]),
+              minutes >= 0, seconds >= 0 else { return nil }
+        let pace = minutes + (seconds / 60.0)
+        return pace.isFinite && pace > 0 ? pace : nil
+    }
+
+    // MARK: - Pace editing (stored per km, edited in the user's unit)
+
+    static let editablePaceSecondsPerKm: ClosedRange<Double> = 120...900
+    static let defaultEditablePaceSecondsPerKm: Double = 360
+
+    static func editablePaceRange(unit: UnitPreference) -> ClosedRange<Int> {
+        let lower = displayPaceSeconds(secondsPerKm: editablePaceSecondsPerKm.lowerBound, unit: unit)
+        let upper = displayPaceSeconds(secondsPerKm: editablePaceSecondsPerKm.upperBound, unit: unit)
+        return lower...upper
+    }
+
+    static func displayPaceSeconds(fromStored raw: String?, unit: UnitPreference) -> Int? {
+        guard let raw, let minutesPerKm = parsePaceMinutesPerKm(raw) else { return nil }
+        return displayPaceSeconds(secondsPerKm: minutesPerKm * 60, unit: unit)
+    }
+
+    static func defaultDisplayPaceSeconds(unit: UnitPreference) -> Int {
+        displayPaceSeconds(secondsPerKm: defaultEditablePaceSecondsPerKm, unit: unit)
+    }
+
+    static func storedPace(fromDisplaySeconds seconds: Int, unit: UnitPreference) -> String {
+        let secondsPerKm = unit.usesImperial ? Double(seconds) * Formatters.kmToMiles : Double(seconds)
+        let clamped = min(max(secondsPerKm, editablePaceSecondsPerKm.lowerBound), editablePaceSecondsPerKm.upperBound)
+        let total = Int(clamped.rounded())
+        return "\(total / 60):\(String(format: "%02d", total % 60))"
+    }
+
+    private static func displayPaceSeconds(secondsPerKm: Double, unit: UnitPreference) -> Int {
+        Int((unit.usesImperial ? secondsPerKm / Formatters.kmToMiles : secondsPerKm).rounded())
     }
 
     // Formatted distance for display

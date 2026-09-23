@@ -72,11 +72,46 @@ final class WorkoutDetailDataTests: XCTestCase {
         [{"split":1,"distance":1000,"elapsed_time":300,"moving_time":300},
          {"split":2,"distance":0,"elapsed_time":0,"moving_time":0}]
         """)
-        let model = WorkoutDetailViewModel(workout: run, fetchMetrics: { WorkoutMetrics(workout: $0, averageHeartRate: 140) }, fetchStravaActivity: { _ in detail })
+        let model = WorkoutDetailViewModel(workout: run, fetchMetrics: { _ in throw HealthKitError.dataNotAvailable }, fetchStravaActivity: { _ in detail })
         await model.loadMetrics()
         XCTAssertEqual(model.metrics?.splits?.count, 1)
         XCTAssertEqual(model.metrics?.splits?.first?.pace, 5)
         XCTAssertEqual(model.metrics?.minPace, 5)
+        XCTAssertEqual(model.metrics?.totalElevationAscent, 12)
+    }
+
+    func testHealthWorkoutWrittenByTheStravaAppLoadsHealthDetails() async throws {
+        let run = workout(source: "Strava")
+        let original = WorkoutMetrics(workout: run, averageHeartRate: 151, minPace: 5, splits: splits())
+        var healthReads = 0
+        var stravaCalls = 0
+        let model = WorkoutDetailViewModel(workout: run, fetchMetrics: { _ in
+            healthReads += 1
+            return original
+        }, fetchStravaActivity: { _ in
+            stravaCalls += 1
+            return try self.strava()
+        })
+        await model.loadMetrics()
+        XCTAssertEqual(healthReads, 1)
+        XCTAssertEqual(stravaCalls, 0)
+        XCTAssertEqual(model.metrics?.averageHeartRate, 151)
+        XCTAssertEqual(model.metrics?.splits?.count, 20)
+    }
+
+    func testHealthRunWithoutSplitsTakesOnlyTheStravaSplits() async throws {
+        let run = workout()
+        let detail = try strava("""
+        [{"split":1,"distance":1000,"elapsed_time":300,"moving_time":300},
+         {"split":2,"distance":1000,"elapsed_time":330,"moving_time":330}]
+        """)
+        let model = WorkoutDetailViewModel(workout: run, fetchMetrics: { WorkoutMetrics(workout: $0, averageHeartRate: 140, minPace: 4.9) }, fetchStravaActivity: { _ in detail })
+        await model.loadMetrics()
+        XCTAssertEqual(model.metrics?.splits?.map(\.kilometer), [1, 2])
+        XCTAssertEqual(model.metrics?.averageHeartRate, 140)
+        XCTAssertEqual(model.metrics?.minPace, 4.9)
+        XCTAssertNil(model.metrics?.totalElevationAscent)
+        XCTAssertFalse(model.isLoadingDetails)
     }
 
     func testUnavailableStravaDoesNotAffectAppleHealthWorkout() async {
@@ -101,25 +136,49 @@ final class WorkoutDetailDataTests: XCTestCase {
         XCTAssertNil(model.metrics)
         XCTAssertFalse(model.isLoading)
     }
-    func testMatchingStravaRunCannotOverrideAppleHealthWorkout() async throws {
-        let run = workout(indoor: true)
+    private func matchingStrava(for run: WorkoutModel, id: Int64 = 77) -> StravaActivity {
         let date = ISO8601DateFormatter().string(from: run.startDate)
-        let strava = StravaActivity(id: 42, name: "Outdoor Strava copy", distance: 20_100,
-                                   movingTime: 7000, elapsedTime: 7200, totalElevationGain: 100,
-                                   type: "Run", startDate: date, startDateLocal: date,
-                                   averageSpeed: 4, maxSpeed: 6, averageHeartrate: 149,
-                                   maxHeartrate: 180, calories: 200, trainer: false)
-        let result = UnifiedWorkoutViewModel().mergeWorkouts(healthKit: [run], strava: [strava])
+        return StravaActivity(id: id, name: "Outdoor Strava copy", distance: 20_100,
+                              movingTime: 7000, elapsedTime: 7200, totalElevationGain: 100,
+                              type: "Run", startDate: date, startDateLocal: date,
+                              averageSpeed: 4, maxSpeed: 6, averageHeartrate: 149,
+                              maxHeartrate: 180, calories: 200, trainer: false)
+    }
+
+    func testMatchingStravaRunKeepsAppleHealthDataAndStravaIdentity() async throws {
+        let run = workout(indoor: true)
+        let result = UnifiedWorkoutViewModel().mergeWorkouts(healthKit: [run], strava: [matchingStrava(for: run)])
         XCTAssertEqual(result.count, 1)
         let unified = try XCTUnwrap(result.first)
         XCTAssertEqual(unified.source, .healthKit)
-        XCTAssertNil(unified.stravaActivity)
+        XCTAssertEqual(unified.stravaActivity?.id, 77)
+        XCTAssertEqual(unified.name, "Outdoor Strava copy")
         let model = unified.toWorkoutModel()
+        XCTAssertEqual(model.metadata?["strava_id"] as? String, "77")
+        XCTAssertEqual(model.metadata?["display_name"] as? String, "Outdoor Strava copy")
+        XCTAssertEqual(model.sourceName, "Apple Watch")
         XCTAssertTrue(model.isIndoor)
         XCTAssertEqual(model.distance, run.distance)
         XCTAssertEqual(model.averageHeartRate, 140)
         XCTAssertEqual(model.effortScore, 6)
         XCTAssertEqual(model.averagePace, run.averagePace)
+    }
+
+    func testMatchedStravaIdentitySurvivesTheCache() async throws {
+        let container = try ModelContainer(for: CachedUnifiedWorkout.self, CachedStravaActivity.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let cache = UnifiedWorkoutCache(modelContext: container.mainContext)
+        let run = workout()
+        try cache.saveWorkouts(UnifiedWorkoutViewModel().mergeWorkouts(healthKit: [run], strava: [matchingStrava(for: run)]))
+        let restored = try XCTUnwrap(cache.fetchAllWorkouts().first)
+        XCTAssertEqual(restored.source, .healthKit)
+        XCTAssertEqual(restored.stravaActivity?.id, 77)
+        let model = restored.toWorkoutModel()
+        XCTAssertEqual(model.id, run.id)
+        XCTAssertEqual(model.metadata?["strava_id"] as? String, "77")
+        XCTAssertEqual(model.metadata?["display_name"] as? String, "Outdoor Strava copy")
+        XCTAssertEqual(model.distance, run.distance)
+        XCTAssertEqual(model.averageHeartRate, 140)
     }
 
     func testCacheRoundTripAndUpdatesKeepIndoorEffortAndOriginalSource() async throws {

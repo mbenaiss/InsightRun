@@ -44,39 +44,35 @@ class WorkoutDetailViewModel: ObservableObject {
         }
 
         let stravaId: Int64? = (workout.metadata?["strava_id"] as? String).flatMap { Int64($0) }
+        // The Strava app also writes to Apple Health, so only a missing Health workout means a Strava import.
+        var isStravaOnly = false
 
-        let isStravaOnly = workout.sourceName.caseInsensitiveCompare("Strava") == .orderedSame
-
-        if isStravaOnly {
-            metrics = createMetricsFromWorkout()
-
-            if let stravaId {
-                await loadStravaDetailedData(activityId: stravaId)
-            }
-        } else {
-            do {
-                let loadedMetrics = try await fetchMetrics(workout)
-                try Task.checkCancellation()
-                metrics = loadedMetrics
-            } catch is CancellationError {
-                isLoading = false
-                return
-            } catch let error as HealthKitError {
-                switch error {
-                case .notAvailable:
-                    errorMessage = String(localized: "HealthKit is not available on this device")
-                case .authorizationDenied:
-                    errorMessage = String(localized: "HealthKit data access denied. Please grant access in Settings")
-                case .dataNotAvailable, .queryFailed:
-                    // Fallback to basic metrics from WorkoutModel
-                    // This can happen for indoor workouts or when detailed data is unavailable
-                    metrics = createMetricsFromWorkout()
-                }
-            } catch {
-                // Fallback to basic metrics for any error
+        do {
+            let loadedMetrics = try await fetchMetrics(workout)
+            try Task.checkCancellation()
+            metrics = loadedMetrics
+        } catch is CancellationError {
+            isLoading = false
+            return
+        } catch let error as HealthKitError where stravaId == nil {
+            switch error {
+            case .notAvailable:
+                errorMessage = String(localized: "HealthKit is not available on this device")
+            case .authorizationDenied:
+                errorMessage = String(localized: "HealthKit data access denied. Please grant access in Settings")
+            case .dataNotAvailable, .queryFailed:
+                // Fallback to basic metrics from WorkoutModel
+                // This can happen for indoor workouts or when detailed data is unavailable
                 metrics = createMetricsFromWorkout()
             }
+        } catch {
+            isStravaOnly = stravaId != nil
+            // Fallback to basic metrics for any error
+            metrics = createMetricsFromWorkout()
+        }
 
+        if let stravaId, isStravaOnly || metrics?.splits?.isEmpty != false {
+            await loadStravaDetailedData(activityId: stravaId, splitsOnly: !isStravaOnly)
         }
 
         if workout.metadata?["suunto_id"] != nil || workout.sourceName == "Import" {
@@ -247,7 +243,7 @@ class WorkoutDetailViewModel: ObservableObject {
 
     // MARK: - Strava Detailed Data
 
-    private func loadStravaDetailedData(activityId: Int64) async {
+    private func loadStravaDetailedData(activityId: Int64, splitsOnly: Bool) async {
         isLoadingDetails = true
 
         do {
@@ -260,32 +256,14 @@ class WorkoutDetailViewModel: ObservableObject {
 
             // Update metrics with detailed data
             if var currentMetrics = metrics {
-                // Update with detailed data
-                if currentMetrics.averageSpeed == nil, let avgSpeed = detailedActivity.averageSpeed {
-                    currentMetrics.averageSpeed = avgSpeed * 3.6 // m/s to km/h
-                }
-                if currentMetrics.maxSpeed == nil, let maxSpeed = detailedActivity.maxSpeed {
-                    currentMetrics.maxSpeed = maxSpeed * 3.6 // m/s to km/h
-                }
-                if currentMetrics.averageHeartRate == nil, let avgHR = detailedActivity.averageHeartrate {
-                    currentMetrics.averageHeartRate = avgHR
-                }
-                if currentMetrics.maxHeartRate == nil, let maxHR = detailedActivity.maxHeartrate {
-                    currentMetrics.maxHeartRate = maxHR
-                }
-                if currentMetrics.averageCadence == nil, let cadence = detailedActivity.averageCadence {
-                    currentMetrics.averageCadence = cadence * 2 // Strava reports single-leg, we want spm
-                }
-
-                // Update elevation from detailed activity
-                if currentMetrics.totalElevationAscent == nil, detailedActivity.totalElevationGain > 0 {
-                    currentMetrics.totalElevationAscent = detailedActivity.totalElevationGain
+                // Health workouts keep their own measurements and only borrow missing Strava splits.
+                if !splitsOnly {
+                    fillMissingMeasurements(of: &currentMetrics, from: detailedActivity)
                 }
 
                 // Calculate min pace (best pace) from splits
                 if currentMetrics.splits?.isEmpty != false, let splits = splits, !splits.isEmpty {
-                    let minPace = splits.map { $0.pace }.min()
-                    currentMetrics.minPace = minPace
+                    currentMetrics.minPace = currentMetrics.minPace ?? splits.map { $0.pace }.min()
                     currentMetrics.splits = splits
                 }
 
@@ -298,6 +276,29 @@ class WorkoutDetailViewModel: ObservableObject {
         }
 
         isLoadingDetails = false
+    }
+
+    private func fillMissingMeasurements(of currentMetrics: inout WorkoutMetrics, from detailedActivity: StravaDetailedActivity) {
+        if currentMetrics.averageSpeed == nil, let avgSpeed = detailedActivity.averageSpeed {
+            currentMetrics.averageSpeed = avgSpeed * 3.6 // m/s to km/h
+        }
+        if currentMetrics.maxSpeed == nil, let maxSpeed = detailedActivity.maxSpeed {
+            currentMetrics.maxSpeed = maxSpeed * 3.6 // m/s to km/h
+        }
+        if currentMetrics.averageHeartRate == nil, let avgHR = detailedActivity.averageHeartrate {
+            currentMetrics.averageHeartRate = avgHR
+        }
+        if currentMetrics.maxHeartRate == nil, let maxHR = detailedActivity.maxHeartrate {
+            currentMetrics.maxHeartRate = maxHR
+        }
+        if currentMetrics.averageCadence == nil, let cadence = detailedActivity.averageCadence {
+            currentMetrics.averageCadence = cadence * 2 // Strava reports single-leg, we want spm
+        }
+
+        // Update elevation from detailed activity
+        if currentMetrics.totalElevationAscent == nil, detailedActivity.totalElevationGain > 0 {
+            currentMetrics.totalElevationAscent = detailedActivity.totalElevationGain
+        }
     }
 
     private func convertStravaSplits(_ stravaSplits: [StravaSplit]?) -> [Split]? {
@@ -331,8 +332,9 @@ class WorkoutDetailViewModel: ObservableObject {
         let maxSpeedKmh: Double? = maxSpeed.map { $0 * 3.6 }
 
         // Strava metadata speeds are in m/s; convert to km/h to match the
-        // WorkoutMetrics.averageSpeed contract. workout.averageSpeed is already km/h.
-        let avgSpeed = avgSpeedFromMetadata.map { $0 * 3.6 } ?? workout.averageSpeed
+        // WorkoutMetrics.averageSpeed contract. workout.averageSpeed is already km/h and comes first:
+        // a Health run matched with Strava stores its km/h speed under the same metadata key.
+        let avgSpeed = workout.averageSpeed ?? avgSpeedFromMetadata.map { $0 * 3.6 }
 
         return WorkoutMetrics(
             workout: workout,

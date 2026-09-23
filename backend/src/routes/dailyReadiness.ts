@@ -925,6 +925,7 @@ Today's training ceiling is ${workoutType}: do not suggest a harder session. Res
 Acknowledge today's completed exercise. Do not prescribe another session after 20 minutes of exercise with effort >=60.
 Use at most 2 relevant measured values to explain the advice, prioritizing recent hard/long runs and cardiac load over a good morning score.
 ${evidenceCoachingRules}
+Refer to dates in natural language (today, yesterday, a weekday), never as ISO dates like 2026-09-21.
 Only reference supplied data. Missing measurements are unknown, not zero or normal. A building baseline is not reliable for personal trend claims.
 Do not invent a training plan, injury, diagnosis, heart-rate zone, pace target, or exact recovery deadline. Adapt to the runner's sensations.
 ${noSleepMode ? 'Sleep is unavailable: do not mention sleep or recommend tracking it.' : 'Mention sleep only if sleep measurements are supplied.'}
@@ -976,7 +977,8 @@ const measurement = z.number().positive().optional()
 const nonnegative = z.number().nonnegative().optional()
 const readinessRequestSchema = z.object({
   recovery: z.object({
-    date: z.string().datetime({ offset: true }).optional(),
+    // iOS 2.0.12 sends the recovery day as yyyy-MM-dd; older builds send a timestamp.
+    date: z.union([z.string().datetime({ offset: true }), z.string().date()]).optional(),
     rmssd: rmssdTrendSchema.optional(),
     restingHeartRate: measurement,
     hrv: measurement,

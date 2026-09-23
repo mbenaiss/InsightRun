@@ -276,3 +276,18 @@ describe('structured AI routes $ai_generation usage', () => {
     })
   })
 })
+
+describe('daily readiness recovery date', () => {
+  test.each([
+    '2026-09-23',
+    '2026-09-23T00:00:00+02:00',
+  ])('accepts %s from current and older iOS builds', async (date) => {
+    const coaching = JSON.stringify({ summary: 'Easy day.', detail: 'Keep today easy.' })
+    const { response } = await send(
+      '/api/daily-readiness',
+      { recovery: { date, hrv: 60, restingHeartRate: 50 }, language: 'fr' },
+      Response.json({ choices: [{ message: { content: coaching }, finish_reason: 'stop' }] })
+    )
+    expect(response.status).toBe(200)
+  })
+})

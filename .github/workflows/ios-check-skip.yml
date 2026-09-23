@@ -1,0 +1,38 @@
+name: iOS Check Skip
+
+# Xcode Cloud only builds pull requests that touch the iOS app, but the main ruleset
+# requires its check. Report it as passed when the app is untouched.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  skip_ios_check:
+    name: Skip iOS check when the app is untouched
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for iOS changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ios:
+              - 'InsightRun/**'
+
+      - name: Report the iOS check as not required
+        if: steps.filter.outputs.ios == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha }}" \
+            -f state=success \
+            -f context="insightrun | PR Build | Build - iOS" \
+            -f description="No iOS changes: Xcode Cloud build not needed"

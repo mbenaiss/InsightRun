@@ -360,20 +360,13 @@ class DailyReadinessViewModel: ObservableObject {
         RecoveryData(metrics: metrics)
     }
 
-    // ISO 8601: the backend parses this via `new Date(w.date)`. A locale-formatted
-    // string ("14 juin 2026 à 09:30") would fail that parse on non-English locales.
-    private static let workoutDateFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-
     private func buildRecentWorkoutPayloads(from workouts: [WorkoutModel]) -> [ReadinessWorkoutData] {
         let now = Date()
         return workouts.filter { $0.endDate <= now }.sorted { $0.startDate > $1.startDate }.map { workout in
             let hoursAgo = max(0, now.timeIntervalSince(workout.endDate) / 3600)
             return ReadinessWorkoutData(
-                date: Self.workoutDateFormatter.string(from: workout.startDate),
+                // The backend parses this with `new Date(w.date)`, so it must stay ISO 8601 (local offset).
+                date: PayloadDate.timestamp(workout.startDate),
                 distanceMeters: workout.distance ?? 0,
                 durationSeconds: workout.duration,
                 avgHeartRate: workout.averageHeartRate.map { Int($0) },

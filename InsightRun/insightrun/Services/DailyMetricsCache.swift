@@ -3,7 +3,7 @@
 //  InsightRun
 //
 //  UserDefaults cache for daily readiness metrics.
-//  Preserve the daily score while its recovery inputs stay unchanged.
+//  One frozen score per calendar day; the coaching text is cached per language.
 //
 
 import Foundation
@@ -15,22 +15,25 @@ final class DailyMetricsCache {
     static let shared = DailyMetricsCache()
 
     private(set) var defaults: UserDefaults
+    private var language = AppLanguage.current
     private let readinessKeyPrefix = "com.insightrun.dailyReadinessCache"
+    private let frozenScoreKey = "com.insightrun.dailyReadinessScore"
 
     private init() {
         self.defaults = .standard
     }
 
     #if DEBUG
-    static func createForTesting(defaults: UserDefaults) -> DailyMetricsCache {
+    static func createForTesting(defaults: UserDefaults, language: String = AppLanguage.current) -> DailyMetricsCache {
         let cache = DailyMetricsCache()
         cache.defaults = defaults
+        cache.language = language
         return cache
     }
     #endif
 
     private var readinessKey: String {
-        return "\(readinessKeyPrefix)_\(AppLanguage.current)"
+        return "\(readinessKeyPrefix)_\(language)"
     }
 
     // MARK: - Cached Models
@@ -47,8 +50,14 @@ final class DailyMetricsCache {
         let effortScore: Int?
         let cardiacLoadScore: Int?
         let inputSignature: String?
-        let recoverySignature: String?
         let coachingSource: String?
+    }
+
+    private struct FrozenScore: Codable {
+        let date: Date
+        let score: Int
+        let status: String
+        let nightSignature: String?
     }
 
     // MARK: - Readiness
@@ -71,16 +80,16 @@ final class DailyMetricsCache {
         return cached
     }
 
-    /// Returns the morning score for today regardless of effort/cardiac changes.
-    /// Activity can refresh coaching without changing the score; new recovery data can recompute it.
-    func getCachedScoreForToday(recoverySignature: String? = nil) -> (score: Int, status: String)? {
-        guard let data = defaults.data(forKey: readinessKey),
-              let cached = try? JSONDecoder().decode(CachedReadiness.self, from: data),
-              Calendar.current.isDateInToday(cached.cacheDate),
-              recoverySignature == nil || cached.recoverySignature == recoverySignature else {
-            return nil
+    /// Today's score, shared by every language and replaced only after late night data.
+    func getCachedScoreForToday(nightSignature: String? = nil) -> (score: Int, status: String)? {
+        if let data = defaults.data(forKey: frozenScoreKey),
+           let frozen = try? JSONDecoder().decode(FrozenScore.self, from: data),
+           Calendar.current.isDateInToday(frozen.date) {
+            guard nightSignature == nil || frozen.nightSignature == nightSignature else { return nil }
+            return (frozen.score, frozen.status)
         }
-        return (cached.score, cached.status)
+        // Keeps a score cached before this key existed frozen for the rest of that day.
+        return getReadiness(for: Date()).map { ($0.score, $0.status) }
     }
 
     func cacheReadiness(
@@ -92,11 +101,12 @@ final class DailyMetricsCache {
         effortScore: Int = 0,
         cardiacLoadScore: Int? = nil,
         inputSignature: String? = nil,
-        recoverySignature: String? = nil,
+        nightSignature: String? = nil,
         coachingSource: String? = nil,
         date: Date = Date()
     ) {
-        let now = Calendar.current.isDateInToday(date) ? Date() : date
+        let isToday = Calendar.current.isDateInToday(date)
+        let now = isToday ? Date() : date
         let cached = CachedReadiness(
             cacheDate: now,
             score: score,
@@ -107,12 +117,16 @@ final class DailyMetricsCache {
             effortScore: effortScore,
             cardiacLoadScore: cardiacLoadScore,
             inputSignature: inputSignature,
-            recoverySignature: recoverySignature,
             coachingSource: coachingSource
         )
         if let data = try? JSONEncoder().encode(cached) {
             defaults.set(data, forKey: readinessKey)
             defaults.set(data, forKey: historyKey(for: now))
+        }
+        if isToday, let data = try? JSONEncoder().encode(
+            FrozenScore(date: now, score: score, status: status, nightSignature: nightSignature)
+        ) {
+            defaults.set(data, forKey: frozenScoreKey)
         }
         saveHistoricalReadinessScore(score, for: now)
     }

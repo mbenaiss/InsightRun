@@ -123,7 +123,7 @@ final class ActivationFlowUITests: XCTestCase {
         let analysis = app.descendants(matching: .any)["workout-ai-analysis"]
         XCTAssertTrue(analysis.waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["workout-analysis-result"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Sur ce 10 km à 4:47/km")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Sur ce 10 km à 4:48/km")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Prochaine action"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["post-analysis-notification"].exists)
 

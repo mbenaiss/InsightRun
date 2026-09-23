@@ -6,8 +6,10 @@ import {
   selectModelFromRequest,
 } from '../modelRouter'
 import {
+  addUsage,
   callOpenRouterWithRetry,
   OpenRouterTimeoutError,
+  type OpenRouterUsage,
   TruncatedResponseError,
 } from '../openrouter'
 import { captureLLMEvent, captureTrainingPlanError, createPostHogClient } from '../posthog'
@@ -355,8 +357,8 @@ async function callOpenRouterForAdaptation(
   userPrompt: string,
   model: string,
   timeoutMs: number
-): Promise<string> {
-  const { content } = await callOpenRouterWithRetry({
+): Promise<{ content: string; usage?: OpenRouterUsage }> {
+  const { content, usage } = await callOpenRouterWithRetry({
     apiKey,
     model,
     fallbackModel: PLAN_FALLBACK_MODEL_ID,
@@ -376,7 +378,7 @@ async function callOpenRouterForAdaptation(
     title: 'insightRun.ai',
     throwOnTruncation: true,
   })
-  return content
+  return { content, usage }
 }
 
 function validateAdaptedPlanJSON(
@@ -569,6 +571,7 @@ app.post('/', async (c) => {
         // Carries the previous failure into the next attempt so the model corrects it
         // instead of re-emitting the exact same broken output.
         let retryFeedback = ''
+        let usage: OpenRouterUsage | undefined
 
         while (attempts < maxAttempts && !adaptedPlan) {
           attempts++
@@ -581,13 +584,14 @@ app.post('/', async (c) => {
               ? `${userPrompt}\n\nYour previous output was invalid: ${retryFeedback}\nReturn corrected, complete JSON only.`
               : userPrompt
 
-            const rawResponse = await callOpenRouterForAdaptation(
+            const { content: rawResponse, usage: attemptUsage } = await callOpenRouterForAdaptation(
               c.env.OPENROUTER_API_KEY,
               systemPrompt,
               attemptUserPrompt,
               modelUsed,
               Math.min(OPENROUTER_TIMEOUT_MS, remainingMs)
             )
+            usage = addUsage(usage, attemptUsage)
 
             console.log(`📝 Attempt ${attempts} - Raw response length: ${rawResponse.length}`)
 
@@ -631,7 +635,7 @@ app.post('/', async (c) => {
         }
 
         if (!adaptedPlan) throw new Error('Failed to generate a complete adapted plan block')
-        return { plan: adaptedPlan, attempts, modelUsed }
+        return { plan: adaptedPlan, attempts, modelUsed, usage }
       })
     )
     const adaptedPlan: AdaptedTrainingPlan = {
@@ -651,6 +655,10 @@ app.post('/', async (c) => {
     }
     const attempts = Math.max(...results.map((result) => result.attempts))
     const modelUsed = [...new Set(results.map((result) => result.modelUsed))].join(',')
+    const usage = results.reduce<OpenRouterUsage | undefined>(
+      (total, result) => addUsage(total, result.usage),
+      undefined
+    )
 
     const generationTime = Date.now() - startTime
 
@@ -669,18 +677,18 @@ app.post('/', async (c) => {
       c.executionCtx.waitUntil(
         (async () => {
           try {
-            const inputTokenCount = estimateTokenCount(systemPrompt + userPrompt)
-            const outputTokenCount = estimateTokenCount(JSON.stringify(adaptedPlan))
             await captureLLMEvent(posthog, userId, traceId, {
               model: modelUsed,
               input: userPrompt,
               systemPrompt,
               output: JSON.stringify(adaptedPlan),
-              inputTokens: inputTokenCount,
-              outputTokens: outputTokenCount,
+              inputTokens: usage?.prompt_tokens ?? estimateTokenCount(systemPrompt + userPrompt),
+              outputTokens:
+                usage?.completion_tokens ?? estimateTokenCount(JSON.stringify(adaptedPlan)),
               latency: generationTime / 1000,
-              cost: undefined,
+              cost: usage?.cost,
               ip,
+              route: '/api/adapt-training-plan',
             })
             await posthog.shutdown()
           } catch (error) {

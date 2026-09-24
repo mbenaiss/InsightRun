@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
+import { rewriteMonthlyReadingQuestion } from '../monthlyReading'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { buildPrompt } from '../prompts'
 import type { ChatDataPayload } from '../types'
@@ -380,7 +381,7 @@ app.post('/chat', async (c) => {
       messages.push(...validHistory)
     }
 
-    messages.push({ role: 'user', content: body.userQuestion })
+    messages.push({ role: 'user', content: rewriteMonthlyReadingQuestion(body.userQuestion) })
 
     const captureGeneration = (details: {
       model: string

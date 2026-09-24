@@ -33,6 +33,8 @@ Règles strictes :
 - Ton neutre et factuel. Pas d'emojis, pas d'exclamations, pas de superlatifs creux.
 - N'invente rien et ne signale jamais une donnée manquante. Ne conclus pas qu'une allure plus rapide prouve une meilleure forme : parcours et types de séances peuvent différer.
 - Écris les dates en langage naturel (le 21, la semaine dernière), jamais au format 2026-09-21.
+- Tutoie le coureur (tu, ton, ta), jamais de vouvoiement.
+- Nombres au format français : virgule décimale et une seule décimale pour les distances (12,0 km, 21,1 km), jamais 12.00 km. Allures au format 6:00/km.
 - Réponds uniquement par le texte final, sans préambule ni guillemets.`
 }
 
@@ -53,6 +55,8 @@ Strict rules:
 - Neutral, factual tone. No emojis, no exclamations, no empty superlatives.
 - Do not invent anything and never flag missing data. Do not infer improved fitness from faster average pace: routes and workout types can differ.
 - Write dates in natural language (on the 21st, last week), never as 2026-09-21.
+- Address the runner directly as "you".
+- Use one decimal for distances (12.0 km, 21.1 km), never 12.00 km. Paces as 6:00/km.
 - Answer with the final text only, no preamble, no surrounding quotes.`
 }
 

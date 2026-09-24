@@ -22,7 +22,7 @@ function frenchPrompt(totals: string[]): string {
 TOTAUX (déjà affichés ; si tu en cites un, utilise EXACTEMENT ces valeurs) :
 ${totals.join('\n')}
 
-Appuie-toi sur les séances du mois fournies dans le contexte :
+Appuie-toi sur les séances du mois fournies dans le contexte (si un point ne peut pas être établi avec elles, passe-le sous silence) :
 - Comment le volume a été construit : régularité semaine après semaine, sortie la plus longue, part des séances faciles et intenses.
 - Un point d'attention concret si les données le montrent, par exemple une hausse de volume très rapide par rapport au mois précédent ou une allure qui glisse sur les sorties faciles.
 - Termine par une suggestion simple et réaliste pour la fin du mois, écrite dans le texte (ne crée pas de séance).
@@ -44,7 +44,7 @@ function englishPrompt(totals: string[]): string {
 TOTALS (already displayed; if you quote one, use these EXACT values):
 ${totals.join('\n')}
 
-Use the month's sessions supplied in the context:
+Use the month's sessions supplied in the context (if a point cannot be established from them, skip it silently):
 - How the volume was built: week-to-week consistency, longest run, share of easy and hard sessions.
 - One concrete watch-out if the data shows it, e.g. a very fast volume increase versus the previous month or easy-run pace drifting.
 - End with one simple, realistic suggestion for the rest of the month, written in the text (do not create a workout).

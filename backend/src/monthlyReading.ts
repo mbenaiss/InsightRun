@@ -25,7 +25,7 @@ ${totals.join('\n')}
 Appuie-toi sur les séances du mois fournies dans le contexte :
 - Comment le volume a été construit : régularité semaine après semaine, sortie la plus longue, part des séances faciles et intenses.
 - Un point d'attention concret si les données le montrent, par exemple une hausse de volume très rapide par rapport au mois précédent ou une allure qui glisse sur les sorties faciles.
-- Termine par une suggestion simple et réaliste pour la fin du mois.
+- Termine par une suggestion simple et réaliste pour la fin du mois, écrite dans le texte (ne crée pas de séance).
 
 Règles strictes :
 - 2 à 3 phrases, 60 mots maximum, sans titre ni liste.
@@ -45,7 +45,7 @@ ${totals.join('\n')}
 Use the month's sessions supplied in the context:
 - How the volume was built: week-to-week consistency, longest run, share of easy and hard sessions.
 - One concrete watch-out if the data shows it, e.g. a very fast volume increase versus the previous month or easy-run pace drifting.
-- End with one simple, realistic suggestion for the rest of the month.
+- End with one simple, realistic suggestion for the rest of the month, written in the text (do not create a workout).
 
 Strict rules:
 - 2 to 3 sentences, 60 words max, no heading, no list.
@@ -54,6 +54,10 @@ Strict rules:
 - Do not invent anything and never flag missing data. Do not infer improved fitness from faster average pace: routes and workout types can differ.
 - Write dates in natural language (on the 21st, last week), never as 2026-09-21.
 - Answer with the final text only, no preamble, no surrounding quotes.`
+}
+
+export function isMonthlyReadingQuestion(question: string): boolean {
+  return question.startsWith(FRENCH_MARKER) || question.startsWith(ENGLISH_MARKER)
 }
 
 export function rewriteMonthlyReadingQuestion(question: string): string {

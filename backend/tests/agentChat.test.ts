@@ -140,3 +140,43 @@ describe('agent premium quota', () => {
     expect(put).toHaveBeenCalledTimes(charges)
   })
 })
+
+describe('monthly reading requests', () => {
+  async function sentBody(userQuestion: string) {
+    const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response('data: {"choices":[{"delta":{"content":"Done."}}]}\n\ndata: [DONE]\n\n')
+    )
+    await app.request(
+      '/chat',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-ID': 'test-user' },
+        body: JSON.stringify({ userQuestion, language: 'fr', data: {} }),
+      },
+      {
+        OPENROUTER_API_KEY: 'test-key',
+        APP_SECRET: 'test-secret',
+        POSTHOG_API_KEY: '',
+        POSTHOG_HOST: '',
+        RATE_LIMITER: { get: async () => null, put: async () => {} } as unknown as KVNamespace,
+      },
+      { waitUntil: () => {}, passThroughOnException: () => {} }
+    )
+    return JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+  }
+
+  test('are answered without workout tools so the reply stays plain text', async () => {
+    const body = await sentBody(
+      'Tu écris la « Lecture du mois » : un résumé.\n\nCHIFFRES :\n- Mois en cours : 11 runs · 61.2 km'
+    )
+    expect(body.tools).toBeUndefined()
+    expect(body.tool_choice).toBeUndefined()
+    expect(body.messages.at(-1).content).toContain('2 à 3 phrases')
+  })
+
+  test('other questions keep the workout tools', async () => {
+    const body = await sentBody('Propose-moi une séance pour demain')
+    expect(body.tools.length).toBeGreaterThan(0)
+    expect(body.tool_choice).toBe('auto')
+  })
+})

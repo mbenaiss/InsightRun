@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
-import { rewriteMonthlyReadingQuestion } from '../monthlyReading'
+import { isMonthlyReadingQuestion, rewriteMonthlyReadingQuestion } from '../monthlyReading'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { buildPrompt } from '../prompts'
 import type { ChatDataPayload } from '../types'
@@ -436,8 +436,13 @@ app.post('/chat', async (c) => {
           messages,
           max_tokens: MAX_TOKENS,
           temperature: AI_TEMPERATURE,
-          tools: AGENT_FUNCTIONS.map((fn) => ({ type: 'function' as const, function: fn })),
-          tool_choice: 'auto',
+          // The monthly reading must stay plain text: a workout card makes the app reject it.
+          ...(isMonthlyReadingQuestion(body.userQuestion)
+            ? {}
+            : {
+                tools: AGENT_FUNCTIONS.map((fn) => ({ type: 'function' as const, function: fn })),
+                tool_choice: 'auto',
+              }),
           stream: true,
         }),
         signal: connectController.signal,

@@ -36,6 +36,8 @@ struct WorkoutListView: View {
     @State private var navigationPath = NavigationPath()
     @State private var didTrackListViewed = false
     @State private var showSubscriptionPaywall = false
+    @State private var subscriptionPaywallSource = "locked_content"
+    @State private var isViewingActivationWorkout = false
 
     private var viewModel: WorkoutListViewModel { healthKitViewModel }
 
@@ -178,6 +180,11 @@ struct WorkoutListView: View {
                         navigateToWorkout(uuid: uuid)
                     }
                 }
+                .onChange(of: navigationPath.isEmpty) { _, isEmpty in
+                    guard isEmpty, isViewingActivationWorkout else { return }
+                    isViewingActivationWorkout = false
+                    presentOnboardingPaywallIfNeeded()
+                }
                 .navigationDestination(for: WorkoutModel.self) { workout in
                     WorkoutDetailView(workout: workout, allWorkouts: displayWorkouts)
                 }
@@ -186,7 +193,7 @@ struct WorkoutListView: View {
             HistoricalIndexationSheet()
         }
         .fullScreenCover(isPresented: $showSubscriptionPaywall) {
-            SubscriptionPaywallView()
+            SubscriptionPaywallView(source: subscriptionPaywallSource)
                 .environmentObject(revenueCatManager)
         }
     }
@@ -231,7 +238,18 @@ struct WorkoutListView: View {
 
     private func navigateToActivationWorkout(_ workout: WorkoutModel) {
         notificationRouter.pendingActivationWorkout = nil
+        isViewingActivationWorkout = true
         navigationPath.append(workout)
+    }
+
+    private func presentOnboardingPaywallIfNeeded() {
+        guard !revenueCatManager.isSubscriptionActive, !revenueCatManager.hasSeenInitialPaywall else { return }
+        Task {
+            // Wait for the pop transition to finish before presenting the full-screen cover.
+            try? await Task.sleep(for: .milliseconds(450))
+            subscriptionPaywallSource = "onboarding"
+            showSubscriptionPaywall = true
+        }
     }
 
     private func filterWorkouts(_ workouts: [WorkoutModel]) -> [WorkoutModel] {
@@ -1011,6 +1029,7 @@ struct WorkoutListView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
+                subscriptionPaywallSource = "locked_content"
                 showSubscriptionPaywall = true
             } label: {
                 HStack(spacing: Spacing.sm) {

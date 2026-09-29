@@ -25,8 +25,8 @@ final class ReviewManager {
 
     private static let appStoreID = "6754607965"
     private static let minimumWorkouts = 3
-    private static let minimumAnalyses = 2
-    private static let minimumDaysSinceInstall = 2
+    private static let minimumAnalyses = 1
+    private static let minimumDaysSinceInstall = 1
     private static let minimumDaysBetweenRequests = 30
     private static let maximumRequests = 3
 

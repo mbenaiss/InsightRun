@@ -13,6 +13,7 @@ struct SubscriptionPaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
+    var source = "locked_content"
     var onDismiss: (() -> Void)? = nil
 
     @State private var paywallAppearedAt: ContinuousClock.Instant?
@@ -21,8 +22,6 @@ struct SubscriptionPaywallView: View {
     @State private var consentShownInPaywall = false
     @State private var purchaseAttempt: PurchaseAttempt?
     private let outcomeTracker = SubscriptionOutcomeTracker()
-
-    private let purchaseSource = "locked_content"
 
     var body: some View {
         if hasConsented {
@@ -59,7 +58,7 @@ struct SubscriptionPaywallView: View {
                     currency: product.currencyCode,
                     priceDisplay: product.localizedPriceString,
                     billingPeriod: String(describing: package.packageType),
-                    source: purchaseSource,
+                    source: source,
                     paywallAppearedAt: paywallAppearedAt,
                     consentShownInPaywall: consentShownInPaywall
                 )
@@ -71,7 +70,7 @@ struct SubscriptionPaywallView: View {
                     productId: transaction?.productIdentifier ?? entitlement?.productIdentifier,
                     isTrial: entitlement?.periodType == .trial,
                     hasActiveSubscription: entitlement != nil,
-                    source: purchaseSource
+                    source: source
                 )
                 purchaseAttempt = nil
 
@@ -84,21 +83,21 @@ struct SubscriptionPaywallView: View {
                 closePaywall()
             }
             .onPurchaseFailure { error in
-                outcomeTracker.purchaseFailed(purchaseAttempt, error: error, source: purchaseSource)
+                outcomeTracker.purchaseFailed(purchaseAttempt, error: error, source: source)
                 purchaseAttempt = nil
             }
             .onPurchaseCancelled {
-                outcomeTracker.purchaseCancelled(purchaseAttempt, source: purchaseSource)
+                outcomeTracker.purchaseCancelled(purchaseAttempt, source: source)
                 purchaseAttempt = nil
             }
             .onRestoreFailure { error in
-                outcomeTracker.restoreFailed(error: error, source: purchaseSource)
+                outcomeTracker.restoreFailed(error: error, source: source)
             }
             .onRestoreCompleted { customerInfo in
                 let productId = customerInfo.entitlements.active.values.first?.productIdentifier
                 outcomeTracker.restored(
                     productId: productId,
-                    source: purchaseSource
+                    source: source
                 )
                 revenueCatManager.applyCustomerInfo(customerInfo, trackLifecycleChanges: false)
                 Task {
@@ -122,7 +121,7 @@ struct SubscriptionPaywallView: View {
             .onAppear {
                 paywallAppearedAt = .now
                 AnalyticsService.shared.trackPaywallViewed(
-                    triggerSource: purchaseSource,
+                    triggerSource: source,
                     availableProducts: ["premium_subscription"]
                 )
             }

@@ -92,8 +92,8 @@ export default function InsightRunHero() {
               <div className="absolute -inset-4 bg-gradient-to-tr from-primary to-secondary rounded-[3rem] blur-2xl opacity-40" />
 
               <Image
-                src="/screenshots/screenshot-01.png"
-                alt="Insight Run app showing AI analysis"
+                src="/screenshots/hero-dashboard.png"
+                alt="Insight Run app showing daily readiness"
                 width={320}
                 height={693}
                 priority

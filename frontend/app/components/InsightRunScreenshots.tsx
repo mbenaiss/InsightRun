@@ -7,32 +7,32 @@ const screenshots = [
   {
     id: 'screenshot-01',
     src: '/screenshots/screenshot-01.png',
-    title: 'AI Coach',
-    description: 'Personalized AI analysis.',
+    title: 'Daily Readiness',
+    description: 'Know when to push.',
   },
   {
     id: 'screenshot-02',
     src: '/screenshots/screenshot-02.png',
-    title: 'Chat',
-    description: 'Ask anything about training.',
+    title: 'AI Coach',
+    description: 'Ask anything about your training.',
   },
   {
     id: 'screenshot-03',
     src: '/screenshots/screenshot-03.png',
-    title: 'Advanced Metrics',
-    description: 'Biomechanics & performance.',
+    title: 'Training Plan',
+    description: 'A plan that adapts to you.',
   },
   {
     id: 'screenshot-04',
     src: '/screenshots/screenshot-04.png',
-    title: 'History',
-    description: 'Track every achievement.',
+    title: 'Run Analysis',
+    description: 'A coach verdict after every run.',
   },
   {
     id: 'screenshot-05',
     src: '/screenshots/screenshot-05.png',
-    title: 'Recovery',
-    description: 'HRV & sleep analysis.',
+    title: 'Route & Heart Rate',
+    description: 'See how every run unfolded.',
   },
 ]
 

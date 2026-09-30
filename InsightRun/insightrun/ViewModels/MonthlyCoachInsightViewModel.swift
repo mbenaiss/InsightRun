@@ -81,14 +81,7 @@ final class MonthlyCoachInsightViewModel: ObservableObject {
         self.workoutsMetrics = metrics
 
         if DemoMode.isEnabled && generate == nil {
-            let totals = StatisticsTotals(workouts: thisMonth, calendar: .current)
-            body = String(
-                format: String(
-                    localized: "statistics.coach.demo.summary",
-                    defaultValue: "This month: %@ covered in %@, with an average pace of %@."),
-                Formatters.distance(km: totals.distance / 1000, fractionDigits: 1),
-                String(format: "%dh %02dmin", Int(totals.duration) / 3600, Int(totals.duration) % 3600 / 60),
-                totals.averagePace.map { Formatters.paceFromMinutesPerKm($0) } ?? "—")
+            body = MockData.monthlyInsight(thisMonth: thisMonth, lastMonth: lastMonth)
             analyzedAt = Date()
             return
         }

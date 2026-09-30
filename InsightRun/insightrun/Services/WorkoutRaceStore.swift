@@ -12,16 +12,16 @@ struct OfficialRace: Codable, Identifiable, Equatable {
 
 @MainActor
 final class WorkoutRaceStore: ObservableObject {
-    static let shared = WorkoutRaceStore()
+    static let shared = WorkoutRaceStore(seed: DemoMode.isEnabled ? MockData.sampleOfficialRaces : nil)
     @Published private(set) var races: [OfficialRace]
 
     private let defaults: UserDefaults
     private let storageKey = "officialWorkoutRaces.v1"
     private var identifiers: Set<String>
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, seed: [OfficialRace]? = nil) {
         self.defaults = defaults
-        let saved = defaults.data(forKey: storageKey)
+        let saved = seed ?? defaults.data(forKey: storageKey)
             .flatMap { try? JSONDecoder().decode([OfficialRace].self, from: $0) } ?? []
         races = saved
         identifiers = Set(saved.flatMap(\.identifiers))

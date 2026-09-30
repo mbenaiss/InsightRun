@@ -428,6 +428,9 @@ struct WorkoutAIAssistantView: View {
         .onAppear {
             loadConversationHistories()
             archivePersistedMessagesAndReset()
+            if DemoMode.isEnabled && messages.isEmpty {
+                messages = MockData.sampleChatMessages
+            }
             // Don't auto-focus keyboard on appear to avoid taking up screen space
             // isTextFieldFocused = true
 

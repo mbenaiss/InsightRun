@@ -10,17 +10,18 @@ struct WorkoutNameOverride: Codable, Equatable, Identifiable {
 
 @MainActor
 final class WorkoutNameStore: ObservableObject {
-  static let shared = WorkoutNameStore()
+  static let shared = WorkoutNameStore(seed: DemoMode.isEnabled ? MockData.sampleWorkoutNames : nil)
   @Published private(set) var overrides: [WorkoutNameOverride]
 
   private let defaults: UserDefaults
   private let storageKey = "workoutNames.v1"
   private var byIdentifier: [String: WorkoutNameOverride] = [:]
 
-  init(defaults: UserDefaults = .standard) {
+  init(defaults: UserDefaults = .standard, seed: [WorkoutNameOverride]? = nil) {
     self.defaults = defaults
     overrides =
-      defaults.data(forKey: storageKey)
+      seed
+      ?? defaults.data(forKey: storageKey)
       .flatMap { try? JSONDecoder().decode([WorkoutNameOverride].self, from: $0) } ?? []
     rebuildIndex(overrides)
   }

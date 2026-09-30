@@ -121,12 +121,20 @@ class DailyReadinessViewModel: ObservableObject {
         guard requestID == id, !Task.isCancelled else { return }
         isNoSleepMode = noSleepMode
         if isDemo() {
-            readinessScore = 82
+            let summary = String(localized: "Good recovery. You can do a moderate to intense workout.", comment: "Demo readiness recommendation")
+            for (offset, score) in MockData.readinessHistory.enumerated().reversed() {
+                guard let day = Calendar.current.date(byAdding: .day, value: -offset, to: date) else { continue }
+                dailyCache.cacheReadiness(
+                    score: score, status: "good", recommendation: MockData.readinessRecommendation,
+                    summary: summary, workoutType: "moderate", date: day)
+            }
+            readinessScore = MockData.readinessHistory[0]
             status = .good
-            recommendation = String(localized: "Good recovery. You can do a moderate to intense workout.", comment: "Demo readiness recommendation")
-            recommendationSummary = recommendation
+            recommendation = MockData.readinessRecommendation
+            recommendationSummary = summary
             suggestedWorkoutType = .moderate
             insights = []
+            updatedAt = Calendar.current.date(bySettingHour: 8, minute: 5, second: 0, of: date)
             isLoading = false
             errorMessage = nil
             return

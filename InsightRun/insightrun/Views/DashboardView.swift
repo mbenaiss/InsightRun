@@ -559,7 +559,7 @@ struct DashboardView: View {
     // MARK: - Today Session
 
     private func loadTodaySession() {
-        let goals = GoalStorage.shared.load()
+        let goals = DemoMode.isEnabled ? [MockData.sampleRaceGoal] : GoalStorage.shared.load()
         for goal in goals where goal.isActive && !goal.isPast && goal.hasTrainingPlan {
             if let session = goal.todaySession {
                 todaySession = (goal, session.day)

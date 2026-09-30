@@ -424,8 +424,13 @@ class WorkoutAnalysisViewModel: ObservableObject {
     }
 
     private func showSampleAnalysis() {
-        analysisText = MockData.sampleWorkoutAnalysis
-        analysisSource = .sample
+        if isDemo && !isSampleWorkout {
+            analysisText = MockData.workoutAnalysis(for: workout)
+            analysisSource = .cache
+        } else {
+            analysisText = MockData.sampleWorkoutAnalysis
+            analysisSource = .sample
+        }
         analyzedAt = Date()
         error = nil
         needsConsent = false

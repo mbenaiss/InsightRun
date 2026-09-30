@@ -59,7 +59,7 @@ class GoalsViewModel: ObservableObject {
         self.recordGeneration = recordGeneration
         self.loadRunningHistory = loadRunningHistory
         if DemoMode.isEnabled {
-            goals = [MockData.sampleRaceGoal]
+            goals = MockData.sampleGoals
             return
         }
         goals = storage.load()

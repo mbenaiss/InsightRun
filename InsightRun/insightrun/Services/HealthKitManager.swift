@@ -786,6 +786,9 @@ class HealthKitManager: ObservableObject {
     // MARK: - Fetch Workout Details
 
     func fetchWorkoutMetrics(for workoutModel: WorkoutModel) async throws -> WorkoutMetrics {
+        if DemoMode.isEnabled && workoutModel.metadata?["is_sample"] as? Bool != true {
+            return MockData.workoutMetrics(for: workoutModel)
+        }
         // Find the original HKWorkout by UUID first
         var workout = try await findWorkout(with: workoutModel.id)
 
@@ -3014,7 +3017,7 @@ class HealthKitManager: ObservableObject {
         #if DEBUG
         DashboardDiagnostics.record("healthkit.activity", date: date)
         #endif
-        if DemoMode.isEnabled { return MockData.sampleDailyActivityData }
+        if DemoMode.isEnabled { return MockData.dailyActivityData(for: date) }
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: date)
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? date

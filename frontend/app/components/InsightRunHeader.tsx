@@ -28,7 +28,8 @@ export default function InsightRunHeader() {
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative w-10 h-10 overflow-hidden rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300">
               <Image
-                src="/app-icon.png"
+                src="/app-icon.webp"
+                unoptimized
                 alt="Insight Run logo"
                 width={40}
                 height={40}

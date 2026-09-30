@@ -92,12 +92,12 @@ export default function InsightRunHero() {
               <div className="absolute -inset-4 bg-gradient-to-tr from-primary to-secondary rounded-[3rem] blur-2xl opacity-40" />
 
               <Image
-                src="/screenshots/hero-dashboard.png"
+                src="/screenshots/hero-dashboard.webp"
                 alt="Insight Run app showing daily readiness"
                 width={320}
                 height={693}
                 priority
-                quality={95}
+                unoptimized
                 className="relative w-full h-auto rounded-[2.5rem] border-[6px] border-gray-900 shadow-2xl"
               />
 

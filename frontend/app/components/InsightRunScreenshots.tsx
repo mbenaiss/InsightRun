@@ -6,31 +6,31 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 const screenshots = [
   {
     id: 'screenshot-01',
-    src: '/screenshots/screenshot-01.png',
+    src: '/screenshots/screenshot-01.webp',
     title: 'Daily Readiness',
     description: 'Know when to push.',
   },
   {
     id: 'screenshot-02',
-    src: '/screenshots/screenshot-02.png',
+    src: '/screenshots/screenshot-02.webp',
     title: 'AI Coach',
     description: 'Ask anything about your training.',
   },
   {
     id: 'screenshot-03',
-    src: '/screenshots/screenshot-03.png',
+    src: '/screenshots/screenshot-03.webp',
     title: 'Training Plan',
     description: 'A plan that adapts to you.',
   },
   {
     id: 'screenshot-04',
-    src: '/screenshots/screenshot-04.png',
+    src: '/screenshots/screenshot-04.webp',
     title: 'Run Analysis',
     description: 'A coach verdict after every run.',
   },
   {
     id: 'screenshot-05',
-    src: '/screenshots/screenshot-05.png',
+    src: '/screenshots/screenshot-05.webp',
     title: 'Route & Heart Rate',
     description: 'See how every run unfolded.',
   },
@@ -125,7 +125,7 @@ export default function InsightRunScreenshots() {
                   width={320}
                   height={693}
                   className="w-full h-auto"
-                  quality={90}
+                  unoptimized
                 />
                 <div
                   className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity duration-300 flex flex-col justify-end p-6 text-center ${currentSlide === index ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'}`}

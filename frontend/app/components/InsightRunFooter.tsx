@@ -10,7 +10,8 @@ export default function InsightRunFooter() {
           <div className="md:col-span-5 space-y-6">
             <Link href="/" className="flex items-center gap-3">
               <Image
-                src="/app-icon.png"
+                src="/app-icon.webp"
+                unoptimized
                 alt="Insight Run logo"
                 width={48}
                 height={48}

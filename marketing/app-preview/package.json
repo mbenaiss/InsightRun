@@ -1,0 +1,17 @@
+{
+  "name": "insightrun-app-preview",
+  "private": true,
+  "scripts": {
+    "footage": "sh prepare.sh",
+    "music": "node music.mjs",
+    "stills": "node render.mjs --stills",
+    "render": "node music.mjs && node render.mjs && sh finalize.sh",
+    "render:light": "node music.mjs --variant light && node render.mjs --variant light && sh finalize.sh light",
+    "render:mix": "node music.mjs --variant mix && node render.mjs --variant mix && sh finalize.sh mix",
+    "render:mix-ld": "node music.mjs --variant mix-ld && node render.mjs --variant mix-ld && sh finalize.sh mix-ld",
+    "render:mix-fr": "node music.mjs --variant mix-fr && node render.mjs --variant mix-fr && sh finalize.sh mix-fr"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}

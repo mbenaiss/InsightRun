@@ -36,12 +36,12 @@ function PostHogPageView() {
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
-  const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST
 
   useEffect(() => {
-    if (posthogKey && posthogHost) {
+    if (posthogKey) {
       posthog.init(posthogKey, {
-        api_host: posthogHost,
+        api_host: '/ingest',
+        ui_host: 'https://eu.posthog.com',
         capture_pageview: false, // We manually capture pageviews
         capture_pageleave: true,
         autocapture: true,
@@ -51,9 +51,9 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         debug: process.env.NODE_ENV === 'development',
       })
     }
-  }, [posthogKey, posthogHost])
+  }, [posthogKey])
 
-  if (!posthogKey || !posthogHost) {
+  if (!posthogKey) {
     return <>{children}</>
   }
 

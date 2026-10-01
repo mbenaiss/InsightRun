@@ -1,9 +1,9 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { APP_STORE_URL, SUPPORT_EMAIL } from '../lib/constants'
+import { SUPPORT_EMAIL } from '../lib/constants'
+import AppStoreLink from './AppStoreLink'
 
 const links = [
-  { href: APP_STORE_URL, label: 'App Store', external: true },
   { href: '/support', label: 'Help center' },
   { href: `mailto:${SUPPORT_EMAIL}`, label: 'Contact', external: true },
   { href: '/privacy', label: 'Privacy policy' },
@@ -30,6 +30,14 @@ export default function InsightRunFooter() {
         </div>
         <nav aria-label="Footer">
           <ul className="flex flex-wrap gap-x-7 gap-y-3 text-sm">
+            <li>
+              <AppStoreLink
+                location="footer"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                App Store
+              </AppStoreLink>
+            </li>
             {links.map((l) => (
               <li key={l.label}>
                 {l.external ? (

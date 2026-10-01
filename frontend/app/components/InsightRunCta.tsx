@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { APP_STORE_URL } from '../lib/constants'
+import AppStoreLink from './AppStoreLink'
 
 export default function InsightRunCta() {
   return (
@@ -23,10 +23,8 @@ export default function InsightRunCta() {
         <p className="mt-5 max-w-md text-lg text-muted-foreground">
           Insight Run is available for iPhone on the App Store.
         </p>
-        <a
-          href={APP_STORE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <AppStoreLink
+          location="cta"
           className="mt-10 rounded-[10px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
         >
           <Image
@@ -36,7 +34,7 @@ export default function InsightRunCta() {
             height={52}
             className="h-[52px] w-auto"
           />
-        </a>
+        </AppStoreLink>
       </div>
     </section>
   )

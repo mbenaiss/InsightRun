@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { APP_STORE_URL } from '../lib/constants'
+import AppStoreLink from './AppStoreLink'
 import { ThemedImage, useAutoplayInView, useSiteTheme } from './ThemedMedia'
 
 export default function InsightRunHero() {
@@ -37,10 +37,8 @@ export default function InsightRunHero() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-5">
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <AppStoreLink
+              location="hero"
               className="rounded-[10px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
             >
               <Image
@@ -50,7 +48,7 @@ export default function InsightRunHero() {
                 height={52}
                 className="h-[52px] w-auto"
               />
-            </a>
+            </AppStoreLink>
             <a
               href="#tour"
               className="text-base font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-[6px] hover:text-primary"

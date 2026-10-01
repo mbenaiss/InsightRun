@@ -5,6 +5,8 @@
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
+export const OPENROUTER_REFERER = 'https://insightrun.altcode.studio'
+
 // Thrown when the model stopped because it hit max_tokens — the JSON is truncated and
 // retrying identically just burns budget. The caller surfaces this to the next attempt.
 export class TruncatedResponseError extends Error {
@@ -101,7 +103,7 @@ export async function callOpenRouterWithRetry(opts: CallOpenRouterOptions): Prom
         method: 'POST',
         headers: {
           Authorization: `Bearer ${opts.apiKey}`,
-          'HTTP-Referer': 'https://insightrun.ai',
+          'HTTP-Referer': OPENROUTER_REFERER,
           'X-Title': opts.title,
           'Content-Type': 'application/json',
         },

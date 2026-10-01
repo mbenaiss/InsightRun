@@ -14,6 +14,7 @@ import {
   setModelMapping,
   upsertModel,
 } from './modelRouter'
+import { OPENROUTER_REFERER } from './openrouter'
 import { captureLLMEvent, captureQuotaExceeded, createPostHogClient } from './posthog'
 import { buildPrompt } from './prompts'
 import type { QuotaCheck, QuotaConfig } from './quota'
@@ -223,7 +224,7 @@ async function callOpenRouter(
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://insightrun.ai',
+      'HTTP-Referer': OPENROUTER_REFERER,
       'X-Title': 'insightRun.ai',
       'Content-Type': 'application/json',
     },
@@ -485,7 +486,7 @@ app.post('/api/chat', async (c) => {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${c.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://insightrun.ai',
+          'HTTP-Referer': OPENROUTER_REFERER,
           'X-Title': 'insightRun.ai',
           'Content-Type': 'application/json',
         },

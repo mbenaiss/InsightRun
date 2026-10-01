@@ -1,124 +1,124 @@
-export default function InsightRunFeatures() {
-  const features = [
-    {
-      id: 1,
-      title: 'AI Coach',
-      description:
-        'Get personalized advice and analysis from advanced AI to help you improve your performance and reach your goals.',
-      icon: (
-        <svg
-          aria-hidden="true"
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-          />
-        </svg>
-      ),
-      className: 'lg:col-span-2 bg-gradient-to-br from-primary/10 to-secondary/10',
-      iconBg: 'bg-primary/10 text-primary',
-    },
-    {
-      id: 2,
-      title: 'Advanced Tracking',
-      description:
-        'Detailed metrics for distance, pace, heart rate, cadence, power, with seamless HealthKit and Strava integration.',
-      icon: (
-        <svg
-          aria-hidden="true"
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
-          />
-        </svg>
-      ),
-      className: 'lg:col-span-1 bg-muted/5',
-      iconBg: 'bg-blue-500/10 text-blue-500',
-    },
-    {
-      id: 3,
-      title: 'Recovery Analysis',
-      description:
-        'Track your fitness and readiness with daily recovery scores based on HRV, resting heart rate, and sleep quality.',
-      icon: (
-        <svg aria-hidden="true" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-        </svg>
-      ),
-      className: 'lg:col-span-1 bg-muted/5',
-      iconBg: 'bg-red-500/10 text-red-500',
-    },
-    {
-      id: 4,
-      title: 'Progress Tracking',
-      description: 'Visualize your evolution over time with comprehensive performance trends.',
-      icon: (
-        <svg aria-hidden="true" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V4.125c0-1.036-.84-1.875-1.875-1.875h-.75zM9.75 8.625c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-.75a1.875 1.875 0 01-1.875-1.875V8.625zM3 13.125c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v6.75c0 1.035-.84 1.875-1.875 1.875h-.75A1.875 1.875 0 013 19.875v-6.75z" />
-        </svg>
-      ),
-      className: 'lg:col-span-1 bg-muted/5',
-      iconBg: 'bg-emerald-500/10 text-emerald-500',
-    },
-    {
-      id: 5,
-      title: 'Privacy-First',
-      description: 'Your health data stays on your device. No user tracking, no data selling.',
-      icon: (
-        <svg aria-hidden="true" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-          <path
-            fillRule="evenodd"
-            d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z"
-            clipRule="evenodd"
-          />
-        </svg>
-      ),
-      className: 'lg:col-span-1 bg-muted/5',
-      iconBg: 'bg-sky-500/10 text-sky-500',
-    },
-  ]
+import { ThemedImage } from './ThemedMedia'
 
+const moments = [
+  {
+    when: 'Every morning',
+    question: 'Should I push today?',
+    answer:
+      'A readiness score out of 100, built from your heart rate variability, resting heart rate and sleep, and compared with your own baseline rather than an average runner’s.',
+    image: 'readiness',
+    alt: 'Readiness card showing 82 out of 100, up 6 from yesterday, with HRV 65 ms and resting heart rate 52 bpm',
+    height: 570,
+  },
+  {
+    when: 'After every run',
+    question: 'How did that session go?',
+    answer:
+      'A coach verdict in plain words: what the session did, how your heart rate responded, and what to change next time. Route, splits and heart-rate zones are one scroll away.',
+    image: 'verdict',
+    alt: 'Coach verdict after a 6 × 800 m interval session',
+    height: 516,
+  },
+  {
+    when: 'Every week',
+    question: 'What should I run next?',
+    answer:
+      'Set a race and a target time. The plan builds your weeks around it and adjusts them from what you actually ran.',
+    image: 'plan',
+    alt: 'Plan for the Paris 10K on 8 November, 38 days to go, target time 44:00, 40% done',
+    height: 520,
+  },
+  {
+    when: 'Any time',
+    question: 'Am I on track?',
+    answer:
+      'Ask your coach anything about your training. Answers come from your own runs, with the numbers that back them up.',
+    image: 'coach',
+    alt: 'Coach chat answering whether the runner is on track for a 10K goal',
+    height: 806,
+    ai: true,
+  },
+]
+
+const details = [
+  {
+    title: 'Signals',
+    body: 'HRV, resting heart rate, respiratory rate, blood oxygen and cardiac load, each against its normal range.',
+  },
+  {
+    title: 'Run analysis',
+    body: 'Route map, heart rate, splits per kilometer and time in each heart-rate zone.',
+  },
+  {
+    title: 'Statistics',
+    body: 'Records and monthly trends, so you can see the progress you are making.',
+  },
+  {
+    title: 'Your sources',
+    body: 'Apple Watch and other devices through Apple Health, Strava, and Suunto workout files.',
+  },
+]
+
+export default function InsightRunFeatures() {
   return (
-    <section id="features" className="py-24 relative">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">
-            Everything you need to run smarter
+    <section id="features" className="border-t border-line py-24 lg:py-32">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="max-w-2xl">
+          <h2 className="font-display text-4xl font-extrabold tracking-[-0.035em] sm:text-5xl">
+            The questions you ask, answered from your data
           </h2>
-          <p className="text-lg text-muted-foreground">
-            Insight Run combines advanced metrics, AI coaching, and recovery insights to help you
-            reach your running goals.
+          <p className="mt-5 text-lg text-muted-foreground">
+            Four moments in a runner’s week, and what Insight Run tells you in each.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature) => (
-            <div
-              key={feature.id}
-              className={`glass-card p-8 rounded-3xl transition-all duration-300 hover:border-primary/20 hover:bg-muted/50 group ${feature.className}`}
+        <ol className="mt-16 lg:mt-20">
+          {moments.map((m) => (
+            <li
+              key={m.image}
+              className="grid items-center gap-10 border-t border-line py-14 lg:grid-cols-[1fr_1fr] lg:gap-20"
             >
-              <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${feature.iconBg} group-hover:scale-110 transition-transform duration-300`}
-              >
-                {feature.icon}
+              <div className="max-w-lg">
+                <p className={`text-sm font-semibold ${m.ai ? 'text-secondary' : 'text-primary'}`}>
+                  {m.when}
+                </p>
+                <h3 className="mt-3 font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">
+                  {m.question}
+                </h3>
+                <p className="mt-4 text-lg leading-relaxed text-muted-foreground">{m.answer}</p>
               </div>
-              <h3 className="text-xl font-bold text-card-foreground mb-3">{feature.title}</h3>
-              <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-            </div>
+              <div className="mx-auto w-full max-w-[440px] lg:justify-self-end">
+                <div
+                  className={`overflow-hidden rounded-[26px] ring-1 shadow-[0_30px_80px_-30px_var(--glow)] ${
+                    m.ai ? 'ring-secondary/40' : 'ring-line'
+                  }`}
+                >
+                  <ThemedImage
+                    name={m.image}
+                    dir="ui"
+                    alt={m.alt}
+                    width={816}
+                    height={m.height}
+                    className="h-auto w-full"
+                  />
+                </div>
+              </div>
+            </li>
           ))}
+        </ol>
+
+        <div className="mt-8 border-t border-line pt-16">
+          <h3 className="font-display text-2xl font-extrabold tracking-[-0.03em]">
+            Also in the app
+          </h3>
+          <dl className="mt-8 grid gap-x-12 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+            {details.map((d) => (
+              <div key={d.title}>
+                <dt className="font-semibold text-foreground">{d.title}</dt>
+                <dd className="mt-2 leading-relaxed text-muted-foreground">{d.body}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
     </section>

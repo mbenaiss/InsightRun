@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InsightRun App Preview</title>
+<style>
+  @font-face { font-family: 'SF'; src: url('file:///System/Library/Fonts/SFNS.ttf'); font-weight: 1 1000; }
+  @font-face { font-family: 'SFR'; src: url('file:///System/Library/Fonts/SFNSRounded.ttf'); font-weight: 1 1000; }
+  @font-face { font-family: 'SFM'; src: url('file:///System/Library/Fonts/SFNSMono.ttf'); font-weight: 1 1000; }
+
+  :root {
+    --lime: #96FF70;
+    --violet: #B48DFF;
+    --ground: #040604;
+    --text: #fff;
+    --text-sub: rgba(255,255,255,0.62);
+    --text-faint: rgba(255,255,255,0.55);
+    --dim: #000;
+  }
+  body.light {
+    --lime: #2F8F1E;
+    --violet: #7C4DDB;
+    --ground: #EAF8DF;
+    --text: #0E1A0A;
+    --text-sub: rgba(14,26,10,0.62);
+    --text-faint: rgba(14,26,10,0.55);
+    --dim: #F4FAEF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 886px; height: 1920px; background: var(--ground); overflow: hidden; }
+  body { font-family: 'SF', system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+
+  #stage { position: absolute; inset: 0; overflow: hidden; background: var(--ground); }
+  #bg, #flash, #grain, #vignette { position: absolute; inset: 0; pointer-events: none; }
+  #vignette { background: radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(0,0,0,0.55) 100%); }
+  #grain { width: 886px; height: 1920px; opacity: 0.045; }
+  body.light #grain { opacity: 0.03; }
+  body.light #vignette { display: none; }
+
+  .intro { position: absolute; left: 64px; top: 676px; font-weight: 800; font-size: 124px; line-height: 1.0; letter-spacing: -0.045em; }
+  .intro .line { overflow: hidden; padding-bottom: 30px; margin-bottom: -30px; }
+  .intro .line span { display: inline-block; will-change: transform; }
+  .intro .accent { color: var(--lime); }
+
+  .head { position: absolute; left: 64px; top: 132px; width: 770px; }
+  .head .label { font-family: 'SFM'; font-weight: 600; font-size: 23px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--lime); display: flex; align-items: center; height: 30px; white-space: pre; }
+  .head .label .rule { display: inline-block; height: 2px; background: currentColor; margin: 0 16px; }
+  .head .label .cursor { display: inline-block; width: 13px; height: 24px; background: currentColor; margin-left: 2px; }
+  .head .title { margin-top: 18px; font-weight: 800; font-size: 84px; line-height: 0.98; letter-spacing: -0.04em; }
+  .head .title .line { overflow: hidden; padding-bottom: 8px; margin-bottom: -8px; white-space: nowrap; }
+  .head .title .w { display: inline-block; will-change: transform; }
+  .head .title .line + .line { color: var(--lime); }
+  .head.ai .label, .head.ai .title .line + .line { color: var(--violet); }
+  .head .sub { margin-top: 22px; font-weight: 500; font-size: 31px; letter-spacing: -0.01em; color: var(--text-sub); }
+
+  #phone { position: absolute; left: 129px; top: 508px; width: 628px; height: 1332px; border-radius: 90px;
+    background: linear-gradient(160deg, #262926 0%, #0c0d0c 40%, #151715 100%);
+    box-shadow: 0 0 0 1px rgba(150,255,112,0.10), inset 0 0 0 2px #303430, inset 0 0 0 6px #050505, 0 70px 140px rgba(0,0,0,0.75), 0 20px 50px rgba(0,0,0,0.5); }
+  #phone .skin-light { position: absolute; inset: 0; border-radius: 90px; opacity: 0;
+    background: linear-gradient(160deg, #F2F3F1 0%, #B9BCB7 35%, #E4E6E2 65%, #A9ADA7 100%);
+    box-shadow: inset 0 0 0 2px #8E928C, inset 0 0 0 5px #D9DCD7, inset 0 0 0 7px #111; }
+  #bgLight { position: absolute; inset: 0; pointer-events: none; display: none; }
+  #reveal { position: absolute; border-radius: 50%; border: 3px solid #96FF70; pointer-events: none; display: none; transform: translate(-50%, -50%); }
+  #screen { position: absolute; left: 14px; top: 14px; width: 600px; height: 1304px; border-radius: 76px; overflow: hidden; background: #000; }
+  #screen img { position: absolute; left: 0; top: 0; width: 600px; height: 1304px; }
+  #dim { position: absolute; inset: 0; background: var(--dim); opacity: 0; }
+  .tap { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
+  .tap .dot { position: absolute; inset: 0; border-radius: 50%; background: rgba(255,255,255,0.32); box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+  body.light .tap .dot { background: rgba(14,26,10,0.16); box-shadow: 0 0 0 2px rgba(14,26,10,0.28); }
+  .tap .ring { position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 4px solid var(--lime); transform: translate(-50%, -50%); }
+
+  .lift { position: absolute; overflow: hidden; transform-origin: 50% 50%; }
+  .lift img { position: absolute; }
+
+  #end { position: absolute; inset: 0; }
+  #end .icon { position: absolute; left: 343px; top: 640px; width: 200px; height: 200px; border-radius: 46px; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.12); }
+  body.light #end .icon { box-shadow: 0 30px 70px rgba(40,70,25,0.30), 0 0 0 1px rgba(14,26,10,0.08); }
+  #end .icon img { width: 100%; height: 100%; display: block; }
+  #end .word { position: absolute; left: 0; right: 0; top: 890px; text-align: center; font-weight: 800; font-size: 124px; letter-spacing: -0.045em; line-height: 1; }
+  #end .word .clip { display: inline-block; overflow: hidden; padding-bottom: 12px; margin-bottom: -12px; }
+  #end .word .ch { display: inline-block; }
+  #end .tag { position: absolute; left: 0; right: 0; top: 1040px; text-align: center; font-weight: 600; font-size: 52px; letter-spacing: -0.02em; color: var(--lime); }
+  #end .foot { position: absolute; left: 0; right: 0; top: 1150px; text-align: center; font-family: 'SFM'; font-weight: 600; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div id="bgLight"></div>
+  <div id="reveal"></div>
+  <div id="intro" class="intro"></div>
+  <div id="heads"></div>
+  <div id="phone">
+    <div class="skin-light"></div>
+    <div id="screen">
+      <img id="shot" alt="">
+      <div id="taps"></div>
+      <div id="dim"></div>
+    </div>
+  </div>
+  <div id="lifts"></div>
+  <div id="end">
+    <div class="icon"><img src="assets/app-icon.png" alt=""></div>
+    <div class="word"></div>
+    <div class="tag"></div>
+    <div class="foot"></div>
+  </div>
+  <div id="flash"></div>
+  <div id="vignette"></div>
+  <canvas id="grain" width="443" height="960"></canvas>
+</div>
+
+<script src="timeline.js"></script>
+<script>
+const CW = 886, CH = 1920;
+const K = 600 / TL.footage.width;
+const BEZEL = 14, PHONE_L = 129, PHONE_T = 508, PHONE_W = 628, PHONE_H = 1332;
+const BEAT = 60 / TL.bpm;
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, d) => clamp((t - a) / d);
+const expoOut = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+const expoIn = x => x <= 0 ? 0 : Math.pow(2, 10 * x - 10);
+const cubicInOut = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const backOut = x => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const $ = s => document.querySelector(s);
+
+const PALETTES = {
+  dark: {
+    end: (e) => `radial-gradient(ellipse 70% 42% at 50% 46%, rgba(150,255,112,${0.13 * e}) 0%, rgba(31,90,23,${0.35 * e}) 40%, transparent 72%)`,
+    glow1: (a) => [`rgba(31,90,23,${a})`, `rgba(14,42,11,${a * 0.6})`],
+    glow2: ['rgba(20,62,15,0.75)', 'rgba(8,24,7,0.5)'],
+    flash: '150,255,112',
+    shadow: '0,0,0', shadowA: 0.7,
+    ring: '150,255,112', ringAI: '180,141,255',
+  },
+  light: {
+    end: (e) => `radial-gradient(ellipse 70% 42% at 50% 46%, rgba(255,255,255,${0.75 * e}) 0%, rgba(244,255,233,${0.6 * e}) 40%, transparent 72%)`,
+    glow1: (a) => [`rgba(184,238,142,${a * 1.5})`, `rgba(200,247,168,${a})`],
+    glow2: ['rgba(200,247,168,0.9)', 'rgba(184,238,142,0.45)'],
+    flash: '255,255,255',
+    shadow: '40,70,25', shadowA: 0.32,
+    ring: '79,191,53', ringAI: '124,77,219',
+  },
+};
+let PAL = PALETTES.dark;
+
+const TOKENS = {
+  '--text': [[255, 255, 255, 1], [14, 26, 10, 1]],
+  '--text-sub': [[255, 255, 255, 0.62], [14, 26, 10, 0.62]],
+  '--text-faint': [[255, 255, 255, 0.55], [14, 26, 10, 0.55]],
+  '--lime': [[150, 255, 112, 1], [47, 143, 30, 1]],
+  '--violet': [[180, 141, 255, 1], [124, 77, 219, 1]],
+  '--dim': [[0, 0, 0, 1], [244, 250, 239, 1]],
+  '--ground': [[4, 6, 4, 1], [234, 248, 223, 1]],
+};
+
+function lightness(t) {
+  if (TL.theme === 'light') return 1;
+  if (TL.theme !== 'mix') return 0;
+  const x = cubicInOut(prog(t, TL.flip.at + 0.2, 0.35));
+  return TL.flip.from === 'light' ? 1 - x : x;
+}
+
+function applyTheme(L) {
+  const body = document.body;
+  for (const [name, [a, b]] of Object.entries(TOKENS)) {
+    const c = a.map((v, i) => v + (b[i] - v) * L);
+    body.style.setProperty(name, `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${c[3].toFixed(3)})`);
+  }
+  body.classList.toggle('light', L >= 0.5);
+  PAL = L >= 0.5 ? PALETTES.light : PALETTES.dark;
+  $('#grain').style.opacity = String(0.045 - 0.015 * L);
+  $('#vignette').style.opacity = String(1 - L);
+  $('#phone .skin-light').style.opacity = String(L);
+  $('#phone').style.boxShadow = L >= 0.5
+    ? '0 60px 120px rgba(40,70,25,0.30), 0 18px 40px rgba(40,70,25,0.22)'
+    : '0 0 0 1px rgba(150,255,112,0.10), inset 0 0 0 2px #303430, inset 0 0 0 6px #050505, 0 70px 140px rgba(0,0,0,0.75), 0 20px 50px rgba(0,0,0,0.5)';
+}
+
+function frameURL(t) {
+  const { src, dir } = TL.srcAt(t);
+  const n = clamp(Math.round(src * TL.footage.fps) + 1, 1, TL.frameCounts[dir]);
+  return dir + '/' + String(n).padStart(4, '0') + '.jpg';
+}
+
+function build() {
+  const intro = $('#intro');
+  for (const l of TL.intro.lines) {
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.innerHTML = `<span class="${l.accent ? 'accent' : ''}">${l.text}</span>`;
+    intro.appendChild(line);
+  }
+
+  const heads = $('#heads');
+  for (const s of TL.sections) {
+    const h = document.createElement('div');
+    h.className = 'head' + (s.ai ? ' ai' : '');
+    let wi = 0;
+    const lines = s.title.map(line => '<div class="line">' + line.split(' ').map(w => `<span class="w" data-i="${wi++}">${w}</span>`).join(' ') + '</div>').join('');
+    h.innerHTML = `<div class="label"><span class="idx">${s.index}</span><span class="rule"></span><span class="lbl"></span><span class="cursor"></span></div><div class="title">${lines}</div><div class="sub">${s.sub}</div>`;
+    s.el = h;
+    heads.appendChild(h);
+  }
+
+  const taps = $('#taps');
+  for (const tp of TL.taps) {
+    tp.out = TL.outTime(tp.src, tp.dir);
+    const d = document.createElement('div');
+    d.className = 'tap';
+    d.style.left = tp.at[0] * K + 'px';
+    d.style.top = tp.at[1] * K + 'px';
+    d.innerHTML = '<div class="dot"></div><div class="ring"></div>';
+    tp.el = d;
+    taps.appendChild(d);
+  }
+
+  const lifts = $('#lifts');
+  for (const l of TL.lifts) {
+    const d = document.createElement('div');
+    d.className = 'lift';
+    d.innerHTML = '<img alt="">';
+    l.el = d;
+    lifts.appendChild(d);
+  }
+
+  const word = $('#end .word');
+  word.innerHTML = '<span class="clip">' + [...TL.end.wordmark].map(c => `<span class="ch">${c}</span>`).join('') + '</span>';
+  $('#end .tag').textContent = TL.end.tagline;
+  $('#end .foot').textContent = TL.end.footnote;
+}
+
+function zoomState(t) {
+  for (const z of TL.zooms) {
+    if (t >= z.start - 0.01 && t <= z.end + 0.01) {
+      const env = expoOut(prog(t, z.start, 0.7)) * (1 - cubicInOut(prog(t, z.end - 0.55, 0.55)));
+      return { env, z };
+    }
+  }
+  return { env: 0, z: null };
+}
+
+function phoneState(t) {
+  const e = expoOut(prog(t, TL.phoneIn, 0.9));
+  let ty = (1 - e) * 1450;
+  let s = 0.92 + 0.08 * e;
+  const x = expoIn(prog(t, TL.phoneOut, 0.7));
+  ty += x * 1500;
+  s *= 1 - 0.08 * x;
+  const { env, z } = zoomState(t);
+  let ox = PHONE_W / 2, oy = PHONE_H / 2;
+  if (z) {
+    ox = BEZEL + z.focus[0] * K;
+    oy = BEZEL + z.focus[1] * K;
+    s *= 1 + (z.scale - 1) * env;
+  }
+  return { tx: 0, ty, s, ox, oy, zoomEnv: env, visible: t >= TL.phoneIn - 0.01 && x < 1 };
+}
+
+function toCanvas(ps, fx, fy) {
+  const ex = BEZEL + fx * K, ey = BEZEL + fy * K;
+  return [PHONE_L + ps.ox + ps.tx + ps.s * (ex - ps.ox), PHONE_T + ps.oy + ps.ty + ps.s * (ey - ps.oy)];
+}
+
+function bgFor(pal, t, a1, endP) {
+  const x1 = 18 + 4 * Math.sin(t * 0.35), y1 = 12 + 3 * Math.cos(t * 0.27);
+  const x2 = 86 - 3 * Math.sin(t * 0.22), y2 = 86 + 2 * Math.cos(t * 0.31);
+  const [g1a, g1b] = pal.glow1(a1);
+  return [
+    pal.end(endP),
+    `radial-gradient(ellipse 85% 55% at ${x1}% ${y1}%, ${g1a} 0%, ${g1b} 40%, transparent 70%)`,
+    `radial-gradient(ellipse 80% 50% at ${x2}% ${y2}%, ${pal.glow2[0]} 0%, ${pal.glow2[1]} 45%, transparent 75%)`,
+  ].join(',');
+}
+
+function renderBackground(t, ps) {
+  const drums = t >= TL.phoneIn && t < TL.end.start;
+  const pulse = drums ? Math.exp(-((t - TL.phoneIn) % BEAT) * 7) : 0;
+  const endP = expoOut(prog(t, TL.end.start + 0.3, 1.2));
+  const a1 = 0.5 + 0.08 * pulse - 0.15 * endP;
+  const bg = $('#bg'), bgL = $('#bgLight'), ring = $('#reveal');
+  const baseLight = TL.theme === 'light' || (TL.theme === 'mix' && TL.flip.from === 'light');
+  bg.style.background = bgFor(baseLight ? PALETTES.light : PALETTES.dark, t, a1, endP) + ',' + (baseLight ? '#EAF8DF' : '#040604');
+  bgL.style.display = 'none';
+  ring.style.display = 'none';
+  if (TL.theme === 'mix' && t >= TL.flip.at) {
+    const [ox, oy] = toCanvas(phoneState(TL.flip.at), TL.flip.point[0], TL.flip.point[1]);
+    const p = prog(t, TL.flip.at, 0.8);
+    const r = Math.pow(p, 1.6) * 2300;
+    bgL.style.display = 'block';
+    bgL.style.background = baseLight ? bgFor(PALETTES.dark, t, a1, endP) + ',#040604' : bgFor(PALETTES.light, t, a1, endP) + ',#EAF8DF';
+    bgL.style.clipPath = p >= 1 ? 'none' : `circle(${r}px at ${ox}px ${oy}px)`;
+    if (p < 1) {
+      ring.style.display = 'block';
+      ring.style.left = ox + 'px';
+      ring.style.top = oy + 'px';
+      ring.style.width = ring.style.height = 2 * r + 'px';
+      ring.style.opacity = String(0.9 * (1 - p));
+      ring.style.boxShadow = `0 0 ${40 * (1 - p)}px rgba(150,255,112,${0.6 * (1 - p)}), inset 0 0 ${40 * (1 - p)}px rgba(150,255,112,${0.4 * (1 - p)})`;
+    }
+  }
+  const f = t >= TL.phoneIn ? Math.exp(-(t - TL.phoneIn) * 5) * 0.16 : 0;
+  $('#flash').style.background = `radial-gradient(ellipse 90% 60% at 50% 60%, rgba(${PAL.flash},${f * (TL.theme === 'light' ? 3 : 1)}), transparent 70%)`;
+}
+
+function renderIntro(t) {
+  const lines = $('#intro').children;
+  TL.intro.lines.forEach((l, i) => {
+    const span = lines[i].firstChild;
+    const p = expoOut(prog(t, l.at, 0.5));
+    const q = cubicInOut(prog(t, TL.intro.exit + i * 0.025, 0.24));
+    span.style.transform = `translateY(${(1 - p) * 140 - q * 60}%)`;
+    span.style.opacity = String(1 - q);
+    span.style.filter = q > 0 ? `blur(${q * 10}px)` : 'none';
+  });
+  $('#intro').style.display = t < TL.intro.exit + 0.6 ? 'block' : 'none';
+}
+
+function renderHeads(t, ps) {
+  TL.sections.forEach((s, si) => {
+    const el = s.el;
+    const exitAt = s.end;
+    if (t < s.start - 0.01 || t > exitAt + 0.01) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    const n = s.label.length;
+    const typed = Math.floor(prog(t, s.start + 0.08, 0.32) * n + 0.0001);
+    el.querySelector('.lbl').textContent = s.label.slice(0, typed);
+    el.querySelector('.rule').style.width = 42 * expoOut(prog(t, s.start, 0.4)) + 'px';
+    const blink = t < s.start + 0.55 || Math.floor((t - s.start) / 0.25) % 2 === 0;
+    el.querySelector('.cursor').style.opacity = t < s.start + 1.2 && blink ? '1' : '0';
+    el.querySelectorAll('.w').forEach(w => {
+      const i = +w.dataset.i;
+      const p = expoOut(prog(t, s.start + 0.06 + i * 0.05, 0.55));
+      w.style.transform = `translateY(${(1 - p) * 130}%)`;
+    });
+    const sub = el.querySelector('.sub');
+    const ps2 = expoOut(prog(t, s.start + 0.35, 0.5));
+    sub.style.opacity = String(ps2);
+    sub.style.transform = `translateY(${(1 - ps2) * 18}px)`;
+    const q = expoIn(prog(t, exitAt - 0.28, 0.28));
+    const fade = 1 - ps.zoomEnv;
+    el.style.opacity = String((1 - q) * fade);
+    el.style.transform = `translateY(${-q * 36}px)`;
+    el.style.filter = q > 0 ? `blur(${q * 8}px)` : 'none';
+  });
+}
+
+function renderPhone(t, ps, url) {
+  const phone = $('#phone');
+  phone.style.display = ps.visible ? 'block' : 'none';
+  phone.style.transformOrigin = `${ps.ox}px ${ps.oy}px`;
+  phone.style.transform = `translate(${ps.tx}px, ${ps.ty}px) scale(${ps.s})`;
+  const shot = $('#shot');
+  if (shot.getAttribute('src') !== url) shot.setAttribute('src', url);
+  let blur = 0;
+  for (const seg of TL.segments) if (seg.blurIn) blur = Math.max(blur, 16 * (1 - Math.abs(t - seg.out[0]) / 0.16));
+  shot.style.filter = blur > 0 ? `blur(${blur}px)` : 'none';
+
+  for (const tp of TL.taps) {
+    const dt = t - tp.out;
+    const on = dt > -0.12 && dt < 0.6;
+    tp.el.style.display = on ? 'block' : 'none';
+    if (!on) continue;
+    const press = dt < 0 ? expoOut((dt + 0.12) / 0.12) : 1 - prog(dt, 0.05, 0.2);
+    const dot = tp.el.querySelector('.dot');
+    tp.el.style.width = tp.el.style.height = '64px';
+    dot.style.opacity = String(press);
+    dot.style.transform = `scale(${0.8 + 0.2 * press})`;
+    const ring = tp.el.querySelector('.ring');
+    const r = expoOut(prog(dt, 0, 0.55));
+    const size = 40 + 110 * r;
+    ring.style.width = ring.style.height = size + 'px';
+    ring.style.opacity = String(dt < 0 ? 0 : 1 - r);
+  }
+}
+
+function renderLifts(t, ps, url) {
+  let dim = 0;
+  for (const l of TL.lifts) {
+    const pin = expoOut(prog(t, l.start, 0.5));
+    const pout = expoIn(prog(t, l.end - 0.35, 0.35));
+    const p = pin * (1 - pout);
+    const el = l.el;
+    if (p <= 0.001 || !ps.visible) { el.style.display = 'none'; continue; }
+    dim = Math.max(dim, p);
+    el.style.display = 'block';
+    const [fx, fy, fw, fh] = l.rect;
+    const [x0, y0] = toCanvas(ps, fx, fy);
+    const sc = K * ps.s;
+    const w = fw * sc, h = fh * sc;
+    el.style.left = x0 + 'px';
+    el.style.top = y0 + 'px';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    el.style.borderRadius = (l.rect[3] < 120 ? 22 : 30) * sc + 'px';
+    const img = el.firstChild;
+    if (img.getAttribute('src') !== url) img.setAttribute('src', url);
+    img.style.width = TL.footage.width * sc + 'px';
+    img.style.height = TL.footage.height * sc + 'px';
+    img.style.left = -fx * sc + 'px';
+    img.style.top = -fy * sc + 'px';
+    const cx = x0 + w / 2;
+    const dx = l.anchor ? 0 : (CW / 2 - cx) * p;
+    el.style.transformOrigin = l.anchor === 'right' ? '100% 50%' : '50% 50%';
+    const target = Math.min(1.38, 780 / w);
+    const m = 1 + (target - 1) * p;
+    el.style.transform = `translate(${dx}px, ${-20 * p}px) scale(${m})`;
+    const c = l.ai ? PAL.ringAI : PAL.ring;
+    el.style.boxShadow = `0 ${40 * p}px ${90 * p}px rgba(${PAL.shadow},${PAL.shadowA * p}), 0 0 0 ${2 * p}px rgba(${c},${0.6 * p}), 0 0 ${60 * p}px rgba(${c},${0.18 * p})`;
+  }
+  $('#dim').style.opacity = String(0.55 * dim);
+}
+
+function renderEnd(t) {
+  const e = TL.end;
+  const end = $('#end');
+  end.style.display = t >= e.logo - 0.05 ? 'block' : 'none';
+  if (t < e.logo - 0.05) return;
+  const pi = prog(t, e.logo, 0.7);
+  const icon = end.querySelector('.icon');
+  icon.style.opacity = String(clamp(pi * 3));
+  icon.style.transform = `translateY(${(1 - expoOut(pi)) * 60}px) scale(${0.6 + 0.4 * backOut(pi)})`;
+  end.querySelectorAll('.ch').forEach((c, i) => {
+    const p = expoOut(prog(t, e.logo + 0.22 + i * 0.03, 0.55));
+    c.style.transform = `translateY(${(1 - p) * 130}%)`;
+  });
+  const tg = expoOut(prog(t, e.logo + 0.55, 0.6));
+  const tag = end.querySelector('.tag');
+  tag.style.opacity = String(tg);
+  tag.style.transform = `translateY(${(1 - tg) * 24}px)`;
+  const ft = expoOut(prog(t, e.logo + 0.9, 0.6));
+  end.querySelector('.foot').style.opacity = String(ft * 1);
+  const drift = 1 + 0.02 * prog(t, e.logo, TL.duration - e.logo);
+  end.style.transform = `scale(${drift})`;
+  end.style.transformOrigin = '50% 46%';
+}
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const grainCtx = $('#grain').getContext('2d');
+const grainImg = grainCtx.createImageData(443, 960);
+function renderGrain(frame) {
+  const rnd = mulberry32(frame * 7919 + 13);
+  const d = grainImg.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = rnd() * 255;
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  grainCtx.putImageData(grainImg, 0, 0);
+}
+
+let built = false;
+window.renderFrame = async function (t) {
+  if (!built) {
+    TL.useVariant(new URLSearchParams(location.search).get('variant') || 'dark');
+    build();
+    built = true;
+    await document.fonts.ready;
+  }
+  const url = frameURL(t);
+  const ps = phoneState(t);
+  applyTheme(lightness(t));
+  renderBackground(t, ps);
+  renderIntro(t);
+  renderPhone(t, ps, url);
+  renderHeads(t, ps);
+  renderLifts(t, ps, url);
+  renderEnd(t);
+  renderGrain(Math.round(t * TL.fps));
+  const imgs = [...document.querySelectorAll('img')].filter(i => i.offsetParent !== null || i.id === 'shot');
+  await Promise.all(imgs.map(i => i.decode().catch(() => {})));
+  await new Promise(r => requestAnimationFrame(() => r()));
+};
+
+const q = new URLSearchParams(location.search);
+if (q.has('t')) window.renderFrame(parseFloat(q.get('t')));
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { afterModelUsage, RequestType, selectModel } from '../modelRouter'
 import { isMonthlyReadingQuestion, rewriteMonthlyReadingQuestion } from '../monthlyReading'
+import { OPENROUTER_REFERER } from '../openrouter'
 import { captureLLMEvent, createPostHogClient } from '../posthog'
 import { buildPrompt } from '../prompts'
 import type { ChatDataPayload } from '../types'
@@ -426,7 +427,7 @@ app.post('/chat', async (c) => {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${c.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://insightrun.ai',
+          'HTTP-Referer': OPENROUTER_REFERER,
           'X-Title': 'insightRun.ai',
           'Content-Type': 'application/json',
         },

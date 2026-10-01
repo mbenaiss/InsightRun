@@ -1,7 +1,7 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { afterModelUsage, RequestType, selectModelFromRequest } from '../modelRouter'
-import { addUsage, type OpenRouterUsage } from '../openrouter'
+import { addUsage, OPENROUTER_REFERER, type OpenRouterUsage } from '../openrouter'
 import { captureLLMEvent, captureZodRejection, createPostHogClient } from '../posthog'
 import type { QuotaCheck } from '../quota'
 import type {
@@ -379,7 +379,7 @@ async function callOpenRouterOnce(
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://insightrun.ai',
+        'HTTP-Referer': OPENROUTER_REFERER,
         'X-Title': 'insightRun.ai',
         'Content-Type': 'application/json',
       },

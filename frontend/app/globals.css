@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -13,7 +15,14 @@
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
 
-  --font-sans: "Inter", sans-serif;
+  --color-on-primary: var(--on-primary);
+  --color-line: var(--line);
+  --color-glow: var(--glow);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), sans-serif;
+  --font-display:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--font-inter), sans-serif;
+  --font-rounded: ui-rounded, "SF Pro Rounded", -apple-system, var(--font-inter), sans-serif;
 
   --animate-fade-in: fadeIn 0.8s ease-out forwards;
   --animate-fade-in-up: fadeInUp 0.8s ease-out forwards;
@@ -64,18 +73,21 @@
 }
 
 :root {
-  /* Light Mode Defaults */
-  --background: #ffffff;
-  --foreground: #0f172a; /* slate-900 */
+  --background: #f4faef;
+  --foreground: #0e1a0a;
 
-  --primary: #0094ff;
-  --secondary: #10b981; /* emerald-500 */
+  --primary: #2a8019;
+  --secondary: #7044d4;
+  --on-primary: #ffffff;
 
-  --muted: #f1f5f9; /* slate-100 */
-  --muted-foreground: #64748b; /* slate-500 */
+  --muted: #e3eedb;
+  --muted-foreground: #4f5d4a;
 
-  --card: rgba(255, 255, 255, 0.7);
-  --card-foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0e1a0a;
+
+  --line: rgba(14, 26, 10, 0.1);
+  --glow: rgba(79, 191, 53, 0.22);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -84,18 +96,25 @@
 }
 
 .dark {
-  /* Dark Mode Defaults */
-  --background: #030712; /* gray-950 */
-  --foreground: #f9fafb; /* gray-50 */
+  --background: #050805;
+  --foreground: #f2f7ee;
 
-  --primary: #0094ff;
-  --secondary: #34d399; /* emerald-400 */
+  --primary: #96ff70;
+  --secondary: #b48dff;
+  --on-primary: #0a0e07;
 
-  --muted: #1f2937; /* gray-800 */
-  --muted-foreground: #9ca3af; /* gray-400 */
+  --muted: #121a10;
+  --muted-foreground: #9aa694;
 
-  --card: rgba(17, 24, 39, 0.7);
-  --card-foreground: #f9fafb;
+  --card: #0e140d;
+  --card-foreground: #f2f7ee;
+
+  --line: rgba(150, 255, 112, 0.12);
+  --glow: rgba(31, 90, 23, 0.55);
+}
+
+html {
+  scroll-padding-top: 4rem;
 }
 
 body {
@@ -140,4 +159,24 @@ body {
 .mask-gradient-b {
   mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.rise {
+  display: block;
+  animation: rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
 }

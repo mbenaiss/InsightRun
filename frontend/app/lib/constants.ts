@@ -17,5 +17,6 @@ export const SUPPORT_EMAIL = 'support@altcode.studio'
 
 // App information
 export const APP_NAME = 'Insight Run'
-export const APP_DOMAIN = 'insightrun.ai'
+export const APP_DOMAIN = 'insightrun.altcode.studio'
 export const APP_URL = `https://${APP_DOMAIN}`
+export const APP_STORE_URL = 'https://apps.apple.com/us/app/insight-run/id6754607965'

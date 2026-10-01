@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import { track } from '../lib/analytics'
 import { ThemedImage, useAutoplayInView, useSiteTheme } from './ThemedMedia'
 
 const chapters = [
@@ -20,18 +21,51 @@ export default function InsightRunTour() {
   const observe = useAutoplayInView(!reducedMotion)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [muted, setMuted] = useState(true)
+  const started = useRef(false)
+  const watched = useRef(0)
+  const reported = useRef(new Set<number>())
 
   const setVideo = useCallback(
     (video: HTMLVideoElement | null) => {
       videoRef.current = video
-      return observe(video)
+      const stopObserving = observe(video)
+      if (!video) return stopObserving
+
+      // Progress counts seconds actually played, so a chapter jump doesn't read as watched.
+      let last = video.currentTime
+      const onPlay = () => {
+        if (started.current) return
+        started.current = true
+        track('tour_started', { theme })
+      }
+      const onTimeUpdate = () => {
+        const delta = video.currentTime - last
+        last = video.currentTime
+        if (delta > 0 && delta < 1) watched.current += delta
+        if (!video.duration) return
+        const ratio = watched.current / video.duration
+        for (const percent of [25, 50, 75, 100] as const) {
+          if (ratio >= percent / 100 - 0.03 && !reported.current.has(percent)) {
+            reported.current.add(percent)
+            track('tour_progress', { percent })
+          }
+        }
+      }
+      video.addEventListener('play', onPlay)
+      video.addEventListener('timeupdate', onTimeUpdate)
+      return () => {
+        video.removeEventListener('play', onPlay)
+        video.removeEventListener('timeupdate', onTimeUpdate)
+        stopObserving?.()
+      }
     },
-    [observe]
+    [observe, theme]
   )
 
-  const seek = (at: number) => {
+  const seek = (chapter: string, at: number) => {
     const video = videoRef.current
     if (!video) return
+    track('tour_chapter_clicked', { chapter, at })
     video.currentTime = at
     video.play().catch(() => {})
   }
@@ -41,6 +75,7 @@ export default function InsightRunTour() {
     if (!video) return
     video.muted = !video.muted
     setMuted(video.muted)
+    track('tour_sound_toggled', { sound: video.muted ? 'off' : 'on' })
     if (!video.muted) video.play().catch(() => {})
   }
 
@@ -59,7 +94,7 @@ export default function InsightRunTour() {
               <li key={c.label}>
                 <button
                   type="button"
-                  onClick={() => seek(c.at)}
+                  onClick={() => seek(c.label, c.at)}
                   disabled={!mounted}
                   className="flex w-full items-baseline gap-4 rounded-lg px-3 py-2.5 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
                 >

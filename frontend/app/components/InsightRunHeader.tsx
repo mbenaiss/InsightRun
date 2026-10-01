@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { APP_STORE_URL } from '../lib/constants'
+import AppStoreLink from './AppStoreLink'
 import { ThemeToggle } from './ThemeToggle'
 
 const links = [
@@ -60,14 +60,12 @@ export default function InsightRunHeader() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <AppStoreLink
+            location="header"
             className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-on-primary transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             Download
-          </a>
+          </AppStoreLink>
         </div>
       </div>
     </header>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import LegalLayout from '@/app/components/LegalLayout'
 import {
   APP_NAME,
   APP_URL,
@@ -24,208 +25,226 @@ export const metadata: Metadata = {
 
 export default function SupportPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">Support</h1>
+    <LegalLayout>
+      <h1 className="mb-12 font-display text-4xl font-extrabold tracking-[-0.035em] text-foreground sm:text-5xl">
+        Support
+      </h1>
+      <div>
+        <section className="mb-14" aria-label="Support Overview">
+          <h2 className="mb-4 font-display text-2xl font-extrabold tracking-[-0.025em] text-foreground">
+            Welcome to Insight Run Support
+          </h2>
+          <p className="mb-4 text-foreground/80">
+            We're here to help you get the most out of your AI-powered running coach. Below you'll
+            find answers to common questions and ways to contact us.
+          </p>
+        </section>
 
-        <div className="prose prose-blue max-w-none">
-          <section className="mb-8" aria-label="Support Overview">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-              Welcome to Insight Run Support
-            </h2>
-            <p className="text-gray-700 mb-4">
-              We're here to help you get the most out of your AI-powered running coach. Below you'll
-              find answers to common questions and ways to contact us.
-            </p>
-          </section>
+        <section className="mb-14" aria-label="Frequently Asked Questions">
+          <h2 className="mb-4 font-display text-2xl font-extrabold tracking-[-0.025em] text-foreground">
+            Frequently Asked Questions
+          </h2>
 
-          <section className="mb-8" aria-label="Frequently Asked Questions">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-              Frequently Asked Questions
-            </h2>
-
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  How do I get started with Insight Run?
-                </h3>
-                <p className="text-gray-700">
-                  Download the app from the App Store, grant HealthKit permissions to access your
-                  workout data, and start getting AI-powered insights about your running
-                  performance.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  What data does Insight Run access?
-                </h3>
-                <p className="text-gray-700">
-                  Insight Run accesses your workout data from Apple HealthKit including distance,
-                  duration, heart rate, and pace. All data is processed locally on your device. For
-                  detailed information, please see our{' '}
-                  <a href="/privacy" className="text-blue-600 hover:text-blue-800 underline">
-                    Privacy Policy
-                  </a>
-                  .
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  How do the AI insights work?
-                </h3>
-                <p className="text-gray-700">
-                  Our AI analyzes your running data to provide personalized insights, training
-                  recommendations, and performance analysis. The AI uses advanced language models to
-                  understand your running patterns and provide actionable feedback.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Is my data secure?</h3>
-                <p className="text-gray-700">
-                  Yes! Your health data is stored locally on your device. We use industry-standard
-                  encryption for any data transmitted to our AI services. We do not sell or share
-                  your personal data with third parties.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  What Apple Watch models are supported?
-                </h3>
-                <p className="text-gray-700">
-                  Insight Run works with all Apple Watch models that support HealthKit and workout
-                  tracking. For the best experience, we recommend Apple Watch Series 4 or newer.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  How can I delete my data?
-                </h3>
-                <p className="text-gray-700">
-                  You can delete your data at any time directly from the app's settings. Since most
-                  data is stored locally on your device, deleting the app will also remove all local
-                  data. For information about data deletion requests, see our{' '}
-                  <a href="/privacy" className="text-blue-600 hover:text-blue-800 underline">
-                    Privacy Policy
-                  </a>
-                  .
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-8" aria-label="Technical Issues">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Technical Issues</h2>
-
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  The app won't connect to HealthKit
-                </h3>
-                <p className="text-gray-700">
-                  Make sure you've granted the necessary permissions in your iPhone Settings:
-                </p>
-                <ol className="list-decimal list-inside ml-4 text-gray-700 space-y-1">
-                  <li>Open Settings on your iPhone</li>
-                  <li>Scroll down and tap on Insight Run</li>
-                  <li>Tap on Health</li>
-                  <li>Enable all requested permissions</li>
-                </ol>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Insights are not generating
-                </h3>
-                <p className="text-gray-700">
-                  Ensure you have an active internet connection, as AI insights require connectivity
-                  to process your data. If the issue persists, try closing and reopening the app.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">App crashes or freezes</h3>
-                <p className="text-gray-700">Try the following steps:</p>
-                <ol className="list-decimal list-inside ml-4 text-gray-700 space-y-1">
-                  <li>Force close the app and reopen it</li>
-                  <li>Restart your iPhone</li>
-                  <li>Check for app updates in the App Store</li>
-                  <li>If the issue persists, contact support</li>
-                </ol>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-8" aria-label="Contact Us">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Contact Us</h2>
-            <p className="text-gray-700 mb-4">
-              Can't find what you're looking for? We'd love to hear from you!
-            </p>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Email Support</h3>
-              <p className="text-gray-700 mb-2">
-                For technical support, feature requests, or general inquiries:
-              </p>
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="text-blue-600 hover:text-blue-800 font-semibold underline"
-              >
-                {SUPPORT_EMAIL}
-              </a>
-
-              <p className="text-gray-600 text-sm mt-4">
-                We typically respond within 24-48 hours during business days.
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                How do I get started with Insight Run?
+              </h3>
+              <p className="text-foreground/80">
+                Download the app from the App Store, grant HealthKit permissions to access your
+                workout data, and start getting AI-powered insights about your running performance.
               </p>
             </div>
-          </section>
 
-          <section className="mb-8" aria-label="System Requirements">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">System Requirements</h2>
-            <ul className="list-disc list-inside text-gray-700 space-y-2">
-              <li>iOS {MIN_IOS_VERSION} or later</li>
-              <li>iPhone 8 or newer</li>
-              <li>Apple Watch (optional, for enhanced tracking)</li>
-              <li>Active internet connection for AI insights</li>
-              <li>HealthKit access permissions</li>
-            </ul>
-          </section>
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                What data does Insight Run access?
+              </h3>
+              <p className="text-foreground/80">
+                Insight Run accesses your workout data from Apple HealthKit including distance,
+                duration, heart rate, and pace. Your health records stay in Apple Health on your
+                iPhone. If you turn on AI coaching, the anonymized metrics needed for an answer are
+                sent for analysis. For detailed information, please see our{' '}
+                <a
+                  href="/privacy"
+                  className="font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:text-primary"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </p>
+            </div>
 
-          <section className="mb-8" aria-label="App Updates">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">App Updates</h2>
-            <p className="text-gray-700">
-              We regularly update Insight Run with new features, improvements, and bug fixes. Enable
-              automatic updates in the App Store or check regularly for new versions.
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                How do the AI insights work?
+              </h3>
+              <p className="text-foreground/80">
+                Our AI analyzes your running data to provide personalized insights, training
+                recommendations, and performance analysis. The AI uses advanced language models to
+                understand your running patterns and provide actionable feedback.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">Is my data secure?</h3>
+              <p className="text-foreground/80">
+                Yes. Your health records stay on your device, and everything sent to our servers is
+                encrypted. We never sell your data. AI coaching is opt-in: only with your consent
+                are anonymized workout metrics shared with an AI service to generate your coaching,
+                and you can turn it off at any time in Settings.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                What Apple Watch models are supported?
+              </h3>
+              <p className="text-foreground/80">
+                Insight Run works with all Apple Watch models that support HealthKit and workout
+                tracking. For the best experience, we recommend Apple Watch Series 4 or newer.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                How can I delete my data?
+              </h3>
+              <p className="text-foreground/80">
+                Deleting the app removes everything Insight Run stores on your iPhone, including
+                your coach conversations. Disconnecting Strava in Settings removes your synchronized
+                Strava data from our servers, and your health records stay in Apple Health, where
+                you manage them. To delete the pseudonymous data linked to your app identifier,
+                email us or see our{' '}
+                <a
+                  href="/privacy"
+                  className="font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:text-primary"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-14" aria-label="Technical Issues">
+          <h2 className="mb-4 font-display text-2xl font-extrabold tracking-[-0.025em] text-foreground">
+            Technical Issues
+          </h2>
+
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                The app won't connect to HealthKit
+              </h3>
+              <p className="text-foreground/80">
+                Make sure you've granted the necessary permissions in your iPhone Settings:
+              </p>
+              <ol className="mt-2 list-decimal space-y-1 pl-6 text-foreground/80 marker:text-primary">
+                <li>Open Settings on your iPhone</li>
+                <li>Scroll down and tap on Insight Run</li>
+                <li>Tap on Health</li>
+                <li>Enable all requested permissions</li>
+              </ol>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                Insights are not generating
+              </h3>
+              <p className="text-foreground/80">
+                Ensure you have an active internet connection, as AI insights require connectivity
+                to process your data. If the issue persists, try closing and reopening the app.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">App crashes or freezes</h3>
+              <p className="text-foreground/80">Try the following steps:</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-6 text-foreground/80 marker:text-primary">
+                <li>Force close the app and reopen it</li>
+                <li>Restart your iPhone</li>
+                <li>Check for app updates in the App Store</li>
+                <li>If the issue persists, contact support</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-14" aria-label="Contact Us">
+          <h2 className="mb-4 font-display text-2xl font-extrabold tracking-[-0.025em] text-foreground">
+            Contact Us
+          </h2>
+          <p className="mb-4 text-foreground/80">
+            Can't find what you're looking for? We'd love to hear from you!
+          </p>
+
+          <div className="rounded-2xl border border-line bg-card p-6">
+            <h3 className="mb-3 text-lg font-semibold text-foreground">Email Support</h3>
+            <p className="mb-2 text-foreground/80">
+              For technical support, feature requests, or general inquiries:
             </p>
-          </section>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:text-primary font-semibold"
+            >
+              {SUPPORT_EMAIL}
+            </a>
 
-          <section className="mb-8" aria-label="Feedback">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Feedback</h2>
-            <p className="text-gray-700 mb-4">
-              Your feedback helps us improve! If you have suggestions for new features or
-              improvements, please email us at{' '}
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="text-blue-600 hover:text-blue-800 underline"
-              >
-                {SUPPORT_EMAIL}
-              </a>
+            <p className="mt-4 text-sm text-muted-foreground">
+              We typically respond within 24-48 hours during business days.
             </p>
-            <p className="text-gray-700">
-              Enjoying Insight Run? Please consider leaving a review on the App Store – it helps
-              other runners discover our app!
-            </p>
-          </section>
+          </div>
+        </section>
 
-          <section className="mt-12 pt-8 border-t border-gray-200">
-            <p className="text-gray-600 text-sm">Last updated: {LAST_UPDATED_DATE}</p>
-          </section>
-        </div>
+        <section className="mb-14" aria-label="System Requirements">
+          <h2 className="mb-4 font-display text-2xl font-extrabold tracking-[-0.025em] text-foreground">
+            System Requirements
+          </h2>
+          <ul className="list-disc space-y-2 pl-6 text-foreground/80 marker:text-primary">
+            <li>iOS {MIN_IOS_VERSION} or later</li>
+            <li>iPhone XS, iPhone XR or newer</li>
+            <li>Apple Watch (optional, for enhanced tracking)</li>
+            <li>Active internet connection for AI insights</li>
+            <li>HealthKit access permissions</li>
+          </ul>
+        </section>
+
+        <section className="mb-14" aria-label="App Updates">
+          <h2 className="mb-4 font-display text-2xl font-extrabold tracking-[-0.025em] text-foreground">
+            App Updates
+          </h2>
+          <p className="text-foreground/80">
+            We regularly update Insight Run with new features, improvements, and bug fixes. Enable
+            automatic updates in the App Store or check regularly for new versions.
+          </p>
+        </section>
+
+        <section className="mb-14" aria-label="Feedback">
+          <h2 className="mb-4 font-display text-2xl font-extrabold tracking-[-0.025em] text-foreground">
+            Feedback
+          </h2>
+          <p className="mb-4 text-foreground/80">
+            Your feedback helps us improve! If you have suggestions for new features or
+            improvements, please email us at{' '}
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:text-primary"
+            >
+              {SUPPORT_EMAIL}
+            </a>
+          </p>
+          <p className="text-foreground/80">
+            Enjoying Insight Run? Please consider leaving a review on the App Store – it helps other
+            runners discover our app!
+          </p>
+        </section>
+
+        <section className="mt-16 border-t border-line pt-8">
+          <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED_DATE}</p>
+        </section>
       </div>
-    </div>
+    </LegalLayout>
   )
 }

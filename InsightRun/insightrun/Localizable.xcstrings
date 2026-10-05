@@ -5683,6 +5683,17 @@
         }
       }
     },
+    "Coach needs at least one run in Apple Health to suggest a session. Record a run, or allow Insight Run to read your workouts in Settings > Health." : {
+      "comment" : "Smart suggestion error when HealthKit has no running workout",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le coach a besoin d'au moins une course dans Apple Santé pour te proposer une séance. Enregistre une course, ou autorise Insight Run à lire tes entraînements dans Réglages > Santé."
+          }
+        }
+      }
+    },
     "Coach reads your training load, recovery and recent sessions to pick a session that fits today." : {
       "comment" : "Plan generator suggestion description",
       "localizations" : {

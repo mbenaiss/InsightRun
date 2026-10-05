@@ -11,6 +11,7 @@ struct ContentView: View {
     @StateObject private var onboardingManager = OnboardingManager.shared
     @StateObject private var contextProvider = UnifiedAIContextProvider.shared
     @StateObject private var notificationRouter = NotificationRouter.shared
+    @StateObject private var onboardingPaywallTrigger = OnboardingPaywallTrigger.shared
     @State private var selectedTab = 0
     @State private var showSplash = !DemoMode.isEnabled
     @State private var showingAIAssistant = false
@@ -63,7 +64,11 @@ struct ContentView: View {
                 .accessibilityIdentifier("tab-goals")
             }
             .tint(Color.irPrimaryAccent)
-            .onChange(of: selectedTab) { _, newTab in
+            .onChange(of: selectedTab) { oldTab, newTab in
+                // Most new users leave the activation workout by switching tabs rather than popping back.
+                if oldTab == 1 {
+                    onboardingPaywallTrigger.fireIfArmed(revenueCatManager: revenueCatManager)
+                }
                 // Update context provider's current page based on selected tab
                 let page: AIContextPage = switch newTab {
                 case 0: .recovery  // Dashboard is recovery-focused
@@ -119,6 +124,16 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()
+        }
+        .fullScreenCover(isPresented: $onboardingPaywallTrigger.isPresented) {
+            SubscriptionPaywallView(source: "onboarding")
+                .environmentObject(revenueCatManager)
+        }
+        .onChange(of: showSplash) { _, isShowing in
+            if !isShowing { fireOnboardingPaywallOnLaunch() }
+        }
+        .onChange(of: revenueCatManager.isSubscriptionStatusResolved) { _, isResolved in
+            if isResolved && !showSplash { fireOnboardingPaywallOnLaunch() }
         }
         .sheet(isPresented: $showSuuntoImport) {
             SuuntoImportFromShareView(fileURL: importedFileURL) {
@@ -217,6 +232,12 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    // Covers a user who quit the app on the activation workout; on the Workouts tab the pop or tab switch fires it.
+    private func fireOnboardingPaywallOnLaunch() {
+        guard selectedTab != 1 else { return }
+        onboardingPaywallTrigger.fireIfArmed(revenueCatManager: revenueCatManager)
     }
 }
 

@@ -49,7 +49,8 @@ struct SubscriptionPaywallView: View {
     }
 
     private var actualPaywallView: some View {
-        PaywallView()
+        // RevenueCat only adds this button to its fallback paywall, shown when the configured one fails to build.
+        PaywallView(displayCloseButton: true)
             .onPurchaseStarted { package in
                 let product = package.storeProduct
                 purchaseAttempt = outcomeTracker.purchaseStarted(

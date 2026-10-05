@@ -515,6 +515,10 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         track(.smartSuggestionApplied)
     }
 
+    func trackSmartSuggestionUnavailable(reason: String) {
+        track(.smartSuggestionUnavailable, properties: ["reason": reason])
+    }
+
     // MARK: - Workout Editing Events
 
     func trackWorkoutEditingStarted(workoutName: String) {
@@ -706,6 +710,7 @@ enum AnalyticsEvent: String {
     case smartSuggestionGenerated = "smart_suggestion_generated"
     case smartSuggestionFailed = "smart_suggestion_failed"
     case smartSuggestionApplied = "smart_suggestion_applied"
+    case smartSuggestionUnavailable = "smart_suggestion_unavailable"
 
     // Workout Editing
     case workoutEditingStarted = "workout_editing_started"

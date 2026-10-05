@@ -369,6 +369,17 @@ class WorkoutPlanViewModel: ObservableObject {
             let recentWorkouts = await healthKitManager.fetchWorkouts(limit: 15)
             try Task.checkCancellation()
 
+            // The backend rejects an empty history with a 400; HealthKit also returns nothing when read access was denied.
+            guard !recentWorkouts.isEmpty else {
+                smartSuggestionError = String(
+                    localized: "Coach needs at least one run in Apple Health to suggest a session. Record a run, or allow Insight Run to read your workouts in Settings > Health.",
+                    comment: "Smart suggestion error when HealthKit has no running workout"
+                )
+                AnalyticsService.shared.trackSmartSuggestionUnavailable(reason: "no_running_workouts")
+                isGeneratingSmartSuggestion = false
+                return
+            }
+
             // 2. Load metrics in parallel
             var workoutsMetrics: [UUID: WorkoutMetrics] = [:]
             await withTaskGroup(of: (UUID, WorkoutMetrics?).self) { group in

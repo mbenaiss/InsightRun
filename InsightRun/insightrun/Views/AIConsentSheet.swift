@@ -107,6 +107,7 @@ struct AIConsentSheet: View {
             // Buttons pinned at bottom
             HStack(spacing: Spacing.md) {
                 Button {
+                    ConsentService.shared.recordAIConsentDeclined()
                     onDecline()
                 } label: {
                     Text(String(localized: "consent.dont_allow"))

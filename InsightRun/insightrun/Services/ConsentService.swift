@@ -46,6 +46,12 @@ class ConsentService {
         ])
     }
 
+    func recordAIConsentDeclined() {
+        AnalyticsService.shared.track(.aiConsentDeclined, properties: [
+            "consent_version": currentConsentVersion
+        ])
+    }
+
     /// Revoke consent for AI data sharing
     func revokeAIConsent() {
         UserDefaults.standard.set(false, forKey: consentKey)

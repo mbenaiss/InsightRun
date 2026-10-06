@@ -694,6 +694,7 @@ enum AnalyticsEvent: String {
     // AI Consent (Apple 5.1.2(i) compliance)
     case aiConsentGranted = "ai_consent_granted"
     case aiConsentRevoked = "ai_consent_revoked"
+    case aiConsentDeclined = "ai_consent_declined"
 
     // Strava Integration
     case stravaConnectionSuccess = "strava_connection_success"

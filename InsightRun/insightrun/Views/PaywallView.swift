@@ -18,13 +18,14 @@ struct SubscriptionPaywallView: View {
 
     @State private var paywallAppearedAt: ContinuousClock.Instant?
     @State private var showConsentSheet = false
-    @State private var hasConsented = !ConsentService.shared.isConsentRequired()
+    @State private var showsOffer = !ConsentService.shared.isConsentRequired()
+    @State private var declinedConsent = false
     @State private var consentShownInPaywall = false
     @State private var purchaseAttempt: PurchaseAttempt?
     private let outcomeTracker = SubscriptionOutcomeTracker()
 
     var body: some View {
-        if hasConsented {
+        if showsOffer {
             actualPaywallView
         } else {
             Color.clear
@@ -34,15 +35,15 @@ struct SubscriptionPaywallView: View {
                 }
                 .sheet(isPresented: $showConsentSheet, onDismiss: {
                     // Show the paywall only once the sheet has finished dismissing, so no purchase starts mid-transition.
-                    if !ConsentService.shared.isConsentRequired() {
-                        hasConsented = true
+                    if declinedConsent || !ConsentService.shared.isConsentRequired() {
+                        showsOffer = true
                     }
                 }) {
                     AIConsentSheet(
                         onConsent: {
                             showConsentSheet = false
                         },
-                        onDecline: closePaywall
+                        onDecline: declineConsent
                     )
                 }
         }
@@ -126,6 +127,16 @@ struct SubscriptionPaywallView: View {
                     availableProducts: ["premium_subscription"]
                 )
             }
+    }
+
+    private func declineConsent() {
+        // Showing the offer shares no data with the AI provider, and every AI feature asks for consent again before use.
+        if source == "onboarding" {
+            declinedConsent = true
+            showConsentSheet = false
+        } else {
+            closePaywall()
+        }
     }
 
     private func closePaywall() {

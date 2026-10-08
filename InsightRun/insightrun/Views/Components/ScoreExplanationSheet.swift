@@ -1126,7 +1126,7 @@ struct ScoreExplanationSheet: View {
 
                 if metricType == .rmssd {
                     Divider().background(Color.irBorder)
-                    Text(String(localized: "insights.rmssd.calculation", defaultValue: "InsightRun shows the median of the RMSSD measurements recorded during sleep. A night needs at least 3 measurements. Your reference is built from at least 7 usable previous nights within the last 28 days, excluding the selected night. Only measurements from the same device and software source are combined."))
+                    Text(String(localized: "insights.rmssd.calculation", defaultValue: "InsightRun shows the median of the RMSSD measurements recorded during sleep. A night needs at least 3 measurements. Your reference is built from at least 7 usable previous nights within the last 28 days, excluding the selected night. Only measurements from the same device are combined."))
                         .font(IRFont.footnote)
                         .foregroundStyle(Color.irTextSecondary)
                     Text(String(localized: "insights.rmssd.interpretation", defaultValue: "Compare your trend across several nights with your own reference, alongside sleep, resting heart rate and how you feel. One value alone does not establish your recovery level. RMSSD does not change your recovery score. While your reference is building, the app shows your measurements without assigning a good or bad rating."))
@@ -1200,7 +1200,7 @@ struct ScoreExplanationSheet: View {
                     Text(String(localized: "insights.rmssd.building", defaultValue: "Building your reference: \(trend.baselineNights)/7 previous nights"))
                 }
                 if trend.sourceChanged {
-                    Text(String(localized: "insights.rmssd.source", defaultValue: "Device or software changed. The reference uses the latest source only."))
+                    Text(String(localized: "insights.rmssd.source", defaultValue: "Device changed. The reference uses the latest device only."))
                 }
             }
             .font(IRFont.caption)

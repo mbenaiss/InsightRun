@@ -86,13 +86,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "InsightRun shows the median of the RMSSD measurements recorded during sleep. A night needs at least 3 measurements. Your reference is built from at least 7 usable previous nights within the last 28 days, excluding the selected night. Only measurements from the same device and software source are combined."
+            "value" : "InsightRun shows the median of the RMSSD measurements recorded during sleep. A night needs at least 3 measurements. Your reference is built from at least 7 usable previous nights within the last 28 days, excluding the selected night. Only measurements from the same device are combined."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "InsightRun affiche la médiane des mesures RMSSD enregistrées pendant le sommeil. Une nuit doit comporter au moins 3 mesures. Ta référence est construite à partir d’au moins 7 nuits précédentes exploitables sur les 28 derniers jours, sans inclure la nuit sélectionnée. Seules les mesures provenant du même appareil et de la même source logicielle sont regroupées."
+            "value" : "InsightRun affiche la médiane des mesures RMSSD enregistrées pendant le sommeil. Une nuit doit comporter au moins 3 mesures. Ta référence est construite à partir d’au moins 7 nuits précédentes exploitables sur les 28 derniers jours, sans inclure la nuit sélectionnée. Seules les mesures provenant du même appareil sont regroupées."
           }
         }
       }
@@ -1051,13 +1051,13 @@
       "en": {
         "stringUnit": {
           "state": "translated",
-          "value": "Device or software changed. The reference uses the latest source only."
+          "value": "Device changed. The reference uses the latest device only."
         }
       },
       "fr": {
         "stringUnit": {
           "state": "translated",
-          "value": "La montre ou son logiciel a changé. La référence utilise uniquement la source la plus récente."
+          "value": "L’appareil a changé. La référence utilise uniquement le plus récent."
         }
       }
     }

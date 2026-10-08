@@ -277,16 +277,16 @@ class StatisticsViewModel: ObservableObject {
     }
 
     var monthlyWorkouts: (current: [WorkoutModel], previous: [WorkoutModel]) {
-        let intervals = StatisticsSnapshot.ranges(
-            period: .thisMonth, year: selectedYear, now: now(), first: nil, calendar: calendar)
-        let current = workouts.filter {
-            $0.startDate >= intervals.current.start && $0.startDate < intervals.current.end
+        let current = StatisticsSnapshot.ranges(
+            period: .thisMonth, year: selectedYear, now: now(), first: nil, calendar: calendar
+        ).current
+        // The monthly reading compares with the same elapsed part of the previous month, as it says.
+        let previousStart = calendar.date(byAdding: .month, value: -1, to: current.start) ?? current.start
+        let previousEnd = calendar.date(byAdding: .month, value: -1, to: current.end) ?? current.end
+        func runs(from start: Date, to end: Date) -> [WorkoutModel] {
+            workouts.filter { $0.startDate >= start && $0.startDate < end }
         }
-        let previous =
-            intervals.previous.map { interval in
-                workouts.filter { $0.startDate >= interval.start && $0.startDate < interval.end }
-            } ?? []
-        return (current, previous)
+        return (runs(from: current.start, to: current.end), runs(from: previousStart, to: previousEnd))
     }
 
     // MARK: - Header Subtitle (editorial)

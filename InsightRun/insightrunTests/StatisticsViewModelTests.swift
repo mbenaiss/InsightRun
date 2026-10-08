@@ -53,7 +53,7 @@ extension StatisticsViewModelTests {
         return StatisticsViewModel(now: { instant }, calendar: calendar, fetchWorkouts: { [] })
     }
 
-    func testPeriodSummaryUsesSelectedWindowAndComparablePreviousMonth() async {
+    func testPeriodSummaryComparesTheMonthWithTheWholePreviousMonth() async {
         let vm = model()
         vm.workouts = [
             workout(date: date(2026, 9, 15)), workout(date: date(2026, 9, 1)),
@@ -62,7 +62,8 @@ extension StatisticsViewModelTests {
         ]
         XCTAssertEqual(vm.totalWorkouts, 2)
         XCTAssertEqual(vm.totalDistance, 20000)
-        XCTAssertEqual(vm.snapshot.previousTotals?.count, 1)
+        XCTAssertEqual(vm.snapshot.previousTotals?.count, 2)
+        XCTAssertEqual(vm.monthlyWorkouts.previous.count, 1, "The monthly reading keeps the same elapsed days")
         vm.selectedPeriod = .thisWeek
         XCTAssertEqual(vm.totalWorkouts, 1)
         vm.selectedPeriod = .allTime
@@ -79,7 +80,8 @@ extension StatisticsViewModelTests {
         vm.selectedPeriod = .sixMonths
         XCTAssertEqual(vm.snapshot.interval.start, date(2023, 9, 30))
         vm.selectedPeriod = .thisMonth
-        XCTAssertEqual(vm.snapshot.previousInterval?.end, date(2024, 2, 29))
+        XCTAssertEqual(vm.snapshot.previousInterval?.start, date(2024, 2, 1, hour: 0))
+        XCTAssertEqual(vm.snapshot.previousInterval?.end, date(2024, 3, 1, hour: 0))
         vm.selectedPeriod = .specificYear
         vm.selectedYear = 2023
         XCTAssertEqual(vm.snapshot.interval.start, date(2023, 1, 1, hour: 0))

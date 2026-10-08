@@ -1,6 +1,8 @@
-import { Hono } from 'hono'
+import type { WorkflowStepConfig } from 'cloudflare:workers'
+import { type Context, Hono } from 'hono'
 import {
   afterModelUsage,
+  type ModelConfig,
   PLAN_FALLBACK_MODEL_ID,
   RequestType,
   selectModelFromRequest,
@@ -12,7 +14,12 @@ import {
   type OpenRouterUsage,
   TruncatedResponseError,
 } from '../openrouter'
-import { captureLLMEvent, captureTrainingPlanError, createPostHogClient } from '../posthog'
+import {
+  captureLLMEvent,
+  captureTrainingPlanError,
+  createPostHogClient,
+  reportTrainingPlanError,
+} from '../posthog'
 import {
   cleanJSONResponse,
   estimateTokenCount,
@@ -108,6 +115,11 @@ const PLAN_BLOCK_CONCURRENCY = 4
 const PLAN_BLOCK_CACHE_TTL_SECONDS = 60 * 60
 // Bump whenever the prompt or the skeleton changes so a retry never mixes block versions.
 const PLAN_BLOCK_CACHE_VERSION = 1
+const PLAN_ATTEMPT_TTL_SECONDS = 180
+// Workers keep a disconnected request alive for 30 seconds at most through waitUntil.
+const EARLIER_ATTEMPT_WAIT_MS = 30_000
+const EARLIER_ATTEMPT_POLL_MS = 500
+const PLAN_JOB_PROGRESS_TTL_SECONDS = 60 * 60
 
 export interface PlanSkeletonWeek {
   weekNumber: number
@@ -646,19 +658,45 @@ async function runPlanBlocks<T>(
 }
 
 // The iOS Idempotency-Key only names the race, so the request itself is always part of the key.
-async function planBlockCacheKeys(
+async function planCacheKeys(
   userId: string,
   idempotencyKey: string | undefined,
   fingerprint: unknown,
   blocks: PlanBlock[]
-): Promise<string[]> {
+): Promise<{ attempt: string; blocks: string[] }> {
   const payload = JSON.stringify([userId, idempotencyKey ?? null, fingerprint])
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload))
   const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
-  return blocks.map(
-    ({ firstWeek, lastWeek }) =>
-      `plan-block:v${PLAN_BLOCK_CACHE_VERSION}:${hash}:${firstWeek}-${lastWeek}`
-  )
+  return {
+    attempt: `plan-attempt:v${PLAN_BLOCK_CACHE_VERSION}:${hash}`,
+    blocks: blocks.map(
+      ({ firstWeek, lastWeek }) =>
+        `plan-block:v${PLAN_BLOCK_CACHE_VERSION}:${hash}:${firstWeek}-${lastWeek}`
+    ),
+  }
+}
+
+// An attempt whose app disconnected may still be finishing blocks that OpenRouter bills anyway:
+// the retry waits for them instead of paying for the same blocks twice.
+async function waitForEarlierAttempt(kv: KVNamespace, key: string): Promise<void> {
+  const deadline = Date.now() + EARLIER_ATTEMPT_WAIT_MS
+  try {
+    while (Date.now() < deadline && (await kv.get(key)) !== null) {
+      await new Promise((resolve) => setTimeout(resolve, EARLIER_ATTEMPT_POLL_MS))
+    }
+  } catch (error) {
+    console.warn('plan_attempt_read_failed', error)
+  }
+}
+
+// Model calls are not streamed, so OpenRouter bills them even when the app disconnects:
+// finishing them lets the app's automatic retry reuse the blocks instead of paying again.
+function keepRunningAfterDisconnect(c: Pick<Context, 'executionCtx'>, work: Promise<unknown>) {
+  try {
+    c.executionCtx.waitUntil(work.catch(() => {}))
+  } catch {
+    // Outside Workers (tests) there is no execution context to extend.
+  }
 }
 
 async function readCachedPlanBlock(
@@ -764,184 +802,168 @@ async function generatePlanBlock(options: {
   return { plan: planJSON, attempts, modelUsed, usage }
 }
 
-// POST /api/generate-training-plan
-app.post('/', async (c) => {
-  const startTime = Date.now()
+interface PreparedPlan {
+  maxWeeks: number
+  skeleton: PlanSkeletonWeek[]
+  blocks: PlanBlock[]
+  raceType: ReturnType<typeof raceWorkoutType>
+  fingerprint: unknown[]
+}
 
-  try {
-    const body = (await c.req.json()) as TrainingPlanRequest
+function preparePlan(
+  body: TrainingPlanRequest,
+  now = new Date()
+): PreparedPlan | { error: string } {
+  if (!body.raceType || !body.targetDate || !body.fitnessLevel || !body.language) {
+    return { error: 'Missing required fields: raceType, targetDate, fitnessLevel, language' }
+  }
 
-    // Validate request
-    if (!body.raceType || !body.targetDate || !body.fitnessLevel || !body.language) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: 'Missing required fields: raceType, targetDate, fitnessLevel, language',
-        },
-        400
-      )
-    }
+  const validRaceTypes = ['marathon', 'half_marathon', '10k', '5k', 'ultra']
+  if (!validRaceTypes.includes(body.raceType)) {
+    return { error: `Invalid raceType. Must be one of: ${validRaceTypes.join(', ')}` }
+  }
 
-    const validRaceTypes = ['marathon', 'half_marathon', '10k', '5k', 'ultra']
-    if (!validRaceTypes.includes(body.raceType)) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: `Invalid raceType. Must be one of: ${validRaceTypes.join(', ')}`,
-        },
-        400
-      )
-    }
+  if (!['beginner', 'intermediate', 'advanced'].includes(body.fitnessLevel)) {
+    return { error: 'Invalid fitness level' }
+  }
+  if (
+    body.trainingDaysPerWeek !== undefined &&
+    (!Number.isInteger(body.trainingDaysPerWeek) ||
+      body.trainingDaysPerWeek < 1 ||
+      body.trainingDaysPerWeek > 7)
+  ) {
+    return { error: 'Choose between 1 and 7 training days' }
+  }
+  if (
+    body.preferredDays !== undefined &&
+    (!Array.isArray(body.preferredDays) ||
+      body.preferredDays.length === 0 ||
+      body.preferredDays.some((day) => !Number.isInteger(day) || day < 1 || day > 7) ||
+      new Set(body.preferredDays).size !== body.preferredDays.length ||
+      (body.trainingDaysPerWeek !== undefined &&
+        body.preferredDays.length !== body.trainingDaysPerWeek))
+  ) {
+    return { error: 'Training days must match the selected weekdays' }
+  }
+  if (
+    body.targetTimeSeconds !== undefined &&
+    (!Number.isFinite(body.targetTimeSeconds) || body.targetTimeSeconds <= 0)
+  ) {
+    return { error: 'Invalid target time' }
+  }
 
-    if (!['beginner', 'intermediate', 'advanced'].includes(body.fitnessLevel)) {
-      return c.json({ error: 'Bad Request', message: 'Invalid fitness level' }, 400)
-    }
-    if (
-      body.trainingDaysPerWeek !== undefined &&
-      (!Number.isInteger(body.trainingDaysPerWeek) ||
-        body.trainingDaysPerWeek < 1 ||
-        body.trainingDaysPerWeek > 7)
-    ) {
-      return c.json({ error: 'Bad Request', message: 'Choose between 1 and 7 training days' }, 400)
-    }
-    if (
-      body.preferredDays !== undefined &&
-      (!Array.isArray(body.preferredDays) ||
-        body.preferredDays.length === 0 ||
-        body.preferredDays.some((day) => !Number.isInteger(day) || day < 1 || day > 7) ||
-        new Set(body.preferredDays).size !== body.preferredDays.length ||
-        (body.trainingDaysPerWeek !== undefined &&
-          body.preferredDays.length !== body.trainingDaysPerWeek))
-    ) {
-      return c.json(
-        { error: 'Bad Request', message: 'Training days must match the selected weekdays' },
-        400
-      )
-    }
-    if (
-      body.targetTimeSeconds !== undefined &&
-      (!Number.isFinite(body.targetTimeSeconds) || body.targetTimeSeconds <= 0)
-    ) {
-      return c.json({ error: 'Bad Request', message: 'Invalid target time' }, 400)
-    }
+  // Calculate weeks available from the user-chosen start date (or now as fallback)
+  const targetDate = new Date(body.targetDate)
+  const parsedStart = body.startDate ? new Date(body.startDate) : now
+  if (!Number.isFinite(targetDate.getTime()) || !Number.isFinite(parsedStart.getTime())) {
+    return { error: 'Invalid start or target date' }
+  }
+  const startDate = parsedStart
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const weeksFromDates = (targetDate.getTime() - startDate.getTime()) / msPerWeek
+  // Date-only clients schedule inclusive calendar days; retain timestamp semantics for older apps.
+  const usesCalendarDays =
+    /^\d{4}-\d{2}-\d{2}$/.test(body.targetDate) && /^\d{4}-\d{2}-\d{2}$/.test(body.startDate ?? '')
+  if (
+    usesCalendarDays &&
+    (targetDate.toISOString().slice(0, 10) !== body.targetDate ||
+      parsedStart.toISOString().slice(0, 10) !== body.startDate)
+  ) {
+    return { error: 'Invalid calendar date' }
+  }
+  if (targetDate <= now || weeksFromDates < (usesCalendarDays ? 27 / 7 : 4)) {
+    return { error: 'Plan must span at least 4 weeks from start to race date' }
+  }
+  const weeksAvailable = usesCalendarDays
+    ? Math.floor(weeksFromDates) + 1
+    : Math.ceil(weeksFromDates)
 
-    // Calculate weeks available from the user-chosen start date (or now as fallback)
-    const targetDate = new Date(body.targetDate)
-    const now = new Date()
-    const parsedStart = body.startDate ? new Date(body.startDate) : now
-    if (!Number.isFinite(targetDate.getTime()) || !Number.isFinite(parsedStart.getTime())) {
-      return c.json({ error: 'Bad Request', message: 'Invalid start or target date' }, 400)
-    }
-    const startDate = parsedStart
-    const msPerWeek = 7 * 24 * 60 * 60 * 1000
-    const weeksFromDates = (targetDate.getTime() - startDate.getTime()) / msPerWeek
-    // Date-only clients schedule inclusive calendar days; retain timestamp semantics for older apps.
-    const usesCalendarDays =
-      /^\d{4}-\d{2}-\d{2}$/.test(body.targetDate) &&
-      /^\d{4}-\d{2}-\d{2}$/.test(body.startDate ?? '')
-    if (
-      usesCalendarDays &&
-      (targetDate.toISOString().slice(0, 10) !== body.targetDate ||
-        parsedStart.toISOString().slice(0, 10) !== body.startDate)
-    ) {
-      return c.json({ error: 'Bad Request', message: 'Invalid calendar date' }, 400)
-    }
-    if (targetDate <= now || weeksFromDates < (usesCalendarDays ? 27 / 7 : 4)) {
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: 'Plan must span at least 4 weeks from start to race date',
-        },
-        400
-      )
-    }
-    const weeksAvailable = usesCalendarDays
-      ? Math.floor(weeksFromDates) + 1
-      : Math.ceil(weeksFromDates)
-
-    // Cap at reasonable plan length
-    const maxWeeks = Math.min(weeksAvailable, 24)
-    const skeleton = buildPlanSkeleton(
+  // Cap at reasonable plan length
+  const maxWeeks = Math.min(weeksAvailable, 24)
+  const skeleton = buildPlanSkeleton(
+    body.raceType,
+    body.fitnessLevel,
+    maxWeeks,
+    body.trainingDaysPerWeek,
+    referenceWeeklyVolume(body)
+  )
+  // Short blocks keep output size bounded even for a 24-week plan with six weekly sessions.
+  const blocks = Array.from({ length: Math.ceil(maxWeeks / 4) }, (_, index) => ({
+    firstWeek: index * 4 + 1,
+    lastWeek: Math.min((index + 1) * 4, maxWeeks),
+  }))
+  return {
+    maxWeeks,
+    skeleton,
+    blocks,
+    raceType: raceWorkoutType(body.raceType),
+    fingerprint: [
       body.raceType,
+      body.targetDate,
+      body.startDate ?? null,
       body.fitnessLevel,
-      maxWeeks,
-      body.trainingDaysPerWeek,
-      referenceWeeklyVolume(body)
-    )
+      body.language,
+      body.trainingDaysPerWeek ?? null,
+      body.preferredDays ?? null,
+      body.injury ?? null,
+      body.targetTimeSeconds ?? null,
+      referenceWeeklyVolume(body) ?? null,
+      referenceEasyPace(body) ?? null,
+      skeleton,
+    ],
+  }
+}
 
-    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
-    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
-    const traceId = crypto.randomUUID()
+// 'plan' quota bucket keeps plan generation from sharing the chat allowance.
+function selectPlanModel(kv: KVNamespace, userId: string) {
+  return selectModelFromRequest(
+    'COMPLEX',
+    undefined,
+    kv,
+    userId,
+    RequestType.COMPLEX,
+    undefined,
+    'plan'
+  )
+}
 
-    // Build prompt
-    const { system: systemPrompt, user: userPrompt } = buildTrainingPlanPrompt(body, skeleton)
-
-    // 'plan' quota bucket keeps plan generation from sharing the chat allowance.
-    const { modelId: finalModel, modelConfig } = await selectModelFromRequest(
-      'COMPLEX',
-      undefined,
-      c.env.RATE_LIMITER,
-      userId,
-      RequestType.COMPLEX,
-      undefined,
-      'plan'
-    )
-
-    console.log(
-      `📋 Generating ${maxWeeks}-week training plan with ${finalModel} for ${body.raceType}`
-    )
-
-    const raceType = raceWorkoutType(body.raceType)
-    // Short blocks keep output size bounded even for a 24-week plan with six weekly sessions.
-    const blocks = Array.from({ length: Math.ceil(maxWeeks / 4) }, (_, index) => ({
-      firstWeek: index * 4 + 1,
-      lastWeek: Math.min((index + 1) * 4, maxWeeks),
-    }))
-    const kv = c.env.RATE_LIMITER
-    const cacheKeys = await planBlockCacheKeys(
-      userId,
-      c.req.header('Idempotency-Key'),
-      [
-        body.raceType,
-        body.targetDate,
-        body.startDate ?? null,
-        body.fitnessLevel,
-        body.language,
-        body.trainingDaysPerWeek ?? null,
-        body.preferredDays ?? null,
-        body.injury ?? null,
-        body.targetTimeSeconds ?? null,
-        referenceWeeklyVolume(body) ?? null,
-        referenceEasyPace(body) ?? null,
-        skeleton,
-      ],
-      blocks
-    )
-    const cachedBlocks = await Promise.all(
-      blocks.map(({ firstWeek, lastWeek }, index) =>
-        readCachedPlanBlock(kv, cacheKeys[index], (plan) =>
-          validateTrainingPlanJSON(
-            plan,
-            lastWeek - firstWeek + 1,
-            lastWeek === maxWeeks ? raceType : undefined,
-            firstWeek
-          )
+function generatePlanBlocks(options: {
+  kv: KVNamespace
+  apiKey: string
+  request: TrainingPlanRequest
+  prepared: PreparedPlan
+  model: string
+  cacheKeys: string[]
+  // The synchronous route shares one budget across blocks; a job gives each block its own.
+  startTime?: number
+  runBlock?: (
+    block: PlanBlock,
+    work: () => Promise<GeneratedPlanBlock>
+  ) => Promise<GeneratedPlanBlock>
+}): Promise<GeneratedPlanBlock[]> {
+  const { kv, prepared } = options
+  const runBlock = options.runBlock ?? ((_block, work) => work())
+  return runPlanBlocks(prepared.blocks, (block, index) =>
+    runBlock(block, async () => {
+      const cachedBlock = await readCachedPlanBlock(kv, options.cacheKeys[index], (plan) =>
+        validateTrainingPlanJSON(
+          plan,
+          block.lastWeek - block.firstWeek + 1,
+          block.lastWeek === prepared.maxWeeks ? prepared.raceType : undefined,
+          block.firstWeek
         )
       )
-    )
-    const results = await runPlanBlocks(blocks, async (block, index) => {
-      const cachedBlock = cachedBlocks[index]
       if (cachedBlock) return cachedBlock
       const generated = await generatePlanBlock({
-        apiKey: c.env.OPENROUTER_API_KEY,
-        request: body,
-        skeleton,
+        apiKey: options.apiKey,
+        request: options.request,
+        skeleton: prepared.skeleton,
         block,
-        model: finalModel,
-        startTime,
+        model: options.model,
+        startTime: options.startTime ?? Date.now(),
       })
       try {
-        await kv.put(cacheKeys[index], JSON.stringify(generated), {
+        await kv.put(options.cacheKeys[index], JSON.stringify(generated), {
           expirationTtl: PLAN_BLOCK_CACHE_TTL_SECONDS,
         })
       } catch (error) {
@@ -949,77 +971,166 @@ app.post('/', async (c) => {
       }
       return generated
     })
-    // Delivered blocks must not be served again: "Regenerate" reuses the same Idempotency-Key.
-    await Promise.all(
-      cacheKeys.map(async (key) => {
-        try {
-          await kv.delete(key)
-        } catch (error) {
-          console.warn('plan_block_cache_delete_failed', error)
-        }
-      })
-    )
-    const planJSON: GeneratedTrainingPlan = {
-      ...results[0].plan,
-      weeks: results.flatMap((result) => result.plan.weeks),
-    }
-    const attempts = Math.max(...results.map((result) => result.attempts))
-    const modelUsed = [...new Set(results.map((result) => result.modelUsed))].join(',')
-    const usage = results.reduce<OpenRouterUsage | undefined>(
+  )
+}
+
+async function deletePlanBlocks(kv: KVNamespace, keys: string[]): Promise<void> {
+  await Promise.all(
+    keys.map(async (key) => {
+      try {
+        await kv.delete(key)
+      } catch (error) {
+        console.warn('plan_block_cache_delete_failed', error)
+      }
+    })
+  )
+}
+
+interface AssembledPlan {
+  plan: GeneratedTrainingPlan
+  attempts: number
+  modelUsed: string
+  usage?: OpenRouterUsage
+}
+
+function assemblePlan(results: GeneratedPlanBlock[]): AssembledPlan {
+  return {
+    plan: { ...results[0].plan, weeks: results.flatMap((result) => result.plan.weeks) },
+    attempts: Math.max(...results.map((result) => result.attempts)),
+    modelUsed: [...new Set(results.map((result) => result.modelUsed))].join(','),
+    usage: results.reduce<OpenRouterUsage | undefined>(
       (total, result) => addUsage(total, result.usage),
       undefined
+    ),
+  }
+}
+
+function planResponse({ plan, attempts, modelUsed }: AssembledPlan, generationTimeMs: number) {
+  return {
+    plan,
+    metadata: { generationTimeMs, modelUsed, attempts, weeksGenerated: plan.weeks.length },
+  }
+}
+
+async function capturePlanGeneration(
+  env: Pick<Bindings, 'POSTHOG_API_KEY' | 'POSTHOG_HOST'>,
+  details: {
+    userId: string
+    ip: string
+    request: TrainingPlanRequest
+    prepared: PreparedPlan
+    assembled: AssembledPlan
+    latency: number
+    route: string
+  }
+): Promise<void> {
+  if (!env.POSTHOG_API_KEY || !env.POSTHOG_HOST) return
+  const { assembled } = details
+  const { system: systemPrompt, user: userPrompt } = buildTrainingPlanPrompt(
+    details.request,
+    details.prepared.skeleton
+  )
+  const output = JSON.stringify(assembled.plan)
+  const posthog = createPostHogClient({ apiKey: env.POSTHOG_API_KEY, host: env.POSTHOG_HOST })
+  try {
+    await captureLLMEvent(posthog, details.userId, crypto.randomUUID(), {
+      model: assembled.modelUsed,
+      input: userPrompt,
+      systemPrompt,
+      output,
+      inputTokens: assembled.usage?.prompt_tokens ?? estimateTokenCount(systemPrompt + userPrompt),
+      outputTokens: assembled.usage?.completion_tokens ?? estimateTokenCount(output),
+      latency: details.latency,
+      cost: assembled.usage?.cost,
+      ip: details.ip,
+      route: details.route,
+    })
+    await posthog.shutdown()
+  } catch (error) {
+    console.error('PostHog capture error:', error)
+  }
+}
+
+// POST /api/generate-training-plan
+app.post('/', async (c) => {
+  const startTime = Date.now()
+
+  try {
+    const body = (await c.req.json()) as TrainingPlanRequest
+    const prepared = preparePlan(body)
+    if ('error' in prepared) {
+      return c.json({ error: 'Bad Request', message: prepared.error }, 400)
+    }
+
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const { modelId: finalModel, modelConfig } = await selectPlanModel(c.env.RATE_LIMITER, userId)
+
+    console.log(
+      `📋 Generating ${prepared.maxWeeks}-week training plan with ${finalModel} for ${body.raceType}`
     )
 
+    const kv = c.env.RATE_LIMITER
+    const cacheKeys = await planCacheKeys(
+      userId,
+      c.req.header('Idempotency-Key'),
+      prepared.fingerprint,
+      prepared.blocks
+    )
+    await waitForEarlierAttempt(kv, cacheKeys.attempt)
+    // The wait is not taken from the model budget: 30 s plus 150 s stays under the apps' 185 s timeout.
+    const generationStart = Date.now()
+    try {
+      await kv.put(cacheKeys.attempt, '1', { expirationTtl: PLAN_ATTEMPT_TTL_SECONDS })
+    } catch (error) {
+      console.warn('plan_attempt_write_failed', error)
+    }
+    const generation = generatePlanBlocks({
+      kv,
+      apiKey: c.env.OPENROUTER_API_KEY,
+      request: body,
+      prepared,
+      model: finalModel,
+      cacheKeys: cacheKeys.blocks,
+      startTime: generationStart,
+    }).finally(async () => {
+      try {
+        await kv.delete(cacheKeys.attempt)
+      } catch (error) {
+        console.warn('plan_attempt_clear_failed', error)
+      }
+    })
+    keepRunningAfterDisconnect(c, generation)
+    const results = await generation
+    // An app that disconnected never receives this plan: its retry gets the blocks and counts it.
+    const appDisconnected = c.req.raw.signal.aborted
+    // Delivered blocks must not be served again: "Regenerate" reuses the same Idempotency-Key.
+    if (!appDisconnected) await deletePlanBlocks(kv, cacheKeys.blocks)
+    const assembled = assemblePlan(results)
     const generationTime = Date.now() - startTime
-    const latency = generationTime / 1000
 
     // Increment quota (same 'plan' bucket used at selection above).
-    if (modelConfig) {
+    if (modelConfig && !appDisconnected) {
       await afterModelUsage(modelConfig, c.env.RATE_LIMITER, userId, 'plan')
     }
 
-    // PostHog analytics
     if (c.env.POSTHOG_API_KEY && c.env.POSTHOG_HOST) {
-      const posthog = createPostHogClient({
-        apiKey: c.env.POSTHOG_API_KEY,
-        host: c.env.POSTHOG_HOST,
-      })
-
       c.executionCtx.waitUntil(
-        (async () => {
-          try {
-            await captureLLMEvent(posthog, userId, traceId, {
-              model: modelUsed,
-              input: userPrompt,
-              systemPrompt,
-              output: JSON.stringify(planJSON),
-              inputTokens: usage?.prompt_tokens ?? estimateTokenCount(systemPrompt + userPrompt),
-              outputTokens:
-                usage?.completion_tokens ?? estimateTokenCount(JSON.stringify(planJSON)),
-              latency,
-              cost: usage?.cost,
-              ip,
-              route: '/api/generate-training-plan',
-            })
-            await posthog.shutdown()
-          } catch (error) {
-            console.error('PostHog capture error:', error)
-          }
-        })()
+        capturePlanGeneration(c.env, {
+          userId,
+          ip,
+          request: body,
+          prepared,
+          assembled,
+          latency: generationTime / 1000,
+          route: '/api/generate-training-plan',
+        })
       )
     }
 
     console.log(`✅ Training plan generated successfully in ${generationTime}ms`)
 
-    return c.json({
-      plan: planJSON,
-      metadata: {
-        generationTimeMs: generationTime,
-        modelUsed,
-        attempts,
-        weeksGenerated: planJSON.weeks.length,
-      },
-    })
+    return c.json(planResponse(assembled, generationTime))
   } catch (error) {
     console.error('Training plan generation error:', error)
     captureTrainingPlanError(c, {
@@ -1035,6 +1146,265 @@ app.post('/', async (c) => {
       },
       error instanceof OpenRouterTimeoutError ? 504 : 500
     )
+  }
+})
+
+export interface PlanJobParams {
+  request: TrainingPlanRequest
+  userId: string
+  ip: string
+  model: string
+  modelConfig: ModelConfig | null
+}
+
+// deleteBatch is newer than the installed workers types.
+type PlanJobWorkflow = Workflow<PlanJobParams> & {
+  deleteBatch(instanceIds: string[]): Promise<{
+    deleted: { id: string }[]
+    errors: { id: string; code: number; message: string }[]
+  }>
+}
+
+export type PlanJobBindings = Bindings & { PLAN_GENERATION: PlanJobWorkflow }
+
+// The step operation a plan job needs, so tests can run a job without the Workflows runtime.
+export interface PlanJobStep {
+  do<T>(name: string, config: WorkflowStepConfig, callback: () => Promise<T>): Promise<T>
+}
+
+// Each block already falls back to a second model: one step retry covers a transient failure.
+const PLAN_JOB_BLOCK_STEP: WorkflowStepConfig = {
+  retries: { limit: 1, delay: '10 seconds', backoff: 'constant' },
+  timeout: '5 minutes',
+}
+const PLAN_JOB_DELIVERY_STEP: WorkflowStepConfig = {
+  retries: { limit: 2, delay: '5 seconds', backoff: 'constant' },
+}
+
+export async function runPlanJob(
+  env: Bindings,
+  params: PlanJobParams,
+  step: PlanJobStep,
+  job: { instanceId: string; createdAt: number }
+): Promise<ReturnType<typeof planResponse>> {
+  const { createdAt } = job
+  try {
+    // Dated from the job creation so a replayed run computes the same plan shape.
+    const prepared = preparePlan(params.request, new Date(createdAt))
+    if ('error' in prepared) throw new Error(prepared.error)
+    const kv = env.RATE_LIMITER
+    const cacheKeys = await planCacheKeys(
+      params.userId,
+      undefined,
+      prepared.fingerprint,
+      prepared.blocks
+    )
+    const results = await generatePlanBlocks({
+      kv,
+      apiKey: env.OPENROUTER_API_KEY,
+      request: params.request,
+      prepared,
+      model: params.model,
+      cacheKeys: cacheKeys.blocks,
+      runBlock: (block, work) =>
+        step.do(`weeks ${block.firstWeek}-${block.lastWeek}`, PLAN_JOB_BLOCK_STEP, async () => {
+          const generated = await work()
+          await markPlanJobBlockDone(kv, job.instanceId, block)
+          return generated
+        }),
+    })
+    return await step.do('deliver plan', PLAN_JOB_DELIVERY_STEP, async () => {
+      // Regenerating the same race must produce a new plan, not these blocks again.
+      await deletePlanBlocks(kv, cacheKeys.blocks)
+      if (params.modelConfig) {
+        await afterModelUsage(params.modelConfig, kv, params.userId, 'plan')
+      }
+      const assembled = assemblePlan(results)
+      const generationTime = Date.now() - createdAt
+      await capturePlanGeneration(env, {
+        userId: params.userId,
+        ip: params.ip,
+        request: params.request,
+        prepared,
+        assembled,
+        latency: generationTime / 1000,
+        route: '/api/training-plan-jobs',
+      })
+      console.log(`✅ Training plan job finished in ${generationTime}ms`)
+      return planResponse(assembled, generationTime)
+    })
+  } catch (error) {
+    console.error('Training plan job error:', error)
+    await reportTrainingPlanError(env, params.userId, {
+      route: '/api/training-plan-jobs',
+      code: error instanceof OpenRouterTimeoutError ? 'timeout' : 'generation_failed',
+      durationMs: Date.now() - createdAt,
+    })
+    throw error
+  }
+}
+
+const PLAN_JOB_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+// The owner is part of the instance id: a job id alone never exposes another user's plan.
+async function planJobInstanceId(userId: string, jobId: string | undefined) {
+  const normalized = jobId?.toLowerCase()
+  if (!normalized || !PLAN_JOB_ID.test(normalized)) return null
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userId))
+  const owner = [...new Uint8Array(digest).slice(0, 8)]
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return { jobId: normalized, instanceId: `plan-${owner}-${normalized}` }
+}
+
+async function planJobExists(workflow: PlanJobWorkflow, instanceId: string) {
+  try {
+    await workflow.get(instanceId)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function planJobFailure(error: unknown): string {
+  if (typeof error === 'string') return error
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
+  }
+  return 'Training plan generation failed'
+}
+
+// The app shows real progress in the system's background task UI, as Apple asks.
+function planJobProgressKey(instanceId: string, blockIndex?: number) {
+  return blockIndex === undefined
+    ? `plan-job:${instanceId}`
+    : `plan-job:${instanceId}:${blockIndex}`
+}
+
+async function markPlanJobBlockDone(kv: KVNamespace, instanceId: string, block: PlanBlock) {
+  try {
+    await kv.put(planJobProgressKey(instanceId, (block.firstWeek - 1) / 4), '1', {
+      expirationTtl: PLAN_JOB_PROGRESS_TTL_SECONDS,
+    })
+  } catch (error) {
+    console.warn('plan_job_progress_write_failed', error)
+  }
+}
+
+async function planJobProgress(kv: KVNamespace, instanceId: string) {
+  try {
+    const total = Number(await kv.get(planJobProgressKey(instanceId)))
+    if (!Number.isInteger(total) || total <= 0) return undefined
+    const done = await Promise.all(
+      Array.from({ length: total }, (_, index) => kv.get(planJobProgressKey(instanceId, index)))
+    )
+    return { completed: done.filter((value) => value !== null).length, total }
+  } catch (error) {
+    console.warn('plan_job_progress_read_failed', error)
+    return undefined
+  }
+}
+
+const planJobNotFound = { error: 'Not Found', message: 'Unknown or expired training plan job' }
+
+export const planJobRoutes = new Hono<{ Bindings: PlanJobBindings; Variables: Variables }>()
+
+// POST /api/training-plan-jobs
+planJobRoutes.post('/', async (c) => {
+  try {
+    const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+    const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+    const job = await planJobInstanceId(userId, c.req.header('Idempotency-Key'))
+    if (!job) {
+      return c.json({ error: 'Bad Request', message: 'Idempotency-Key must be a UUID' }, 400)
+    }
+    const body = (await c.req.json().catch(() => null)) as TrainingPlanRequest | null
+    if (!body || typeof body !== 'object') {
+      return c.json({ error: 'Bad Request', message: 'Invalid JSON body' }, 400)
+    }
+    const prepared = preparePlan(body)
+    if ('error' in prepared) {
+      return c.json({ error: 'Bad Request', message: prepared.error }, 400)
+    }
+
+    const workflow = c.env.PLAN_GENERATION
+    const { modelId, modelConfig } = await selectPlanModel(c.env.RATE_LIMITER, userId)
+    try {
+      await workflow.create({
+        id: job.instanceId,
+        params: { request: body, userId, ip, model: modelId, modelConfig },
+      })
+      console.log(
+        `📋 Queued a ${prepared.maxWeeks}-week training plan with ${modelId} for ${body.raceType}`
+      )
+    } catch (error) {
+      // A creation resent after a lost response must not start a second generation.
+      if (!(await planJobExists(workflow, job.instanceId))) throw error
+    }
+    try {
+      await c.env.RATE_LIMITER.put(
+        planJobProgressKey(job.instanceId),
+        String(prepared.blocks.length),
+        { expirationTtl: PLAN_JOB_PROGRESS_TTL_SECONDS }
+      )
+    } catch (error) {
+      console.warn('plan_job_progress_write_failed', error)
+    }
+    return c.json({ jobId: job.jobId, status: 'running' }, 202)
+  } catch (error) {
+    console.error('Training plan job creation error:', error)
+    return c.json(
+      {
+        error: 'Training Plan Generation Failed',
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+      },
+      500
+    )
+  }
+})
+
+// GET /api/training-plan-jobs/:jobId
+planJobRoutes.get('/:jobId', async (c) => {
+  const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+  const job = await planJobInstanceId(userId, c.req.param('jobId'))
+  if (!job) return c.json(planJobNotFound, 404)
+  let instance: WorkflowInstance
+  try {
+    instance = await c.env.PLAN_GENERATION.get(job.instanceId)
+  } catch {
+    return c.json(planJobNotFound, 404)
+  }
+  const { status, output, error } = await instance.status()
+  switch (status) {
+    case 'complete':
+      return c.json({ status: 'complete', ...(output as object) })
+    case 'errored':
+    case 'terminated':
+      return c.json({ status: 'failed', message: planJobFailure(error) })
+    default:
+      return c.json({
+        status: 'running',
+        progress: await planJobProgress(c.env.RATE_LIMITER, job.instanceId),
+      })
+  }
+})
+
+// DELETE /api/training-plan-jobs/:jobId
+planJobRoutes.delete('/:jobId', async (c) => {
+  const userId = c.req.header('X-User-ID') || c.req.header('CF-Connecting-IP') || 'unknown'
+  const job = await planJobInstanceId(userId, c.req.param('jobId'))
+  if (!job) return c.json(planJobNotFound, 404)
+  try {
+    const { deleted } = await c.env.PLAN_GENERATION.deleteBatch([job.instanceId])
+    return deleted.length > 0 ? c.body(null, 204) : c.json(planJobNotFound, 404)
+  } catch (error) {
+    console.error('Training plan job deletion error:', error)
+    return c.json({ error: 'Internal Server Error', message: 'Could not delete the job' }, 500)
   }
 })
 

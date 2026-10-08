@@ -55,30 +55,35 @@ export function captureTrainingPlanError<B extends PostHogEnv, V extends object>
 ): void {
   if (!c.env.POSTHOG_API_KEY || !c.env.POSTHOG_HOST) return
   c.executionCtx.waitUntil(
-    (async () => {
-      const posthog = createPostHogClient({
-        apiKey: c.env.POSTHOG_API_KEY,
-        host: c.env.POSTHOG_HOST,
-      })
-      try {
-        await posthog.captureImmediate({
-          distinctId: c.req.header('X-User-ID') || 'unknown',
-          event: 'training_plan_generation_failed',
-          properties: {
-            route: details.route,
-            error_code: details.code,
-            duration_ms: details.durationMs,
-            app: 'healthapp',
-            environment: 'production',
-          },
-        })
-      } catch (error) {
-        console.error('PostHog training plan capture error:', error)
-      } finally {
-        await posthog.shutdown()
-      }
-    })()
+    reportTrainingPlanError(c.env, c.req.header('X-User-ID') || 'unknown', details)
   )
+}
+
+export async function reportTrainingPlanError(
+  env: PostHogEnv,
+  distinctId: string,
+  details: { route: string; code: string; durationMs: number }
+): Promise<void> {
+  if (!env.POSTHOG_API_KEY || !env.POSTHOG_HOST) return
+  const posthog = createPostHogClient({ apiKey: env.POSTHOG_API_KEY, host: env.POSTHOG_HOST })
+  try {
+    await posthog.captureImmediate({
+      distinctId,
+      event: 'training_plan_generation_failed',
+      properties: {
+        route: details.route,
+        error_code: details.code,
+        duration_ms: details.durationMs,
+        app: 'healthapp',
+        environment: 'production',
+      },
+    })
+  } catch (error) {
+    console.error('PostHog training plan capture error:', error)
+  } finally {
+    // Reporting a failure must never replace the failure being reported.
+    await posthog.shutdown().catch((error) => console.error('PostHog shutdown error:', error))
+  }
 }
 
 /**

@@ -454,6 +454,33 @@ struct TrainingPlanGenerationRequest: Encodable {
     let weeksCount: Int?
 }
 
+enum TrainingPlanJobState {
+    case running(progress: Double?)
+    case complete(TrainingPlanGenerationResponse)
+    case failed
+
+    private struct Status: Decodable {
+        struct Progress: Decodable {
+            let completed: Int
+            let total: Int
+        }
+
+        let status: String
+        let progress: Progress?
+    }
+
+    init(data: Data) throws {
+        let status = try JSONDecoder().decode(Status.self, from: data)
+        switch status.status {
+        case "complete": self = .complete(try JSONDecoder().decode(TrainingPlanGenerationResponse.self, from: data))
+        case "failed": self = .failed
+        default:
+            self = .running(
+                progress: status.progress.flatMap { $0.total > 0 ? Double($0.completed) / Double($0.total) : nil })
+        }
+    }
+}
+
 struct TrainingPlanGenerationResponse: Decodable {
     let plan: GeneratedTrainingPlanData
     let metadata: TrainingPlanMetadata

@@ -14,6 +14,14 @@ final class TrainingPlanStabilityTests: XCTestCase {
             for: CachedRaceGoal.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         GoalStorage.shared.setModelContext(container.mainContext)
+        UserDefaults.standard.removeObject(forKey: PendingPlanJobStore.defaultsKey)
+    }
+
+    private func temporaryPlanJobStore() throws -> PendingPlanJobStore {
+        let suite = "qa-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        return PendingPlanJobStore(defaults: defaults)
     }
 
     private func run() -> PlannedWorkout {
@@ -213,7 +221,7 @@ extension TrainingPlanStabilityTests {
     func testPartialPlanIsRejectedAndExistingPlanSurvivesNetworkFailure() async throws {
         let original = plan(days: [TrainingDay(dayOfWeek: .monday, workout: run())], start: date(0))
         let item = goal(plan: original)
-        let viewModel = GoalsViewModel(generatePlan: { _ in throw URLError(.timedOut) })
+        let viewModel = GoalsViewModel(generatePlan: { _, _, _ in throw URLError(.timedOut) })
         viewModel.goals = [item]
         await viewModel.generateTrainingPlan(for: item)
         XCTAssertNotNil(viewModel.generationError)
@@ -232,7 +240,7 @@ extension TrainingPlanStabilityTests {
         var requests = 0
         let output = try response(weeks: 6)
         let viewModel = GoalsViewModel(
-            generatePlan: { _ in
+            generatePlan: { _, _, _ in
                 requests += 1
                 return output
             },
@@ -262,7 +270,7 @@ extension TrainingPlanStabilityTests {
     func testDuplicateGenerationAndDeletedGoalCannotApplyLateResponse() async throws {
         var continuation: CheckedContinuation<TrainingPlanGenerationResponse, Error>?
         var requests = 0
-        let viewModel = GoalsViewModel(generatePlan: { _ in
+        let viewModel = GoalsViewModel(generatePlan: { _, _, _ in
             requests += 1
             return try await withCheckedThrowingContinuation { continuation = $0 }
         })
@@ -283,26 +291,170 @@ extension TrainingPlanStabilityTests {
 
     func testRequestCarriesManualProfileTimeAndConstraintAndCanRetry() async throws {
         var calls = 0
+        var jobIDs: [UUID] = []
+        var discarded: [UUID] = []
         let output = try response(weeks: 6)
-        let viewModel = GoalsViewModel(generatePlan: { request in
+        let viewModel = GoalsViewModel(generatePlan: { request, jobID, _ in
             calls += 1
+            jobIDs.append(jobID)
             XCTAssertEqual(request.fitnessLevel, "advanced")
             XCTAssertEqual(request.targetTimeSeconds, 5400)
             XCTAssertEqual(request.injury, "QA knee constraint")
             XCTAssertEqual(request.preferredDays, [2, 4, 6, 7])
             if calls == 1 { throw URLError(.notConnectedToInternet) }
             return output
-        })
+        }, discardPlanJob: { discarded.append($0) })
         let item = RaceGoal(
             raceType: .halfMarathon, targetDate: date(40), fitnessLevel: .advanced,
             injury: "QA knee constraint", targetTime: 5400, planStartDate: date(0))
         viewModel.addGoal(item)
         await viewModel.generateTrainingPlan(for: item)
         XCTAssertNotNil(viewModel.generationError)
+        XCTAssertTrue(discarded.isEmpty, "Nothing reached the phone, so nothing is deleted")
         await viewModel.generateTrainingPlan(for: item)
         XCTAssertNil(viewModel.generationError)
         XCTAssertEqual(calls, 2)
+        XCTAssertEqual(Set(jobIDs).count, 1, "The retry joins the job the cut-off attempt may have started")
         XCTAssertNotNil(viewModel.goals.last?.trainingPlan)
+        XCTAssertEqual(discarded, [try XCTUnwrap(jobIDs.first)])
+    }
+
+    func testPlanFinishedWhileTheAppWasClosedIsSavedWhenGoalsReopen() async throws {
+        let store = try temporaryPlanJobStore()
+        let output = try response(weeks: 6)
+        var startedJob: UUID?
+        var closeApp: CheckedContinuation<TrainingPlanGenerationResponse, Error>?
+        let closedApp = GoalsViewModel(
+            generatePlan: { _, jobID, _ in
+                startedJob = jobID
+                return try await withCheckedThrowingContinuation { closeApp = $0 }
+            },
+            hasConsent: { true }, hasAIAccess: { true }, loadRunningHistory: { nil }, planJobs: store)
+        let item = RaceGoal(raceType: .tenK, targetDate: date(40), planStartDate: date(0))
+        closedApp.addGoal(item)
+        let generation = Task { await closedApp.generateTrainingPlan(for: item) }
+        while closeApp == nil { await Task.yield() }
+        XCTAssertEqual(store.jobs.map(\.jobID), [try XCTUnwrap(startedJob)])
+
+        var awaitedJob: UUID?
+        var discarded: [UUID] = []
+        let reopened = GoalsViewModel(
+            awaitPlan: { jobID, _ in
+                awaitedJob = jobID
+                return output
+            },
+            discardPlanJob: { discarded.append($0) },
+            hasConsent: { true }, hasAIAccess: { true }, planJobs: store)
+        // Tests run in demo mode, which seeds sample goals instead of reading the store at launch.
+        reopened.goals = GoalStorage.shared.load()
+        await reopened.resumePendingPlanJobs()
+        let saved = try XCTUnwrap(reopened.goals.first(where: { $0.id == item.id }))
+        XCTAssertEqual(awaitedJob, startedJob)
+        XCTAssertEqual(discarded, [try XCTUnwrap(startedJob)])
+        XCTAssertNotNil(saved.trainingPlan)
+        XCTAssertEqual(saved.planStartDate, date(0))
+        XCTAssertTrue(store.jobs.isEmpty)
+        XCTAssertNil(reopened.generationError)
+        XCTAssertFalse(reopened.isGeneratingPlan)
+
+        closeApp?.resume(throwing: CancellationError())
+        await generation.value
+    }
+
+    func testFailedPlanJobsShowAnErrorAndAreForgotten() async throws {
+        let store = try temporaryPlanJobStore()
+        let item = RaceGoal(raceType: .tenK, targetDate: date(40), planStartDate: date(0))
+        let failing = GoalsViewModel(
+            generatePlan: { _, _, _ in throw BackendError.serverError },
+            hasConsent: { true }, hasAIAccess: { true }, loadRunningHistory: { nil }, planJobs: store)
+        failing.addGoal(item)
+        await failing.generateTrainingPlan(for: item)
+        XCTAssertNotNil(failing.generationError)
+        XCTAssertTrue(store.jobs.isEmpty)
+
+        let failedJob = PendingPlanJob(jobID: UUID(), goalID: item.id, start: date(0), target: date(40), createdAt: Date())
+        let orphanJob = PendingPlanJob(jobID: UUID(), goalID: UUID(), start: date(0), target: date(40), createdAt: Date())
+        store.save(failedJob)
+        store.save(orphanJob)
+        var awaited = 0
+        var discarded: [UUID] = []
+        let reopened = GoalsViewModel(
+            awaitPlan: { _, _ in
+                awaited += 1
+                throw BackendError.serverError
+            },
+            discardPlanJob: { discarded.append($0) },
+            planJobs: store)
+        reopened.goals = GoalStorage.shared.load()
+        await reopened.resumePendingPlanJobs()
+        XCTAssertEqual(awaited, 1, "The job of a deleted goal is dropped without asking the server")
+        XCTAssertEqual(Set(discarded), [failedJob.jobID, orphanJob.jobID], "No copy is left on the server")
+        XCTAssertNotNil(reopened.generationError)
+        XCTAssertNil(reopened.goals.first(where: { $0.id == item.id })?.trainingPlan)
+        XCTAssertTrue(store.jobs.isEmpty)
+    }
+
+    func testResumeKeepsUnreachableJobsAndSilentlyDropsUnknownOnes() async throws {
+        let store = try temporaryPlanJobStore()
+        let item = RaceGoal(raceType: .tenK, targetDate: date(40), planStartDate: date(0))
+        GoalStorage.shared.addGoal(item)
+        let job = PendingPlanJob(jobID: UUID(), goalID: item.id, start: date(0), target: date(40), createdAt: Date())
+        store.save(job)
+        var failure: Error = URLError(.notConnectedToInternet)
+        var discarded: [UUID] = []
+        let viewModel = GoalsViewModel(
+            awaitPlan: { _, _ in throw failure }, discardPlanJob: { discarded.append($0) }, planJobs: store)
+        viewModel.goals = GoalStorage.shared.load()
+
+        await viewModel.resumePendingPlanJobs()
+        XCTAssertEqual(store.jobs, [job], "An unreachable server keeps the plan to collect later")
+        XCTAssertNil(viewModel.generationError)
+        XCTAssertFalse(viewModel.isGeneratingPlan)
+
+        failure = TrainingPlanJobNotFound()
+        await viewModel.resumePendingPlanJobs()
+        XCTAssertTrue(store.jobs.isEmpty)
+        XCTAssertNil(viewModel.generationError)
+        XCTAssertTrue(discarded.isEmpty, "Nothing is left on the server to delete")
+    }
+
+    func testANewScheduleReplacesTheInterruptedJobAndDeletesIt() async throws {
+        let store = try temporaryPlanJobStore()
+        let item = RaceGoal(raceType: .tenK, targetDate: date(40), planStartDate: date(1))
+        let earlier = PendingPlanJob(jobID: UUID(), goalID: item.id, start: date(1), target: date(40), createdAt: Date())
+        store.save(earlier)
+        var requested: [UUID] = []
+        var discarded: [UUID] = []
+        let output = try response(weeks: 6)
+        let viewModel = GoalsViewModel(
+            generatePlan: { _, jobID, _ in
+                requested.append(jobID)
+                return output
+            },
+            discardPlanJob: { discarded.append($0) },
+            hasConsent: { true }, hasAIAccess: { true }, loadRunningHistory: { nil }, planJobs: store)
+        viewModel.addGoal(item)
+        await viewModel.generateTrainingPlan(for: item, startingOn: date(0))
+        XCTAssertEqual(requested.count, 1)
+        XCTAssertNotEqual(requested.first, earlier.jobID)
+        XCTAssertEqual(Set(discarded), Set([earlier.jobID] + requested))
+        XCTAssertTrue(store.jobs.isEmpty)
+    }
+
+    func testPlanJobStatesFollowTheServerContract() throws {
+        func state(_ json: String) throws -> TrainingPlanJobState {
+            try TrainingPlanJobState(data: Data(json.utf8))
+        }
+        guard case .running(nil) = try state(#"{"status":"running"}"#) else { return XCTFail("running") }
+        guard case .running(let progress?) = try state(#"{"status":"running","progress":{"completed":2,"total":6}}"#)
+        else { return XCTFail("progress") }
+        XCTAssertEqual(progress, 1.0 / 3, accuracy: 0.001)
+        guard case .failed = try state(#"{"status":"failed","message":"QA"}"#) else { return XCTFail("failed") }
+        let complete = try state(
+            #"{"status":"complete","plan":{"name":"QA","goal":"QA","weeks":[]},"#
+                + #""metadata":{"generationTimeMs":1,"modelUsed":"qa","attempts":1,"weeksGenerated":0}}"#)
+        guard case .complete(let response) = complete else { return XCTFail("complete") }
+        XCTAssertEqual(response.plan.name, "QA")
     }
 
     func testTodaySessionIgnoresSkippedAndUsesRescheduledDateAcrossWeeks() {
@@ -375,7 +527,7 @@ extension TrainingPlanStabilityTests {
 
     func testRegenerationAndStartTodayKeepRaceDateAndDoNotShiftCompletedHistory() async throws {
         var calls = 0
-        let viewModel = GoalsViewModel(generatePlan: { request in
+        let viewModel = GoalsViewModel(generatePlan: { request, _, _ in
             calls += 1
             return try self.response(weeks: request.weeksCount!)
         })
@@ -475,7 +627,7 @@ extension TrainingPlanStabilityTests {
 
     func testCancelledGenerationPreservesPlanWithoutDisplayingAnError() async throws {
         let item = goal(plan: plan(days: [TrainingDay(dayOfWeek: .monday, workout: run())], start: date(0)))
-        let viewModel = GoalsViewModel(generatePlan: { _ in throw CancellationError() })
+        let viewModel = GoalsViewModel(generatePlan: { _, _, _ in throw CancellationError() })
         viewModel.goals = [item]
         await viewModel.generateTrainingPlan(for: item)
         XCTAssertNil(viewModel.generationError)
@@ -490,7 +642,7 @@ extension TrainingPlanStabilityTests {
         var consumed = 0
         let output = try response(weeks: 6)
         let viewModel = GoalsViewModel(
-            generatePlan: { _ in
+            generatePlan: { _, _, _ in
                 calls += 1
                 if calls == 1 { throw URLError(.timedOut) }
                 return output
@@ -523,7 +675,7 @@ extension TrainingPlanStabilityTests {
     func testGenerationAndRegenerationNeverStartInThePast() async throws {
         var starts: [String?] = []
         let viewModel = GoalsViewModel(
-            generatePlan: { request in
+            generatePlan: { request, _, _ in
                 starts.append(request.startDate)
                 return try self.response(weeks: request.weeksCount!)
             },
@@ -545,7 +697,7 @@ extension TrainingPlanStabilityTests {
         var failing = true
         var starts: [String?] = []
         let viewModel = GoalsViewModel(
-            generatePlan: { request in
+            generatePlan: { request, _, _ in
                 starts.append(request.startDate)
                 if failing { throw URLError(.timedOut) }
                 return try self.response(weeks: request.weeksCount!)
@@ -588,7 +740,7 @@ extension TrainingPlanStabilityTests {
 
         var captured: TrainingPlanGenerationRequest?
         let viewModel = GoalsViewModel(
-            generatePlan: { request in
+            generatePlan: { request, _, _ in
                 captured = request
                 return try self.response(weeks: request.weeksCount!)
             },
@@ -617,7 +769,7 @@ extension TrainingPlanStabilityTests {
 
         var requests = 0
         let viewModel = GoalsViewModel(
-            generatePlan: { _ in
+            generatePlan: { _, _, _ in
                 requests += 1
                 throw URLError(.badURL)
             },

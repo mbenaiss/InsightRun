@@ -30,7 +30,10 @@ import adaptTrainingPlanRoutes from './routes/adaptTrainingPlan'
 import agentChatRoutes from './routes/agentChat'
 import analyzeHistoryRoutes from './routes/analyzeHistory'
 import dailyReadinessRoutes from './routes/dailyReadiness'
-import generateTrainingPlanRoutes from './routes/generateTrainingPlan'
+import generateTrainingPlanRoutes, {
+  type PlanJobParams,
+  planJobRoutes,
+} from './routes/generateTrainingPlan'
 import generateWorkoutRoutes from './routes/generateWorkout'
 import smartSuggestionRoutes from './routes/smartSuggestion'
 import stravaRoutes from './routes/strava'
@@ -49,6 +52,7 @@ type Bindings = {
   STRAVA_WEBHOOK_VERIFY_TOKEN: string
   STRAVA_TOKENS: KVNamespace
   STRAVA_CACHE: D1Database
+  PLAN_GENERATION: Workflow<PlanJobParams>
 }
 
 type Variables = {
@@ -249,6 +253,7 @@ app.use(
 for (const prefix of [
   '/api/analyze-history',
   '/api/generate-training-plan',
+  '/api/training-plan-jobs',
   '/api/adapt-training-plan',
   '/api/generate-workout',
   '/api/workout/smart-suggestion',
@@ -326,6 +331,12 @@ app.use('/api/*', async (c, next) => {
     )
   }
 
+  // The app polls a plan job until it is ready, then deletes it: neither uses up the API quota.
+  if (['GET', 'DELETE'].includes(c.req.method) && path.startsWith('/api/training-plan-jobs/')) {
+    await next()
+    return
+  }
+
   // Keyed routes rejected keyless calls above; a keyless call to a public route is not metered.
   if (!validateAppAuth(c)) {
     await next()
@@ -400,6 +411,7 @@ app.route('/api/analyze-history', analyzeHistoryRoutes)
 
 // Mount generate-training-plan route
 app.route('/api/generate-training-plan', generateTrainingPlanRoutes)
+app.route('/api/training-plan-jobs', planJobRoutes)
 
 // Mount adapt-training-plan route
 app.route('/api/adapt-training-plan', adaptTrainingPlanRoutes)

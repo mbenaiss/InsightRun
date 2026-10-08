@@ -109,7 +109,8 @@ struct StatisticsSnapshot {
             start = calendar.dateInterval(of: component, for: now)?.start ?? calendar.startOfDay(for: now)
             end = now
             previousStart = shifted(start, component, -1)
-            previousEnd = shifted(now, component, -1)
+            // The month is compared with the whole previous month, the week with the same elapsed days.
+            previousEnd = period == .thisMonth ? start : shifted(now, component, -1)
         case .sixMonths, .oneYear:
             let months = period == .sixMonths ? 6 : 12
             start = shifted(now, .month, -months)

@@ -127,11 +127,10 @@ struct HealthInsightReader {
     ).result(for: store)
   }
 
+  // A watchOS update keeps the same device: only a new device starts a new reference.
   private static func source(of sample: HKSample) -> String {
-    [
-      sample.sourceRevision.source.bundleIdentifier, sample.sourceRevision.productType ?? "unknown",
-      sample.sourceRevision.version ?? "unknown",
-    ].joined(separator: "/")
+    [sample.sourceRevision.source.bundleIdentifier, sample.sourceRevision.productType ?? "unknown"]
+      .joined(separator: "/")
   }
 
   // Apple Watch bundle identifiers embed a device UUID, so only a coarse category leaves the device.

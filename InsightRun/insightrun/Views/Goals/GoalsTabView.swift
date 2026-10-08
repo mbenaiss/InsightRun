@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct GoalsTabView: View {
-    @StateObject private var viewModel = GoalsViewModel()
+    @StateObject private var viewModel = GoalsViewModel.shared
     @ObservedObject private var notificationRouter = NotificationRouter.shared
     @State private var deepLinkGoalId: UUID?
 

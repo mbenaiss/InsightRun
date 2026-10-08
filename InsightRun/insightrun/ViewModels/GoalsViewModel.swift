@@ -10,6 +10,9 @@ import SwiftUI
 
 @MainActor
 class GoalsViewModel: ObservableObject {
+    // Created on first use, after ContentView gives GoalStorage its context, so launch can collect plans.
+    static let shared = GoalsViewModel()
+
     @Published var goals: [RaceGoal] = []
     @Published var isGeneratingPlan = false
     @Published var generationError: String?
@@ -25,21 +28,34 @@ class GoalsViewModel: ObservableObject {
     private var pendingGenerationStart: Date?
 
     private let storage = GoalStorage.shared
-    private let generatePlan: (TrainingPlanGenerationRequest) async throws -> TrainingPlanGenerationResponse
+    private let generatePlan: (
+        TrainingPlanGenerationRequest, _ jobID: UUID, _ onProgress: @escaping (Double) -> Void
+    ) async throws -> TrainingPlanGenerationResponse
+    private let awaitPlan: (_ jobID: UUID, _ startedAt: Date) async throws -> TrainingPlanGenerationResponse
+    private let discardPlanJob: @MainActor (_ jobID: UUID) -> Void
     private let adaptPlan: (AdaptTrainingPlanRequest) async throws -> AdaptTrainingPlanResponse
     private let hasConsent: @MainActor () -> Bool
     private let hasAIAccess: @MainActor () -> Bool
     private let recordGeneration: @MainActor () -> Void
     private let loadRunningHistory: @MainActor () async -> RunningHistorySummary?
+    private let planJobs: PendingPlanJobStore
     @Published private(set) var generatingGoalID: UUID?
     @Published private(set) var adaptingGoalID: UUID?
     private var planRevisions: [UUID: UUID] = [:]
 
     init(
         generatePlan:
-            @escaping (TrainingPlanGenerationRequest) async throws -> TrainingPlanGenerationResponse = {
-                try await BackendAPIClient.shared.generateTrainingPlan(request: $0)
+            @escaping (TrainingPlanGenerationRequest, UUID, @escaping (Double) -> Void) async throws
+            -> TrainingPlanGenerationResponse = {
+                try await BackendAPIClient.shared.generateTrainingPlan(request: $0, jobID: $1, onProgress: $2)
             },
+        awaitPlan: @escaping (UUID, Date) async throws -> TrainingPlanGenerationResponse = {
+            try await BackendAPIClient.shared.awaitTrainingPlanJob(jobID: $0, startedAt: $1)
+        },
+        discardPlanJob: @escaping @MainActor (UUID) -> Void = { jobID in
+            guard !DemoMode.isEnabled else { return }
+            Task { await BackendAPIClient.shared.deleteTrainingPlanJob(jobID: jobID) }
+        },
         adaptPlan: @escaping (AdaptTrainingPlanRequest) async throws -> AdaptTrainingPlanResponse = {
             try await BackendAPIClient.shared.adaptTrainingPlan(request: $0)
         },
@@ -50,14 +66,18 @@ class GoalsViewModel: ObservableObject {
         },
         loadRunningHistory: @escaping @MainActor () async -> RunningHistorySummary? = {
             await RunningHistorySummary.recent()
-        }
+        },
+        planJobs: PendingPlanJobStore? = nil
     ) {
         self.generatePlan = generatePlan
+        self.awaitPlan = awaitPlan
+        self.discardPlanJob = discardPlanJob
         self.adaptPlan = adaptPlan
         self.hasConsent = hasConsent
         self.hasAIAccess = hasAIAccess
         self.recordGeneration = recordGeneration
         self.loadRunningHistory = loadRunningHistory
+        self.planJobs = planJobs ?? PendingPlanJobStore()
         if DemoMode.isEnabled {
             goals = MockData.sampleGoals
             return
@@ -135,9 +155,17 @@ class GoalsViewModel: ObservableObject {
         generationErrorGoalID = goal.id
 
         generatingGoalID = goal.id
+        let backgroundWork = BackgroundWorkSession(
+            name: "plan-generation",
+            title: String(localized: "goals.detail.generating", defaultValue: "Crafting your plan...", comment: "Goal detail - generating"),
+            subtitle: goal.raceName,
+            expectedDuration: 45
+        )
+        var didSavePlan = false
         defer {
             isGeneratingPlan = false
             generatingGoalID = nil
+            backgroundWork.end(success: didSavePlan)
         }
         let revision = UUID()
         planRevisions[goal.id] = revision
@@ -160,25 +188,104 @@ class GoalsViewModel: ObservableObject {
                 weeksCount: schedule.weeksCount
             )
 
-            let response = try await generatePlan(request)
-            try Task.checkCancellation()
-            guard planRevisions[goal.id] == revision else { return }
-            let plan = try convertResponseToPlan(response, for: goal, schedule: schedule)
-            recordGeneration()
-
-            if let index = goals.firstIndex(where: { $0.id == goal.id }) {
-                goals[index].planStartDate = schedule.start
-                goals[index].trainingPlan = plan
-                storage.updateGoal(goals[index])
+            // An interrupted attempt with the same schedule is joined rather than generated and paid twice.
+            let earlierJob = planJobs.jobs.first { $0.goalID == goal.id }
+            let jobID: UUID
+            if let earlierJob, earlierJob.start == schedule.start, earlierJob.target == schedule.target {
+                jobID = earlierJob.jobID
+            } else {
+                if let earlierJob { finishPlanJob(earlierJob.jobID) }
+                jobID = UUID()
             }
+            // Saved before the request: if the app is closed, the next activation collects the plan.
+            planJobs.save(
+                PendingPlanJob(
+                    jobID: jobID, goalID: goal.id, start: schedule.start, target: schedule.target, createdAt: Date()))
+            let response: TrainingPlanGenerationResponse
+            do {
+                let polling = Task {
+                    try await generatePlan(request, jobID) { backgroundWork.report(progress: $0) }
+                }
+                backgroundWork.onExpiration = { polling.cancel() }
+                response = try await withTaskCancellationHandler {
+                    try await polling.value
+                } onCancel: {
+                    polling.cancel()
+                }
+            } catch {
+                if !Self.canCollectLater(error) { finishPlanJob(jobID) }
+                throw error
+            }
+            defer { finishPlanJob(jobID) }
+            didSavePlan = try applyGeneratedPlan(response, goalID: goal.id, schedule: schedule, revision: revision)
         } catch is CancellationError {
             return
         } catch {
-            if goals.contains(where: { $0.id == goal.id }) {
-                generationError = error.localizedDescription
-            }
+            guard !backgroundWork.didExpire, goals.contains(where: { $0.id == goal.id }) else { return }
+            generationError = error.localizedDescription
         }
 
+    }
+
+    func resumePendingPlanJobs() async {
+        for job in planJobs.jobs {
+            guard !isGeneratingPlan, !isAdaptingPlan else { return }
+            guard goals.contains(where: { $0.id == job.goalID }) else {
+                finishPlanJob(job.jobID)
+                continue
+            }
+            isGeneratingPlan = true
+            generatingGoalID = job.goalID
+            let revision = UUID()
+            planRevisions[job.goalID] = revision
+            defer {
+                isGeneratingPlan = false
+                generatingGoalID = nil
+            }
+            do {
+                let schedule = try TrainingPlanSchedule(start: job.start, target: job.target)
+                let response = try await awaitPlan(job.jobID, job.createdAt)
+                defer { finishPlanJob(job.jobID) }
+                _ = try applyGeneratedPlan(response, goalID: job.goalID, schedule: schedule, revision: revision)
+            } catch is TrainingPlanJobNotFound {
+                planJobs.remove(jobID: job.jobID)
+            } catch let error where Self.canCollectLater(error) {
+                // Still unreachable: the next activation tries again, without an error the person did not ask for.
+                return
+            } catch {
+                finishPlanJob(job.jobID)
+                if goals.contains(where: { $0.id == job.goalID }) {
+                    generationErrorGoalID = job.goalID
+                    generationError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    // Failed, stale or delivered, the job is done: the server copy is deleted as well.
+    private func finishPlanJob(_ jobID: UUID) {
+        planJobs.remove(jobID: jobID)
+        discardPlanJob(jobID)
+    }
+
+    // A cut-off connection or a cancelled wait does not end the server job: its plan can still be collected.
+    private nonisolated static func canCollectLater(_ error: Error) -> Bool {
+        error is CancellationError || error is URLError || (error as NSError).domain == NSPOSIXErrorDomain
+    }
+
+    // A plan edited during the generation makes the response stale.
+    private func applyGeneratedPlan(
+        _ response: TrainingPlanGenerationResponse, goalID: UUID, schedule: TrainingPlanSchedule, revision: UUID
+    ) throws -> Bool {
+        guard planRevisions[goalID] == revision,
+            let index = goals.firstIndex(where: { $0.id == goalID })
+        else { return false }
+        let plan = try convertResponseToPlan(response, for: goals[index], schedule: schedule)
+        recordGeneration()
+        goals[index].planStartDate = schedule.start
+        goals[index].trainingPlan = plan
+        storage.updateGoal(goals[index])
+        return true
     }
 
     // MARK: - Pending Generation (resume after consent)

@@ -18,6 +18,8 @@ struct ContentView: View {
     @State private var showAIConsentSheet = false
     @AppStorage("hasViewedWorkoutDetail") private var hasViewedWorkoutDetail = false
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var areStoresReady = false
     @EnvironmentObject private var revenueCatManager: RevenueCatManager
 
     // File import from share sheet
@@ -173,6 +175,12 @@ struct ContentView: View {
             SuuntoImportService.shared.setModelContext(modelContext)
             GoalStorage.shared.setModelContext(modelContext)
             GoalStorage.shared.migrateFromUserDefaultsIfNeeded()
+            // Only once GoalStorage has its context: the shared goals model loads from it on first use.
+            areStoresReady = true
+            resumePendingPlanJobs()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active, areStoresReady { resumePendingPlanJobs() }
         }
         .task {
             // Check if we should prompt for App Store review
@@ -232,6 +240,11 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    // A plan generated while the app was suspended or closed is collected without visiting Goals.
+    private func resumePendingPlanJobs() {
+        Task { await GoalsViewModel.shared.resumePendingPlanJobs() }
     }
 
     // Covers a user who quit the app on the activation workout; on the Workouts tab the pop or tab switch fires it.

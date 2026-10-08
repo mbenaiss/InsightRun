@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
+import * as modelRouter from '../src/modelRouter'
 import { PLAN_FALLBACK_MODEL_ID } from '../src/modelRouter'
 import * as analytics from '../src/posthog'
 import adaptPlan from '../src/routes/adaptTrainingPlan'
 import generatePlan, { buildPlanSkeleton, taperWeekCount } from '../src/routes/generateTrainingPlan'
+import { memoryKV } from './helpers/memoryKV'
 
 afterEach(() => mock.restore())
 
@@ -16,21 +18,6 @@ const env = {
     put: async () => undefined,
     delete: async () => undefined,
   } as unknown as KVNamespace,
-}
-
-function memoryKV() {
-  const store = new Map<string, string>()
-  const kv = {
-    get: async (key: string) => store.get(key) ?? null,
-    put: async (key: string, value: string) => {
-      store.set(key, value)
-    },
-    delete: async (key: string) => {
-      store.delete(key)
-    },
-  } as unknown as KVNamespace
-  const blockKeys = () => [...store.keys()].filter((key) => key.startsWith('plan-block:'))
-  return { kv, blockKeys }
 }
 
 function requestBody() {
@@ -597,6 +584,80 @@ describe('plan block cache and concurrency', () => {
       expect(calls).toHaveLength(Math.ceil((await response.json()).plan.weeks.length / 4))
     }
     expect(blockKeys()).toHaveLength(3)
+  })
+
+  function sendFromApp(
+    headers: Record<string, string>,
+    kv: KVNamespace,
+    signal: AbortSignal,
+    kept: Promise<unknown>[] = []
+  ) {
+    return generatePlan.request(
+      '/',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(longPlan),
+        signal,
+      },
+      { ...env, RATE_LIMITER: kv },
+      {
+        waitUntil: (promise: Promise<unknown>) => {
+          kept.push(promise)
+        },
+        passThroughOnException: () => {},
+      } as unknown as ExecutionContext
+    )
+  }
+
+  test('finishes the blocks of a disconnected app so its retry pays nothing more', async () => {
+    const { kv, blockKeys } = memoryKV()
+    const quota = spyOn(modelRouter, 'afterModelUsage')
+    const calls: number[] = []
+    const disconnect = new AbortController()
+    spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      disconnect.abort()
+      return respond(calls, new Set())(input, init)
+    })
+    const headers = { 'X-User-ID': 'qa-user', 'Idempotency-Key': 'generate-plan:10k:QA' }
+    const kept: Promise<unknown>[] = []
+    await sendFromApp(headers, kv, disconnect.signal, kept)
+    expect(kept).toHaveLength(1)
+    await Promise.all(kept)
+    expect(calls).toHaveLength(6)
+    expect(blockKeys()).toHaveLength(6)
+    expect(quota).not.toHaveBeenCalled()
+
+    calls.length = 0
+    const retried = await send('generate', longPlan, { headers, kv })
+    expect(retried.status).toBe(200)
+    expect(calls).toEqual([])
+    expect((await retried.json()).plan.weeks).toHaveLength(24)
+    expect(quota).toHaveBeenCalledTimes(1)
+    expect(blockKeys()).toEqual([])
+  })
+
+  test('makes the retry wait for the blocks a disconnected attempt is still finishing', async () => {
+    const { kv } = memoryKV()
+    const calls: number[] = []
+    const disconnect = new AbortController()
+    let firstCallStarted: () => void = () => {}
+    const firstCall = new Promise<void>((resolve) => {
+      firstCallStarted = resolve
+    })
+    spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      firstCallStarted()
+      return respond(calls, new Set(), () => 50)(input, init)
+    })
+    const headers = { 'X-User-ID': 'qa-user', 'Idempotency-Key': 'generate-plan:10k:QA' }
+    const cutOff = sendFromApp(headers, kv, disconnect.signal)
+    await firstCall
+    disconnect.abort()
+    const retried = await send('generate', longPlan, { headers, kv })
+    await cutOff
+    expect(retried.status).toBe(200)
+    expect((await retried.json()).plan.weeks).toHaveLength(24)
+    expect(calls.sort((a, b) => a - b)).toEqual([1, 5, 9, 13, 17, 21])
   })
 
   test('runs at most four model calls at once', async () => {

@@ -448,30 +448,74 @@ class BackendAPIClient {
 
     // MARK: - Training Plan Generation
 
-    /// Generate a multi-week training plan for a race goal
-    func generateTrainingPlan(request: TrainingPlanGenerationRequest) async throws -> TrainingPlanGenerationResponse {
-        // Anti-double-submission: a long, premium-quota generation must not run twice concurrently.
-        let key = "generate-plan:\(request.raceType):\(request.targetDate)"
-        guard await InFlightGuard.shared.begin(key) else { throw RequestInProgressError() }
-        defer { Task { await InFlightGuard.shared.end(key) } }
-
-        let url = URL(string: "\(baseURL)/api/generate-training-plan")!
-        var urlRequest = URLRequest(url: url)
+    // The server keeps generating while the app is suspended or closed: the plan is collected later.
+    func generateTrainingPlan(
+        request: TrainingPlanGenerationRequest, jobID: UUID, onProgress: @escaping (Double) -> Void = { _ in }
+    ) async throws -> TrainingPlanGenerationResponse {
+        var urlRequest = URLRequest(url: URL(string: "\(baseURL)/api/training-plan-jobs")!)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
         urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
-        urlRequest.setValue(key, forHTTPHeaderField: "Idempotency-Key")
+        // The server creates at most one generation per job ID, so a resent request is harmless.
+        urlRequest.setValue(jobID.uuidString, forHTTPHeaderField: "Idempotency-Key")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 185 // Backend may run 2x90s attempts; client must outlast it
-
-        let encoder = JSONEncoder()
-        urlRequest.httpBody = try encoder.encode(request)
+        urlRequest.timeoutInterval = 30
+        urlRequest.httpBody = try JSONEncoder().encode(request)
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         try validate(response, data: data)
+        return try await awaitTrainingPlanJob(jobID: jobID, startedAt: Date(), onProgress: onProgress)
+    }
 
-        let decoder = JSONDecoder()
-        return try decoder.decode(TrainingPlanGenerationResponse.self, from: data)
+    func awaitTrainingPlanJob(
+        jobID: UUID, startedAt: Date, onProgress: @escaping (Double) -> Void = { _ in }
+    ) async throws -> TrainingPlanGenerationResponse {
+        // Well beyond the server's own limits: a job still running then will not finish.
+        let deadline = startedAt.addingTimeInterval(20 * 60)
+        while true {
+            let state: TrainingPlanJobState?
+            do {
+                state = try await trainingPlanJobState(jobID: jobID)
+            } catch let error where Self.isTransientPollFailure(error) && Date() < deadline {
+                // A poll cut off by a suspended app or a weak network is simply sent again.
+                state = nil
+            }
+            switch state {
+            case .complete(let response): return response
+            case .failed: throw BackendError.serverError
+            case .running(let progress):
+                if let progress { onProgress(progress) }
+            case nil: break
+            }
+            guard Date() < deadline else { throw BackendError.serverError }
+            try await Task.sleep(for: .seconds(3))
+        }
+    }
+
+    /// Best effort: a job left on the server expires on its own after its retention period.
+    func deleteTrainingPlanJob(jobID: UUID) async {
+        var urlRequest = URLRequest(url: URL(string: "\(baseURL)/api/training-plan-jobs/\(jobID.uuidString)")!)
+        urlRequest.httpMethod = "DELETE"
+        urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        urlRequest.timeoutInterval = 20
+        _ = try? await URLSession.shared.data(for: urlRequest)
+    }
+
+    private func trainingPlanJobState(jobID: UUID) async throws -> TrainingPlanJobState {
+        var urlRequest = URLRequest(url: URL(string: "\(baseURL)/api/training-plan-jobs/\(jobID.uuidString)")!)
+        urlRequest.setValue(appKey, forHTTPHeaderField: "X-App-Key")
+        urlRequest.setValue(UserIdentityService.shared.userID, forHTTPHeaderField: "X-User-ID")
+        urlRequest.timeoutInterval = 20
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        if (response as? HTTPURLResponse)?.statusCode == 404 { throw TrainingPlanJobNotFound() }
+        try validate(response, data: data)
+        return try TrainingPlanJobState(data: data)
+    }
+
+    private static func isTransientPollFailure(_ error: Error) -> Bool {
+        if case BackendError.serverError = error { return true }
+        return error is URLError || (error as NSError).domain == NSPOSIXErrorDomain
     }
 
     // MARK: - Training Plan Adaptation
@@ -620,6 +664,11 @@ enum BackendError: LocalizedError {
 }
 
 // MARK: - In-Flight Guard
+
+// Never created, already collected, or past the server's retention: nothing is left to fetch.
+struct TrainingPlanJobNotFound: LocalizedError {
+    var errorDescription: String? { BackendError.serverError.errorDescription }
+}
 
 /// Thrown when a long generation is already running for the same key (anti-double-submission).
 struct RequestInProgressError: LocalizedError {

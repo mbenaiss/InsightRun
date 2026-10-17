@@ -66,3 +66,7 @@ HealthApp/*.playground
 # Skills (agent-installed)
 .agents/
 .claude/skills/
+CLAUDE.md
+.claude/
+.env.*
+!.env.example

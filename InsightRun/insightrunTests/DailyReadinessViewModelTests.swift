@@ -71,6 +71,24 @@ final class DailyReadinessViewModelTests: XCTestCase {
         XCTAssertEqual(model.readinessScore, 80)
     }
 
+    func testConsentGrantedInOnboardingPaywallWithdrawsThePendingConsentSheet() async {
+        var consented = false
+        var requests: [DailyReadinessRequest] = []
+        let model = DailyReadinessViewModel(dailyCache: cache, hasConsent: { consented }, requiresIndexation: { true },
+                                            loadNoSleepMode: { true }, fetchReadiness: { requests.append($0); return self.response() },
+                                            isDemo: { false })
+        let recovery = RecoveryMetrics(date: Date(), restingHeartRate: 52, hrvAverage: 68)
+
+        await model.fetchDailyReadiness(recoveryMetrics: recovery)
+        XCTAssertTrue(model.needsConsent)
+
+        consented = true
+        await model.fetchDailyReadiness(recoveryMetrics: recovery)
+        XCTAssertFalse(model.needsConsent)
+        XCTAssertTrue(model.needsIndexation)
+        XCTAssertTrue(requests.isEmpty)
+    }
+
     func testIntradayVitalsAndBaselineRefreshKeepTheFrozenScore() async {
         var requests: [DailyReadinessRequest] = []
         let model = viewModel { request in

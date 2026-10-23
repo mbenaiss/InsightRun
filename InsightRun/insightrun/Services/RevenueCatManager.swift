@@ -34,6 +34,8 @@ class RevenueCatManager: NSObject, ObservableObject {
 
     // Free AI requests tracking (allows 3 free requests before requiring subscription)
     @Published private(set) var freeAIRequestsUsed: Int = 0
+    @Published var pendingCancellationSurvey: CancellationSurveyRequest?
+    private let cancellationSurveyStore = CancellationSurveyStore()
     private let maxFreeRequests = 3
     private let freeRequestsKey = "com.insightrun.freeAIRequestsUsed"
 
@@ -63,6 +65,12 @@ class RevenueCatManager: NSObject, ObservableObject {
         if let data = UserDefaults.standard.data(forKey: entitlementSnapshotKey) {
             self.entitlementSnapshot = try? JSONDecoder().decode(EntitlementSnapshot.self, from: data)
         }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-CANCELLATION_SURVEY_UI_TEST") {
+            pendingCancellationSurvey = CancellationSurveyRequest(
+                productId: "com.altcode.insightrun.Annual", isTrial: true, unsubscribeDetectedAt: Date())
+        }
+        #endif
 
         // Detect TestFlight environment on initialization
         Task {
@@ -300,6 +308,16 @@ class RevenueCatManager: NSObject, ObservableObject {
         entitlementSnapshot = current
         persistEntitlementSnapshot(current)
 
+        if pendingCancellationSurvey == nil, let current, let entitlement = info.entitlements.active.values.first,
+           let request = cancellationSurveyStore.request(
+               productId: current.productIdentifier,
+               isTrial: entitlement.periodType == .trial,
+               willRenew: current.willRenew,
+               unsubscribeDetectedAt: current.unsubscribeDetectedAt
+           ) {
+            pendingCancellationSurvey = request
+        }
+
         guard trackLifecycleChanges, let previous, let current else { return }
 
         if previous.willRenew && !current.willRenew && current.unsubscribeDetectedAt != nil {
@@ -312,6 +330,10 @@ class RevenueCatManager: NSObject, ObservableObject {
            currentPurchase > previousPurchase {
             AnalyticsService.shared.trackSubscriptionRenewed(productId: current.productIdentifier)
         }
+    }
+
+    func cancellationSurveyShown(_ request: CancellationSurveyRequest) {
+        cancellationSurveyStore.markAsked(request)
     }
 
     private func persistEntitlementSnapshot(_ snapshot: EntitlementSnapshot?) {

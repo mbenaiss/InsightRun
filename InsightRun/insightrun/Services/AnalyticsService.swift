@@ -391,6 +391,28 @@ final class AnalyticsService: WorkoutAnalysisTracking {
         track(.subscriptionCancelled, properties: properties)
     }
 
+    func trackCancellationSurveyShown(_ request: CancellationSurveyRequest) {
+        track(.cancellationSurveyShown, properties: [
+            "product_id": request.productId,
+            "is_trial": request.isTrial
+        ])
+    }
+
+    func trackCancellationSurveyAnswered(_ request: CancellationSurveyRequest, reason: CancellationReason) {
+        track(.cancellationSurveyAnswered, properties: [
+            "product_id": request.productId,
+            "is_trial": request.isTrial,
+            "reason": reason.rawValue
+        ])
+    }
+
+    func trackCancellationSurveyDismissed(_ request: CancellationSurveyRequest) {
+        track(.cancellationSurveyDismissed, properties: [
+            "product_id": request.productId,
+            "is_trial": request.isTrial
+        ])
+    }
+
     func trackSubscriptionRenewed(productId: String) {
         track(.subscriptionRenewed, properties: ["product_id": productId])
     }
@@ -672,6 +694,9 @@ enum AnalyticsEvent: String {
     case subscriptionRestored = "subscription_restored"
     case subscriptionCancelled = "subscription_cancelled"
     case subscriptionRenewed = "subscription_renewed"
+    case cancellationSurveyShown = "cancellation_survey_shown"
+    case cancellationSurveyAnswered = "cancellation_survey_answered"
+    case cancellationSurveyDismissed = "cancellation_survey_dismissed"
 
     // Activation
     case activationStarted = "activation_started"

@@ -124,6 +124,24 @@ struct ContentView: View {
                 selectedTab = 3
             }
         }
+        .sheet(item: $revenueCatManager.pendingCancellationSurvey) { request in
+            CancellationSurveySheet(
+                request: request,
+                onAnswer: { reason in
+                    AnalyticsService.shared.trackCancellationSurveyAnswered(request, reason: reason)
+                    revenueCatManager.pendingCancellationSurvey = nil
+                },
+                onDismiss: {
+                    AnalyticsService.shared.trackCancellationSurveyDismissed(request)
+                    revenueCatManager.pendingCancellationSurvey = nil
+                }
+            )
+            .interactiveDismissDisabled()
+            .onAppear {
+                revenueCatManager.cancellationSurveyShown(request)
+                AnalyticsService.shared.trackCancellationSurveyShown(request)
+            }
+        }
         .fullScreenCover(isPresented: .constant(!onboardingManager.hasCompletedOnboarding)) {
             OnboardingView()
         }

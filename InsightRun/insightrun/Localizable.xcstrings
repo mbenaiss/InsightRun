@@ -1,6 +1,186 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "cancellation_survey.title" : {
+      "comment" : "Title of the survey shown after the user cancels their subscription",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why did you cancel?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi avez-vous résilié ?"
+          }
+        }
+      }
+    },
+    "cancellation_survey.subtitle.trial" : {
+      "comment" : "Cancellation survey subtitle when a free trial was cancelled",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your free trial stays active until it ends. Your answer helps us improve InsightRun."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre essai gratuit reste actif jusqu'à son terme. Votre réponse nous aide à améliorer InsightRun."
+          }
+        }
+      }
+    },
+    "cancellation_survey.subtitle.subscription" : {
+      "comment" : "Cancellation survey subtitle when a paid subscription was cancelled",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your subscription stays active until the end of the period. Your answer helps us improve InsightRun."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre abonnement reste actif jusqu'à la fin de la période. Votre réponse nous aide à améliorer InsightRun."
+          }
+        }
+      }
+    },
+    "cancellation_survey.not_now" : {
+      "comment" : "Button to close the cancellation survey without answering",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not now"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus tard"
+          }
+        }
+      }
+    },
+    "cancellation_survey.reason.too_expensive" : {
+      "comment" : "Cancellation reason",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It's too expensive"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C'est trop cher"
+          }
+        }
+      }
+    },
+    "cancellation_survey.reason.not_useful_enough" : {
+      "comment" : "Cancellation reason",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It's not useful enough for me"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce n'est pas assez utile pour moi"
+          }
+        }
+      }
+    },
+    "cancellation_survey.reason.just_trying_it" : {
+      "comment" : "Cancellation reason",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I was just trying it out"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je voulais juste tester"
+          }
+        }
+      }
+    },
+    "cancellation_survey.reason.missing_feature" : {
+      "comment" : "Cancellation reason",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A feature I need is missing"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il manque une fonction dont j'ai besoin"
+          }
+        }
+      }
+    },
+    "cancellation_survey.reason.technical_issue" : {
+      "comment" : "Cancellation reason",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I ran into a bug or a problem"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "J'ai rencontré un bug ou un problème"
+          }
+        }
+      }
+    },
+    "cancellation_survey.reason.other" : {
+      "comment" : "Cancellation reason",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another reason"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une autre raison"
+          }
+        }
+      }
+    },
     "activity.steps.explanation" : {
       "localizations" : {
         "en" : {

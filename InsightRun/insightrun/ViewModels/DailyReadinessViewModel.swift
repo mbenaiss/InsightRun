@@ -150,6 +150,8 @@ class DailyReadinessViewModel: ObservableObject {
             isLoading = false
             return
         }
+        // Consent granted elsewhere (e.g. the onboarding paywall) must cancel the sheet still queued behind it.
+        needsConsent = false
 
         // Check historical indexation
         let indexationRequired = await requiresIndexation()
@@ -162,7 +164,6 @@ class DailyReadinessViewModel: ObservableObject {
             return
         }
 
-        needsConsent = false
         needsIndexation = false
 
         do {

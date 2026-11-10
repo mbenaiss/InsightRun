@@ -67,6 +67,12 @@ const MODELS: Record<string, ModelConfig> = {
     description: 'Balanced model for moderate complexity',
     requiresQuota: false,
   },
+  CLAUDE_HAIKU_5_5: {
+    modelId: 'anthropic/claude-haiku-5.5',
+    displayName: 'Claude Haiku 5.5',
+    description: 'Balanced model, fallback when a request type points to a missing model',
+    requiresQuota: false,
+  },
   CLAUDE_SONNET_4_5: {
     modelId: 'anthropic/claude-sonnet-4.5',
     displayName: 'Claude Sonnet 4.5',
@@ -345,7 +351,7 @@ function selectModelForRequestType(
     console.warn(
       `⚠️ ModelRouter: Unknown request type or model "${requestType}:${modelKey}", defaulting to Haiku`
     )
-    return MODELS.CLAUDE_HAIKU_4_5
+    return MODELS.CLAUDE_HAIKU_5_5
   }
 
   const selectedModel = allModels[modelKey]

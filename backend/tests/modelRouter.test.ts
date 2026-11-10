@@ -6,6 +6,7 @@ import {
   RequestType,
   selectModel,
   selectModelFromRequest,
+  setModelMapping,
   upsertModel,
 } from '../src/modelRouter'
 
@@ -99,6 +100,29 @@ describe('client-selected model', () => {
     )
     expect(exhausted.modelId).not.toBe(premium)
     expect(exhausted.modelConfig?.requiresQuota).toBe(false)
+  })
+})
+
+describe('route mapping', () => {
+  afterEach(() => mock.restore())
+
+  test('a request type mapped to a removed model falls back to Claude Haiku 5.5', async () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    const stored = new Map<string, string>()
+    const kv = {
+      get: async (key: string) => stored.get(key) ?? null,
+      put: async (key: string, value: string) => {
+        stored.set(key, value)
+      },
+    } as unknown as KVNamespace
+    await setModelMapping(kv, { [RequestType.MODERATE]: 'GPT_4O_RETIRED' })
+    try {
+      const { model } = await selectModel(RequestType.MODERATE, kv)
+      expect(model.modelId).toBe('anthropic/claude-haiku-5.5')
+      expect(String(warn.mock.calls[0]?.[0])).toContain('MODERATE:GPT_4O_RETIRED')
+    } finally {
+      await setModelMapping(kv, {})
+    }
   })
 })
 
